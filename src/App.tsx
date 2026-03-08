@@ -12,6 +12,7 @@ import Events from "./pages/Events";
 import Community from "./pages/Community";
 import Shop from "./pages/Shop";
 import Rewards from "./pages/Rewards";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/community" element={<Community />} />
             <Route path="/shop" element={<Shop />} />
             <Route path="/rewards" element={<Rewards />} />
+            <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

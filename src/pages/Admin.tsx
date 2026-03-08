@@ -208,7 +208,7 @@ export default function Admin() {
     setDialogOpen(null);
   };
 
-  const handleDelete = async (table: string, id: string) => {
+  const handleDelete = async (table: "events" | "products" | "rewards", id: string) => {
     const { error } = await supabase.from(table).delete().eq("id", id);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Deleted successfully" });
