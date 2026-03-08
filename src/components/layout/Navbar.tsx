@@ -31,7 +31,7 @@ export function Navbar({ isAuthenticated = false, onLogout }: NavbarProps) {
           <Link to="/" className="flex items-center gap-3">
             <img src={bannerLogo} alt="Golfer's Edge" className="h-8 w-auto" />
             <span className="font-display text-lg font-semibold text-foreground">
-              EdgeTribe
+              EdgeCollective
             </span>
           </Link>
 
@@ -73,7 +73,7 @@ export function Navbar({ isAuthenticated = false, onLogout }: NavbarProps) {
                   <Button variant="ghost">Sign In</Button>
                 </Link>
                 <Link to="/auth?mode=signup">
-                  <Button variant="default">Join the Tribe</Button>
+                  <Button variant="default">Join the Collective</Button>
                 </Link>
               </>
             )}
@@ -135,7 +135,7 @@ export function Navbar({ isAuthenticated = false, onLogout }: NavbarProps) {
                     <Button variant="ghost" className="w-full">Sign In</Button>
                   </Link>
                   <Link to="/auth?mode=signup" onClick={() => setIsOpen(false)}>
-                    <Button variant="default" className="w-full">Join the Tribe</Button>
+                    <Button variant="default" className="w-full">Join the Collective</Button>
                   </Link>
                 </>
               )}

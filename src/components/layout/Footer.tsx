@@ -10,7 +10,7 @@ export function Footer() {
           <Link to="/" className="flex items-center gap-3">
             <img src={bannerLogo} alt="Golfer's Edge" className="h-7 w-auto" />
             <span className="font-display text-lg font-semibold text-foreground">
-              EdgeTribe
+              EdgeCollective
             </span>
           </Link>
 
@@ -24,7 +24,7 @@ export function Footer() {
 
           {/* Copyright */}
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} EdgeTribe by Golfer's Edge. All rights reserved.
+            © {new Date().getFullYear()} EdgeCollective by Golfer's Edge. All rights reserved.
           </p>
         </div>
       </div>

@@ -14,7 +14,7 @@ export function CTASection() {
           <div className="relative mx-auto max-w-3xl text-center">
             <h2 className="font-display text-3xl font-bold text-primary-foreground sm:text-4xl lg:text-5xl">
               Ready to Join the
-              <span className="text-gradient-gold"> EdgeTribe?</span>
+              <span className="text-gradient-gold"> EdgeCollective?</span>
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-lg text-primary-foreground/80">
               Start tracking your progress, competing with friends, and earning rewards today. Your golf journey at Golfer's Edge awaits.
