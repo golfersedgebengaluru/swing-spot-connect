@@ -5,6 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
+import { useAuth } from "@/contexts/AuthContext";
 import bannerLogo from "@/assets/golfers-edge-banner.jpg";
 import heroImage from "@/assets/golfers-edge-hero.jpg";
 
@@ -12,16 +15,21 @@ export default function Auth() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+  const { user } = useAuth();
+
   const [isSignUp, setIsSignUp] = useState(searchParams.get("mode") === "signup");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     name: "",
   });
+
+  useEffect(() => {
+    if (user) navigate("/dashboard");
+  }, [user, navigate]);
 
   useEffect(() => {
     setIsSignUp(searchParams.get("mode") === "signup");
@@ -31,15 +39,51 @@ export default function Auth() {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulated auth - will be replaced with real auth
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: { full_name: formData.name },
+            emailRedirectTo: window.location.origin,
+          },
+        });
+        if (error) throw error;
+        toast({
+          title: "Check your email!",
+          description: "We sent you a confirmation link to complete your signup.",
+        });
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+        if (error) throw error;
+        navigate("/dashboard");
+      }
+    } catch (error: any) {
       toast({
-        title: isSignUp ? "Account created!" : "Welcome back!",
-        description: "Backend integration required. Enable Lovable Cloud to activate authentication.",
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
       });
-      navigate("/dashboard");
-    }, 1500);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleOAuthSignIn = async (provider: "google" | "apple") => {
+    const { error } = await lovable.auth.signInWithOAuth(provider, {
+      redirect_uri: window.location.origin,
+    });
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to sign in",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -47,7 +91,6 @@ export default function Auth() {
       {/* Left Panel - Form */}
       <div className="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
         <div className="mx-auto w-full max-w-sm lg:w-96">
-          {/* Back Link */}
           <Link
             to="/"
             className="mb-8 inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -56,7 +99,6 @@ export default function Auth() {
             Back to home
           </Link>
 
-          {/* Header */}
           <div>
             <Link to="/" className="flex items-center gap-3">
               <img src={bannerLogo} alt="Golfer's Edge" className="h-8 w-auto" />
@@ -74,13 +116,13 @@ export default function Auth() {
             </p>
           </div>
 
-          {/* Social Auth Buttons */}
+          {/* Social Auth */}
           <div className="mt-8 space-y-3">
             <Button
               variant="outline"
               className="w-full"
               size="lg"
-              onClick={() => toast({ title: "Google Sign-In", description: "Enable Lovable Cloud to activate Google sign-in." })}
+              onClick={() => handleOAuthSignIn("google")}
             >
               <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
@@ -94,7 +136,7 @@ export default function Auth() {
               variant="outline"
               className="w-full"
               size="lg"
-              onClick={() => toast({ title: "Apple Sign-In", description: "Enable Lovable Cloud to activate Apple sign-in." })}
+              onClick={() => handleOAuthSignIn("apple")}
             >
               <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
@@ -169,7 +211,6 @@ export default function Auth() {
             </Button>
           </form>
 
-          {/* Toggle Mode */}
           <p className="mt-6 text-center text-sm text-muted-foreground">
             {isSignUp ? "Already a tribe member?" : "Not a member yet?"}{" "}
             <Link
@@ -197,7 +238,6 @@ export default function Auth() {
             </p>
           </div>
         </div>
-        {/* Decorative elements */}
         <div className="absolute -bottom-20 -left-20 h-96 w-96 rounded-full bg-accent/10 blur-3xl" />
         <div className="absolute -right-20 -top-20 h-96 w-96 rounded-full bg-primary-foreground/5 blur-3xl" />
       </div>
