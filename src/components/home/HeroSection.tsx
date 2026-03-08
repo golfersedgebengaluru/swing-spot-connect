@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Trophy, Users, Calendar, Gift } from "lucide-react";
+import heroImage from "@/assets/golfers-edge-hero.jpg";
 
 const features = [
   { icon: Trophy, label: "Leaderboards" },
@@ -12,6 +13,12 @@ const features = [
 export function HeroSection() {
   return (
     <section className="relative overflow-hidden bg-gradient-hero py-20 lg:py-32">
+      {/* Background Image with Overlay */}
+      <div className="absolute inset-0">
+        <img src={heroImage} alt="" className="h-full w-full object-cover opacity-20" />
+        <div className="absolute inset-0 bg-gradient-hero opacity-90" />
+      </div>
+
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute -left-20 -top-20 h-96 w-96 rounded-full bg-accent blur-3xl" />
@@ -23,26 +30,26 @@ export function HeroSection() {
           {/* Badge */}
           <div className="animate-fade-up mb-6 inline-flex items-center gap-2 rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-4 py-2 text-sm text-primary-foreground backdrop-blur-sm">
             <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
-            Welcome to Your Golf Community
+            Welcome to the EdgeTribe Community
           </div>
 
           {/* Headline */}
           <h1 className="animate-fade-up font-display text-4xl font-bold leading-tight text-primary-foreground sm:text-5xl lg:text-6xl" style={{ animationDelay: "0.1s" }}>
-            Elevate Your
-            <span className="text-gradient-gold"> Indoor Golf </span>
-            Experience
+            Join the
+            <span className="text-gradient-gold"> EdgeTribe </span>
+            by Golfer's Edge
           </h1>
 
           {/* Subheadline */}
           <p className="animate-fade-up mx-auto mt-6 max-w-2xl text-lg text-primary-foreground/80" style={{ animationDelay: "0.2s" }}>
-            Join our exclusive community of golf enthusiasts. Track your progress, compete on leaderboards, attend events, and earn rewards with every swing.
+            Your exclusive community for indoor golf enthusiasts. Track your progress, compete on leaderboards, attend events, and earn rewards with every swing.
           </p>
 
           {/* CTA Buttons */}
           <div className="animate-fade-up mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row" style={{ animationDelay: "0.3s" }}>
             <Link to="/auth?mode=signup">
               <Button variant="gold" size="xl">
-                Join the Community
+                Join the Tribe
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>

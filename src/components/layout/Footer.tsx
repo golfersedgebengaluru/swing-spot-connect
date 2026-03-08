@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import bannerLogo from "@/assets/golfers-edge-banner.jpg";
 
 export function Footer() {
   return (
@@ -6,12 +7,10 @@ export function Footer() {
       <div className="container mx-auto px-4">
         <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
-              <span className="font-display text-sm font-bold text-primary-foreground">G</span>
-            </div>
+          <Link to="/" className="flex items-center gap-3">
+            <img src={bannerLogo} alt="Golfer's Edge" className="h-7 w-auto" />
             <span className="font-display text-lg font-semibold text-foreground">
-              GolfHub
+              EdgeTribe
             </span>
           </Link>
 
@@ -25,7 +24,7 @@ export function Footer() {
 
           {/* Copyright */}
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} GolfHub. All rights reserved.
+            © {new Date().getFullYear()} EdgeTribe by Golfer's Edge. All rights reserved.
           </p>
         </div>
       </div>
