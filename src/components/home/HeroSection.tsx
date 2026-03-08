@@ -49,7 +49,7 @@ export function HeroSection() {
           <div className="animate-fade-up mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row" style={{ animationDelay: "0.3s" }}>
             <Link to="/auth?mode=signup">
               <Button variant="gold" size="xl">
-                Join the Tribe
+                Join the Collective
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>

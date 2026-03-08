@@ -111,7 +111,7 @@ export default function Auth() {
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
               {isSignUp
-                ? "Create your account and join the tribe"
+                ? "Create your account and join the collective"
                 : "Sign in to access your dashboard"}
             </p>
           </div>
@@ -207,17 +207,17 @@ export default function Auth() {
             </div>
 
             <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-              {isLoading ? "Loading..." : isSignUp ? "Join the Tribe" : "Sign In"}
+              {isLoading ? "Loading..." : isSignUp ? "Join the Collective" : "Sign In"}
             </Button>
           </form>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            {isSignUp ? "Already a tribe member?" : "Not a member yet?"}{" "}
+            {isSignUp ? "Already a collective member?" : "Not a member yet?"}{" "}
             <Link
               to={isSignUp ? "/auth" : "/auth?mode=signup"}
               className="font-medium text-primary hover:text-primary/80"
             >
-              {isSignUp ? "Sign in" : "Join the Tribe"}
+              {isSignUp ? "Sign in" : "Join the Collective"}
             </Link>
           </p>
         </div>
