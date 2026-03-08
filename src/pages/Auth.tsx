@@ -103,11 +103,11 @@ export default function Auth() {
             <Link to="/" className="flex items-center gap-3">
               <img src={bannerLogo} alt="Golfer's Edge" className="h-8 w-auto" />
               <span className="font-display text-xl font-semibold text-foreground">
-                EdgeTribe
+                EdgeCollective
               </span>
             </Link>
             <h2 className="mt-8 font-display text-2xl font-bold text-foreground">
-              {isSignUp ? "Join the EdgeTribe" : "Welcome back"}
+              {isSignUp ? "Join the EdgeCollective" : "Welcome back"}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
               {isSignUp

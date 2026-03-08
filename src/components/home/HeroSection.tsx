@@ -30,13 +30,13 @@ export function HeroSection() {
           {/* Badge */}
           <div className="animate-fade-up mb-6 inline-flex items-center gap-2 rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-4 py-2 text-sm text-primary-foreground backdrop-blur-sm">
             <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
-            Welcome to the EdgeTribe Community
+            Welcome to the EdgeCollective Community
           </div>
 
           {/* Headline */}
           <h1 className="animate-fade-up font-display text-4xl font-bold leading-tight text-primary-foreground sm:text-5xl lg:text-6xl" style={{ animationDelay: "0.1s" }}>
             Join the
-            <span className="text-gradient-gold"> EdgeTribe </span>
+            <span className="text-gradient-gold"> EdgeCollective </span>
             by Golfer's Edge
           </h1>
 
