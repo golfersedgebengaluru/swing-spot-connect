@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X, User, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import bannerLogo from "@/assets/golfers-edge-banner.jpg";
 
 const navLinks = [
   { href: "/dashboard", label: "Dashboard" },
@@ -27,12 +28,10 @@ export function Navbar({ isAuthenticated = false, onLogout }: NavbarProps) {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary">
-              <span className="font-display text-lg font-bold text-primary-foreground">G</span>
-            </div>
-            <span className="font-display text-xl font-semibold text-foreground">
-              GolfHub
+          <Link to="/" className="flex items-center gap-3">
+            <img src={bannerLogo} alt="Golfer's Edge" className="h-8 w-auto" />
+            <span className="font-display text-lg font-semibold text-foreground">
+              EdgeTribe
             </span>
           </Link>
 
@@ -74,7 +73,7 @@ export function Navbar({ isAuthenticated = false, onLogout }: NavbarProps) {
                   <Button variant="ghost">Sign In</Button>
                 </Link>
                 <Link to="/auth?mode=signup">
-                  <Button variant="default">Join Now</Button>
+                  <Button variant="default">Join the Tribe</Button>
                 </Link>
               </>
             )}
@@ -136,7 +135,7 @@ export function Navbar({ isAuthenticated = false, onLogout }: NavbarProps) {
                     <Button variant="ghost" className="w-full">Sign In</Button>
                   </Link>
                   <Link to="/auth?mode=signup" onClick={() => setIsOpen(false)}>
-                    <Button variant="default" className="w-full">Join Now</Button>
+                    <Button variant="default" className="w-full">Join the Tribe</Button>
                   </Link>
                 </>
               )}

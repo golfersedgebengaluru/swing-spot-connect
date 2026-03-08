@@ -22,7 +22,7 @@ const beverages = [
 ];
 
 const merchandise = [
-  { id: 101, name: "GolfHub Polo", price: 65.00, image: "polo", sizes: ["S", "M", "L", "XL"] },
+  { id: 101, name: "EdgeTribe Polo", price: 65.00, image: "polo", sizes: ["S", "M", "L", "XL"] },
   { id: 102, name: "Performance Cap", price: 35.00, image: "cap", colors: ["Black", "White", "Navy"] },
   { id: 103, name: "Golf Glove", price: 28.00, image: "glove", sizes: ["S", "M", "L"] },
   { id: 104, name: "Logo Golf Balls (12pk)", price: 42.00, image: "balls" },
