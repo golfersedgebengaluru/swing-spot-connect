@@ -14,6 +14,141 @@ export type Database = {
   }
   public: {
     Tables: {
+      earn_methods: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          method: string
+          points_label: string
+          sort_order: number | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          method: string
+          points_label: string
+          sort_order?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          method?: string
+          points_label?: string
+          sort_order?: number | null
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          created_at: string
+          date: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          location: string | null
+          price: string | null
+          prize: string | null
+          spots_taken: number | null
+          spots_total: number | null
+          time_end: string | null
+          time_start: string | null
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          location?: string | null
+          price?: string | null
+          prize?: string | null
+          spots_taken?: number | null
+          spots_total?: number | null
+          time_end?: string | null
+          time_start?: string | null
+          title: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          location?: string | null
+          price?: string | null
+          prize?: string | null
+          spots_taken?: number | null
+          spots_total?: number | null
+          time_end?: string | null
+          time_start?: string | null
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          badge: string | null
+          category: string
+          colors: string[] | null
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          in_stock: boolean | null
+          name: string
+          price: number
+          sizes: string[] | null
+          sort_order: number | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          badge?: string | null
+          category?: string
+          colors?: string[] | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          in_stock?: boolean | null
+          name: string
+          price?: number
+          sizes?: string[] | null
+          sort_order?: number | null
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          badge?: string | null
+          category?: string
+          colors?: string[] | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          in_stock?: boolean | null
+          name?: string
+          price?: number
+          sizes?: string[] | null
+          sort_order?: number | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -50,6 +185,39 @@ export type Database = {
           total_rounds?: number | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      rewards: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_available: boolean | null
+          name: string
+          points_cost: number
+          sort_order: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_available?: boolean | null
+          name: string
+          points_cost?: number
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_available?: boolean | null
+          name?: string
+          points_cost?: number
+          sort_order?: number | null
+          updated_at?: string
         }
         Relationships: []
       }
