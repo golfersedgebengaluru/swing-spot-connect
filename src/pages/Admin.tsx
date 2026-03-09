@@ -288,7 +288,68 @@ export default function Admin() {
     setDialogOpen(null);
   };
 
-  const handleDelete = async (table: "events" | "products" | "rewards", id: string) => {
+  // Load all profiles for member selection
+  const loadProfiles = async () => {
+    const { data } = await supabase.from("profiles").select("user_id, display_name");
+    setAllProfiles(data ?? []);
+  };
+
+  const handleAddMember = async (data: any) => {
+    const { error } = await supabase.from("member_hours").insert({
+      user_id: data.user_id,
+      hours_purchased: data.hours_purchased,
+      hours_used: 0,
+    });
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    // Log transaction
+    await supabase.from("hours_transactions").insert({
+      user_id: data.user_id,
+      type: "purchase",
+      hours: data.hours_purchased,
+      note: "Initial hours setup",
+      created_by: user?.id,
+    });
+    toast({ title: "Member hours added" });
+    queryClient.invalidateQueries({ queryKey: ["member_hours"] });
+    setDialogOpen(null);
+  };
+
+  const handleAdjustHours = async (data: any) => {
+    const member = adjustingMember;
+    if (!member) return;
+    const newPurchased = data.type === "purchase" || (data.type === "adjustment" && data.hours > 0)
+      ? member.hours_purchased + data.hours : member.hours_purchased;
+    const newUsed = data.type === "deduction"
+      ? member.hours_used + data.hours : member.hours_used;
+
+    const { error } = await supabase.from("member_hours").update({
+      hours_purchased: newPurchased,
+      hours_used: newUsed,
+    }).eq("user_id", member.user_id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    await supabase.from("hours_transactions").insert({
+      user_id: member.user_id,
+      type: data.type,
+      hours: data.hours,
+      note: data.note || null,
+      created_by: user?.id,
+    });
+    toast({ title: "Hours updated" });
+    queryClient.invalidateQueries({ queryKey: ["member_hours"] });
+    queryClient.invalidateQueries({ queryKey: ["hours_transactions", member.user_id] });
+    setAdjustingMember(null);
+    setDialogOpen(null);
+  };
+
+  const handleDeleteMember = async (userId: string) => {
+    await supabase.from("hours_transactions").delete().eq("user_id", userId);
+    const { error } = await supabase.from("member_hours").delete().eq("user_id", userId);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Member removed" });
+    queryClient.invalidateQueries({ queryKey: ["member_hours"] });
+  };
+
+
     const { error } = await supabase.from(table).delete().eq("id", id);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Deleted successfully" });
