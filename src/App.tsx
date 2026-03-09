@@ -13,6 +13,7 @@ import Community from "./pages/Community";
 import Shop from "./pages/Shop";
 import Rewards from "./pages/Rewards";
 import Admin from "./pages/Admin";
+import AdminSetup from "./pages/AdminSetup";
 import NotFound from "./pages/NotFound";
 import { AdminRoute } from "@/components/AdminRoute";
 
