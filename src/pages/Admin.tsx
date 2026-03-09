@@ -473,6 +473,71 @@ export default function Admin() {
                 </div>
               )}
             </TabsContent>
+
+            {/* Members Tab */}
+            <TabsContent value="members" className="space-y-4">
+              <div className="flex justify-end">
+                <Dialog open={dialogOpen === "member"} onOpenChange={(open) => { setDialogOpen(open ? "member" : null); }}>
+                  <DialogTrigger asChild>
+                    <Button onClick={() => { loadProfiles(); }}><Plus className="mr-2 h-4 w-4" />Add Member Hours</Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader><DialogTitle>Add Member Hours</DialogTitle></DialogHeader>
+                    <MemberHoursForm profiles={allProfiles} onSave={handleAddMember} onCancel={() => setDialogOpen(null)} />
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              {/* Adjust Hours Dialog */}
+              <Dialog open={dialogOpen === "adjust"} onOpenChange={(open) => { setDialogOpen(open ? "adjust" : null); if (!open) setAdjustingMember(null); }}>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader><DialogTitle>Adjust Hours</DialogTitle></DialogHeader>
+                  {adjustingMember && <AdjustHoursForm member={adjustingMember} onSave={handleAdjustHours} onCancel={() => { setDialogOpen(null); setAdjustingMember(null); }} />}
+                </DialogContent>
+              </Dialog>
+
+              {/* Transaction History Dialog */}
+              <Dialog open={dialogOpen === "history"} onOpenChange={(open) => { setDialogOpen(open ? "history" : null); if (!open) setViewingHistory(null); }}>
+                <DialogContent className="sm:max-w-lg">
+                  <DialogHeader><DialogTitle>Transaction History</DialogTitle></DialogHeader>
+                  {viewingHistory && <TransactionHistory userId={viewingHistory} />}
+                </DialogContent>
+              </Dialog>
+
+              {loadingMembers ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
+                <div className="space-y-3">
+                  {(memberHours ?? []).length === 0 && <p className="text-center text-muted-foreground py-8">No members with hours packages yet.</p>}
+                  {(memberHours ?? []).map((member) => {
+                    const remaining = member.hours_purchased - member.hours_used;
+                    return (
+                      <Card key={member.id} className="shadow-elegant">
+                        <CardContent className="flex items-center justify-between p-4">
+                          <div>
+                            <h3 className="font-medium text-foreground">{member.display_name}</h3>
+                            <div className="flex gap-3 text-sm text-muted-foreground">
+                              <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {remaining} hrs remaining</span>
+                              <span>Purchased: {member.hours_purchased} hrs</span>
+                              <span>Used: {member.hours_used} hrs</span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => { setAdjustingMember(member); setDialogOpen("adjust"); }}>
+                              <MinusCircle className="mr-1 h-4 w-4" />Adjust
+                            </Button>
+                            <Button variant="outline" size="icon" onClick={() => { setViewingHistory(member.user_id); setDialogOpen("history"); }}>
+                              <History className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="icon" onClick={() => handleDeleteMember(member.user_id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </TabsContent>
           </Tabs>
         </div>
       </main>
