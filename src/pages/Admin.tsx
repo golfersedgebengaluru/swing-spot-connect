@@ -161,17 +161,100 @@ function RewardForm({ reward, onSave, onCancel }: { reward?: any; onSave: (data:
   );
 }
 
+function MemberHoursForm({ onSave, onCancel, profiles }: { onSave: (data: any) => void; onCancel: () => void; profiles: any[] }) {
+  const [form, setForm] = useState({ user_id: "", hours_purchased: 0 });
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label>Member</Label>
+        <Select value={form.user_id} onValueChange={(v) => setForm({ ...form, user_id: v })}>
+          <SelectTrigger><SelectValue placeholder="Select a member" /></SelectTrigger>
+          <SelectContent>
+            {profiles.map((p: any) => (
+              <SelectItem key={p.user_id} value={p.user_id}>{p.display_name || p.user_id}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div><Label>Hours Purchased</Label><Input type="number" step="0.5" value={form.hours_purchased} onChange={(e) => setForm({ ...form, hours_purchased: Number(e.target.value) })} /></div>
+      <div className="flex gap-2 justify-end">
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button onClick={() => onSave(form)} disabled={!form.user_id || form.hours_purchased <= 0}>Add Member</Button>
+      </div>
+    </div>
+  );
+}
+
+function AdjustHoursForm({ member, onSave, onCancel }: { member: any; onSave: (data: any) => void; onCancel: () => void }) {
+  const [form, setForm] = useState({ type: "deduction" as string, hours: 0, note: "" });
+  const remaining = member.hours_purchased - member.hours_used;
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg bg-muted p-3">
+        <p className="text-sm text-muted-foreground">Member: <span className="font-medium text-foreground">{member.display_name}</span></p>
+        <p className="text-sm text-muted-foreground">Remaining: <span className="font-medium text-foreground">{remaining} hrs</span></p>
+      </div>
+      <div>
+        <Label>Action</Label>
+        <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="deduction">Deduct Hours</SelectItem>
+            <SelectItem value="purchase">Add Hours</SelectItem>
+            <SelectItem value="adjustment">Adjustment</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div><Label>Hours</Label><Input type="number" step="0.5" min="0" value={form.hours} onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })} /></div>
+      <div><Label>Note (optional)</Label><Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="e.g. Bay session 2hrs" /></div>
+      <div className="flex gap-2 justify-end">
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button onClick={() => onSave(form)} disabled={form.hours <= 0}>Confirm</Button>
+      </div>
+    </div>
+  );
+}
+
+function TransactionHistory({ userId }: { userId: string }) {
+  const { data: transactions, isLoading } = useHoursTransactions(userId);
+  if (isLoading) return <Loader2 className="mx-auto h-6 w-6 animate-spin" />;
+  if (!transactions?.length) return <p className="text-sm text-muted-foreground">No transactions yet.</p>;
+  return (
+    <div className="space-y-2 max-h-60 overflow-y-auto">
+      {transactions.map((t) => (
+        <div key={t.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+          <div className="flex items-center gap-2">
+            {t.type === "deduction" ? <MinusCircle className="h-4 w-4 text-destructive" /> : <PlusCircle className="h-4 w-4 text-primary" />}
+            <span className="capitalize">{t.type}</span>
+            {t.note && <span className="text-muted-foreground">— {t.note}</span>}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={t.type === "deduction" ? "text-destructive" : "text-primary"}>
+              {t.type === "deduction" ? "-" : "+"}{t.hours} hrs
+            </span>
+            <span className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Admin() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: events, isLoading: loadingEvents } = useEvents();
   const { data: products, isLoading: loadingProducts } = useProducts();
   const { data: rewards, isLoading: loadingRewards } = useRewards();
+  const { data: memberHours, isLoading: loadingMembers } = useMemberHours();
   const [editingEvent, setEditingEvent] = useState<any>(null);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [editingReward, setEditingReward] = useState<any>(null);
+  const [adjustingMember, setAdjustingMember] = useState<any>(null);
+  const [viewingHistory, setViewingHistory] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState<string | null>(null);
-
+  const [allProfiles, setAllProfiles] = useState<any[]>([]);
   const handleSaveEvent = async (data: any) => {
     const { error } = editingEvent?.id
       ? await supabase.from("events").update(data).eq("id", editingEvent.id)
