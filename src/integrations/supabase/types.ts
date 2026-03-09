@@ -98,6 +98,63 @@ export type Database = {
         }
         Relationships: []
       }
+      hours_transactions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          hours: number
+          id: string
+          note: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          hours: number
+          id?: string
+          note?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          hours?: number
+          id?: string
+          note?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      member_hours: {
+        Row: {
+          created_at: string
+          hours_purchased: number
+          hours_used: number
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          hours_purchased?: number
+          hours_used?: number
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          hours_purchased?: number
+          hours_used?: number
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           badge: string | null
