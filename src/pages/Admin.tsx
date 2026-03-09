@@ -349,7 +349,7 @@ export default function Admin() {
     queryClient.invalidateQueries({ queryKey: ["member_hours"] });
   };
 
-
+  const handleDelete = async (table: "events" | "products" | "rewards", id: string) => {
     const { error } = await supabase.from(table).delete().eq("id", id);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Deleted successfully" });
