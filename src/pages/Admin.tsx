@@ -363,7 +363,7 @@ export default function Admin() {
         <div className="container mx-auto px-4">
           <div className="mb-8">
             <h1 className="font-display text-3xl font-bold text-foreground">Admin Dashboard</h1>
-            <p className="mt-1 text-muted-foreground">Manage events, products, and rewards</p>
+            <p className="mt-1 text-muted-foreground">Manage events, products, rewards, and member hours</p>
           </div>
 
           <Tabs defaultValue="events" className="space-y-6">
@@ -371,6 +371,7 @@ export default function Admin() {
               <TabsTrigger value="events" className="gap-2"><Calendar className="h-4 w-4" />Events</TabsTrigger>
               <TabsTrigger value="products" className="gap-2"><ShoppingBag className="h-4 w-4" />Products</TabsTrigger>
               <TabsTrigger value="rewards" className="gap-2"><Gift className="h-4 w-4" />Rewards</TabsTrigger>
+              <TabsTrigger value="members" className="gap-2"><Users className="h-4 w-4" />Members</TabsTrigger>
             </TabsList>
 
             {/* Events Tab */}
