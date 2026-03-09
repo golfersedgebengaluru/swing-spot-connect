@@ -161,7 +161,6 @@ function RewardForm({ reward, onSave, onCancel }: { reward?: any; onSave: (data:
 }
 
 export default function Admin() {
-  const { user, loading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: events, isLoading: loadingEvents } = useEvents();
@@ -171,9 +170,6 @@ export default function Admin() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [editingReward, setEditingReward] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState<string | null>(null);
-
-  if (loading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-  if (!user) return <Navigate to="/auth" replace />;
 
   const handleSaveEvent = async (data: any) => {
     const { error } = editingEvent?.id
