@@ -14,6 +14,7 @@ import Shop from "./pages/Shop";
 import Rewards from "./pages/Rewards";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
+import { AdminRoute } from "@/components/AdminRoute";
 
 const queryClient = new QueryClient();
 
@@ -33,7 +34,7 @@ const App = () => (
             <Route path="/community" element={<Community />} />
             <Route path="/shop" element={<Shop />} />
             <Route path="/rewards" element={<Rewards />} />
-            <Route path="/admin" element={<Admin />} />
+            <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
