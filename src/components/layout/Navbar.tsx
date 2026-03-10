@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X, User, LogOut } from "lucide-react";
+import { NotificationBell } from "@/components/NotificationBell";
 import { cn } from "@/lib/utils";
 import bannerLogo from "@/assets/golfers-edge-banner.jpg";
 
@@ -57,6 +58,7 @@ export function Navbar({ isAuthenticated = false, onLogout }: NavbarProps) {
           <div className="hidden items-center gap-3 md:flex">
             {isAuthenticated ? (
               <>
+                <NotificationBell />
                 <Link to="/profile">
                   <Button variant="ghost" size="icon">
                     <User className="h-5 w-5" />
