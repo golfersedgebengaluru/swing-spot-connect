@@ -58,6 +58,7 @@ export function Navbar({ isAuthenticated = false, onLogout }: NavbarProps) {
           <div className="hidden items-center gap-3 md:flex">
             {isAuthenticated ? (
               <>
+                <NotificationBell />
                 <Link to="/profile">
                   <Button variant="ghost" size="icon">
                     <User className="h-5 w-5" />
