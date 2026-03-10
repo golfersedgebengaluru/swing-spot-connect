@@ -334,6 +334,35 @@ export default function Admin() {
       note: data.note || null,
       created_by: user?.id,
     });
+
+    // Send in-app notification for deductions
+    if (data.type === "deduction") {
+      const remaining = newPurchased - newUsed;
+      // Usage notification
+      await supabase.from("notifications").insert({
+        user_id: member.user_id,
+        title: "Hours Deducted",
+        message: `${data.hours} hour(s) have been deducted. You have ${remaining} hour(s) remaining.${data.note ? ` Note: ${data.note}` : ""}`,
+        type: "usage",
+      });
+      // Low hours alert
+      if (remaining <= 3 && remaining > 0) {
+        await supabase.from("notifications").insert({
+          user_id: member.user_id,
+          title: "⚠️ Low Hours Alert",
+          message: `You only have ${remaining} hour(s) remaining. Please purchase more hours to continue.`,
+          type: "warning",
+        });
+      } else if (remaining <= 0) {
+        await supabase.from("notifications").insert({
+          user_id: member.user_id,
+          title: "🚨 No Hours Remaining",
+          message: "Your hours balance has been fully used. Please purchase more hours.",
+          type: "critical",
+        });
+      }
+    }
+
     toast({ title: "Hours updated" });
     queryClient.invalidateQueries({ queryKey: ["member_hours"] });
     queryClient.invalidateQueries({ queryKey: ["hours_transactions", member.user_id] });
