@@ -18,9 +18,10 @@ import { useProducts } from "@/hooks/useProducts";
 import { useRewards } from "@/hooks/useRewards";
 import { useMemberHours, useHoursTransactions } from "@/hooks/useMemberHours";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 function EventForm({ event, onSave, onCancel }: { event?: any; onSave: (data: any) => void; onCancel: () => void }) {
   const [form, setForm] = useState({
