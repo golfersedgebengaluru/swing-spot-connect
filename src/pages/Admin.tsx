@@ -11,16 +11,17 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Loader2, Calendar, ShoppingBag, Gift, Users, Clock, MinusCircle, PlusCircle, History } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Calendar, ShoppingBag, Gift, Users, Clock, MinusCircle, PlusCircle, History, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useEvents } from "@/hooks/useEvents";
 import { useProducts } from "@/hooks/useProducts";
 import { useRewards } from "@/hooks/useRewards";
 import { useMemberHours, useHoursTransactions } from "@/hooks/useMemberHours";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 function EventForm({ event, onSave, onCancel }: { event?: any; onSave: (data: any) => void; onCancel: () => void }) {
   const [form, setForm] = useState({
@@ -255,6 +256,26 @@ export default function Admin() {
   const [viewingHistory, setViewingHistory] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState<string | null>(null);
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
+
+  // Query all signed-up users with their hours
+  const { data: allUsers, isLoading: loadingAllUsers } = useQuery({
+    queryKey: ["admin_all_users"],
+    queryFn: async () => {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, display_name, created_at")
+        .order("created_at", { ascending: false });
+      const { data: hours } = await supabase.from("member_hours").select("*");
+      const hoursMap = new Map((hours ?? []).map((h: any) => [h.user_id, h]));
+      return (profiles ?? []).map((p: any) => ({
+        ...p,
+        hours_purchased: hoursMap.get(p.user_id)?.hours_purchased ?? 0,
+        hours_used: hoursMap.get(p.user_id)?.hours_used ?? 0,
+        hours_remaining: (hoursMap.get(p.user_id)?.hours_purchased ?? 0) - (hoursMap.get(p.user_id)?.hours_used ?? 0),
+      }));
+    },
+  });
+
   const handleSaveEvent = async (data: any) => {
     const { error } = editingEvent?.id
       ? await supabase.from("events").update(data).eq("id", editingEvent.id)
@@ -387,7 +408,7 @@ export default function Admin() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Navbar isAuthenticated={true} />
+      <Navbar />
       <main className="flex-1 py-8">
         <div className="container mx-auto px-4">
           <div className="mb-8">
@@ -401,6 +422,7 @@ export default function Admin() {
               <TabsTrigger value="products" className="gap-2"><ShoppingBag className="h-4 w-4" />Products</TabsTrigger>
               <TabsTrigger value="rewards" className="gap-2"><Gift className="h-4 w-4" />Rewards</TabsTrigger>
               <TabsTrigger value="members" className="gap-2"><Users className="h-4 w-4" />Members</TabsTrigger>
+              <TabsTrigger value="allusers" className="gap-2"><UserCheck className="h-4 w-4" />All Users</TabsTrigger>
             </TabsList>
 
             {/* Events Tab */}
@@ -566,6 +588,48 @@ export default function Admin() {
                   })}
                 </div>
               )}
+            </TabsContent>
+
+            {/* All Users Tab */}
+            <TabsContent value="allusers" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><UserCheck className="h-5 w-5" />All Signed-Up Users</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loadingAllUsers ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Joined</TableHead>
+                          <TableHead className="text-right">Hours Purchased</TableHead>
+                          <TableHead className="text-right">Hours Used</TableHead>
+                          <TableHead className="text-right">Balance</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(allUsers ?? []).length === 0 && (
+                          <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No users found.</TableCell></TableRow>
+                        )}
+                        {(allUsers ?? []).map((u: any) => (
+                          <TableRow key={u.user_id}>
+                            <TableCell className="font-medium">{u.display_name || "Unknown"}</TableCell>
+                            <TableCell>{new Date(u.created_at).toLocaleDateString()}</TableCell>
+                            <TableCell className="text-right">{u.hours_purchased}</TableCell>
+                            <TableCell className="text-right">{u.hours_used}</TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant={u.hours_remaining <= 3 ? "destructive" : "secondary"}>
+                                {u.hours_remaining} hrs
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>
