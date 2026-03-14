@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Menu, X, User, LogOut } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 import bannerLogo from "@/assets/golfers-edge-banner.jpg";
 
 const navLinks = [
@@ -15,12 +16,15 @@ const navLinks = [
   { href: "/rewards", label: "Rewards" },
 ];
 
-interface NavbarProps {
-  isAuthenticated?: boolean;
-  onLogout?: () => void;
-}
+export function Navbar() {
+  const { user, loading, signOut } = useAuth();
+  const navigate = useNavigate();
+  const isAuthenticated = !loading && !!user;
 
-export function Navbar({ isAuthenticated = false, onLogout }: NavbarProps) {
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/");
+  };
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
 
