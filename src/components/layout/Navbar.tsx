@@ -68,7 +68,7 @@ export function Navbar() {
                     <User className="h-5 w-5" />
                   </Button>
                 </Link>
-                <Button variant="outline" size="sm" onClick={onLogout}>
+                <Button variant="outline" size="sm" onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Sign Out
                 </Button>
