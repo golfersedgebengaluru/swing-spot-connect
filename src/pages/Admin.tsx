@@ -589,6 +589,48 @@ export default function Admin() {
                 </div>
               )}
             </TabsContent>
+
+            {/* All Users Tab */}
+            <TabsContent value="allusers" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><UserCheck className="h-5 w-5" />All Signed-Up Users</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loadingAllUsers ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Joined</TableHead>
+                          <TableHead className="text-right">Hours Purchased</TableHead>
+                          <TableHead className="text-right">Hours Used</TableHead>
+                          <TableHead className="text-right">Balance</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(allUsers ?? []).length === 0 && (
+                          <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No users found.</TableCell></TableRow>
+                        )}
+                        {(allUsers ?? []).map((u: any) => (
+                          <TableRow key={u.user_id}>
+                            <TableCell className="font-medium">{u.display_name || "Unknown"}</TableCell>
+                            <TableCell>{new Date(u.created_at).toLocaleDateString()}</TableCell>
+                            <TableCell className="text-right">{u.hours_purchased}</TableCell>
+                            <TableCell className="text-right">{u.hours_used}</TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant={u.hours_remaining <= 3 ? "destructive" : "secondary"}>
+                                {u.hours_remaining} hrs
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
           </Tabs>
         </div>
       </main>
