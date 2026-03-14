@@ -18,7 +18,7 @@ const Index = () => {
   }, [user, loading, navigate]);
   return (
     <div className="flex min-h-screen flex-col">
-      <Navbar isAuthenticated={false} />
+      <Navbar />
       <main className="flex-1">
         <HeroSection />
         <FeaturesSection />
