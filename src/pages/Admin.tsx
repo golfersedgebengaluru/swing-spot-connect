@@ -256,6 +256,26 @@ export default function Admin() {
   const [viewingHistory, setViewingHistory] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState<string | null>(null);
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
+
+  // Query all signed-up users with their hours
+  const { data: allUsers, isLoading: loadingAllUsers } = useQuery({
+    queryKey: ["admin_all_users"],
+    queryFn: async () => {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, display_name, created_at")
+        .order("created_at", { ascending: false });
+      const { data: hours } = await supabase.from("member_hours").select("*");
+      const hoursMap = new Map((hours ?? []).map((h: any) => [h.user_id, h]));
+      return (profiles ?? []).map((p: any) => ({
+        ...p,
+        hours_purchased: hoursMap.get(p.user_id)?.hours_purchased ?? 0,
+        hours_used: hoursMap.get(p.user_id)?.hours_used ?? 0,
+        hours_remaining: (hoursMap.get(p.user_id)?.hours_purchased ?? 0) - (hoursMap.get(p.user_id)?.hours_used ?? 0),
+      }));
+    },
+  });
+
   const handleSaveEvent = async (data: any) => {
     const { error } = editingEvent?.id
       ? await supabase.from("events").update(data).eq("id", editingEvent.id)
