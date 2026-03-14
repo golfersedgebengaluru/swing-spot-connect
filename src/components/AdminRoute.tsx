@@ -15,7 +15,7 @@ export function AdminRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) return <Navigate to="/auth?redirect=/admin" replace />;
   if (!isAdmin) return <Navigate to="/admin/setup" replace />;
 
   return <>{children}</>;
