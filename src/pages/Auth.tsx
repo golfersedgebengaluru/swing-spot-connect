@@ -62,7 +62,7 @@ export default function Auth() {
           password: formData.password,
         });
         if (error) throw error;
-        navigate("/dashboard");
+        navigate(redirectTo);
       }
     } catch (error: any) {
       toast({
