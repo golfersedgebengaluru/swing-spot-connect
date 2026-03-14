@@ -75,7 +75,7 @@ export default function Auth() {
 
   const handleOAuthSignIn = async (provider: "google" | "apple") => {
     const { error } = await lovable.auth.signInWithOAuth(provider, {
-      redirect_uri: window.location.origin,
+      redirect_uri: `${window.location.origin}/dashboard`,
     });
     if (error) {
       toast({
