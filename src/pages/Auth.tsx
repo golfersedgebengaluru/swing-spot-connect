@@ -27,9 +27,11 @@ export default function Auth() {
     name: "",
   });
 
+  const redirectTo = searchParams.get("redirect") || "/dashboard";
+
   useEffect(() => {
-    if (user) navigate("/dashboard");
-  }, [user, navigate]);
+    if (user) navigate(redirectTo);
+  }, [user, navigate, redirectTo]);
 
   useEffect(() => {
     setIsSignUp(searchParams.get("mode") === "signup");
@@ -60,7 +62,7 @@ export default function Auth() {
           password: formData.password,
         });
         if (error) throw error;
-        navigate("/dashboard");
+        navigate(redirectTo);
       }
     } catch (error: any) {
       toast({
