@@ -696,6 +696,7 @@ export default function Admin() {
             <TabsContent value="settings" className="space-y-4">
               <ChangePasswordCard />
             </TabsContent>
+          </Tabs>
         </div>
       </main>
       <Footer />
