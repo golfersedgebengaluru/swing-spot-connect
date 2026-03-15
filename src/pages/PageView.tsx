@@ -23,9 +23,10 @@ export default function PageView() {
           ) : (
             <>
               <h1 className="font-display text-3xl font-bold text-foreground mb-6">{page.title}</h1>
-              <div className="prose prose-neutral dark:prose-invert max-w-none whitespace-pre-wrap text-muted-foreground leading-relaxed">
-                {page.content}
-              </div>
+              <div
+                className="prose prose-neutral dark:prose-invert max-w-none text-muted-foreground leading-relaxed prose-headings:font-display prose-headings:text-foreground prose-strong:text-foreground prose-blockquote:border-border prose-blockquote:text-muted-foreground prose-li:text-foreground"
+                dangerouslySetInnerHTML={{ __html: page.content }}
+              />
             </>
           )}
         </div>

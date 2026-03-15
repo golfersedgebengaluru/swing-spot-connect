@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -43,7 +44,7 @@ function EventForm({ event, onSave, onCancel }: { event?: any; onSave: (data: an
   return (
     <div className="space-y-4">
       <div><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
-      <div><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+      <div><Label>Description</Label><RichTextEditor content={form.description} onChange={(html) => setForm({ ...form, description: html })} minHeight="120px" /></div>
       <div className="grid grid-cols-2 gap-4">
         <div><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
         <div><Label>Type</Label>
@@ -106,7 +107,7 @@ function ProductForm({ product, onSave, onCancel }: { product?: any; onSave: (da
   return (
     <div className="space-y-4">
       <div><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-      <div><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+      <div><Label>Description</Label><RichTextEditor content={form.description} onChange={(html) => setForm({ ...form, description: html })} minHeight="120px" /></div>
       <div className="grid grid-cols-2 gap-4">
         <div><Label>Price ($)</Label><Input type="number" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></div>
         <div><Label>Type</Label>
@@ -149,7 +150,7 @@ function RewardForm({ reward, onSave, onCancel }: { reward?: any; onSave: (data:
   return (
     <div className="space-y-4">
       <div><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-      <div><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+      <div><Label>Description</Label><RichTextEditor content={form.description} onChange={(html) => setForm({ ...form, description: html })} minHeight="120px" /></div>
       <div className="grid grid-cols-2 gap-4">
         <div><Label>Points Cost</Label><Input type="number" value={form.points_cost} onChange={(e) => setForm({ ...form, points_cost: Number(e.target.value) })} /></div>
         <div><Label>Sort Order</Label><Input type="number" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })} /></div>
@@ -340,11 +341,11 @@ function PageContentEditor() {
           </div>
           <div>
             <Label>Content</Label>
-            <Textarea
-              value={editingPage.content}
-              onChange={(e) => setEditingPage({ ...editingPage, content: e.target.value })}
-              className="mt-1 min-h-[300px]"
-              placeholder="Enter page content..."
+            <RichTextEditor
+              content={editingPage.content}
+              onChange={(html) => setEditingPage({ ...editingPage, content: html })}
+              className="mt-1"
+              minHeight="300px"
             />
           </div>
           <div className="flex gap-2 justify-end">
