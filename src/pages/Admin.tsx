@@ -476,7 +476,7 @@ export default function Admin() {
           </div>
 
           <Tabs defaultValue="events" className="space-y-6">
-            <TabsList>
+            <TabsList className="flex flex-wrap h-auto gap-1">
               <TabsTrigger value="events" className="gap-2"><Calendar className="h-4 w-4" />Events</TabsTrigger>
               <TabsTrigger value="products" className="gap-2"><ShoppingBag className="h-4 w-4" />Products</TabsTrigger>
               <TabsTrigger value="rewards" className="gap-2"><Gift className="h-4 w-4" />Rewards</TabsTrigger>
