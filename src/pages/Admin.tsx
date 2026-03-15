@@ -241,6 +241,65 @@ function TransactionHistory({ userId }: { userId: string }) {
   );
 }
 
+function ChangePasswordCard() {
+  const { toast } = useToast();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Error", description: "New passwords do not match", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("change-admin-password", {
+        body: { current_password: currentPassword, new_password: newPassword },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: "Password changed", description: "Admin password has been updated successfully." });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to change password", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Card className="max-w-md">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><KeyRound className="h-5 w-5" />Change Admin Password</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleChangePassword} className="space-y-4">
+          <div>
+            <Label htmlFor="current-pw">Current Password</Label>
+            <Input id="current-pw" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className="mt-1" required />
+          </div>
+          <div>
+            <Label htmlFor="new-pw">New Password</Label>
+            <Input id="new-pw" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="mt-1" required minLength={6} />
+          </div>
+          <div>
+            <Label htmlFor="confirm-pw">Confirm New Password</Label>
+            <Input id="confirm-pw" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="mt-1" required minLength={6} />
+          </div>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating...</> : "Change Password"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Admin() {
   const { user } = useAuth();
   const { toast } = useToast();
