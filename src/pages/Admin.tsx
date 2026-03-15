@@ -559,6 +559,7 @@ function PageContentEditor() {
               <TabsTrigger value="rewards" className="gap-2"><Gift className="h-4 w-4" />Rewards</TabsTrigger>
               <TabsTrigger value="members" className="gap-2"><Users className="h-4 w-4" />Members</TabsTrigger>
               <TabsTrigger value="allusers" className="gap-2"><UserCheck className="h-4 w-4" />All Users</TabsTrigger>
+              <TabsTrigger value="pages" className="gap-2"><FileText className="h-4 w-4" />Pages</TabsTrigger>
               <TabsTrigger value="settings" className="gap-2"><Settings className="h-4 w-4" />Settings</TabsTrigger>
             </TabsList>
 
