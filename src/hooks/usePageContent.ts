@@ -12,7 +12,7 @@ export function usePageContent(slug?: string) {
         .eq("slug", slug)
         .single();
       if (error) throw error;
-      return data as { id: string; slug: string; title: string; content: string; updated_at: string };
+      return data as unknown as { id: string; slug: string; title: string; content: string; updated_at: string };
     },
     enabled: !!slug,
   });
@@ -27,7 +27,7 @@ export function useAllPageContent() {
         .select("*")
         .order("slug");
       if (error) throw error;
-      return data as { id: string; slug: string; title: string; content: string; updated_at: string }[];
+      return data as unknown as { id: string; slug: string; title: string; content: string; updated_at: string }[];
     },
   });
 }
