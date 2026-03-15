@@ -14,6 +14,7 @@ import Shop from "./pages/Shop";
 import Rewards from "./pages/Rewards";
 import Admin from "./pages/Admin";
 import AdminSetup from "./pages/AdminSetup";
+import PageView from "./pages/PageView";
 import NotFound from "./pages/NotFound";
 import { AdminRoute } from "@/components/AdminRoute";
 
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/rewards" element={<Rewards />} />
             <Route path="/admin/setup" element={<AdminSetup />} />
             <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+            <Route path="/page/:slug" element={<PageView />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
