@@ -55,7 +55,8 @@ export function RichTextEditor({
           "prose-p:text-foreground prose-p:leading-normal prose-strong:text-foreground",
           "prose-blockquote:border-border prose-blockquote:text-muted-foreground",
           "prose-li:text-foreground prose-li:leading-normal",
-          "[&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_blockquote]:my-1 [&_h1]:my-2 [&_h2]:my-2 [&_h3]:my-1"
+          "[&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_blockquote]:my-1 [&_h1]:my-2 [&_h2]:my-2 [&_h3]:my-1",
+          "[&_p:empty]:min-h-[1em] [&_p:empty]:my-0"
         ),
         style: `min-height: ${minHeight}`,
       },
