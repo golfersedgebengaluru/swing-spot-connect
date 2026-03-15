@@ -377,7 +377,7 @@ function PageContentEditor() {
   );
 }
 
-
+export default function Admin() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
