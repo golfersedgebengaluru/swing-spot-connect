@@ -13,8 +13,46 @@ serve(async (req) => {
 
   try {
     const { current_password, new_password } = await req.json();
+    
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    const configuredPassword = Deno.env.get("ADMIN_SETUP_PASSWORD");
+    // Verify caller is authenticated and is admin
+    const authHeader = req.headers.get("Authorization")!;
+    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Not authenticated" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { data: isAdmin } = await adminClient.rpc("has_role", { _user_id: user.id, _role: "admin" });
+    if (!isAdmin) {
+      return new Response(
+        JSON.stringify({ error: "Admin access required" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get current password from admin_config
+    let configuredPassword = null;
+    const { data: configRow } = await adminClient
+      .from("admin_config")
+      .select("value")
+      .eq("key", "admin_password")
+      .single();
+    
+    if (configRow?.value) {
+      configuredPassword = configRow.value;
+    } else {
+      configuredPassword = Deno.env.get("ADMIN_SETUP_PASSWORD");
+    }
+
     if (!configuredPassword) {
       return new Response(
         JSON.stringify({ error: "Admin password not configured" }),
@@ -36,48 +74,24 @@ serve(async (req) => {
       );
     }
 
-    // Verify the caller is an admin
-    const authHeader = req.headers.get("Authorization")!;
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user }, error: userError } = await userClient.auth.getUser();
-    if (userError || !user) {
+    // Update password in admin_config table
+    const { error: updateError } = await adminClient
+      .from("admin_config")
+      .upsert(
+        { key: "admin_password", value: new_password, updated_at: new Date().toISOString() },
+        { onConflict: "key" }
+      );
+
+    if (updateError) {
       return new Response(
-        JSON.stringify({ error: "Not authenticated" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: updateError.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Check admin role
-    const adminClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const { data: isAdmin } = await adminClient.rpc("has_role", { _user_id: user.id, _role: "admin" });
-    if (!isAdmin) {
-      return new Response(
-        JSON.stringify({ error: "Admin access required" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Update the secret - we'll store it via Deno.env workaround
-    // Since we can't update secrets at runtime, we need to use the Supabase vault
-    // For now, we update via the management API approach - store in a config table
-    // Actually, the simplest secure approach: update the secret value
-    // We'll use supabase vault to store the new password
-    
-    // Delete old and insert new into vault
-    await adminClient.rpc("update_admin_password", { new_pass: new_password }).catch(() => null);
-    
-    // Fallback: store in a simple config approach using vault
-    // Since we can't directly update env vars, we'll use a different approach
-    // Let's update via the secrets API - but edge functions can't do that
-    // Best approach: store admin password in a secure table
-    
-    // For now, return success - the password change will need to be done via secrets
     return new Response(
-      JSON.stringify({ error: "Password change requires updating the secret via project settings. Please contact your administrator." }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: true, message: "Admin password updated successfully" }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
     return new Response(

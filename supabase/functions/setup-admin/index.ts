@@ -14,8 +14,31 @@ serve(async (req) => {
   try {
     const { admin_password } = await req.json();
     
-    // Get the configured admin password from secrets
-    const configuredPassword = Deno.env.get("ADMIN_SETUP_PASSWORD");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Check admin_config table first, fallback to env var
+    let configuredPassword = null;
+    const { data: configRow } = await adminClient
+      .from("admin_config")
+      .select("value")
+      .eq("key", "admin_password")
+      .single();
+    
+    if (configRow?.value) {
+      configuredPassword = configRow.value;
+    } else {
+      // Fallback to env var and seed the table
+      configuredPassword = Deno.env.get("ADMIN_SETUP_PASSWORD");
+      if (configuredPassword) {
+        await adminClient.from("admin_config").upsert(
+          { key: "admin_password", value: configuredPassword },
+          { onConflict: "key" }
+        );
+      }
+    }
+
     if (!configuredPassword) {
       return new Response(
         JSON.stringify({ error: "Admin setup password not configured" }),
@@ -32,10 +55,6 @@ serve(async (req) => {
 
     // Get the authenticated user
     const authHeader = req.headers.get("Authorization")!;
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    // Create client with user's token to get their ID
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -48,7 +67,6 @@ serve(async (req) => {
     }
 
     // Use service role to insert the admin role
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
     const { error } = await adminClient
       .from("user_roles")
       .upsert({ user_id: user.id, role: "admin" }, { onConflict: "user_id,role" });
