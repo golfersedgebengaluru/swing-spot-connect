@@ -12,48 +12,13 @@ serve(async (req) => {
   }
 
   try {
-    const { admin_password } = await req.json();
+    const { current_password, new_password } = await req.json();
     
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check admin_config table first, fallback to env var
-    let configuredPassword = null;
-    const { data: configRow } = await adminClient
-      .from("admin_config")
-      .select("value")
-      .eq("key", "admin_password")
-      .single();
-    
-    if (configRow?.value) {
-      configuredPassword = configRow.value;
-    } else {
-      // Fallback to env var and seed the table
-      configuredPassword = Deno.env.get("ADMIN_SETUP_PASSWORD");
-      if (configuredPassword) {
-        await adminClient.from("admin_config").upsert(
-          { key: "admin_password", value: configuredPassword },
-          { onConflict: "key" }
-        );
-      }
-    }
-
-    if (!configuredPassword) {
-      return new Response(
-        JSON.stringify({ error: "Admin setup password not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (admin_password !== configuredPassword) {
-      return new Response(
-        JSON.stringify({ error: "Invalid admin password" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Get the authenticated user
+    // Verify caller is authenticated and is admin
     const authHeader = req.headers.get("Authorization")!;
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
@@ -66,20 +31,66 @@ serve(async (req) => {
       );
     }
 
-    // Use service role to insert the admin role
-    const { error } = await adminClient
-      .from("user_roles")
-      .upsert({ user_id: user.id, role: "admin" }, { onConflict: "user_id,role" });
-
-    if (error) {
+    const { data: isAdmin } = await adminClient.rpc("has_role", { _user_id: user.id, _role: "admin" });
+    if (!isAdmin) {
       return new Response(
-        JSON.stringify({ error: error.message }),
+        JSON.stringify({ error: "Admin access required" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get current password from admin_config
+    let configuredPassword = null;
+    const { data: configRow } = await adminClient
+      .from("admin_config")
+      .select("value")
+      .eq("key", "admin_password")
+      .single();
+    
+    if (configRow?.value) {
+      configuredPassword = configRow.value;
+    } else {
+      configuredPassword = Deno.env.get("ADMIN_SETUP_PASSWORD");
+    }
+
+    if (!configuredPassword) {
+      return new Response(
+        JSON.stringify({ error: "Admin password not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (current_password !== configuredPassword) {
+      return new Response(
+        JSON.stringify({ error: "Current password is incorrect" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!new_password || new_password.length < 6) {
+      return new Response(
+        JSON.stringify({ error: "New password must be at least 6 characters" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Update password in admin_config table
+    const { error: updateError } = await adminClient
+      .from("admin_config")
+      .upsert(
+        { key: "admin_password", value: new_password, updated_at: new Date().toISOString() },
+        { onConflict: "key" }
+      );
+
+    if (updateError) {
+      return new Response(
+        JSON.stringify({ error: updateError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: "Admin role granted" }),
+      JSON.stringify({ success: true, message: "Admin password updated successfully" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
