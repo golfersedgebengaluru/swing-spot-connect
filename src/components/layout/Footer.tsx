@@ -16,10 +16,10 @@ export function Footer() {
 
           {/* Links */}
           <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
-            <Link to="/about" className="hover:text-foreground transition-colors">About</Link>
-            <Link to="/contact" className="hover:text-foreground transition-colors">Contact</Link>
-            <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
-            <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
+            <Link to="/page/about" className="hover:text-foreground transition-colors">About</Link>
+            <Link to="/page/contact" className="hover:text-foreground transition-colors">Contact</Link>
+            <Link to="/page/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+            <Link to="/page/terms" className="hover:text-foreground transition-colors">Terms</Link>
           </div>
 
           {/* Copyright */}
