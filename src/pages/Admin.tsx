@@ -779,7 +779,6 @@ function PageContentEditor() {
             <TabsContent value="settings" className="space-y-4">
               <ChangePasswordCard />
             </TabsContent>
-            </TabsContent>
           </Tabs>
         </div>
       </main>
