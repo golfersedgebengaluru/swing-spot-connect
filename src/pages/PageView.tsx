@@ -24,7 +24,7 @@ export default function PageView() {
             <>
               <h1 className="font-display text-3xl font-bold text-foreground mb-6">{page.title}</h1>
               <div
-                className="prose prose-neutral dark:prose-invert max-w-none text-muted-foreground leading-normal prose-headings:font-display prose-headings:text-foreground prose-strong:text-foreground prose-blockquote:border-border prose-blockquote:text-muted-foreground prose-li:text-foreground prose-p:leading-normal prose-li:leading-normal [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1"
+                className="prose prose-neutral dark:prose-invert max-w-none text-muted-foreground leading-normal prose-headings:font-display prose-headings:text-foreground prose-strong:text-foreground prose-blockquote:border-border prose-blockquote:text-muted-foreground prose-li:text-foreground prose-p:leading-normal prose-li:leading-normal [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_p:empty]:min-h-[1em] [&_p:empty]:my-0"
                 dangerouslySetInnerHTML={{ __html: page.content }}
               />
             </>

@@ -52,7 +52,7 @@ function EventCard({ event }: { event: any }) {
               </div>
               <h3 className="font-display text-xl font-semibold text-foreground">{event.title}</h3>
               {event.description && (
-                <div className="mt-1 text-muted-foreground prose prose-sm prose-neutral dark:prose-invert max-w-none prose-p:my-1" dangerouslySetInnerHTML={{ __html: event.description }} />
+                <div className="mt-1 text-muted-foreground prose prose-sm prose-neutral dark:prose-invert max-w-none prose-p:my-1 [&_p:empty]:min-h-[1em] [&_p:empty]:my-0" dangerouslySetInnerHTML={{ __html: event.description }} />
               )}
               <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
                 {event.time_start && (
