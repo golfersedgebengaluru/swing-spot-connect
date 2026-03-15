@@ -52,7 +52,7 @@ export function RichTextEditor({
         class: cn(
           "prose prose-neutral dark:prose-invert max-w-none focus:outline-none px-3 py-2",
           "prose-headings:font-display prose-headings:text-foreground",
-          "prose-p:text-foreground prose-p:leading-normal prose-strong:text-foreground",
+          "prose-p:text-foreground prose-p:leading-normal prose-strong:text-foreground prose-p:whitespace-pre-wrap",
           "prose-blockquote:border-border prose-blockquote:text-muted-foreground",
           "prose-li:text-foreground prose-li:leading-normal",
           "[&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_blockquote]:my-1 [&_h1]:my-2 [&_h2]:my-2 [&_h3]:my-1",
