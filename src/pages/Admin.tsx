@@ -341,11 +341,11 @@ function PageContentEditor() {
           </div>
           <div>
             <Label>Content</Label>
-            <Textarea
-              value={editingPage.content}
-              onChange={(e) => setEditingPage({ ...editingPage, content: e.target.value })}
-              className="mt-1 min-h-[300px]"
-              placeholder="Enter page content..."
+            <RichTextEditor
+              content={editingPage.content}
+              onChange={(html) => setEditingPage({ ...editingPage, content: html })}
+              className="mt-1"
+              minHeight="300px"
             />
           </div>
           <div className="flex gap-2 justify-end">
