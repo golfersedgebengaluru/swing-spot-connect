@@ -47,6 +47,9 @@ export function RichTextEditor({
       TextAlign.configure({ types: ["heading", "paragraph"] }),
     ],
     content,
+    parseOptions: {
+      preserveWhitespace: "full",
+    },
     editorProps: {
       attributes: {
         class: cn(
