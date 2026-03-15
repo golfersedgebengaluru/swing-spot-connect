@@ -20,6 +20,7 @@ import { useMemberHours, useHoursTransactions } from "@/hooks/useMemberHours";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAllPageContent, useUpdatePageContent } from "@/hooks/usePageContent";
 import { Navigate } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
