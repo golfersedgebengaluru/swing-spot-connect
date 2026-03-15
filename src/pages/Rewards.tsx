@@ -83,7 +83,7 @@ export default function Rewards() {
                           <div className="flex items-start justify-between">
                             <div>
                               <h4 className="font-medium text-foreground">{reward.name}</h4>
-                              <p className="text-sm text-muted-foreground">{reward.description}</p>
+                              {reward.description && <div className="text-sm text-muted-foreground prose prose-sm prose-neutral dark:prose-invert max-w-none prose-p:my-0" dangerouslySetInnerHTML={{ __html: reward.description }} />}
                             </div>
                             <Badge variant={currentPoints >= reward.points_cost ? "default" : "secondary"}>
                               {reward.points_cost} pts
