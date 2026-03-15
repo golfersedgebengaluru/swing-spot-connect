@@ -770,9 +770,15 @@ function PageContentEditor() {
               </Card>
             </TabsContent>
 
+            {/* Pages Tab */}
+            <TabsContent value="pages" className="space-y-4">
+              <PageContentEditor />
+            </TabsContent>
+
             {/* Settings Tab */}
             <TabsContent value="settings" className="space-y-4">
               <ChangePasswordCard />
+            </TabsContent>
             </TabsContent>
           </Tabs>
         </div>
