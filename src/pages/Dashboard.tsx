@@ -51,7 +51,7 @@ export default function Dashboard() {
 
           {/* Quick Actions */}
           <div className="mb-8 flex flex-wrap gap-3">
-            <Link to="/book">
+            <Link to="/bookings">
               <Button variant="default">
                 Book a Bay
                 <ArrowRight className="ml-2 h-4 w-4" />
