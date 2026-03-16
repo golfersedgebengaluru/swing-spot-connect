@@ -557,13 +557,13 @@ export default function Admin() {
   const allocatePoints = useAllocatePoints();
   const redeemPoints = useRedeemPoints();
 
-  // Query all signed-up users with their hours
+  // Query all signed-up users with their hours and points
   const { data: allUsers, isLoading: loadingAllUsers } = useQuery({
     queryKey: ["admin_all_users"],
     queryFn: async () => {
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, user_id, display_name, email, created_at")
+        .select("id, user_id, display_name, email, points, created_at")
         .order("created_at", { ascending: false });
       const { data: hours } = await supabase.from("member_hours").select("*");
       const hoursMap = new Map((hours ?? []).map((h: any) => [h.user_id, h]));
