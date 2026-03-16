@@ -380,6 +380,7 @@ function PageContentEditor() {
 }
 
 const pageVisibilityItems = [
+  { key: "page_events_visible", label: "Events", description: "Show the Events tab in navigation" },
   { key: "page_leaderboard_visible", label: "Leaderboard", description: "Show the Leaderboard tab in navigation" },
   { key: "page_community_visible", label: "Community", description: "Show the Community tab in navigation" },
   { key: "page_shop_visible", label: "Shop", description: "Show the Shop tab in navigation" },
