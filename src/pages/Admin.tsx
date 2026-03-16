@@ -422,6 +422,8 @@ function PageVisibilitySettings() {
       </CardContent>
     </Card>
   );
+}
+
 function PreRegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_name: string; email: string }) => void; onCancel: () => void }) {
   const [form, setForm] = useState({ display_name: "", email: "" });
   return (
