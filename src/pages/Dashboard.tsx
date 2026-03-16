@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, Trophy, Calendar, Gift, Target, Clock, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useUserPoints } from "@/hooks/usePoints";
+import { useAuth } from "@/contexts/AuthContext";
 
 const stats = [
   { label: "Current Handicap", value: "12.4", change: "-0.8", icon: Target, positive: true },
