@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Loader2, Calendar, ShoppingBag, Gift, Users, Clock, MinusCircle, PlusCircle, History, UserCheck, Settings, KeyRound, FileText, Save, Star, Award } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Calendar, ShoppingBag, Gift, Users, Clock, MinusCircle, PlusCircle, History, UserCheck, Settings, KeyRound, FileText, Save, Star, Award, MapPin, ClipboardList } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useEvents } from "@/hooks/useEvents";
 import { useProducts } from "@/hooks/useProducts";
@@ -24,8 +24,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAllPageContent, useUpdatePageContent } from "@/hooks/usePageContent";
 import { usePageVisibility, useUpdatePageVisibility } from "@/hooks/usePageVisibility";
 import { useAllocatePoints, useRedeemPoints, usePointsTransactions } from "@/hooks/usePoints";
+import { useBayConfig, useAllBookings } from "@/hooks/useBookings";
 import { Navigate } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { format } from "date-fns";
 
 function EventForm({ event, onSave, onCancel }: { event?: any; onSave: (data: any) => void; onCancel: () => void }) {
   const [form, setForm] = useState({
@@ -537,6 +539,167 @@ function PreRegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_na
     </div>
   );
 }
+function BayConfigTab() {
+  const { data: configs, isLoading } = useBayConfig();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState<any>(null);
+
+  const handleSave = async () => {
+    if (!editing) return;
+    const { error } = await supabase
+      .from("bay_config")
+      .update({
+        calendar_email: editing.calendar_email,
+        open_time: editing.open_time,
+        close_time: editing.close_time,
+        is_active: editing.is_active,
+      })
+      .eq("id", editing.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Bay config updated" });
+    queryClient.invalidateQueries({ queryKey: ["bay_config"] });
+    setEditing(null);
+  };
+
+  if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
+
+  return (
+    <div className="space-y-4">
+      {(configs ?? []).map((config: any) => (
+        <Card key={config.id} className="shadow-elegant">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span className="flex items-center gap-2"><MapPin className="h-5 w-5" />{config.city}</span>
+              <div className="flex items-center gap-2">
+                <Badge variant={config.is_active ? "secondary" : "outline"}>
+                  {config.is_active ? "Active" : "Inactive"}
+                </Badge>
+                <Button variant="outline" size="icon" onClick={() => setEditing({ ...config })}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p><span className="font-medium">Calendar:</span> {config.calendar_email || "Not set"}</p>
+            <p><span className="font-medium">Hours:</span> {config.open_time} – {config.close_time}</p>
+          </CardContent>
+        </Card>
+      ))}
+
+      <Dialog open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Edit Bay Config — {editing?.city}</DialogTitle></DialogHeader>
+          {editing && (
+            <div className="space-y-4">
+              <div>
+                <Label>Google Calendar Email</Label>
+                <Input value={editing.calendar_email || ""} onChange={(e) => setEditing({ ...editing, calendar_email: e.target.value })} placeholder="calendar@gmail.com" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Opening Time</Label>
+                  <Input type="time" value={editing.open_time} onChange={(e) => setEditing({ ...editing, open_time: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Closing Time</Label>
+                  <Input type="time" value={editing.close_time} onChange={(e) => setEditing({ ...editing, close_time: e.target.value })} />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={editing.is_active} onCheckedChange={(v) => setEditing({ ...editing, is_active: v })} />
+                <Label>Active</Label>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+                <Button onClick={handleSave}>Save</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function BookingLogsTab() {
+  const { data: bookings, isLoading } = useAllBookings();
+  const [cityFilter, setCityFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const filtered = (bookings ?? []).filter((b: any) => {
+    if (cityFilter !== "all" && b.city !== cityFilter) return false;
+    if (statusFilter !== "all" && b.status !== statusFilter) return false;
+    return true;
+  });
+
+  if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ClipboardList className="h-5 w-5" /> Booking Logs
+        </CardTitle>
+        <div className="flex gap-3 mt-2">
+          <Select value={cityFilter} onValueChange={setCityFilter}>
+            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Cities</SelectItem>
+              <SelectItem value="Chennai">Chennai</SelectItem>
+              <SelectItem value="Bengaluru">Bengaluru</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="confirmed">Confirmed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>User</TableHead>
+              <TableHead>City</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Time</TableHead>
+              <TableHead>Duration</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.length === 0 && (
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No bookings found.</TableCell></TableRow>
+            )}
+            {filtered.map((b: any) => (
+              <TableRow key={b.id}>
+                <TableCell className="font-medium">{b.display_name}</TableCell>
+                <TableCell>{b.city}</TableCell>
+                <TableCell>{format(new Date(b.start_time), "PP")}</TableCell>
+                <TableCell>{format(new Date(b.start_time), "h:mm a")} – {format(new Date(b.end_time), "h:mm a")}</TableCell>
+                <TableCell>{b.duration_minutes / 60}h</TableCell>
+                <TableCell>
+                  <Badge variant={b.status === "confirmed" ? "secondary" : "destructive"}>
+                    {b.status}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Admin() {
   const { user } = useAuth();
@@ -744,6 +907,8 @@ export default function Admin() {
               <TabsTrigger value="members" className="gap-2"><Users className="h-4 w-4" />Members</TabsTrigger>
               <TabsTrigger value="allusers" className="gap-2"><UserCheck className="h-4 w-4" />All Users</TabsTrigger>
               <TabsTrigger value="pages" className="gap-2"><FileText className="h-4 w-4" />Pages</TabsTrigger>
+              <TabsTrigger value="bayconfig" className="gap-2"><MapPin className="h-4 w-4" />Bay Config</TabsTrigger>
+              <TabsTrigger value="bookinglogs" className="gap-2"><ClipboardList className="h-4 w-4" />Booking Logs</TabsTrigger>
               <TabsTrigger value="settings" className="gap-2"><Settings className="h-4 w-4" />Settings</TabsTrigger>
             </TabsList>
 
@@ -1018,6 +1183,16 @@ export default function Admin() {
             {/* Pages Tab */}
             <TabsContent value="pages" className="space-y-4">
               <PageContentEditor />
+            </TabsContent>
+
+            {/* Bay Config Tab */}
+            <TabsContent value="bayconfig" className="space-y-4">
+              <BayConfigTab />
+            </TabsContent>
+
+            {/* Booking Logs Tab */}
+            <TabsContent value="bookinglogs" className="space-y-4">
+              <BookingLogsTab />
             </TabsContent>
 
             {/* Settings Tab */}
