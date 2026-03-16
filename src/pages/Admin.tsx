@@ -553,6 +553,9 @@ export default function Admin() {
   const [viewingHistory, setViewingHistory] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState<string | null>(null);
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
+  const [viewingPointsHistory, setViewingPointsHistory] = useState<string | null>(null);
+  const allocatePoints = useAllocatePoints();
+  const redeemPoints = useRedeemPoints();
 
   // Query all signed-up users with their hours
   const { data: allUsers, isLoading: loadingAllUsers } = useQuery({
