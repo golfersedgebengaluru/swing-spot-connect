@@ -422,6 +422,19 @@ function PageVisibilitySettings() {
       </CardContent>
     </Card>
   );
+function PreRegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_name: string; email: string }) => void; onCancel: () => void }) {
+  const [form, setForm] = useState({ display_name: "", email: "" });
+  return (
+    <div className="space-y-4">
+      <div><Label>Display Name</Label><Input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder="John Smith" /></div>
+      <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="john@example.com" /></div>
+      <p className="text-xs text-muted-foreground">This user will be automatically linked when they sign in with Google or Apple using this email.</p>
+      <div className="flex gap-2 justify-end">
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button onClick={() => onSave(form)} disabled={!form.display_name || !form.email}>Add User</Button>
+      </div>
+    </div>
+  );
 }
 
 export default function Admin() {
