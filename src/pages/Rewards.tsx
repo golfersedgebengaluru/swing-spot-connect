@@ -4,8 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Gift, Star, Trophy, Users, ShoppingBag, Calendar, Check, Loader2 } from "lucide-react";
+import { Gift, Star, Trophy, Users, ShoppingBag, Calendar, Check, Loader2, MinusCircle, PlusCircle } from "lucide-react";
 import { useRewards, useEarnMethods } from "@/hooks/useRewards";
+import { useUserPoints, usePointsTransactions, useRedeemPoints } from "@/hooks/usePoints";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const iconMap: Record<string, any> = {
   calendar: Calendar,
@@ -15,14 +18,48 @@ const iconMap: Record<string, any> = {
   star: Star,
 };
 
+const tierThresholds = [
+  { name: "Bronze", min: 0, next: 1000 },
+  { name: "Silver", min: 1000, next: 5000 },
+  { name: "Gold", min: 5000, next: 10000 },
+  { name: "Platinum", min: 10000, next: 25000 },
+];
+
+function getTier(points: number) {
+  for (let i = tierThresholds.length - 1; i >= 0; i--) {
+    if (points >= tierThresholds[i].min) return tierThresholds[i];
+  }
+  return tierThresholds[0];
+}
+
 export default function Rewards() {
+  const { user } = useAuth();
   const { data: rewards, isLoading: loadingRewards } = useRewards();
   const { data: earnMethods, isLoading: loadingEarn } = useEarnMethods();
+  const { data: currentPoints = 0, isLoading: loadingPoints } = useUserPoints();
+  const { data: transactions, isLoading: loadingTx } = usePointsTransactions();
+  const redeemPoints = useRedeemPoints();
+  const { toast } = useToast();
 
-  const currentPoints = 2450;
-  const nextTier = 5000;
-  const currentTier = "Silver";
-  const isLoading = loadingRewards || loadingEarn;
+  const tier = getTier(currentPoints);
+  const nextTierName = tierThresholds[tierThresholds.indexOf(tier) + 1]?.name ?? "Max";
+  const progressToNext = tier.next > tier.min ? ((currentPoints - tier.min) / (tier.next - tier.min)) * 100 : 100;
+  const isLoading = loadingRewards || loadingEarn || loadingPoints;
+
+  const handleRedeem = async (reward: any) => {
+    if (!user) return;
+    try {
+      await redeemPoints.mutateAsync({
+        userId: user.id,
+        points: reward.points_cost,
+        rewardId: reward.id,
+        rewardName: reward.name,
+      });
+      toast({ title: "🎁 Reward Redeemed!", description: `You redeemed "${reward.name}" for ${reward.points_cost} points.` });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -41,15 +78,17 @@ export default function Rewards() {
                 <div>
                   <div className="flex items-center gap-2">
                     <Star className="h-5 w-5 text-accent" />
-                    <span className="font-medium text-primary-foreground/80">{currentTier} Member</span>
+                    <span className="font-medium text-primary-foreground/80">{tier.name} Member</span>
                   </div>
-                  <p className="mt-2 font-display text-5xl font-bold text-primary-foreground">{currentPoints.toLocaleString()}</p>
+                  <p className="mt-2 font-display text-5xl font-bold text-primary-foreground">
+                    {loadingPoints ? "..." : currentPoints.toLocaleString()}
+                  </p>
                   <p className="text-primary-foreground/70">Available Points</p>
                 </div>
                 <div className="md:text-right">
-                  <p className="text-sm text-primary-foreground/70">{nextTier - currentPoints} points to Gold tier</p>
-                  <Progress value={(currentPoints / nextTier) * 100} className="mt-2 h-3 w-64 bg-primary-foreground/20" />
-                  <p className="mt-1 text-xs text-primary-foreground/60">{currentPoints.toLocaleString()} / {nextTier.toLocaleString()}</p>
+                  <p className="text-sm text-primary-foreground/70">{tier.next - currentPoints > 0 ? `${tier.next - currentPoints} points to ${nextTierName} tier` : "Max tier reached!"}</p>
+                  <Progress value={Math.min(progressToNext, 100)} className="mt-2 h-3 w-64 bg-primary-foreground/20" />
+                  <p className="mt-1 text-xs text-primary-foreground/60">{currentPoints.toLocaleString()} / {tier.next.toLocaleString()}</p>
                 </div>
               </div>
             </CardContent>
@@ -89,7 +128,13 @@ export default function Rewards() {
                               {reward.points_cost} pts
                             </Badge>
                           </div>
-                          <Button className="mt-3 w-full" size="sm" disabled={!reward.is_available || currentPoints < reward.points_cost}>
+                          <Button
+                            className="mt-3 w-full"
+                            size="sm"
+                            disabled={!reward.is_available || currentPoints < reward.points_cost || redeemPoints.isPending}
+                            onClick={() => handleRedeem(reward)}
+                          >
+                            {redeemPoints.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                             {currentPoints >= reward.points_cost ? "Redeem" : "Not enough points"}
                           </Button>
                         </div>
@@ -127,16 +172,42 @@ export default function Rewards() {
               <div>
                 <Card className="shadow-elegant">
                   <CardHeader>
-                    <CardTitle className="font-display text-xl">Recent Activity</CardTitle>
+                    <CardTitle className="font-display text-xl">Points History</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-muted-foreground">Activity tracking coming soon</p>
+                    {loadingTx ? (
+                      <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+                    ) : !transactions?.length ? (
+                      <p className="text-sm text-muted-foreground">No activity yet</p>
+                    ) : (
+                      <div className="space-y-3 max-h-80 overflow-y-auto">
+                        {transactions.map((t: any) => (
+                          <div key={t.id} className="flex items-start justify-between rounded-lg border border-border p-3">
+                            <div className="flex items-start gap-2">
+                              {t.type === "redemption" ? (
+                                <MinusCircle className="mt-0.5 h-4 w-4 text-destructive" />
+                              ) : (
+                                <PlusCircle className="mt-0.5 h-4 w-4 text-primary" />
+                              )}
+                              <div>
+                                <p className="text-sm font-medium capitalize">{t.type}</p>
+                                {t.description && <p className="text-xs text-muted-foreground">{t.description}</p>}
+                                <p className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</p>
+                              </div>
+                            </div>
+                            <span className={`text-sm font-medium ${t.type === "redemption" ? "text-destructive" : "text-primary"}`}>
+                              {t.type === "redemption" ? "-" : "+"}{t.points}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
                 <Card className="mt-6 shadow-elegant">
                   <CardHeader>
-                    <CardTitle className="font-display text-xl">Silver Benefits</CardTitle>
+                    <CardTitle className="font-display text-xl">{tier.name} Benefits</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-3">

@@ -4,13 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, Trophy, Calendar, Gift, Target, Clock, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
-
-const stats = [
-  { label: "Current Handicap", value: "12.4", change: "-0.8", icon: Target, positive: true },
-  { label: "Rounds This Month", value: "8", change: "+2", icon: Clock, positive: true },
-  { label: "Leaderboard Rank", value: "#12", change: "+3", icon: Trophy, positive: true },
-  { label: "Reward Points", value: "2,450", change: "+150", icon: Gift, positive: true },
-];
+import { useUserPoints } from "@/hooks/usePoints";
+import { useAuth } from "@/contexts/AuthContext";
 
 const recentRounds = [
   { date: "Nov 28", course: "Bay 3", score: 78, par: 72 },
@@ -25,6 +20,17 @@ const upcomingEvents = [
 ];
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const { data: currentPoints = 0 } = useUserPoints();
+  const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || "Golfer";
+
+  const stats = [
+    { label: "Current Handicap", value: "12.4", change: "-0.8", icon: Target, positive: true },
+    { label: "Rounds This Month", value: "8", change: "+2", icon: Clock, positive: true },
+    { label: "Leaderboard Rank", value: "#12", change: "+3", icon: Trophy, positive: true },
+    { label: "Reward Points", value: currentPoints.toLocaleString(), change: "", icon: Gift, positive: true },
+  ];
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
@@ -34,7 +40,7 @@ export default function Dashboard() {
           {/* Welcome Header */}
           <div className="mb-8">
             <h1 className="font-display text-3xl font-bold text-foreground">
-              Welcome back, <span className="text-primary">Golfer</span>
+              Welcome back, <span className="text-primary">{displayName}</span>
             </h1>
             <p className="mt-1 text-muted-foreground">
               Here's an overview of your golf journey
@@ -68,9 +74,11 @@ export default function Dashboard() {
                       <p className="mt-1 font-display text-3xl font-bold text-foreground">
                         {stat.value}
                       </p>
-                      <p className={`mt-1 text-sm ${stat.positive ? "text-primary" : "text-destructive"}`}>
-                        {stat.change} this month
-                      </p>
+                      {stat.change && (
+                        <p className={`mt-1 text-sm ${stat.positive ? "text-primary" : "text-destructive"}`}>
+                          {stat.change} this month
+                        </p>
+                      )}
                     </div>
                     <div className="rounded-xl bg-primary/10 p-3">
                       <stat.icon className="h-5 w-5 text-primary" />
