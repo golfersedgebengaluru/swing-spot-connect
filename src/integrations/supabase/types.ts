@@ -35,6 +35,81 @@ export type Database = {
         }
         Relationships: []
       }
+      bay_config: {
+        Row: {
+          calendar_email: string | null
+          city: string
+          close_time: string
+          created_at: string
+          id: string
+          is_active: boolean
+          open_time: string
+          updated_at: string
+        }
+        Insert: {
+          calendar_email?: string | null
+          city: string
+          close_time?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          open_time?: string
+          updated_at?: string
+        }
+        Update: {
+          calendar_email?: string | null
+          city?: string
+          close_time?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          open_time?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      bookings: {
+        Row: {
+          calendar_event_id: string | null
+          city: string
+          created_at: string
+          duration_minutes: number
+          end_time: string
+          id: string
+          note: string | null
+          start_time: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calendar_event_id?: string | null
+          city: string
+          created_at?: string
+          duration_minutes: number
+          end_time: string
+          id?: string
+          note?: string | null
+          start_time: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calendar_event_id?: string | null
+          city?: string
+          created_at?: string
+          duration_minutes?: number
+          end_time?: string
+          id?: string
+          note?: string | null
+          start_time?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       earn_methods: {
         Row: {
           created_at: string
@@ -331,6 +406,7 @@ export type Database = {
           handicap: number | null
           id: string
           points: number | null
+          preferred_city: string | null
           tier: string | null
           total_rounds: number | null
           updated_at: string
@@ -344,6 +420,7 @@ export type Database = {
           handicap?: number | null
           id?: string
           points?: number | null
+          preferred_city?: string | null
           tier?: string | null
           total_rounds?: number | null
           updated_at?: string
@@ -357,6 +434,7 @@ export type Database = {
           handicap?: number | null
           id?: string
           points?: number | null
+          preferred_city?: string | null
           tier?: string | null
           total_rounds?: number | null
           updated_at?: string
