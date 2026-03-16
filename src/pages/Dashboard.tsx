@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, Trophy, Calendar, Gift, Target, Clock, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useUserPoints } from "@/hooks/usePoints";
+import { useUserHoursBalance } from "@/hooks/useBookings";
 import { useAuth } from "@/contexts/AuthContext";
 
 const recentRounds = [
@@ -22,11 +23,12 @@ const upcomingEvents = [
 export default function Dashboard() {
   const { user } = useAuth();
   const { data: currentPoints = 0 } = useUserPoints();
+  const { data: balance } = useUserHoursBalance();
   const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || "Golfer";
 
   const stats = [
     { label: "Current Handicap", value: "12.4", change: "-0.8", icon: Target, positive: true },
-    { label: "Rounds This Month", value: "8", change: "+2", icon: Clock, positive: true },
+    { label: "Hours Balance", value: `${balance?.remaining ?? 0}h`, change: "", icon: Clock, positive: true },
     { label: "Leaderboard Rank", value: "#12", change: "+3", icon: Trophy, positive: true },
     { label: "Reward Points", value: currentPoints.toLocaleString(), change: "", icon: Gift, positive: true },
   ];
