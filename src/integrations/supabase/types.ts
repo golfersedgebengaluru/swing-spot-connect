@@ -286,37 +286,40 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           display_name: string | null
+          email: string | null
           handicap: number | null
           id: string
           points: number | null
           tier: string | null
           total_rounds: number | null
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          email?: string | null
           handicap?: number | null
           id?: string
           points?: number | null
           tier?: string | null
           total_rounds?: number | null
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          email?: string | null
           handicap?: number | null
           id?: string
           points?: number | null
           tier?: string | null
           total_rounds?: number | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
