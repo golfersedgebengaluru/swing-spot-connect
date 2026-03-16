@@ -425,6 +425,104 @@ function PageVisibilitySettings() {
   );
 }
 
+function AllocatePointsForm({ profiles, onSave, onCancel }: { profiles: any[]; onSave: (data: { user_id: string; points: number; description: string }) => void; onCancel: () => void }) {
+  const [form, setForm] = useState({ user_id: "", points: 0, description: "" });
+  const activeProfiles = profiles.filter((p: any) => p.user_id);
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label>Member</Label>
+        <Select value={form.user_id} onValueChange={(v) => setForm({ ...form, user_id: v })}>
+          <SelectTrigger><SelectValue placeholder="Select a member" /></SelectTrigger>
+          <SelectContent>
+            {activeProfiles.map((p: any) => (
+              <SelectItem key={p.user_id} value={p.user_id}>{p.display_name || p.email}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div><Label>Points</Label><Input type="number" min="1" value={form.points} onChange={(e) => setForm({ ...form, points: Number(e.target.value) })} /></div>
+      <div><Label>Reason</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="e.g. Welcome bonus, event participation" /></div>
+      <div className="flex gap-2 justify-end">
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button onClick={() => onSave(form)} disabled={!form.user_id || form.points <= 0}>Allocate Points</Button>
+      </div>
+    </div>
+  );
+}
+
+function AdminRedeemForm({ profiles, rewards, onSave, onCancel }: { profiles: any[]; rewards: any[]; onSave: (data: { user_id: string; reward_id: string; reward_name: string; points: number }) => void; onCancel: () => void }) {
+  const [userId, setUserId] = useState("");
+  const [rewardId, setRewardId] = useState("");
+  const activeProfiles = profiles.filter((p: any) => p.user_id);
+  const selectedReward = (rewards ?? []).find((r: any) => r.id === rewardId);
+  const selectedProfile = activeProfiles.find((p: any) => p.user_id === userId);
+  const userPoints = selectedProfile?.points ?? 0;
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label>Member</Label>
+        <Select value={userId} onValueChange={setUserId}>
+          <SelectTrigger><SelectValue placeholder="Select a member" /></SelectTrigger>
+          <SelectContent>
+            {activeProfiles.map((p: any) => (
+              <SelectItem key={p.user_id} value={p.user_id}>{p.display_name || p.email} ({p.points ?? 0} pts)</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label>Reward</Label>
+        <Select value={rewardId} onValueChange={setRewardId}>
+          <SelectTrigger><SelectValue placeholder="Select a reward" /></SelectTrigger>
+          <SelectContent>
+            {(rewards ?? []).filter((r: any) => r.is_available).map((r: any) => (
+              <SelectItem key={r.id} value={r.id}>{r.name} ({r.points_cost} pts)</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {selectedReward && userId && (
+        <div className="rounded-lg bg-muted p-3 text-sm">
+          <p>User balance: <span className="font-medium">{userPoints} pts</span></p>
+          <p>Reward cost: <span className="font-medium">{selectedReward.points_cost} pts</span></p>
+          {userPoints < selectedReward.points_cost && <p className="text-destructive font-medium mt-1">Insufficient points!</p>}
+        </div>
+      )}
+      <div className="flex gap-2 justify-end">
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button onClick={() => onSave({ user_id: userId, reward_id: rewardId, reward_name: selectedReward?.name ?? "", points: selectedReward?.points_cost ?? 0 })} disabled={!userId || !rewardId || userPoints < (selectedReward?.points_cost ?? 0)}>Redeem</Button>
+      </div>
+    </div>
+  );
+}
+
+function PointsTransactionHistory({ userId }: { userId: string }) {
+  const { data: transactions, isLoading } = usePointsTransactions(userId);
+  if (isLoading) return <Loader2 className="mx-auto h-6 w-6 animate-spin" />;
+  if (!transactions?.length) return <p className="text-sm text-muted-foreground">No points transactions yet.</p>;
+  return (
+    <div className="space-y-2 max-h-60 overflow-y-auto">
+      {transactions.map((t: any) => (
+        <div key={t.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+          <div className="flex items-center gap-2">
+            {t.type === "redemption" ? <MinusCircle className="h-4 w-4 text-destructive" /> : <PlusCircle className="h-4 w-4 text-primary" />}
+            <span className="capitalize">{t.type}</span>
+            {t.description && <span className="text-muted-foreground">— {t.description}</span>}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={t.type === "redemption" ? "text-destructive" : "text-primary"}>
+              {t.type === "redemption" ? "-" : "+"}{t.points} pts
+            </span>
+            <span className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PreRegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_name: string; email: string }) => void; onCancel: () => void }) {
   const [form, setForm] = useState({ display_name: "", email: "" });
   return (
