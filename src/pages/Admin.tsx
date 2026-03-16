@@ -424,6 +424,21 @@ function PageVisibilitySettings() {
   );
 }
 
+function PreRegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_name: string; email: string }) => void; onCancel: () => void }) {
+  const [form, setForm] = useState({ display_name: "", email: "" });
+  return (
+    <div className="space-y-4">
+      <div><Label>Display Name</Label><Input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder="John Smith" /></div>
+      <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="john@example.com" /></div>
+      <p className="text-xs text-muted-foreground">This user will be automatically linked when they sign in with Google or Apple using this email.</p>
+      <div className="flex gap-2 justify-end">
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button onClick={() => onSave(form)} disabled={!form.display_name || !form.email}>Add User</Button>
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -446,7 +461,7 @@ export default function Admin() {
     queryFn: async () => {
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("user_id, display_name, created_at")
+        .select("id, user_id, display_name, email, created_at")
         .order("created_at", { ascending: false });
       const { data: hours } = await supabase.from("member_hours").select("*");
       const hoursMap = new Map((hours ?? []).map((h: any) => [h.user_id, h]));
@@ -777,9 +792,29 @@ export default function Admin() {
 
             {/* All Users Tab */}
             <TabsContent value="allusers" className="space-y-4">
+              <div className="flex justify-end">
+                <Dialog open={dialogOpen === "adduser"} onOpenChange={(open) => setDialogOpen(open ? "adduser" : null)}>
+                  <DialogTrigger asChild>
+                    <Button><Plus className="mr-2 h-4 w-4" />Pre-Register User</Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader><DialogTitle>Pre-Register New User</DialogTitle></DialogHeader>
+                    <PreRegisterUserForm onSave={async (data) => {
+                      const { error } = await supabase.from("profiles").insert({
+                        display_name: data.display_name,
+                        email: data.email,
+                      });
+                      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+                      toast({ title: "User pre-registered", description: `${data.display_name} will be linked when they sign in with ${data.email}.` });
+                      queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
+                      setDialogOpen(null);
+                    }} onCancel={() => setDialogOpen(null)} />
+                  </DialogContent>
+                </Dialog>
+              </div>
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><UserCheck className="h-5 w-5" />All Signed-Up Users</CardTitle>
+                  <CardTitle className="flex items-center gap-2"><UserCheck className="h-5 w-5" />All Users</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {loadingAllUsers ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
@@ -787,6 +822,8 @@ export default function Admin() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Status</TableHead>
                           <TableHead>Joined</TableHead>
                           <TableHead className="text-right">Hours Purchased</TableHead>
                           <TableHead className="text-right">Hours Used</TableHead>
@@ -795,11 +832,17 @@ export default function Admin() {
                       </TableHeader>
                       <TableBody>
                         {(allUsers ?? []).length === 0 && (
-                          <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No users found.</TableCell></TableRow>
+                          <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No users found.</TableCell></TableRow>
                         )}
                         {(allUsers ?? []).map((u: any) => (
-                          <TableRow key={u.user_id}>
+                          <TableRow key={u.id || u.user_id}>
                             <TableCell className="font-medium">{u.display_name || "Unknown"}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{u.email || "—"}</TableCell>
+                            <TableCell>
+                              <Badge variant={u.user_id ? "secondary" : "outline"}>
+                                {u.user_id ? "Active" : "Pending"}
+                              </Badge>
+                            </TableCell>
                             <TableCell>{new Date(u.created_at).toLocaleDateString()}</TableCell>
                             <TableCell className="text-right">{u.hours_purchased}</TableCell>
                             <TableCell className="text-right">{u.hours_used}</TableCell>
