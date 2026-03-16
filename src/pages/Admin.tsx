@@ -1022,6 +1022,16 @@ export default function Admin() {
               <PageContentEditor />
             </TabsContent>
 
+            {/* Bay Config Tab */}
+            <TabsContent value="bayconfig" className="space-y-4">
+              <BayConfigTab />
+            </TabsContent>
+
+            {/* Booking Logs Tab */}
+            <TabsContent value="bookinglogs" className="space-y-4">
+              <BookingLogsTab />
+            </TabsContent>
+
             {/* Settings Tab */}
             <TabsContent value="settings" className="space-y-4">
               <PageVisibilitySettings />
