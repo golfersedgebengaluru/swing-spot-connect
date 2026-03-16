@@ -40,7 +40,7 @@ export default function Dashboard() {
           {/* Welcome Header */}
           <div className="mb-8">
             <h1 className="font-display text-3xl font-bold text-foreground">
-              Welcome back, <span className="text-primary">Golfer</span>
+              Welcome back, <span className="text-primary">{displayName}</span>
             </h1>
             <p className="mt-1 text-muted-foreground">
               Here's an overview of your golf journey
