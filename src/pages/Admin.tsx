@@ -914,7 +914,25 @@ export default function Admin() {
 
             {/* All Users Tab */}
             <TabsContent value="allusers" className="space-y-4">
-              <div className="flex justify-end">
+              <div className="flex flex-wrap gap-2 justify-end">
+                <Dialog open={dialogOpen === "allocate"} onOpenChange={(open) => { setDialogOpen(open ? "allocate" : null); if (open) loadProfiles(); }}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline"><Star className="mr-2 h-4 w-4" />Allocate Points</Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader><DialogTitle>Allocate Reward Points</DialogTitle></DialogHeader>
+                    <AllocatePointsForm profiles={allProfiles} onSave={handleAllocatePoints} onCancel={() => setDialogOpen(null)} />
+                  </DialogContent>
+                </Dialog>
+                <Dialog open={dialogOpen === "adminredeem"} onOpenChange={(open) => { setDialogOpen(open ? "adminredeem" : null); if (open) loadProfiles(); }}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline"><Award className="mr-2 h-4 w-4" />Redeem for User</Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader><DialogTitle>Redeem Reward for User</DialogTitle></DialogHeader>
+                    <AdminRedeemForm profiles={allProfiles} rewards={rewards ?? []} onSave={handleAdminRedeem} onCancel={() => setDialogOpen(null)} />
+                  </DialogContent>
+                </Dialog>
                 <Dialog open={dialogOpen === "adduser"} onOpenChange={(open) => setDialogOpen(open ? "adduser" : null)}>
                   <DialogTrigger asChild>
                     <Button><Plus className="mr-2 h-4 w-4" />Pre-Register User</Button>
@@ -934,6 +952,15 @@ export default function Admin() {
                   </DialogContent>
                 </Dialog>
               </div>
+
+              {/* Points History Dialog */}
+              <Dialog open={dialogOpen === "pointshistory"} onOpenChange={(open) => { setDialogOpen(open ? "pointshistory" : null); if (!open) setViewingPointsHistory(null); }}>
+                <DialogContent className="sm:max-w-lg">
+                  <DialogHeader><DialogTitle>Points History</DialogTitle></DialogHeader>
+                  {viewingPointsHistory && <PointsTransactionHistory userId={viewingPointsHistory} />}
+                </DialogContent>
+              </Dialog>
+
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2"><UserCheck className="h-5 w-5" />All Users</CardTitle>
@@ -946,15 +973,14 @@ export default function Admin() {
                           <TableHead>Name</TableHead>
                           <TableHead>Email</TableHead>
                           <TableHead>Status</TableHead>
-                          <TableHead>Joined</TableHead>
-                          <TableHead className="text-right">Hours Purchased</TableHead>
-                          <TableHead className="text-right">Hours Used</TableHead>
-                          <TableHead className="text-right">Balance</TableHead>
+                          <TableHead className="text-right">Points</TableHead>
+                          <TableHead className="text-right">Hours Balance</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {(allUsers ?? []).length === 0 && (
-                          <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No users found.</TableCell></TableRow>
+                          <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No users found.</TableCell></TableRow>
                         )}
                         {(allUsers ?? []).map((u: any) => (
                           <TableRow key={u.id || u.user_id}>
@@ -965,13 +991,20 @@ export default function Admin() {
                                 {u.user_id ? "Active" : "Pending"}
                               </Badge>
                             </TableCell>
-                            <TableCell>{new Date(u.created_at).toLocaleDateString()}</TableCell>
-                            <TableCell className="text-right">{u.hours_purchased}</TableCell>
-                            <TableCell className="text-right">{u.hours_used}</TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant="default">{u.points ?? 0} pts</Badge>
+                            </TableCell>
                             <TableCell className="text-right">
                               <Badge variant={u.hours_remaining <= 3 ? "destructive" : "secondary"}>
                                 {u.hours_remaining} hrs
                               </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {u.user_id && (
+                                <Button variant="ghost" size="icon" onClick={() => { setViewingPointsHistory(u.user_id); setDialogOpen("pointshistory"); }}>
+                                  <History className="h-4 w-4" />
+                                </Button>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
