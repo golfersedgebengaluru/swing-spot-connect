@@ -23,6 +23,7 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAllPageContent, useUpdatePageContent } from "@/hooks/usePageContent";
 import { usePageVisibility, useUpdatePageVisibility } from "@/hooks/usePageVisibility";
+import { useAllocatePoints, useRedeemPoints, usePointsTransactions } from "@/hooks/usePoints";
 import { Navigate } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
