@@ -379,6 +379,50 @@ function PageContentEditor() {
   );
 }
 
+const pageVisibilityItems = [
+  { key: "page_leaderboard_visible", label: "Leaderboard", description: "Show the Leaderboard tab in navigation" },
+  { key: "page_community_visible", label: "Community", description: "Show the Community tab in navigation" },
+  { key: "page_shop_visible", label: "Shop", description: "Show the Shop tab in navigation" },
+  { key: "page_rewards_visible", label: "Rewards", description: "Show the Rewards tab in navigation" },
+];
+
+function PageVisibilitySettings() {
+  const { data: visibility, isLoading } = usePageVisibility();
+  const updateVisibility = useUpdatePageVisibility();
+  const { toast } = useToast();
+
+  const handleToggle = (key: string, checked: boolean) => {
+    updateVisibility.mutate({ key, visible: checked }, {
+      onSuccess: () => toast({ title: "Updated", description: `Page visibility updated.` }),
+      onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    });
+  };
+
+  if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
+
+  return (
+    <Card className="max-w-md">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5" />Page Visibility</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {pageVisibilityItems.map((item) => (
+          <div key={item.key} className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">{item.label}</p>
+              <p className="text-xs text-muted-foreground">{item.description}</p>
+            </div>
+            <Switch
+              checked={visibility?.[item.key] ?? false}
+              onCheckedChange={(checked) => handleToggle(item.key, checked)}
+            />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Admin() {
   const { user } = useAuth();
   const { toast } = useToast();
