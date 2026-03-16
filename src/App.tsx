@@ -14,9 +14,12 @@ import Shop from "./pages/Shop";
 import Rewards from "./pages/Rewards";
 import Admin from "./pages/Admin";
 import AdminSetup from "./pages/AdminSetup";
+import Bookings from "./pages/Bookings";
+import MyBookings from "./pages/MyBookings";
 import PageView from "./pages/PageView";
 import NotFound from "./pages/NotFound";
 import { AdminRoute } from "@/components/AdminRoute";
+import { CitySelectionModal } from "@/components/CitySelectionModal";
 
 const queryClient = new QueryClient();
 
