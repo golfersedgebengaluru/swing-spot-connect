@@ -30,6 +30,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <CitySelectionModal />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
@@ -39,6 +40,8 @@ const App = () => (
             <Route path="/community" element={<Community />} />
             <Route path="/shop" element={<Shop />} />
             <Route path="/rewards" element={<Rewards />} />
+            <Route path="/bookings" element={<Bookings />} />
+            <Route path="/my-bookings" element={<MyBookings />} />
             <Route path="/admin/setup" element={<AdminSetup />} />
             <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
             <Route path="/page/:slug" element={<PageView />} />
