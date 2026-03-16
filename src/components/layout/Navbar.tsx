@@ -19,8 +19,13 @@ const allNavLinks = [
 
 export function Navbar() {
   const { user, loading, signOut } = useAuth();
+  const { data: visibility } = usePageVisibility();
   const navigate = useNavigate();
   const isAuthenticated = !loading && !!user;
+
+  const navLinks = allNavLinks.filter(
+    (link) => !link.visibilityKey || visibility?.[link.visibilityKey]
+  );
 
   const handleLogout = async () => {
     await signOut();
