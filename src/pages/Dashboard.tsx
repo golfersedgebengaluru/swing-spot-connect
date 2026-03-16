@@ -74,9 +74,11 @@ export default function Dashboard() {
                       <p className="mt-1 font-display text-3xl font-bold text-foreground">
                         {stat.value}
                       </p>
-                      {stat.change && <p className={`mt-1 text-sm ${stat.positive ? "text-primary" : "text-destructive"}`}>
-                        {stat.change} this month
-                      </p>
+                      {stat.change && (
+                        <p className={`mt-1 text-sm ${stat.positive ? "text-primary" : "text-destructive"}`}>
+                          {stat.change} this month
+                        </p>
+                      )}
                     </div>
                     <div className="rounded-xl bg-primary/10 p-3">
                       <stat.icon className="h-5 w-5 text-primary" />
