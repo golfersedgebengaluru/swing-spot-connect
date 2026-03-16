@@ -611,8 +611,28 @@ export default function Admin() {
 
   // Load all profiles for member selection
   const loadProfiles = async () => {
-    const { data } = await supabase.from("profiles").select("user_id, display_name");
+    const { data } = await supabase.from("profiles").select("user_id, display_name, email, points");
     setAllProfiles(data ?? []);
+  };
+
+  const handleAllocatePoints = async (data: { user_id: string; points: number; description: string }) => {
+    try {
+      await allocatePoints.mutateAsync({ userId: data.user_id, points: data.points, description: data.description, adminId: user?.id! });
+      toast({ title: "Points allocated", description: `${data.points} points awarded.` });
+      setDialogOpen(null);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleAdminRedeem = async (data: { user_id: string; reward_id: string; reward_name: string; points: number }) => {
+    try {
+      await redeemPoints.mutateAsync({ userId: data.user_id, points: data.points, rewardId: data.reward_id, rewardName: data.reward_name, adminId: user?.id! });
+      toast({ title: "Reward redeemed", description: `${data.reward_name} redeemed successfully.` });
+      setDialogOpen(null);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
   const handleAddMember = async (data: any) => {
