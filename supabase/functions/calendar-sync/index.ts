@@ -130,7 +130,16 @@ Deno.serve(async (req) => {
     const serviceAccountKeyStr = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
     if (!serviceAccountKeyStr) throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY not configured");
 
-    const serviceAccountKey = JSON.parse(serviceAccountKeyStr);
+    let serviceAccountKey: any;
+    try {
+      serviceAccountKey = JSON.parse(serviceAccountKeyStr);
+    } catch (parseErr) {
+      console.error("Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY. Length:", serviceAccountKeyStr.length, "First 20 chars:", serviceAccountKeyStr.substring(0, 20));
+      return new Response(
+        JSON.stringify({ error: "Server configuration error: The Google Service Account Key is not valid JSON. Please re-enter the secret with the raw JSON content from your .json key file." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
