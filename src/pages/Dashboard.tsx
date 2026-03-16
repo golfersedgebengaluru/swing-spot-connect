@@ -7,13 +7,6 @@ import { Link } from "react-router-dom";
 import { useUserPoints } from "@/hooks/usePoints";
 import { useAuth } from "@/contexts/AuthContext";
 
-const stats = [
-  { label: "Current Handicap", value: "12.4", change: "-0.8", icon: Target, positive: true },
-  { label: "Rounds This Month", value: "8", change: "+2", icon: Clock, positive: true },
-  { label: "Leaderboard Rank", value: "#12", change: "+3", icon: Trophy, positive: true },
-  { label: "Reward Points", value: "2,450", change: "+150", icon: Gift, positive: true },
-];
-
 const recentRounds = [
   { date: "Nov 28", course: "Bay 3", score: 78, par: 72 },
   { date: "Nov 25", course: "Bay 1", score: 82, par: 72 },
