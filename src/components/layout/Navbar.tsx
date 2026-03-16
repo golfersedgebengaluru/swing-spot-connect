@@ -5,15 +5,16 @@ import { Menu, X, User, LogOut } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePageVisibility } from "@/hooks/usePageVisibility";
 import bannerLogo from "@/assets/golfers-edge-banner.jpg";
 
-const navLinks = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/leaderboard", label: "Leaderboard" },
-  { href: "/events", label: "Events" },
-  { href: "/community", label: "Community" },
-  { href: "/shop", label: "Shop" },
-  { href: "/rewards", label: "Rewards" },
+const allNavLinks = [
+  { href: "/dashboard", label: "Dashboard", visibilityKey: null },
+  { href: "/leaderboard", label: "Leaderboard", visibilityKey: "page_leaderboard_visible" },
+  { href: "/events", label: "Events", visibilityKey: null },
+  { href: "/community", label: "Community", visibilityKey: "page_community_visible" },
+  { href: "/shop", label: "Shop", visibilityKey: "page_shop_visible" },
+  { href: "/rewards", label: "Rewards", visibilityKey: "page_rewards_visible" },
 ];
 
 export function Navbar() {
