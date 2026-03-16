@@ -20,6 +20,17 @@ const upcomingEvents = [
 ];
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const { data: currentPoints = 0 } = useUserPoints();
+  const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || "Golfer";
+
+  const stats = [
+    { label: "Current Handicap", value: "12.4", change: "-0.8", icon: Target, positive: true },
+    { label: "Rounds This Month", value: "8", change: "+2", icon: Clock, positive: true },
+    { label: "Leaderboard Rank", value: "#12", change: "+3", icon: Trophy, positive: true },
+    { label: "Reward Points", value: currentPoints.toLocaleString(), change: "", icon: Gift, positive: true },
+  ];
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
