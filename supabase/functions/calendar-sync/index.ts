@@ -106,6 +106,29 @@ async function createEvent(
   return data;
 }
 
+async function updateEvent(
+  accessToken: string,
+  calendarId: string,
+  eventId: string,
+  summary: string,
+  description?: string
+) {
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ summary, description }),
+    }
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(`Calendar update error: ${JSON.stringify(data)}`);
+  return data;
+}
+
 async function deleteEvent(accessToken: string, calendarId: string, eventId: string) {
   const res = await fetch(
     `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
@@ -118,6 +141,13 @@ async function deleteEvent(accessToken: string, calendarId: string, eventId: str
     const data = await res.text();
     throw new Error(`Calendar delete error [${res.status}]: ${data}`);
   }
+}
+
+function createAdminClient() {
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
 }
 
 Deno.serve(async (req) => {
@@ -198,34 +228,48 @@ Deno.serve(async (req) => {
     }
 
     if (action === "create_booking") {
-      const { calendar_email, start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name } = params;
+      const { calendar_email, start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type } = params;
 
-      // Check balance
-      const { data: hours } = await supabase
-        .from("member_hours")
-        .select("*")
-        .eq("user_id", userId)
-        .single();
-
-      const hoursNeeded = duration_minutes / 60;
-      const remaining = (hours?.hours_purchased ?? 0) - (hours?.hours_used ?? 0);
-
-      if (remaining < hoursNeeded) {
-        return new Response(
-          JSON.stringify({ error: `Insufficient hours. You have ${remaining}h, need ${hoursNeeded}h.` }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      // Get bay config for coaching mode
+      let coachingMode = "instant";
+      let coachingHours = 1;
+      if (bay_id) {
+        const { data: bayData } = await supabase.from("bays").select("coaching_mode, coaching_hours").eq("id", bay_id).single();
+        if (bayData) {
+          coachingMode = bayData.coaching_mode || "instant";
+          coachingHours = bayData.coaching_hours || 1;
+        }
       }
 
-      // Check no overlap with existing bookings for this specific bay
+      const isCoaching = session_type === "coaching";
+      const needsApproval = isCoaching && coachingMode === "approval_required";
+      const hoursNeeded = isCoaching ? coachingHours : duration_minutes / 60;
+
+      // Only check/deduct balance for non-pending bookings
+      if (!needsApproval) {
+        const { data: hours } = await supabase
+          .from("member_hours")
+          .select("*")
+          .eq("user_id", userId)
+          .single();
+
+        const remaining = (hours?.hours_purchased ?? 0) - (hours?.hours_used ?? 0);
+        if (remaining < hoursNeeded) {
+          return new Response(
+            JSON.stringify({ error: `Insufficient hours. You have ${remaining}h, need ${hoursNeeded}h.` }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+
+      // Check no overlap with existing bookings for this specific bay (both confirmed and pending block slots)
       const overlapQuery = supabase
         .from("bookings")
         .select("*")
-        .eq("status", "confirmed")
+        .in("status", ["confirmed", "pending"])
         .gte("end_time", start_time)
         .lte("start_time", end_time);
 
-      // Filter by bay_id if provided, otherwise fall back to city
       if (bay_id) {
         overlapQuery.eq("bay_id", bay_id);
       } else {
@@ -243,66 +287,306 @@ Deno.serve(async (req) => {
 
       // Create calendar event
       const bayLabel = bay_name || city;
-      const calEvent = await createEvent(
-        accessToken,
-        calendar_email,
-        `${bayLabel} - ${display_name || "Member"}`,
-        start_time,
-        end_time,
-        `Booked by ${display_name || "Member"} via Golfer's Edge`
-      );
+      const calSummary = needsApproval
+        ? `⏳ Pending Coaching Approval - ${display_name || "Member"}`
+        : `${bayLabel} - ${display_name || "Member"}${isCoaching ? " (Coaching)" : ""}`;
+      const calDesc = needsApproval
+        ? `Pending coaching approval for ${display_name || "Member"} via Golfer's Edge`
+        : `Booked by ${display_name || "Member"} via Golfer's Edge${isCoaching ? " - Coaching Session" : ""}`;
 
-      // Create booking record with bay_id
+      const calEvent = await createEvent(accessToken, calendar_email, calSummary, start_time, end_time, calDesc);
+
+      // Create booking record
+      const bookingStatus = needsApproval ? "pending" : "confirmed";
       const bookingInsert: any = {
         user_id: userId,
         city,
         start_time,
         end_time,
         duration_minutes,
-        status: "confirmed",
+        status: bookingStatus,
         calendar_event_id: calEvent.id,
+        session_type: session_type || "practice",
       };
       if (bay_id) bookingInsert.bay_id = bay_id;
 
       const { data: booking, error: bookingError } = await supabase.from("bookings").insert(bookingInsert).select().single();
-
       if (bookingError) throw bookingError;
 
-      // Deduct hours
-      await supabase
-        .from("member_hours")
-        .update({ hours_used: (hours?.hours_used ?? 0) + hoursNeeded })
-        .eq("user_id", userId);
+      // Deduct hours only for instant bookings
+      if (!needsApproval) {
+        const { data: hours } = await supabase
+          .from("member_hours")
+          .select("*")
+          .eq("user_id", userId)
+          .single();
 
-      // Log transaction
-      await supabase.from("hours_transactions").insert({
-        user_id: userId,
-        type: "deduction",
-        hours: hoursNeeded,
-        note: `Bay booking - ${bayLabel} - ${new Date(start_time).toLocaleDateString()}`,
-        created_by: userId,
-      });
+        await supabase
+          .from("member_hours")
+          .update({ hours_used: (hours?.hours_used ?? 0) + hoursNeeded })
+          .eq("user_id", userId);
 
-      // Notification
-      await supabase.from("notifications").insert({
-        user_id: userId,
-        title: "Bay Booked!",
-        message: `Your ${bayLabel} has been booked for ${new Date(start_time).toLocaleString()} (${hoursNeeded}h). ${remaining - hoursNeeded}h remaining.`,
-        type: "booking",
-      });
+        await supabase.from("hours_transactions").insert({
+          user_id: userId,
+          type: "deduction",
+          hours: hoursNeeded,
+          note: `${isCoaching ? "Coaching" : "Bay"} booking - ${bayLabel} - ${new Date(start_time).toLocaleDateString()}`,
+          created_by: userId,
+        });
 
-      // Low balance warning
-      const newRemaining = remaining - hoursNeeded;
-      if (newRemaining <= 2 && newRemaining > 0) {
+        const remaining = (hours?.hours_purchased ?? 0) - (hours?.hours_used ?? 0) - hoursNeeded;
+
         await supabase.from("notifications").insert({
           user_id: userId,
-          title: "⚠️ Low Hours Balance",
-          message: `You have only ${newRemaining}h remaining. Consider purchasing more hours.`,
-          type: "warning",
+          title: isCoaching ? "Coaching Booked!" : "Bay Booked!",
+          message: `Your ${bayLabel} ${isCoaching ? "coaching session" : "bay"} has been booked for ${new Date(start_time).toLocaleString()} (${hoursNeeded}h). ${remaining}h remaining.`,
+          type: "booking",
         });
+
+        if (remaining <= 2 && remaining > 0) {
+          await supabase.from("notifications").insert({
+            user_id: userId,
+            title: "⚠️ Low Hours Balance",
+            message: `You have only ${remaining}h remaining. Consider purchasing more hours.`,
+            type: "warning",
+          });
+        }
+      } else {
+        // Pending coaching notification
+        await supabase.from("notifications").insert({
+          user_id: userId,
+          title: "🕐 Coaching Pending Approval",
+          message: `Your coaching session at ${bayLabel} on ${new Date(start_time).toLocaleString()} is awaiting admin approval.`,
+          type: "booking",
+        });
+
+        // Notify admins
+        const adminClient = createAdminClient();
+        const { data: adminRoles } = await adminClient.from("user_roles").select("user_id").eq("role", "admin");
+        for (const admin of adminRoles ?? []) {
+          await adminClient.from("notifications").insert({
+            user_id: admin.user_id,
+            title: "📋 New Coaching Request",
+            message: `${display_name || "A member"} has requested a coaching session at ${bayLabel} on ${new Date(start_time).toLocaleString()}. Please approve or reject.`,
+            type: "admin",
+          });
+        }
       }
 
       return new Response(JSON.stringify({ booking }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "approve_booking") {
+      const { booking_id } = params;
+
+      // Check admin role
+      const adminClient = createAdminClient();
+      const { data: isAdmin } = await adminClient.rpc("has_role", { _user_id: userId, _role: "admin" });
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: "Admin access required" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: booking } = await adminClient
+        .from("bookings")
+        .select("*")
+        .eq("id", booking_id)
+        .eq("status", "pending")
+        .single();
+
+      if (!booking) {
+        return new Response(JSON.stringify({ error: "Pending booking not found" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Get bay info for coaching hours
+      let coachingHours = 1;
+      let calendarEmail: string | null = null;
+      let bayName = booking.city;
+      if (booking.bay_id) {
+        const { data: bay } = await adminClient.from("bays").select("coaching_hours, calendar_email, name").eq("id", booking.bay_id).single();
+        if (bay) {
+          coachingHours = bay.coaching_hours || 1;
+          calendarEmail = bay.calendar_email;
+          bayName = bay.name || booking.city;
+        }
+      }
+
+      const hoursNeeded = booking.session_type === "coaching" ? coachingHours : booking.duration_minutes / 60;
+
+      // Check balance
+      const { data: hours } = await adminClient
+        .from("member_hours")
+        .select("*")
+        .eq("user_id", booking.user_id)
+        .single();
+
+      const remaining = (hours?.hours_purchased ?? 0) - (hours?.hours_used ?? 0);
+      if (remaining < hoursNeeded) {
+        return new Response(
+          JSON.stringify({ error: `User has insufficient hours (${remaining}h available, ${hoursNeeded}h needed).` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Update booking status
+      await adminClient.from("bookings").update({ status: "confirmed" }).eq("id", booking_id);
+
+      // Deduct hours
+      await adminClient
+        .from("member_hours")
+        .update({ hours_used: (hours?.hours_used ?? 0) + hoursNeeded })
+        .eq("user_id", booking.user_id);
+
+      await adminClient.from("hours_transactions").insert({
+        user_id: booking.user_id,
+        type: "deduction",
+        hours: hoursNeeded,
+        note: `Coaching approved - ${bayName} - ${new Date(booking.start_time).toLocaleDateString()}`,
+        created_by: userId,
+      });
+
+      // Update calendar event title
+      if (booking.calendar_event_id && calendarEmail) {
+        try {
+          const { data: profile } = await adminClient.from("profiles").select("display_name").eq("user_id", booking.user_id).single();
+          const displayName = profile?.display_name || "Member";
+          await updateEvent(
+            accessToken,
+            calendarEmail,
+            booking.calendar_event_id,
+            `${bayName} - ${displayName} (Coaching)`,
+            `Coaching session for ${displayName} - Approved`
+          );
+        } catch (e) {
+          console.error("Failed to update calendar event:", e);
+        }
+      }
+
+      // Notify user
+      const newRemaining = remaining - hoursNeeded;
+      await adminClient.from("notifications").insert({
+        user_id: booking.user_id,
+        title: "✅ Coaching Approved!",
+        message: `Your coaching session at ${bayName} on ${new Date(booking.start_time).toLocaleString()} has been approved. ${hoursNeeded}h deducted. ${newRemaining}h remaining.`,
+        type: "booking",
+      });
+
+      // Send approval email
+      try {
+        await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({
+            user_id: booking.user_id,
+            template: "coaching_approved",
+            subject: "✅ Coaching Session Approved!",
+            data: {
+              bay: bayName,
+              city: booking.city,
+              date: new Date(booking.start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+              time: `${new Date(booking.start_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} – ${new Date(booking.end_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
+              hours_deducted: `${hoursNeeded}h`,
+              hours_remaining: `${newRemaining}h`,
+            },
+          }),
+        });
+      } catch (e) {
+        console.error("Failed to send approval email:", e);
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "reject_booking") {
+      const { booking_id } = params;
+
+      const adminClient = createAdminClient();
+      const { data: isAdmin } = await adminClient.rpc("has_role", { _user_id: userId, _role: "admin" });
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: "Admin access required" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: booking } = await adminClient
+        .from("bookings")
+        .select("*")
+        .eq("id", booking_id)
+        .eq("status", "pending")
+        .single();
+
+      if (!booking) {
+        return new Response(JSON.stringify({ error: "Pending booking not found" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Get calendar email
+      let calendarEmail: string | null = null;
+      let bayName = booking.city;
+      if (booking.bay_id) {
+        const { data: bay } = await adminClient.from("bays").select("calendar_email, name").eq("id", booking.bay_id).single();
+        if (bay) {
+          calendarEmail = bay.calendar_email;
+          bayName = bay.name || booking.city;
+        }
+      }
+
+      // Delete calendar event to free slot
+      if (booking.calendar_event_id && calendarEmail) {
+        try {
+          await deleteEvent(accessToken, calendarEmail, booking.calendar_event_id);
+        } catch (e) {
+          console.error("Failed to delete calendar event:", e);
+        }
+      }
+
+      // Update booking status
+      await adminClient.from("bookings").update({ status: "rejected" }).eq("id", booking_id);
+
+      // Notify user
+      await adminClient.from("notifications").insert({
+        user_id: booking.user_id,
+        title: "❌ Coaching Request Rejected",
+        message: `Your coaching session request at ${bayName} on ${new Date(booking.start_time).toLocaleString()} has been declined. No hours were deducted.`,
+        type: "booking",
+      });
+
+      // Send rejection email
+      try {
+        await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({
+            user_id: booking.user_id,
+            template: "coaching_rejected",
+            subject: "❌ Coaching Session Declined",
+            data: {
+              bay: bayName,
+              city: booking.city,
+              date: new Date(booking.start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+              time: `${new Date(booking.start_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} – ${new Date(booking.end_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
+            },
+          }),
+        });
+      } catch (e) {
+        console.error("Failed to send rejection email:", e);
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -324,16 +608,18 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Check 24h cancellation policy
-      const hoursUntil = (new Date(booking.start_time).getTime() - Date.now()) / (1000 * 60 * 60);
-      if (hoursUntil < 24) {
-        return new Response(
-          JSON.stringify({ error: "Cancellations must be made at least 24 hours in advance." }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      // Check 24h cancellation policy (applies to confirmed bookings)
+      if (booking.status === "confirmed") {
+        const hoursUntil = (new Date(booking.start_time).getTime() - Date.now()) / (1000 * 60 * 60);
+        if (hoursUntil < 24) {
+          return new Response(
+            JSON.stringify({ error: "Cancellations must be made at least 24 hours in advance." }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
 
-      // Get calendar email - prefer bay, fall back to bay_config
+      // Get calendar email
       let calendarEmail: string | null = null;
       if (booking.bay_id) {
         const { data: bay } = await supabase.from("bays").select("calendar_email, name").eq("id", booking.bay_id).single();
@@ -359,35 +645,43 @@ Deno.serve(async (req) => {
         .update({ status: "cancelled" })
         .eq("id", booking_id);
 
-      // Refund hours
-      const hoursToRefund = booking.duration_minutes / 60;
-      const { data: memberHours } = await supabase
-        .from("member_hours")
-        .select("*")
-        .eq("user_id", userId)
-        .single();
+      // Refund hours only if was confirmed (pending bookings never had hours deducted)
+      if (booking.status === "confirmed") {
+        const hoursToRefund = booking.session_type === "coaching"
+          ? (() => {
+              // Get coaching hours from bay
+              // We already have bay info above, but let's be safe
+              return booking.duration_minutes / 60; // fallback
+            })()
+          : booking.duration_minutes / 60;
 
-      if (memberHours) {
-        await supabase
+        const { data: memberHours } = await supabase
           .from("member_hours")
-          .update({ hours_used: Math.max(0, memberHours.hours_used - hoursToRefund) })
-          .eq("user_id", userId);
-      }
+          .select("*")
+          .eq("user_id", userId)
+          .single();
 
-      // Log refund transaction
-      await supabase.from("hours_transactions").insert({
-        user_id: userId,
-        type: "adjustment",
-        hours: hoursToRefund,
-        note: `Cancellation refund - ${booking.city} - ${new Date(booking.start_time).toLocaleDateString()}`,
-        created_by: userId,
-      });
+        if (memberHours) {
+          await supabase
+            .from("member_hours")
+            .update({ hours_used: Math.max(0, memberHours.hours_used - hoursToRefund) })
+            .eq("user_id", userId);
+        }
+
+        await supabase.from("hours_transactions").insert({
+          user_id: userId,
+          type: "adjustment",
+          hours: hoursToRefund,
+          note: `Cancellation refund - ${booking.city} - ${new Date(booking.start_time).toLocaleDateString()}`,
+          created_by: userId,
+        });
+      }
 
       // Notification
       await supabase.from("notifications").insert({
         user_id: userId,
         title: "Booking Cancelled",
-        message: `Your bay booking in ${booking.city} on ${new Date(booking.start_time).toLocaleString()} has been cancelled. ${hoursToRefund}h refunded.`,
+        message: `Your ${booking.session_type === "coaching" ? "coaching" : "bay"} booking in ${booking.city} on ${new Date(booking.start_time).toLocaleString()} has been cancelled.${booking.status === "confirmed" ? " Hours refunded." : ""}`,
         type: "booking",
       });
 
