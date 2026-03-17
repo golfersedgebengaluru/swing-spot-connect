@@ -247,7 +247,32 @@ Deno.serve(async (req) => {
       });
     }
 
-    const templateData = { ...data, display_name: data.display_name || profile.display_name };
+    // Fetch customizable template content from admin_config
+    const { data: tplConfigs } = await supabaseAdmin
+      .from("admin_config")
+      .select("key, value")
+      .like("key", "email_tpl_%");
+    const tplMap: Record<string, string> = {};
+    tplConfigs?.forEach((c: any) => { tplMap[c.key] = c.value; });
+
+    // Map template config keys to template data fields
+    const TEMPLATE_CONTENT_MAP: Record<string, string> = {
+      booking_confirmed: "email_tpl_booking_confirmed_footer",
+      booking_cancelled: "email_tpl_booking_cancelled_body",
+      points_earned: "email_tpl_points_earned_body",
+      points_redeemed: "email_tpl_points_redeemed_body",
+      league_update: "email_tpl_league_update_body",
+    };
+
+    const contentKey = TEMPLATE_CONTENT_MAP[template];
+    const customContent = contentKey ? tplMap[contentKey] : undefined;
+
+    const templateData = {
+      ...data,
+      display_name: data.display_name || profile.display_name,
+      _footer_text: template === "booking_confirmed" ? customContent : undefined,
+      _custom_body: customContent,
+    };
     const html = templateFn(templateData);
 
     // Get configurable sender email
