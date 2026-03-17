@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MapPin, Plus, Pencil, Trash2, Loader2, LayoutGrid, DollarSign } from "lucide-react";
+import { MapPin, Plus, Pencil, Trash2, Loader2, LayoutGrid } from "lucide-react";
 import { useBays } from "@/hooks/useBookings";
 import { CURRENCIES, getCurrencySymbol } from "@/lib/currencies";
 import { supabase } from "@/integrations/supabase/client";
@@ -145,8 +145,8 @@ export function BayConfigTab() {
                 <span className="flex items-center gap-2">
                    <MapPin className="h-5 w-5" /> {city}
                    <Badge variant="secondary">{cityBays.length} bay{cityBays.length !== 1 ? "s" : ""}</Badge>
-                   <Badge variant="outline" className="flex items-center gap-1">
-                     <DollarSign className="h-3 w-3" /> {getCurrencySymbol(cityBays[0]?.currency ?? "INR")} {cityBays[0]?.currency ?? "INR"}
+                   <Badge variant="outline">
+                     {getCurrencySymbol(cityBays[0]?.currency ?? "INR")} {cityBays[0]?.currency ?? "INR"}
                    </Badge>
                  </span>
                 <Button variant="outline" size="sm" onClick={() => handleAddBay(city)}>
