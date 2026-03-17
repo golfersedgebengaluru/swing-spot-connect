@@ -22,6 +22,8 @@ interface BayForm {
   close_time: string;
   is_active: boolean;
   sort_order: number;
+  coaching_mode: string;
+  coaching_hours: number;
 }
 
 const emptyForm: BayForm = {
@@ -32,6 +34,8 @@ const emptyForm: BayForm = {
   close_time: "22:00",
   is_active: true,
   sort_order: 0,
+  coaching_mode: "instant",
+  coaching_hours: 1,
 };
 
 export function BayConfigTab() {
@@ -55,6 +59,8 @@ export function BayConfigTab() {
       close_time: editing.close_time,
       is_active: editing.is_active,
       sort_order: editing.sort_order,
+      coaching_mode: editing.coaching_mode,
+      coaching_hours: editing.coaching_hours,
     };
 
     if (editing.id) {
@@ -153,9 +159,12 @@ export function BayConfigTab() {
                         <Badge variant={bay.is_active ? "default" : "outline"} className={bay.is_active ? "bg-emerald-500/15 text-emerald-600 border-emerald-200" : ""}>
                           {bay.is_active ? "Active" : "Inactive"}
                         </Badge>
+                        <Badge variant="outline" className={bay.coaching_mode === "approval_required" ? "text-amber-600 border-amber-300" : "text-muted-foreground"}>
+                          {bay.coaching_mode === "approval_required" ? "Coaching: Approval" : "Coaching: Instant"}
+                        </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {bay.open_time} – {bay.close_time} · {bay.calendar_email || "No calendar"}
+                        {bay.open_time} – {bay.close_time} · {bay.calendar_email || "No calendar"} · Coaching: {bay.coaching_hours}h
                       </p>
                     </div>
                   </div>
@@ -199,6 +208,23 @@ export function BayConfigTab() {
                   <Label>Closing Time</Label>
                   <Input type="time" value={editing.close_time} onChange={(e) => setEditing({ ...editing, close_time: e.target.value })} />
                 </div>
+              </div>
+              <div>
+                <Label>Coaching Mode</Label>
+                <Select value={editing.coaching_mode} onValueChange={(v) => setEditing({ ...editing, coaching_mode: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="instant">Instant Coaching</SelectItem>
+                    <SelectItem value="approval_required">Admin Approval Required</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Coaching Hours per Session</Label>
+                <Input type="number" step="0.5" min="0.5" value={editing.coaching_hours} onChange={(e) => setEditing({ ...editing, coaching_hours: Number(e.target.value) })} />
+                <p className="text-xs text-muted-foreground mt-1">Hours deducted for coaching sessions</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

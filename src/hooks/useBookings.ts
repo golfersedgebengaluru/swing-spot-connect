@@ -71,6 +71,7 @@ export function useCreateBooking() {
       city: string;
       bay_id: string;
       bay_name?: string;
+      session_type?: string;
     }) => {
       const profile = await supabase
         .from("profiles")
@@ -94,20 +95,36 @@ export function useCreateBooking() {
       if (user) {
         const startDate = new Date(variables.start_time);
         const endDate = new Date(variables.end_time);
-        const hoursNeeded = variables.duration_minutes / 60;
-        sendNotificationEmail({
-          user_id: user.id,
-          template: "booking_confirmed",
-          subject: "✅ Bay Booking Confirmed!",
-          data: {
-            city: variables.city,
-            bay: variables.bay_name || variables.city,
-            date: startDate.toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
-            time: `${startDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} – ${endDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
-            duration: `${hoursNeeded}h`,
-            hours_remaining: _data?.booking ? "—" : "—",
-          },
-        });
+        const isPending = _data?.booking?.status === "pending";
+        
+        if (isPending) {
+          sendNotificationEmail({
+            user_id: user.id,
+            template: "coaching_pending",
+            subject: "🕐 Coaching Session Pending Approval",
+            data: {
+              city: variables.city,
+              bay: variables.bay_name || variables.city,
+              date: startDate.toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+              time: `${startDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} – ${endDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
+              duration: `${variables.duration_minutes / 60}h`,
+            },
+          });
+        } else {
+          sendNotificationEmail({
+            user_id: user.id,
+            template: "booking_confirmed",
+            subject: "✅ Bay Booking Confirmed!",
+            data: {
+              city: variables.city,
+              bay: variables.bay_name || variables.city,
+              date: startDate.toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+              time: `${startDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} – ${endDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
+              duration: `${variables.duration_minutes / 60}h`,
+              hours_remaining: _data?.booking ? "—" : "—",
+            },
+          });
+        }
       }
       queryClient.invalidateQueries({ queryKey: ["available_slots"] });
       queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
@@ -131,6 +148,50 @@ export function useCancelBooking() {
       return res.data;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["available_slots"] });
+      queryClient.invalidateQueries({ queryKey: ["member_hours"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+}
+
+export function useApproveBooking() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (bookingId: string) => {
+      const res = await supabase.functions.invoke("calendar-sync", {
+        body: { action: "approve_booking", booking_id: bookingId },
+      });
+      if (res.error) throw new Error(res.error.message || "Approval failed");
+      if (res.data?.error) throw new Error(res.data.error);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all_bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["available_slots"] });
+      queryClient.invalidateQueries({ queryKey: ["member_hours"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+}
+
+export function useRejectBooking() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (bookingId: string) => {
+      const res = await supabase.functions.invoke("calendar-sync", {
+        body: { action: "reject_booking", booking_id: bookingId },
+      });
+      if (res.error) throw new Error(res.error.message || "Rejection failed");
+      if (res.data?.error) throw new Error(res.data.error);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all_bookings"] });
       queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
       queryClient.invalidateQueries({ queryKey: ["available_slots"] });
       queryClient.invalidateQueries({ queryKey: ["member_hours"] });
