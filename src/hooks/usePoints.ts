@@ -159,6 +159,18 @@ export function useRedeemPoints() {
         message: `You redeemed ${points} points for: ${rewardName}`,
         type: "reward",
       });
+
+      // Send email notification
+      sendNotificationEmail({
+        user_id: userId,
+        template: "points_redeemed",
+        subject: "🎁 Reward Redeemed",
+        data: {
+          points,
+          reward_name: rewardName,
+          total_points: currentPoints - points,
+        },
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });

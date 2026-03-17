@@ -402,6 +402,28 @@ Deno.serve(async (req) => {
         type: "booking",
       });
 
+      // Send cancellation email
+      try {
+        const emailSupabase = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        );
+        await emailSupabase.functions.invoke("send-notification-email", {
+          body: {
+            user_id: userId,
+            template: "booking_cancelled",
+            subject: "Booking Cancelled",
+            data: {
+              city: booking.city,
+              date: new Date(booking.start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+              hours_refunded: hoursToRefund,
+            },
+          },
+        });
+      } catch (emailErr) {
+        console.error("Email send failed (non-blocking):", emailErr);
+      }
+
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
