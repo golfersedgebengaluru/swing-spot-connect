@@ -73,6 +73,8 @@ export type Database = {
           calendar_email: string | null
           city: string
           close_time: string
+          coaching_hours: number
+          coaching_mode: string
           created_at: string
           id: string
           is_active: boolean
@@ -85,6 +87,8 @@ export type Database = {
           calendar_email?: string | null
           city: string
           close_time?: string
+          coaching_hours?: number
+          coaching_mode?: string
           created_at?: string
           id?: string
           is_active?: boolean
@@ -97,6 +101,8 @@ export type Database = {
           calendar_email?: string | null
           city?: string
           close_time?: string
+          coaching_hours?: number
+          coaching_mode?: string
           created_at?: string
           id?: string
           is_active?: boolean
@@ -117,6 +123,7 @@ export type Database = {
           end_time: string
           id: string
           note: string | null
+          session_type: string
           start_time: string
           status: string
           updated_at: string
@@ -131,6 +138,7 @@ export type Database = {
           end_time: string
           id?: string
           note?: string | null
+          session_type?: string
           start_time: string
           status?: string
           updated_at?: string
@@ -145,6 +153,7 @@ export type Database = {
           end_time?: string
           id?: string
           note?: string | null
+          session_type?: string
           start_time?: string
           status?: string
           updated_at?: string

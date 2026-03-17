@@ -26,7 +26,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAllPageContent, useUpdatePageContent } from "@/hooks/usePageContent";
 import { usePageVisibility, useUpdatePageVisibility } from "@/hooks/usePageVisibility";
 import { useAllocatePoints, useRedeemPoints, usePointsTransactions } from "@/hooks/usePoints";
-import { useBayConfig, useAllBookings, useBays } from "@/hooks/useBookings";
+import { useBayConfig, useAllBookings, useBays, useApproveBooking, useRejectBooking } from "@/hooks/useBookings";
 import { BayConfigTab } from "@/components/admin/BayConfigTab";
 import { Navigate } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -622,6 +622,9 @@ function PreRegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_na
 function BookingLogsTab() {
   const { data: bookings, isLoading } = useAllBookings();
   const { data: bays } = useBays();
+  const approveBooking = useApproveBooking();
+  const rejectBooking = useRejectBooking();
+  const { toast } = useToast();
   const [cityFilter, setCityFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -633,13 +636,43 @@ function BookingLogsTab() {
     return true;
   });
 
+  // Sort pending first
+  const sorted = [...filtered].sort((a: any, b: any) => {
+    if (a.status === "pending" && b.status !== "pending") return -1;
+    if (a.status !== "pending" && b.status === "pending") return 1;
+    return 0;
+  });
+
+  const handleApprove = async (id: string) => {
+    try {
+      await approveBooking.mutateAsync(id);
+      toast({ title: "Booking Approved", description: "Coaching session confirmed and hours deducted." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    try {
+      await rejectBooking.mutateAsync(id);
+      toast({ title: "Booking Rejected", description: "Coaching request declined and slot freed." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
   if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
+
+  const pendingCount = (bookings ?? []).filter((b: any) => b.status === "pending").length;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ClipboardList className="h-5 w-5" /> Booking Logs
+          {pendingCount > 0 && (
+            <Badge className="bg-amber-500/15 text-amber-600 border-amber-300">{pendingCount} pending</Badge>
+          )}
         </CardTitle>
         <div className="flex gap-3 mt-2">
           <Select value={cityFilter} onValueChange={setCityFilter}>
@@ -655,7 +688,9 @@ function BookingLogsTab() {
             <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="confirmed">Confirmed</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
               <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
@@ -667,30 +702,64 @@ function BookingLogsTab() {
             <TableRow>
               <TableHead>User</TableHead>
               <TableHead>City / Bay</TableHead>
+              <TableHead>Type</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Time</TableHead>
               <TableHead>Duration</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length === 0 && (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No bookings found.</TableCell></TableRow>
+            {sorted.length === 0 && (
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">No bookings found.</TableCell></TableRow>
             )}
-            {filtered.map((b: any) => (
-              <TableRow key={b.id}>
+            {sorted.map((b: any) => (
+              <TableRow key={b.id} className={b.status === "pending" ? "bg-amber-500/5" : ""}>
                 <TableCell className="font-medium">{b.display_name}</TableCell>
                 <TableCell>
                   <div>{b.city}</div>
                   {b.bay_name && <div className="text-xs text-muted-foreground">{b.bay_name}</div>}
                 </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={b.session_type === "coaching" ? "text-primary" : ""}>
+                    {b.session_type === "coaching" ? "🎓 Coaching" : "Practice"}
+                  </Badge>
+                </TableCell>
                 <TableCell>{format(new Date(b.start_time), "PP")}</TableCell>
                 <TableCell>{format(new Date(b.start_time), "h:mm a")} – {format(new Date(b.end_time), "h:mm a")}</TableCell>
                 <TableCell>{b.duration_minutes / 60}h</TableCell>
                 <TableCell>
-                  <Badge variant={b.status === "confirmed" ? "secondary" : "destructive"}>
-                    {b.status}
+                  <Badge
+                    variant={b.status === "confirmed" ? "secondary" : b.status === "rejected" ? "destructive" : b.status === "cancelled" ? "destructive" : "outline"}
+                    className={b.status === "pending" ? "bg-amber-500/15 text-amber-600 border-amber-300" : ""}
+                  >
+                    {b.status === "pending" ? "🟡 Pending" : b.status === "confirmed" ? "🟢 Confirmed" : b.status === "rejected" ? "🔴 Rejected" : b.status}
                   </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  {b.status === "pending" && (
+                    <div className="flex gap-1 justify-end">
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => handleApprove(b.id)}
+                        disabled={approveBooking.isPending}
+                        className="h-7 text-xs"
+                      >
+                        ✓ Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleReject(b.id)}
+                        disabled={rejectBooking.isPending}
+                        className="h-7 text-xs"
+                      >
+                        ✗ Reject
+                      </Button>
+                    </div>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
