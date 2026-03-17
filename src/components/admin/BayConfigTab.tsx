@@ -143,9 +143,12 @@ export function BayConfigTab() {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" /> {city}
-                  <Badge variant="secondary">{cityBays.length} bay{cityBays.length !== 1 ? "s" : ""}</Badge>
-                </span>
+                   <MapPin className="h-5 w-5" /> {city}
+                   <Badge variant="secondary">{cityBays.length} bay{cityBays.length !== 1 ? "s" : ""}</Badge>
+                   <Badge variant="outline" className="flex items-center gap-1">
+                     <DollarSign className="h-3 w-3" /> {getCurrencySymbol(cityBays[0]?.currency ?? "INR")} {cityBays[0]?.currency ?? "INR"}
+                   </Badge>
+                 </span>
                 <Button variant="outline" size="sm" onClick={() => handleAddBay(city)}>
                   <Plus className="mr-1 h-4 w-4" /> Add Bay
                 </Button>
