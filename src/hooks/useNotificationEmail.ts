@@ -8,11 +8,17 @@ export async function sendNotificationEmail(params: {
   data: Record<string, any>;
 }) {
   try {
-    await supabase.functions.invoke("send-notification-email", {
+    console.log("[Email] Sending:", params.template, "to user:", params.user_id);
+    const res = await supabase.functions.invoke("send-notification-email", {
       body: params,
     });
+    if (res.error) {
+      console.error("[Email] Function error:", res.error);
+    } else {
+      console.log("[Email] Result:", res.data);
+    }
   } catch (err) {
-    console.error("Failed to send notification email:", err);
+    console.error("[Email] Failed to send notification email:", err);
     // Non-blocking — don't throw
   }
 }

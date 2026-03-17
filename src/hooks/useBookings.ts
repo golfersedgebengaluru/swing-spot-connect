@@ -74,17 +74,21 @@ export function useCreateBooking() {
       return res.data;
     },
     onSuccess: (_data, variables) => {
-      // Send booking confirmation email
+      // Send booking confirmation email with properly formatted data
       if (user) {
+        const startDate = new Date(variables.start_time);
+        const endDate = new Date(variables.end_time);
+        const hoursNeeded = variables.duration_minutes / 60;
         sendNotificationEmail({
           user_id: user.id,
           template: "booking_confirmed",
           subject: "✅ Bay Booking Confirmed!",
           data: {
             city: variables.city,
-            start_time: variables.start_time,
-            end_time: variables.end_time,
-            duration_minutes: variables.duration_minutes,
+            date: startDate.toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+            time: `${startDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} – ${endDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
+            duration: `${hoursNeeded}h`,
+            hours_remaining: _data?.booking ? "—" : "—",
           },
         });
       }
