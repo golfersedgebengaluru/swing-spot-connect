@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useMyBookings, useCancelBooking } from "@/hooks/useBookings";
 import { useToast } from "@/hooks/use-toast";
 import { Navigate } from "react-router-dom";
+import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
 
 export default function MyBookings() {
   const { user, loading: authLoading } = useAuth();
