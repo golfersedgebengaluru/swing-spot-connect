@@ -20,7 +20,6 @@ async function getAccessToken(serviceAccountKey: any): Promise<string> {
     })
   );
 
-  // Import private key and sign
   const pemContents = serviceAccountKey.private_key
     .replace(/-----BEGIN PRIVATE KEY-----/, "")
     .replace(/-----END PRIVATE KEY-----/, "")
@@ -175,13 +174,11 @@ Deno.serve(async (req) => {
 
       const events = await listEvents(accessToken, calendar_email, timeMin, timeMax);
 
-      // Build busy intervals
       const busy: { start: number; end: number }[] = events.map((e: any) => ({
         start: new Date(e.start.dateTime || e.start.date).getTime(),
         end: new Date(e.end.dateTime || e.end.date).getTime(),
       }));
 
-      // Generate all 30-min slots within operating hours
       const dayStart = new Date(`${date}T${open_time}:00+05:30`).getTime();
       const dayEnd = new Date(`${date}T${close_time}:00+05:30`).getTime();
       const slots: { time: string; available: boolean }[] = [];
@@ -201,7 +198,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "create_booking") {
-      const { calendar_email, start_time, end_time, duration_minutes, city, display_name } = params;
+      const { calendar_email, start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name } = params;
 
       // Check balance
       const { data: hours } = await supabase
@@ -220,14 +217,22 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Check no overlap with existing bookings
-      const { data: existingBookings } = await supabase
+      // Check no overlap with existing bookings for this specific bay
+      const overlapQuery = supabase
         .from("bookings")
         .select("*")
-        .eq("city", city)
         .eq("status", "confirmed")
         .gte("end_time", start_time)
         .lte("start_time", end_time);
+
+      // Filter by bay_id if provided, otherwise fall back to city
+      if (bay_id) {
+        overlapQuery.eq("bay_id", bay_id);
+      } else {
+        overlapQuery.eq("city", city);
+      }
+
+      const { data: existingBookings } = await overlapQuery;
 
       if (existingBookings && existingBookings.length > 0) {
         return new Response(
@@ -237,17 +242,18 @@ Deno.serve(async (req) => {
       }
 
       // Create calendar event
+      const bayLabel = bay_name || city;
       const calEvent = await createEvent(
         accessToken,
         calendar_email,
-        `Bay Booking - ${display_name || "Member"}`,
+        `${bayLabel} - ${display_name || "Member"}`,
         start_time,
         end_time,
-        `Booked by ${display_name || "Member"} via EdgeCollective`
+        `Booked by ${display_name || "Member"} via Golfer's Edge`
       );
 
-      // Create booking record
-      const { data: booking, error: bookingError } = await supabase.from("bookings").insert({
+      // Create booking record with bay_id
+      const bookingInsert: any = {
         user_id: userId,
         city,
         start_time,
@@ -255,7 +261,10 @@ Deno.serve(async (req) => {
         duration_minutes,
         status: "confirmed",
         calendar_event_id: calEvent.id,
-      }).select().single();
+      };
+      if (bay_id) bookingInsert.bay_id = bay_id;
+
+      const { data: booking, error: bookingError } = await supabase.from("bookings").insert(bookingInsert).select().single();
 
       if (bookingError) throw bookingError;
 
@@ -270,7 +279,7 @@ Deno.serve(async (req) => {
         user_id: userId,
         type: "deduction",
         hours: hoursNeeded,
-        note: `Bay booking - ${city} - ${new Date(start_time).toLocaleDateString()}`,
+        note: `Bay booking - ${bayLabel} - ${new Date(start_time).toLocaleDateString()}`,
         created_by: userId,
       });
 
@@ -278,7 +287,7 @@ Deno.serve(async (req) => {
       await supabase.from("notifications").insert({
         user_id: userId,
         title: "Bay Booked!",
-        message: `Your bay in ${city} has been booked for ${new Date(start_time).toLocaleString()} (${hoursNeeded}h). ${remaining - hoursNeeded}h remaining.`,
+        message: `Your ${bayLabel} has been booked for ${new Date(start_time).toLocaleString()} (${hoursNeeded}h). ${remaining - hoursNeeded}h remaining.`,
         type: "booking",
       });
 
@@ -292,8 +301,6 @@ Deno.serve(async (req) => {
           type: "warning",
         });
       }
-
-      // Email notification is handled client-side via sendNotificationEmail
 
       return new Response(JSON.stringify({ booking }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -326,17 +333,21 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Get bay config for calendar email
-      const { data: bayConfig } = await supabase
-        .from("bay_config")
-        .select("calendar_email")
-        .eq("city", booking.city)
-        .single();
+      // Get calendar email - prefer bay, fall back to bay_config
+      let calendarEmail: string | null = null;
+      if (booking.bay_id) {
+        const { data: bay } = await supabase.from("bays").select("calendar_email, name").eq("id", booking.bay_id).single();
+        calendarEmail = bay?.calendar_email || null;
+      }
+      if (!calendarEmail) {
+        const { data: bayConfig } = await supabase.from("bay_config").select("calendar_email").eq("city", booking.city).single();
+        calendarEmail = bayConfig?.calendar_email || null;
+      }
 
       // Delete calendar event
-      if (booking.calendar_event_id && bayConfig?.calendar_email) {
+      if (booking.calendar_event_id && calendarEmail) {
         try {
-          await deleteEvent(accessToken, bayConfig.calendar_email, booking.calendar_event_id);
+          await deleteEvent(accessToken, calendarEmail, booking.calendar_event_id);
         } catch (e) {
           console.error("Failed to delete calendar event:", e);
         }
@@ -379,8 +390,6 @@ Deno.serve(async (req) => {
         message: `Your bay booking in ${booking.city} on ${new Date(booking.start_time).toLocaleString()} has been cancelled. ${hoursToRefund}h refunded.`,
         type: "booking",
       });
-
-      // Email notification is handled client-side via sendNotificationEmail
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

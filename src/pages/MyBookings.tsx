@@ -89,6 +89,7 @@ export default function MyBookings() {
                             <div className="flex items-center gap-2">
                               <MapPin className="h-4 w-4 text-primary" />
                               <span className="font-medium text-foreground">{booking.city}</span>
+                              {booking.bay_name && <span className="text-xs text-muted-foreground">({booking.bay_name})</span>}
                               <Badge variant="secondary">Confirmed</Badge>
                             </div>
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">

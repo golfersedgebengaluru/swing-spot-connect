@@ -7,42 +7,55 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, Clock, MapPin, Loader2, AlertTriangle } from "lucide-react";
+import { CalendarIcon, Clock, MapPin, Loader2, AlertTriangle, LayoutGrid } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { useBayConfig, useAvailableSlots, useCreateBooking, useUserHoursBalance, useUserProfile, useUpdatePreferredCity } from "@/hooks/useBookings";
+import { useBays, useAvailableSlots, useCreateBooking, useUserHoursBalance, useUserProfile, useUpdatePreferredCity } from "@/hooks/useBookings";
 import { useToast } from "@/hooks/use-toast";
 import { Navigate } from "react-router-dom";
 
 export default function Bookings() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const { data: bayConfigs, isLoading: loadingConfig } = useBayConfig();
+  const { data: bays, isLoading: loadingBays } = useBays();
   const { data: profile } = useUserProfile();
   const { data: balance } = useUserHoursBalance();
   const updateCity = useUpdatePreferredCity();
   const createBooking = useCreateBooking();
 
   const [selectedCity, setSelectedCity] = useState<string>("");
+  const [selectedBayId, setSelectedBayId] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
-  const [duration, setDuration] = useState<number>(60); // minutes
+  const [duration, setDuration] = useState<number>(60);
 
-  // Auto-select preferred city
+  // Derive cities from bays
+  const cities = useMemo(() => {
+    const citySet = new Set((bays ?? []).filter((b: any) => b.is_active).map((b: any) => b.city));
+    return Array.from(citySet).sort();
+  }, [bays]);
+
   const effectiveCity = selectedCity || profile?.preferred_city || "";
-  const currentConfig = bayConfigs?.find((c: any) => c.city === effectiveCity);
+
+  // Active bays for selected city
+  const cityBays = useMemo(() => {
+    return (bays ?? []).filter((b: any) => b.city === effectiveCity && b.is_active);
+  }, [bays, effectiveCity]);
+
+  // Auto-select bay if only one
+  const effectiveBayId = cityBays.length === 1 ? cityBays[0].id : selectedBayId;
+  const currentBay = cityBays.find((b: any) => b.id === effectiveBayId);
 
   const dateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined;
 
   const { data: slots, isLoading: loadingSlots } = useAvailableSlots(
-    currentConfig?.calendar_email,
+    currentBay?.calendar_email,
     dateStr,
-    currentConfig?.open_time,
-    currentConfig?.close_time
+    currentBay?.open_time,
+    currentBay?.close_time
   );
 
-  // Check if selected slot + duration is available (all consecutive slots free)
   const canBook = useMemo(() => {
     if (!selectedSlot || !slots) return false;
     const slotIndex = slots.findIndex((s) => s.time === selectedSlot);
@@ -63,16 +76,18 @@ export default function Bookings() {
   if (!authLoading && !user) return <Navigate to="/auth" />;
 
   const handleBook = async () => {
-    if (!selectedSlot || !endTime || !currentConfig) return;
+    if (!selectedSlot || !endTime || !currentBay) return;
     try {
       await createBooking.mutateAsync({
-        calendar_email: currentConfig.calendar_email,
+        calendar_email: currentBay.calendar_email,
         start_time: selectedSlot,
         end_time: endTime,
         duration_minutes: duration,
         city: effectiveCity,
+        bay_id: currentBay.id,
+        bay_name: currentBay.name,
       });
-      toast({ title: "Bay Booked!", description: `Your ${effectiveCity} bay is confirmed for ${format(new Date(selectedSlot), "PPp")}.` });
+      toast({ title: "Bay Booked!", description: `${currentBay.name} is confirmed for ${format(new Date(selectedSlot), "PPp")}.` });
       setSelectedSlot(null);
     } catch (err: any) {
       toast({ title: "Booking Failed", description: err.message, variant: "destructive" });
@@ -81,10 +96,16 @@ export default function Bookings() {
 
   const handleCityChange = (city: string) => {
     setSelectedCity(city);
+    setSelectedBayId("");
     setSelectedSlot(null);
     if (!profile?.preferred_city) {
       updateCity.mutate(city);
     }
+  };
+
+  const handleBayChange = (bayId: string) => {
+    setSelectedBayId(bayId);
+    setSelectedSlot(null);
   };
 
   const today = new Date();
@@ -137,22 +158,52 @@ export default function Bookings() {
                       <SelectValue placeholder="Select city" />
                     </SelectTrigger>
                     <SelectContent>
-                      {(bayConfigs ?? [])
-                        .filter((c: any) => c.is_active)
-                        .map((c: any) => (
-                          <SelectItem key={c.city} value={c.city}>
-                            {c.city}
-                          </SelectItem>
-                        ))}
+                      {cities.map((city) => (
+                        <SelectItem key={city} value={city}>
+                          {city}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
-                  {currentConfig && (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Hours: {currentConfig.open_time} – {currentConfig.close_time}
-                    </p>
-                  )}
                 </CardContent>
               </Card>
+
+              {/* Bay Selector - only show if city has multiple bays */}
+              {effectiveCity && cityBays.length > 1 && (
+                <Card className="shadow-elegant">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <LayoutGrid className="h-4 w-4" /> Bay
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Select value={effectiveBayId} onValueChange={handleBayChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select bay" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cityBays.map((bay: any) => (
+                          <SelectItem key={bay.id} value={bay.id}>
+                            {bay.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {currentBay && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Hours: {currentBay.open_time} – {currentBay.close_time}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Show hours for single bay */}
+              {effectiveCity && cityBays.length === 1 && currentBay && (
+                <div className="px-1 text-xs text-muted-foreground">
+                  {currentBay.name} · {currentBay.open_time} – {currentBay.close_time}
+                </div>
+              )}
 
               <Card className="shadow-elegant">
                 <CardHeader>
@@ -218,9 +269,9 @@ export default function Bookings() {
                   <CardTitle className="text-lg">Available Slots</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {!effectiveCity || !selectedDate ? (
+                  {!effectiveCity || !currentBay || !selectedDate ? (
                     <p className="text-center text-muted-foreground py-12">
-                      Select a city and date to view available slots
+                      {!effectiveCity ? "Select a city" : !currentBay ? "Select a bay" : "Select a date"} to view available slots
                     </p>
                   ) : loadingSlots ? (
                     <div className="flex justify-center py-12">
@@ -237,7 +288,6 @@ export default function Bookings() {
                           const t = new Date(slot.time);
                           const timeStr = format(t, "h:mm a");
                           const isSelected = selectedSlot === slot.time;
-                          // Check if this slot can start a booking of the selected duration
                           const slotIdx = slots.findIndex((s) => s.time === slot.time);
                           const slotsNeeded = duration / 30;
                           let canStart = slot.available;
@@ -269,6 +319,7 @@ export default function Bookings() {
                         <div className="mt-6 rounded-lg border border-border bg-muted/50 p-4">
                           <h3 className="font-medium text-foreground mb-2">Booking Summary</h3>
                           <div className="space-y-1 text-sm text-muted-foreground">
+                            <p><span className="font-medium text-foreground">Bay:</span> {currentBay.name}</p>
                             <p><span className="font-medium text-foreground">City:</span> {effectiveCity}</p>
                             <p><span className="font-medium text-foreground">Date:</span> {format(new Date(selectedSlot), "PPP")}</p>
                             <p><span className="font-medium text-foreground">Time:</span> {format(new Date(selectedSlot), "h:mm a")} – {endTime ? format(new Date(endTime), "h:mm a") : ""}</p>

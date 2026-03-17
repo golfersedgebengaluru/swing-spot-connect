@@ -68,8 +68,48 @@ export type Database = {
         }
         Relationships: []
       }
+      bays: {
+        Row: {
+          calendar_email: string | null
+          city: string
+          close_time: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          open_time: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          calendar_email?: string | null
+          city: string
+          close_time?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          open_time?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          calendar_email?: string | null
+          city?: string
+          close_time?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          open_time?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bookings: {
         Row: {
+          bay_id: string | null
           calendar_event_id: string | null
           city: string
           created_at: string
@@ -83,6 +123,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          bay_id?: string | null
           calendar_event_id?: string | null
           city: string
           created_at?: string
@@ -96,6 +137,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          bay_id?: string | null
           calendar_event_id?: string | null
           city?: string
           created_at?: string
@@ -108,7 +150,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bookings_bay_id_fkey"
+            columns: ["bay_id"]
+            isOneToOne: false
+            referencedRelation: "bays"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       earn_methods: {
         Row: {
