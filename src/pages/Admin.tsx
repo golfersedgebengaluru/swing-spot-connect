@@ -1280,6 +1280,7 @@ export default function Admin() {
             {/* Settings Tab */}
             <TabsContent value="settings" className="space-y-4">
               <PageVisibilitySettings />
+              <SenderEmailCard />
               <ChangePasswordCard />
             </TabsContent>
           </Tabs>
