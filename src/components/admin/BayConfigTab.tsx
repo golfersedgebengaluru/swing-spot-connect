@@ -64,6 +64,7 @@ export function BayConfigTab() {
       sort_order: editing.sort_order,
       coaching_mode: editing.coaching_mode,
       coaching_hours: editing.coaching_hours,
+      currency: editing.currency,
     };
 
     if (editing.id) {
