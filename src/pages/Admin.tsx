@@ -1035,7 +1035,7 @@ export default function Admin() {
                       <CardContent className="flex items-center justify-between p-4">
                         <div>
                           <h3 className="font-medium text-foreground">{product.name}</h3>
-                          <p className="text-sm text-muted-foreground">${Number(product.price).toFixed(2)} · {product.type} · {product.category}</p>
+                          <p className="text-sm text-muted-foreground">{Number(product.price).toLocaleString()} · {product.type} · {product.category}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           {!product.in_stock && <Badge variant="secondary">Out of stock</Badge>}
