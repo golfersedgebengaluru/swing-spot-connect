@@ -91,11 +91,13 @@ export function BayConfigTab() {
 
   const handleAddBay = (city: string) => {
     const cityBays = (bays ?? []).filter((b: any) => b.city === city);
+    const existingCurrency = cityBays[0]?.currency ?? "INR";
     setEditing({
       ...emptyForm,
       city,
       name: `${city} Bay #${cityBays.length + 1}`,
       sort_order: cityBays.length,
+      currency: existingCurrency,
     });
     setIsNew(true);
   };
