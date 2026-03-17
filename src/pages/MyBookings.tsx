@@ -23,17 +23,17 @@ export default function MyBookings() {
     try {
       await cancelBooking.mutateAsync(booking.id);
       toast({ title: "Booking Cancelled", description: "Your hours have been refunded." });
-      // Send cancellation email
+      // Send cancellation email with properly formatted data
       if (user) {
+        const hoursRefunded = booking.duration_minutes / 60;
         sendNotificationEmail({
           user_id: user.id,
           template: "booking_cancelled",
           subject: "❌ Booking Cancelled",
           data: {
             city: booking.city,
-            start_time: booking.start_time,
-            end_time: booking.end_time,
-            duration_minutes: booking.duration_minutes,
+            date: new Date(booking.start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+            hours_refunded: hoursRefunded,
           },
         });
       }
