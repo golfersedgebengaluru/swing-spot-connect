@@ -116,7 +116,7 @@ function ProductForm({ product, onSave, onCancel }: { product?: any; onSave: (da
       <div><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
       <div><Label>Description</Label><RichTextEditor content={form.description} onChange={(html) => setForm({ ...form, description: html })} minHeight="120px" /></div>
       <div className="grid grid-cols-2 gap-4">
-        <div><Label>Price ($)</Label><Input type="number" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></div>
+        <div><Label>Price</Label><Input type="number" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></div>
         <div><Label>Type</Label>
           <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -1035,7 +1035,7 @@ export default function Admin() {
                       <CardContent className="flex items-center justify-between p-4">
                         <div>
                           <h3 className="font-medium text-foreground">{product.name}</h3>
-                          <p className="text-sm text-muted-foreground">${Number(product.price).toFixed(2)} · {product.type} · {product.category}</p>
+                          <p className="text-sm text-muted-foreground">{Number(product.price).toLocaleString()} · {product.type} · {product.category}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           {!product.in_stock && <Badge variant="secondary">Out of stock</Badge>}

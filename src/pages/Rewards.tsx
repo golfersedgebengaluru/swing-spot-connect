@@ -211,7 +211,7 @@ export default function Rewards() {
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-3">
-                      {["Earn 1 point per $1 spent", "Birthday reward bonus", "Early event registration", "10% off private lessons"].map((benefit) => (
+                      {["Earn 1 point per unit spent", "Birthday reward bonus", "Early event registration", "10% off private lessons"].map((benefit) => (
                         <li key={benefit} className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Check className="h-4 w-4 text-primary" />
                           {benefit}

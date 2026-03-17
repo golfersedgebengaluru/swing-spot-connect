@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ShoppingCart, Plus, Coffee, Wine, Beer, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useProducts } from "@/hooks/useProducts";
+import { useDefaultCurrency } from "@/hooks/useCurrency";
 
 const iconMap: Record<string, any> = { coffee: Coffee, beer: Beer, wine: Wine };
 
@@ -15,6 +16,7 @@ export default function Shop() {
   const { toast } = useToast();
   const { data: beverages, isLoading: loadingBev } = useProducts("beverage");
   const { data: merchandise, isLoading: loadingMerch } = useProducts("merchandise");
+  const { symbol, format: formatCurrency } = useDefaultCurrency();
   const [cart, setCart] = useState<{ id: string; name: string; price: number; quantity: number }[]>([]);
 
   const addToCart = (item: { id: string; name: string; price: number }) => {
@@ -47,7 +49,7 @@ export default function Shop() {
                 </div>
                 <div>
                   <p className="font-medium text-foreground">{cartCount} items</p>
-                  <p className="text-sm text-muted-foreground">${cartTotal.toFixed(2)}</p>
+                  <p className="text-sm text-muted-foreground">{formatCurrency(cartTotal)}</p>
                 </div>
                 <Button>Checkout</Button>
               </div>
@@ -79,7 +81,7 @@ export default function Shop() {
                               </div>
                               <div>
                                 <p className="font-medium text-foreground">{item.name}</p>
-                                <p className="text-lg font-bold text-primary">${Number(item.price).toFixed(2)}</p>
+                                <p className="text-lg font-bold text-primary">{formatCurrency(Number(item.price))}</p>
                               </div>
                             </div>
                             <Button size="icon" variant="outline" onClick={() => addToCart({ id: item.id, name: item.name, price: Number(item.price) })}>
@@ -118,7 +120,7 @@ export default function Shop() {
                           </div>
                         )}
                         <div className="mt-4 flex items-center justify-between">
-                          <p className="font-display text-xl font-bold text-primary">${Number(item.price).toFixed(2)}</p>
+                          <p className="font-display text-xl font-bold text-primary">{formatCurrency(Number(item.price))}</p>
                           <Button size="sm" onClick={() => addToCart({ id: item.id, name: item.name, price: Number(item.price) })}>Add to Cart</Button>
                         </div>
                       </CardContent>
