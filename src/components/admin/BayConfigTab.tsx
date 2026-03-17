@@ -25,6 +25,7 @@ interface BayForm {
   sort_order: number;
   coaching_mode: string;
   coaching_hours: number;
+  currency: string;
 }
 
 const emptyForm: BayForm = {
@@ -37,6 +38,7 @@ const emptyForm: BayForm = {
   sort_order: 0,
   coaching_mode: "instant",
   coaching_hours: 1,
+  currency: "INR",
 };
 
 export function BayConfigTab() {
