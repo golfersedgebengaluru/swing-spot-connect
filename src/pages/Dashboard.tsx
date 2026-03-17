@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { useUserPoints } from "@/hooks/usePoints";
 import { useUserHoursBalance } from "@/hooks/useBookings";
 import { useAuth } from "@/contexts/AuthContext";
+import { EmailPreferencesCard } from "@/components/EmailPreferencesCard";
 
 const recentRounds = [
   { date: "Nov 28", course: "Bay 3", score: 78, par: 72 },
