@@ -28,6 +28,7 @@ import { usePageVisibility, useUpdatePageVisibility } from "@/hooks/usePageVisib
 import { useAllocatePoints, useRedeemPoints, usePointsTransactions } from "@/hooks/usePoints";
 import { useBayConfig, useAllBookings, useBays, useApproveBooking, useRejectBooking } from "@/hooks/useBookings";
 import { BayConfigTab } from "@/components/admin/BayConfigTab";
+import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { Navigate } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
