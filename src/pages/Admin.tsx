@@ -307,6 +307,81 @@ function ChangePasswordCard() {
   );
 }
 
+function SenderEmailCard() {
+  const { toast } = useToast();
+  const [senderEmail, setSenderEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data: config, isLoading } = useQuery({
+    queryKey: ["admin_config", "sender_email"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("admin_config")
+        .select("value")
+        .eq("key", "sender_email")
+        .single();
+      return data?.value || "";
+    },
+  });
+
+  useState(() => {
+    if (config) setSenderEmail(config);
+  });
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!senderEmail.includes("@")) {
+      toast({ title: "Error", description: "Please enter a valid email address", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from("admin_config")
+        .update({ value: senderEmail })
+        .eq("key", "sender_email");
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["admin_config", "sender_email"] });
+      toast({ title: "Saved", description: "Sender email updated successfully." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to update sender email", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
+
+  return (
+    <Card className="max-w-md">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5" />Notification Sender Email</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSave} className="space-y-4">
+          <div>
+            <Label htmlFor="sender-email">From Address</Label>
+            <Input
+              id="sender-email"
+              type="email"
+              placeholder="notify@golfersedge.in"
+              defaultValue={config || ""}
+              onChange={(e) => setSenderEmail(e.target.value)}
+              className="mt-1"
+              required
+            />
+            <p className="text-xs text-muted-foreground mt-1">This must be a verified domain in your email provider.</p>
+          </div>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : <><Save className="mr-2 h-4 w-4" />Save</>}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
 function PageContentEditor() {
   const { data: pages, isLoading } = useAllPageContent();
   const updatePage = useUpdatePageContent();
@@ -1205,6 +1280,7 @@ export default function Admin() {
             {/* Settings Tab */}
             <TabsContent value="settings" className="space-y-4">
               <PageVisibilitySettings />
+              <SenderEmailCard />
               <ChangePasswordCard />
             </TabsContent>
           </Tabs>

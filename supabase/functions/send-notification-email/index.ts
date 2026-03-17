@@ -250,6 +250,14 @@ Deno.serve(async (req) => {
     const templateData = { ...data, display_name: data.display_name || profile.display_name };
     const html = templateFn(templateData);
 
+    // Get configurable sender email
+    const { data: senderConfig } = await supabaseAdmin
+      .from("admin_config")
+      .select("value")
+      .eq("key", "sender_email")
+      .single();
+    const senderEmail = senderConfig?.value || "notify@golfersedge.in";
+
     // Create pending log entry
     const { data: logEntry } = await supabaseAdmin.from("email_log").insert({
       user_id,
@@ -268,7 +276,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Golfer's Edge <onboarding@resend.dev>",
+        from: `Golfer's Edge <${senderEmail}>`,
         to: [profile.email],
         subject,
         html,
