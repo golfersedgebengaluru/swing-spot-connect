@@ -140,6 +140,87 @@ export type Database = {
         }
         Relationships: []
       }
+      email_log: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          recipient_email: string
+          resend_id: string | null
+          status: string
+          subject: string
+          template: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          recipient_email: string
+          resend_id?: string | null
+          status?: string
+          subject: string
+          template: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          recipient_email?: string
+          resend_id?: string | null
+          status?: string
+          subject?: string
+          template?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      email_preferences: {
+        Row: {
+          booking_cancelled: boolean
+          booking_confirmed: boolean
+          booking_rescheduled: boolean
+          created_at: string
+          id: string
+          league_updates: boolean
+          points_earned: boolean
+          points_redeemed: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          booking_cancelled?: boolean
+          booking_confirmed?: boolean
+          booking_rescheduled?: boolean
+          created_at?: string
+          id?: string
+          league_updates?: boolean
+          points_earned?: boolean
+          points_redeemed?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          booking_cancelled?: boolean
+          booking_confirmed?: boolean
+          booking_rescheduled?: boolean
+          created_at?: string
+          id?: string
+          league_updates?: boolean
+          points_earned?: boolean
+          points_redeemed?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           created_at: string
@@ -498,6 +579,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_email_rate_limit: {
+        Args: { p_max_per_hour?: number; p_user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
