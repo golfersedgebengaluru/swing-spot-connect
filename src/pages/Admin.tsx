@@ -28,6 +28,7 @@ import { usePageVisibility, useUpdatePageVisibility } from "@/hooks/usePageVisib
 import { useAllocatePoints, useRedeemPoints, usePointsTransactions } from "@/hooks/usePoints";
 import { useBayConfig, useAllBookings, useBays, useApproveBooking, useRejectBooking } from "@/hooks/useBookings";
 import { BayConfigTab } from "@/components/admin/BayConfigTab";
+import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { Navigate } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
@@ -788,6 +789,7 @@ export default function Admin() {
   const [viewingPointsHistory, setViewingPointsHistory] = useState<string | null>(null);
   const allocatePoints = useAllocatePoints();
   const redeemPoints = useRedeemPoints();
+  const currency = useDefaultCurrency();
 
   // Query all signed-up users with their hours and points
   const { data: allUsers, isLoading: loadingAllUsers } = useQuery({
@@ -1035,7 +1037,7 @@ export default function Admin() {
                       <CardContent className="flex items-center justify-between p-4">
                         <div>
                           <h3 className="font-medium text-foreground">{product.name}</h3>
-                          <p className="text-sm text-muted-foreground">{Number(product.price).toLocaleString()} · {product.type} · {product.category}</p>
+                          <p className="text-sm text-muted-foreground">{currency.format(Number(product.price))} · {product.type} · {product.category}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           {!product.in_stock && <Badge variant="secondary">Out of stock</Badge>}
