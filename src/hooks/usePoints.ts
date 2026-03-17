@@ -86,6 +86,18 @@ export function useAllocatePoints() {
         message: `You've been awarded ${points} reward points! ${description ? `Reason: ${description}` : ""}`,
         type: "reward",
       });
+
+      // Send email notification
+      sendNotificationEmail({
+        user_id: userId,
+        template: "points_earned",
+        subject: "🎉 Points Awarded!",
+        data: {
+          points,
+          description,
+          total_points: currentPoints + points,
+        },
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
