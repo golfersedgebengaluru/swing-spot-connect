@@ -3,6 +3,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
 
+export function useBays() {
+  return useQuery({
+    queryKey: ["bays"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bays")
+        .select("*")
+        .order("city")
+        .order("sort_order");
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+}
+
 export function useBayConfig() {
   return useQuery({
     queryKey: ["bay_config"],
@@ -39,7 +54,7 @@ export function useAvailableSlots(calendarEmail: string | undefined, date: strin
       if (res.error) throw new Error(res.error.message || "Failed to fetch slots");
       return res.data.slots as { time: string; available: boolean }[];
     },
-    refetchInterval: 30000, // Refresh every 30s
+    refetchInterval: 30000,
   });
 }
 
@@ -54,6 +69,8 @@ export function useCreateBooking() {
       end_time: string;
       duration_minutes: number;
       city: string;
+      bay_id: string;
+      bay_name?: string;
     }) => {
       const profile = await supabase
         .from("profiles")
@@ -74,7 +91,6 @@ export function useCreateBooking() {
       return res.data;
     },
     onSuccess: (_data, variables) => {
-      // Send booking confirmation email with properly formatted data
       if (user) {
         const startDate = new Date(variables.start_time);
         const endDate = new Date(variables.end_time);
@@ -85,6 +101,7 @@ export function useCreateBooking() {
           subject: "✅ Bay Booking Confirmed!",
           data: {
             city: variables.city,
+            bay: variables.bay_name || variables.city,
             date: startDate.toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
             time: `${startDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} – ${endDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
             duration: `${hoursNeeded}h`,
@@ -134,7 +151,19 @@ export function useMyBookings() {
         .eq("user_id", user!.id)
         .order("start_time", { ascending: false });
       if (error) throw error;
-      return data as any[];
+
+      // Enrich with bay name
+      const bayIds = [...new Set((data ?? []).map((b: any) => b.bay_id).filter(Boolean))];
+      let bayMap = new Map<string, string>();
+      if (bayIds.length > 0) {
+        const { data: bays } = await supabase.from("bays").select("id, name").in("id", bayIds);
+        bayMap = new Map((bays ?? []).map((b: any) => [b.id, b.name]));
+      }
+
+      return (data ?? []).map((b: any) => ({
+        ...b,
+        bay_name: bayMap.get(b.bay_id) || null,
+      }));
     },
   });
 }
@@ -157,10 +186,19 @@ export function useAllBookings() {
         (profiles ?? []).map((p) => [p.user_id, p])
       );
 
+      // Get bay names
+      const bayIds = [...new Set((bookings ?? []).map((b: any) => b.bay_id).filter(Boolean))];
+      let bayMap = new Map<string, string>();
+      if (bayIds.length > 0) {
+        const { data: bays } = await supabase.from("bays").select("id, name").in("id", bayIds);
+        bayMap = new Map((bays ?? []).map((b: any) => [b.id, b.name]));
+      }
+
       return (bookings ?? []).map((b: any) => ({
         ...b,
         display_name: profileMap.get(b.user_id)?.display_name || "Unknown",
         email: profileMap.get(b.user_id)?.email || "",
+        bay_name: bayMap.get(b.bay_id) || null,
       }));
     },
   });
