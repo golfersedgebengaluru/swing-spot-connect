@@ -31,7 +31,7 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Hours Remaining</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.hours_remaining}h</td></tr>
           </table>
         </div>
-        <p style="color:#6b7a8d;font-size:14px;margin:0 0 8px">Need to cancel? You can do so up to 24 hours before your booking.</p>
+        <p style="color:#6b7a8d;font-size:14px;margin:0 0 8px">${d._footer_text || "Need to cancel? You can do so up to 24 hours before your booking. Please login to your account to cancel."}</p>
       </div>
       <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
         <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge · <a href="{{unsubscribe_url}}" style="color:#6b7a8d">Unsubscribe</a></p>
