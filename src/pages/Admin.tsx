@@ -621,8 +621,11 @@ function PreRegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_na
 
 function BookingLogsTab() {
   const { data: bookings, isLoading } = useAllBookings();
+  const { data: bays } = useBays();
   const [cityFilter, setCityFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const cities = Array.from(new Set((bays ?? []).map((b: any) => b.city))).sort();
 
   const filtered = (bookings ?? []).filter((b: any) => {
     if (cityFilter !== "all" && b.city !== cityFilter) return false;
@@ -643,8 +646,9 @@ function BookingLogsTab() {
             <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Cities</SelectItem>
-              <SelectItem value="Chennai">Chennai</SelectItem>
-              <SelectItem value="Bengaluru">Bengaluru</SelectItem>
+              {cities.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -662,7 +666,7 @@ function BookingLogsTab() {
           <TableHeader>
             <TableRow>
               <TableHead>User</TableHead>
-              <TableHead>City</TableHead>
+              <TableHead>City / Bay</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Time</TableHead>
               <TableHead>Duration</TableHead>
@@ -676,7 +680,10 @@ function BookingLogsTab() {
             {filtered.map((b: any) => (
               <TableRow key={b.id}>
                 <TableCell className="font-medium">{b.display_name}</TableCell>
-                <TableCell>{b.city}</TableCell>
+                <TableCell>
+                  <div>{b.city}</div>
+                  {b.bay_name && <div className="text-xs text-muted-foreground">{b.bay_name}</div>}
+                </TableCell>
                 <TableCell>{format(new Date(b.start_time), "PP")}</TableCell>
                 <TableCell>{format(new Date(b.start_time), "h:mm a")} – {format(new Date(b.end_time), "h:mm a")}</TableCell>
                 <TableCell>{b.duration_minutes / 60}h</TableCell>
