@@ -31,7 +31,7 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Hours Remaining</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.hours_remaining}h</td></tr>
           </table>
         </div>
-        <p style="color:#6b7a8d;font-size:14px;margin:0 0 8px">Need to cancel? You can do so up to 24 hours before your booking.</p>
+        <p style="color:#6b7a8d;font-size:14px;margin:0 0 8px">${d._footer_text || "Need to cancel? You can do so up to 24 hours before your booking. Please login to your account to cancel."}</p>
       </div>
       <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
         <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge · <a href="{{unsubscribe_url}}" style="color:#6b7a8d">Unsubscribe</a></p>
@@ -45,7 +45,7 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
       </div>
       <div style="padding:32px 24px">
         <p style="color:#1a2332;font-size:16px;margin:0 0 16px">Hi ${d.display_name || "there"},</p>
-        <p style="color:#1a2332;font-size:16px;margin:0 0 24px">Your booking has been cancelled and ${d.hours_refunded}h has been refunded.</p>
+        <p style="color:#1a2332;font-size:16px;margin:0 0 24px">${d._custom_body ? d._custom_body.replace("{{hours_refunded}}", d.hours_refunded) : `Your booking has been cancelled and ${d.hours_refunded}h has been refunded.`}</p>
         <div style="background:#f0f3f7;border-radius:8px;padding:20px;margin:0 0 24px">
           <table style="width:100%;border-collapse:collapse">
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Location</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.city}</td></tr>
@@ -247,7 +247,32 @@ Deno.serve(async (req) => {
       });
     }
 
-    const templateData = { ...data, display_name: data.display_name || profile.display_name };
+    // Fetch customizable template content from admin_config
+    const { data: tplConfigs } = await supabaseAdmin
+      .from("admin_config")
+      .select("key, value")
+      .like("key", "email_tpl_%");
+    const tplMap: Record<string, string> = {};
+    tplConfigs?.forEach((c: any) => { tplMap[c.key] = c.value; });
+
+    // Map template config keys to template data fields
+    const TEMPLATE_CONTENT_MAP: Record<string, string> = {
+      booking_confirmed: "email_tpl_booking_confirmed_footer",
+      booking_cancelled: "email_tpl_booking_cancelled_body",
+      points_earned: "email_tpl_points_earned_body",
+      points_redeemed: "email_tpl_points_redeemed_body",
+      league_update: "email_tpl_league_update_body",
+    };
+
+    const contentKey = TEMPLATE_CONTENT_MAP[template];
+    const customContent = contentKey ? tplMap[contentKey] : undefined;
+
+    const templateData = {
+      ...data,
+      display_name: data.display_name || profile.display_name,
+      _footer_text: template === "booking_confirmed" ? customContent : undefined,
+      _custom_body: customContent,
+    };
     const html = templateFn(templateData);
 
     // Get configurable sender email
