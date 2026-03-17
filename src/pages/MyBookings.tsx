@@ -19,10 +19,24 @@ export default function MyBookings() {
 
   if (!authLoading && !user) return <Navigate to="/auth" />;
 
-  const handleCancel = async (bookingId: string) => {
+  const handleCancel = async (booking: any) => {
     try {
-      await cancelBooking.mutateAsync(bookingId);
+      await cancelBooking.mutateAsync(booking.id);
       toast({ title: "Booking Cancelled", description: "Your hours have been refunded." });
+      // Send cancellation email
+      if (user) {
+        sendNotificationEmail({
+          user_id: user.id,
+          template: "booking_cancelled",
+          subject: "❌ Booking Cancelled",
+          data: {
+            city: booking.city,
+            start_time: booking.start_time,
+            end_time: booking.end_time,
+            duration_minutes: booking.duration_minutes,
+          },
+        });
+      }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
