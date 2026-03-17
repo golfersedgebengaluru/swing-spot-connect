@@ -231,6 +231,21 @@ export function BayConfigTab() {
                 </Select>
               </div>
               <div>
+                <Label>Currency</Label>
+                <Select value={editing.currency} onValueChange={(v) => setEditing({ ...editing, currency: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        {c.symbol} {c.code} — {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label>Coaching Hours per Session</Label>
                 <Input type="number" step="0.5" min="0.5" value={editing.coaching_hours} onChange={(e) => setEditing({ ...editing, coaching_hours: Number(e.target.value) })} />
                 <p className="text-xs text-muted-foreground mt-1">Hours deducted for coaching sessions</p>
