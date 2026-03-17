@@ -76,6 +76,7 @@ export type Database = {
           coaching_hours: number
           coaching_mode: string
           created_at: string
+          currency: string
           id: string
           is_active: boolean
           name: string
@@ -90,6 +91,7 @@ export type Database = {
           coaching_hours?: number
           coaching_mode?: string
           created_at?: string
+          currency?: string
           id?: string
           is_active?: boolean
           name: string
@@ -104,6 +106,7 @@ export type Database = {
           coaching_hours?: number
           coaching_mode?: string
           created_at?: string
+          currency?: string
           id?: string
           is_active?: boolean
           name?: string

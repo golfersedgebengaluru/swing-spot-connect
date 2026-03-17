@@ -1,0 +1,1 @@
+ALTER TABLE public.bays ADD COLUMN currency text NOT NULL DEFAULT 'INR';
