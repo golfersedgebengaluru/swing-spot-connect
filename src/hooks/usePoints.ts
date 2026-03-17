@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
 
 export function useUserPoints() {
   const { user } = useAuth();
@@ -85,6 +86,18 @@ export function useAllocatePoints() {
         message: `You've been awarded ${points} reward points! ${description ? `Reason: ${description}` : ""}`,
         type: "reward",
       });
+
+      // Send email notification
+      sendNotificationEmail({
+        user_id: userId,
+        template: "points_earned",
+        subject: "🎉 Points Awarded!",
+        data: {
+          points,
+          description,
+          total_points: currentPoints + points,
+        },
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
@@ -145,6 +158,18 @@ export function useRedeemPoints() {
         title: "🎁 Reward Redeemed",
         message: `You redeemed ${points} points for: ${rewardName}`,
         type: "reward",
+      });
+
+      // Send email notification
+      sendNotificationEmail({
+        user_id: userId,
+        template: "points_redeemed",
+        subject: "🎁 Reward Redeemed",
+        data: {
+          points,
+          reward_name: rewardName,
+          total_points: currentPoints - points,
+        },
       });
     },
     onSuccess: () => {

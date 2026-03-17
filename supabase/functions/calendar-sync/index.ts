@@ -293,6 +293,30 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Send email notification
+      try {
+        const emailSupabase = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        );
+        await emailSupabase.functions.invoke("send-notification-email", {
+          body: {
+            user_id: userId,
+            template: "booking_confirmed",
+            subject: "Bay Booking Confirmed ✅",
+            data: {
+              city,
+              date: new Date(start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+              time: `${new Date(start_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} – ${new Date(end_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
+              duration: `${hoursNeeded}h`,
+              hours_remaining: newRemaining,
+            },
+          },
+        });
+      } catch (emailErr) {
+        console.error("Email send failed (non-blocking):", emailErr);
+      }
+
       return new Response(JSON.stringify({ booking }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -377,6 +401,28 @@ Deno.serve(async (req) => {
         message: `Your bay booking in ${booking.city} on ${new Date(booking.start_time).toLocaleString()} has been cancelled. ${hoursToRefund}h refunded.`,
         type: "booking",
       });
+
+      // Send cancellation email
+      try {
+        const emailSupabase = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        );
+        await emailSupabase.functions.invoke("send-notification-email", {
+          body: {
+            user_id: userId,
+            template: "booking_cancelled",
+            subject: "Booking Cancelled",
+            data: {
+              city: booking.city,
+              date: new Date(booking.start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+              hours_refunded: hoursToRefund,
+            },
+          },
+        });
+      } catch (emailErr) {
+        console.error("Email send failed (non-blocking):", emailErr);
+      }
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -12,7 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Loader2, Calendar, ShoppingBag, Gift, Users, Clock, MinusCircle, PlusCircle, History, UserCheck, Settings, KeyRound, FileText, Save, Star, Award, MapPin, ClipboardList } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Calendar, ShoppingBag, Gift, Users, Clock, MinusCircle, PlusCircle, History, UserCheck, Settings, KeyRound, FileText, Save, Star, Award, MapPin, ClipboardList, Mail } from "lucide-react";
+import { AdminEmailLogsTab } from "@/components/admin/AdminEmailLogsTab";
 import { useToast } from "@/hooks/use-toast";
 import { useEvents } from "@/hooks/useEvents";
 import { useProducts } from "@/hooks/useProducts";
@@ -909,6 +910,7 @@ export default function Admin() {
               <TabsTrigger value="pages" className="gap-2"><FileText className="h-4 w-4" />Pages</TabsTrigger>
               <TabsTrigger value="bayconfig" className="gap-2"><MapPin className="h-4 w-4" />Bay Config</TabsTrigger>
               <TabsTrigger value="bookinglogs" className="gap-2"><ClipboardList className="h-4 w-4" />Booking Logs</TabsTrigger>
+              <TabsTrigger value="emails" className="gap-2"><Mail className="h-4 w-4" />Emails</TabsTrigger>
               <TabsTrigger value="settings" className="gap-2"><Settings className="h-4 w-4" />Settings</TabsTrigger>
             </TabsList>
 
@@ -1193,6 +1195,11 @@ export default function Admin() {
             {/* Booking Logs Tab */}
             <TabsContent value="bookinglogs" className="space-y-4">
               <BookingLogsTab />
+            </TabsContent>
+
+            {/* Email Logs Tab */}
+            <TabsContent value="emails" className="space-y-4">
+              <AdminEmailLogsTab />
             </TabsContent>
 
             {/* Settings Tab */}

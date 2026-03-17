@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { useUserPoints } from "@/hooks/usePoints";
 import { useUserHoursBalance } from "@/hooks/useBookings";
 import { useAuth } from "@/contexts/AuthContext";
+import { EmailPreferencesCard } from "@/components/EmailPreferencesCard";
 
 const recentRounds = [
   { date: "Nov 28", course: "Bay 3", score: 78, par: 72 },
@@ -161,21 +162,25 @@ export default function Dashboard() {
           </div>
 
           {/* Progress Chart Placeholder */}
-          <Card className="mt-6 shadow-elegant">
-            <CardHeader>
-              <CardTitle className="font-display text-xl flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-primary" />
-                Your Progress
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-border">
-                <p className="text-muted-foreground">
-                  Score progression chart coming soon
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="mt-6 grid gap-6 lg:grid-cols-2">
+            <Card className="shadow-elegant">
+              <CardHeader>
+                <CardTitle className="font-display text-xl flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                  Your Progress
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-border">
+                  <p className="text-muted-foreground">
+                    Score progression chart coming soon
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <EmailPreferencesCard />
+          </div>
         </div>
       </main>
 
