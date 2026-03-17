@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
 
 export function useBayConfig() {
   return useQuery({
@@ -72,7 +73,21 @@ export function useCreateBooking() {
       if (res.data?.error) throw new Error(res.data.error);
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      // Send booking confirmation email
+      if (user) {
+        sendNotificationEmail({
+          user_id: user.id,
+          template: "booking_confirmed",
+          subject: "✅ Bay Booking Confirmed!",
+          data: {
+            city: variables.city,
+            start_time: variables.start_time,
+            end_time: variables.end_time,
+            duration_minutes: variables.duration_minutes,
+          },
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["available_slots"] });
       queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
       queryClient.invalidateQueries({ queryKey: ["member_hours"] });

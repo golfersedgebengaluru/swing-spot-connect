@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useMyBookings, useCancelBooking } from "@/hooks/useBookings";
 import { useToast } from "@/hooks/use-toast";
 import { Navigate } from "react-router-dom";
+import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
 
 export default function MyBookings() {
   const { user, loading: authLoading } = useAuth();
@@ -18,10 +19,24 @@ export default function MyBookings() {
 
   if (!authLoading && !user) return <Navigate to="/auth" />;
 
-  const handleCancel = async (bookingId: string) => {
+  const handleCancel = async (booking: any) => {
     try {
-      await cancelBooking.mutateAsync(bookingId);
+      await cancelBooking.mutateAsync(booking.id);
       toast({ title: "Booking Cancelled", description: "Your hours have been refunded." });
+      // Send cancellation email
+      if (user) {
+        sendNotificationEmail({
+          user_id: user.id,
+          template: "booking_cancelled",
+          subject: "❌ Booking Cancelled",
+          data: {
+            city: booking.city,
+            start_time: booking.start_time,
+            end_time: booking.end_time,
+            duration_minutes: booking.duration_minutes,
+          },
+        });
+      }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
@@ -91,7 +106,7 @@ export default function MyBookings() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleCancel(booking.id)}
+                            onClick={() => handleCancel(booking)}
                             disabled={!canCancel || cancelBooking.isPending}
                             title={!canCancel ? "Cancellations must be 24h+ in advance" : ""}
                           >
