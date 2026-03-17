@@ -106,7 +106,7 @@ export default function MyBookings() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleCancel(booking.id)}
+                            onClick={() => handleCancel(booking)}
                             disabled={!canCancel || cancelBooking.isPending}
                             title={!canCancel ? "Cancellations must be 24h+ in advance" : ""}
                           >
