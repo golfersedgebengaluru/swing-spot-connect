@@ -26,7 +26,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAllPageContent, useUpdatePageContent } from "@/hooks/usePageContent";
 import { usePageVisibility, useUpdatePageVisibility } from "@/hooks/usePageVisibility";
 import { useAllocatePoints, useRedeemPoints, usePointsTransactions } from "@/hooks/usePoints";
-import { useBayConfig, useAllBookings, useBays } from "@/hooks/useBookings";
+import { useBayConfig, useAllBookings, useBays, useApproveBooking, useRejectBooking } from "@/hooks/useBookings";
 import { BayConfigTab } from "@/components/admin/BayConfigTab";
 import { Navigate } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
