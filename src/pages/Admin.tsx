@@ -1197,6 +1197,11 @@ export default function Admin() {
               <BookingLogsTab />
             </TabsContent>
 
+            {/* Email Logs Tab */}
+            <TabsContent value="emails" className="space-y-4">
+              <AdminEmailLogsTab />
+            </TabsContent>
+
             {/* Settings Tab */}
             <TabsContent value="settings" className="space-y-4">
               <PageVisibilitySettings />
