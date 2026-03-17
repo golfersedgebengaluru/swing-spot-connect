@@ -7,8 +7,9 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MapPin, Plus, Pencil, Trash2, Loader2, LayoutGrid } from "lucide-react";
+import { MapPin, Plus, Pencil, Trash2, Loader2, LayoutGrid, DollarSign } from "lucide-react";
 import { useBays } from "@/hooks/useBookings";
+import { CURRENCIES, getCurrencySymbol } from "@/lib/currencies";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +25,7 @@ interface BayForm {
   sort_order: number;
   coaching_mode: string;
   coaching_hours: number;
+  currency: string;
 }
 
 const emptyForm: BayForm = {
@@ -36,6 +38,7 @@ const emptyForm: BayForm = {
   sort_order: 0,
   coaching_mode: "instant",
   coaching_hours: 1,
+  currency: "INR",
 };
 
 export function BayConfigTab() {
@@ -61,6 +64,7 @@ export function BayConfigTab() {
       sort_order: editing.sort_order,
       coaching_mode: editing.coaching_mode,
       coaching_hours: editing.coaching_hours,
+      currency: editing.currency,
     };
 
     if (editing.id) {
@@ -87,11 +91,13 @@ export function BayConfigTab() {
 
   const handleAddBay = (city: string) => {
     const cityBays = (bays ?? []).filter((b: any) => b.city === city);
+    const existingCurrency = cityBays[0]?.currency ?? "INR";
     setEditing({
       ...emptyForm,
       city,
       name: `${city} Bay #${cityBays.length + 1}`,
       sort_order: cityBays.length,
+      currency: existingCurrency,
     });
     setIsNew(true);
   };
@@ -137,9 +143,12 @@ export function BayConfigTab() {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" /> {city}
-                  <Badge variant="secondary">{cityBays.length} bay{cityBays.length !== 1 ? "s" : ""}</Badge>
-                </span>
+                   <MapPin className="h-5 w-5" /> {city}
+                   <Badge variant="secondary">{cityBays.length} bay{cityBays.length !== 1 ? "s" : ""}</Badge>
+                   <Badge variant="outline" className="flex items-center gap-1">
+                     <DollarSign className="h-3 w-3" /> {getCurrencySymbol(cityBays[0]?.currency ?? "INR")} {cityBays[0]?.currency ?? "INR"}
+                   </Badge>
+                 </span>
                 <Button variant="outline" size="sm" onClick={() => handleAddBay(city)}>
                   <Plus className="mr-1 h-4 w-4" /> Add Bay
                 </Button>
@@ -218,6 +227,21 @@ export function BayConfigTab() {
                   <SelectContent>
                     <SelectItem value="instant">Instant Coaching</SelectItem>
                     <SelectItem value="approval_required">Admin Approval Required</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Currency</Label>
+                <Select value={editing.currency} onValueChange={(v) => setEditing({ ...editing, currency: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        {c.symbol} {c.code} — {c.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
