@@ -789,6 +789,7 @@ export default function Admin() {
   const [viewingPointsHistory, setViewingPointsHistory] = useState<string | null>(null);
   const allocatePoints = useAllocatePoints();
   const redeemPoints = useRedeemPoints();
+  const currency = useDefaultCurrency();
 
   // Query all signed-up users with their hours and points
   const { data: allUsers, isLoading: loadingAllUsers } = useQuery({
