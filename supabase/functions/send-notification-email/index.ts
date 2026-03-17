@@ -45,7 +45,7 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
       </div>
       <div style="padding:32px 24px">
         <p style="color:#1a2332;font-size:16px;margin:0 0 16px">Hi ${d.display_name || "there"},</p>
-        <p style="color:#1a2332;font-size:16px;margin:0 0 24px">Your booking has been cancelled and ${d.hours_refunded}h has been refunded.</p>
+        <p style="color:#1a2332;font-size:16px;margin:0 0 24px">${d._custom_body ? d._custom_body.replace("{{hours_refunded}}", d.hours_refunded) : `Your booking has been cancelled and ${d.hours_refunded}h has been refunded.`}</p>
         <div style="background:#f0f3f7;border-radius:8px;padding:20px;margin:0 0 24px">
           <table style="width:100%;border-collapse:collapse">
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Location</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.city}</td></tr>
