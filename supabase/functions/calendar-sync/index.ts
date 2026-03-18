@@ -254,8 +254,13 @@ Deno.serve(async (req) => {
 
     if (action === "list_slots") {
       const { calendar_email, date, open_time, close_time } = params;
-      const timeMin = `${date}T${open_time}:00+05:30`;
-      const timeMax = `${date}T${close_time}:00+05:30`;
+
+      // Get the calendar's actual timezone
+      const calTz = await getCalendarTimezone(accessToken, calendar_email);
+      const offset = getUtcOffsetForTz(`${date}T${open_time}:00`, calTz);
+
+      const timeMin = `${date}T${open_time}:00${offset}`;
+      const timeMax = `${date}T${close_time}:00${offset}`;
 
       const events = await listEvents(accessToken, calendar_email, timeMin, timeMax);
 
@@ -264,8 +269,8 @@ Deno.serve(async (req) => {
         end: new Date(e.end.dateTime || e.end.date).getTime(),
       }));
 
-      const dayStart = new Date(`${date}T${open_time}:00+05:30`).getTime();
-      const dayEnd = new Date(`${date}T${close_time}:00+05:30`).getTime();
+      const dayStart = new Date(`${date}T${open_time}:00${offset}`).getTime();
+      const dayEnd = new Date(`${date}T${close_time}:00${offset}`).getTime();
       const slots: { time: string; available: boolean }[] = [];
 
       for (let t = dayStart; t < dayEnd; t += 30 * 60 * 1000) {
