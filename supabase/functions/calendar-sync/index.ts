@@ -607,8 +607,8 @@ Deno.serve(async (req) => {
             data: {
               bay: bayName,
               city: booking.city,
-              date: formatDateIST(booking.start_time),
-              time: formatTimeRangeIST(booking.start_time, booking.end_time),
+              date: formatDate(booking.start_time, calTz),
+              time: formatTimeRange(booking.start_time, booking.end_time, calTz),
               hours_deducted: `${hoursNeeded}h`,
               hours_remaining: `${newRemaining}h`,
             },
