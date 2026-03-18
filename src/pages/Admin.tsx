@@ -385,6 +385,82 @@ function SenderEmailCard() {
   );
 }
 
+function EmailRateLimitCard() {
+  const { toast } = useToast();
+  const [rateLimit, setRateLimit] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data: config, isLoading } = useQuery({
+    queryKey: ["admin_config", "email_rate_limit_per_hour"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("admin_config")
+        .select("value")
+        .eq("key", "email_rate_limit_per_hour")
+        .single();
+      return data?.value || "10";
+    },
+  });
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const val = parseInt(rateLimit || config || "10", 10);
+    if (isNaN(val) || val < 1) {
+      toast({ title: "Error", description: "Please enter a valid number (minimum 1)", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from("admin_config")
+        .update({ value: String(val) })
+        .eq("key", "email_rate_limit_per_hour");
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["admin_config", "email_rate_limit_per_hour"] });
+      toast({ title: "Saved", description: "Email rate limit updated." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to update", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
+
+  return (
+    <Card className="max-w-md">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Clock className="h-5 w-5" />Email Rate Limit</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSave} className="space-y-4">
+          <div>
+            <Label htmlFor="rate-limit">Max emails per user per hour</Label>
+            <Input
+              id="rate-limit"
+              type="number"
+              min={1}
+              placeholder="10"
+              defaultValue={config || "10"}
+              onChange={(e) => setRateLimit(e.target.value)}
+              className="mt-1"
+              required
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Critical emails (booking confirmations, cancellations, coaching approvals) are exempt from this limit.
+            </p>
+          </div>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : <><Save className="mr-2 h-4 w-4" />Save</>}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+
+}
+
 function PageContentEditor() {
   const { data: pages, isLoading } = useAllPageContent();
   const updatePage = useUpdatePageContent();
@@ -1276,6 +1352,7 @@ export default function Admin() {
             <TabsContent value="settings" className="space-y-6">
               <PageVisibilitySettings />
               <SenderEmailCard />
+              <EmailRateLimitCard />
               <EmailTemplatesEditor />
               <ChangePasswordCard />
             </TabsContent>
