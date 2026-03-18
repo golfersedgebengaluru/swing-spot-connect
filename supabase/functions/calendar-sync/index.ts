@@ -150,6 +150,28 @@ function createAdminClient() {
   );
 }
 
+const IST = "Asia/Kolkata";
+
+function formatDateIST(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-IN", { timeZone: IST, weekday: "long", year: "numeric", month: "long", day: "numeric" });
+}
+
+function formatTimeIST(dateStr: string): string {
+  return new Date(dateStr).toLocaleTimeString("en-IN", { timeZone: IST, hour: "2-digit", minute: "2-digit" });
+}
+
+function formatTimeRangeIST(start: string, end: string): string {
+  return `${formatTimeIST(start)} – ${formatTimeIST(end)}`;
+}
+
+function formatDateTimeIST(dateStr: string): string {
+  return new Date(dateStr).toLocaleString("en-IN", { timeZone: IST });
+}
+
+function formatShortDateIST(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-IN", { timeZone: IST });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -330,7 +352,7 @@ Deno.serve(async (req) => {
           user_id: userId,
           type: "deduction",
           hours: hoursNeeded,
-          note: `${isCoaching ? "Coaching" : "Bay"} booking - ${bayLabel} - ${new Date(start_time).toLocaleDateString()}`,
+          note: `${isCoaching ? "Coaching" : "Bay"} booking - ${bayLabel} - ${formatShortDateIST(start_time)}`,
           created_by: userId,
         });
 
@@ -339,7 +361,7 @@ Deno.serve(async (req) => {
         await supabase.from("notifications").insert({
           user_id: userId,
           title: isCoaching ? "Coaching Booked!" : "Bay Booked!",
-          message: `Your ${bayLabel} ${isCoaching ? "coaching session" : "bay"} has been booked for ${new Date(start_time).toLocaleString()} (${hoursNeeded}h). ${remaining}h remaining.`,
+          message: `Your ${bayLabel} ${isCoaching ? "coaching session" : "bay"} has been booked for ${formatDateTimeIST(start_time)} (${hoursNeeded}h). ${remaining}h remaining.`,
           type: "booking",
         });
 
@@ -366,8 +388,8 @@ Deno.serve(async (req) => {
               data: {
                 city,
                 bay: bayLabel,
-                date: new Date(start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
-                time: `${new Date(start_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} – ${new Date(end_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
+                date: formatDateIST(start_time),
+                time: formatTimeRangeIST(start_time, end_time),
                 duration: `${hoursNeeded}h`,
                 hours_remaining: `${remaining}h`,
               },
@@ -381,7 +403,7 @@ Deno.serve(async (req) => {
         await supabase.from("notifications").insert({
           user_id: userId,
           title: "🕐 Coaching Pending Approval",
-          message: `Your coaching session at ${bayLabel} on ${new Date(start_time).toLocaleString()} is awaiting admin approval.`,
+          message: `Your coaching session at ${bayLabel} on ${formatDateTimeIST(start_time)} is awaiting admin approval.`,
           type: "booking",
         });
 
@@ -392,7 +414,7 @@ Deno.serve(async (req) => {
           await adminClient.from("notifications").insert({
             user_id: admin.user_id,
             title: "📋 New Coaching Request",
-            message: `${display_name || "A member"} has requested a coaching session at ${bayLabel} on ${new Date(start_time).toLocaleString()}. Please approve or reject.`,
+            message: `${display_name || "A member"} has requested a coaching session at ${bayLabel} on ${formatDateTimeIST(start_time)}. Please approve or reject.`,
             type: "admin",
           });
         }
@@ -412,8 +434,8 @@ Deno.serve(async (req) => {
               data: {
                 city,
                 bay: bayLabel,
-                date: new Date(start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
-                time: `${new Date(start_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} – ${new Date(end_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
+                date: formatDateIST(start_time),
+                time: formatTimeRangeIST(start_time, end_time),
                 duration: `${duration_minutes / 60}h`,
               },
             }),
@@ -496,7 +518,7 @@ Deno.serve(async (req) => {
         user_id: booking.user_id,
         type: "deduction",
         hours: hoursNeeded,
-        note: `Coaching approved - ${bayName} - ${new Date(booking.start_time).toLocaleDateString()}`,
+        note: `Coaching approved - ${bayName} - ${formatShortDateIST(booking.start_time)}`,
         created_by: userId,
       });
 
@@ -522,7 +544,7 @@ Deno.serve(async (req) => {
       await adminClient.from("notifications").insert({
         user_id: booking.user_id,
         title: "✅ Coaching Approved!",
-        message: `Your coaching session at ${bayName} on ${new Date(booking.start_time).toLocaleString()} has been approved. ${hoursNeeded}h deducted. ${newRemaining}h remaining.`,
+        message: `Your coaching session at ${bayName} on ${formatDateTimeIST(booking.start_time)} has been approved. ${hoursNeeded}h deducted. ${newRemaining}h remaining.`,
         type: "booking",
       });
 
@@ -541,8 +563,8 @@ Deno.serve(async (req) => {
             data: {
               bay: bayName,
               city: booking.city,
-              date: new Date(booking.start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
-              time: `${new Date(booking.start_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} – ${new Date(booking.end_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
+              date: formatDateIST(booking.start_time),
+              time: formatTimeRangeIST(booking.start_time, booking.end_time),
               hours_deducted: `${hoursNeeded}h`,
               hours_remaining: `${newRemaining}h`,
             },
@@ -611,7 +633,7 @@ Deno.serve(async (req) => {
       await adminClient.from("notifications").insert({
         user_id: booking.user_id,
         title: "❌ Coaching Request Rejected",
-        message: `Your coaching session request at ${bayName} on ${new Date(booking.start_time).toLocaleString()} has been declined. No hours were deducted.${noteText}`,
+        message: `Your coaching session request at ${bayName} on ${formatDateTimeIST(booking.start_time)} has been declined. No hours were deducted.${noteText}`,
         type: "booking",
       });
 
@@ -630,8 +652,8 @@ Deno.serve(async (req) => {
             data: {
               bay: bayName,
               city: booking.city,
-              date: new Date(booking.start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
-              time: `${new Date(booking.start_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} – ${new Date(booking.end_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
+              date: formatDateIST(booking.start_time),
+              time: formatTimeRangeIST(booking.start_time, booking.end_time),
               admin_note: reject_message || "",
             },
           }),
@@ -730,7 +752,7 @@ Deno.serve(async (req) => {
           user_id: userId,
           type: "refund",
           hours: hoursToRefund,
-          note: `Cancellation refund - ${bayName} - ${new Date(booking.start_time).toLocaleDateString()}`,
+          note: `Cancellation refund - ${bayName} - ${formatShortDateIST(booking.start_time)}`,
           created_by: userId,
         });
       }
@@ -739,7 +761,7 @@ Deno.serve(async (req) => {
       await adminClient.from("notifications").insert({
         user_id: userId,
         title: "Booking Cancelled",
-        message: `Your ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${new Date(booking.start_time).toLocaleString()} has been cancelled.${hoursRefunded > 0 ? ` ${hoursRefunded}h refunded.` : ""}`,
+        message: `Your ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${formatDateTimeIST(booking.start_time)} has been cancelled.${hoursRefunded > 0 ? ` ${hoursRefunded}h refunded.` : ""}`,
         type: "booking",
       });
 
@@ -752,7 +774,7 @@ Deno.serve(async (req) => {
           await adminClient.from("notifications").insert({
             user_id: admin.user_id,
             title: "🚫 Booking Cancelled",
-            message: `${displayName} cancelled their ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${new Date(booking.start_time).toLocaleString()}.${hoursRefunded > 0 ? ` ${hoursRefunded}h refunded.` : ""}`,
+            message: `${displayName} cancelled their ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${formatDateTimeIST(booking.start_time)}.${hoursRefunded > 0 ? ` ${hoursRefunded}h refunded.` : ""}`,
             type: "admin",
           });
         }
@@ -773,7 +795,7 @@ Deno.serve(async (req) => {
             data: {
               bay: bayName,
               city: booking.city,
-              date: new Date(booking.start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+              date: formatDateIST(booking.start_time),
               hours_refunded: hoursRefunded,
             },
           }),
