@@ -351,6 +351,31 @@ Deno.serve(async (req) => {
             type: "warning",
           });
         }
+        // Send confirmed booking email
+        try {
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({
+              user_id: userId,
+              template: "booking_confirmed",
+              subject: "✅ Bay Booking Confirmed!",
+              data: {
+                city,
+                bay: bayLabel,
+                date: new Date(start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+                time: `${new Date(start_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} – ${new Date(end_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
+                duration: `${hoursNeeded}h`,
+                hours_remaining: `${remaining}h`,
+              },
+            }),
+          });
+        } catch (e) {
+          console.error("Failed to send booking confirmation email:", e);
+        }
       } else {
         // Pending coaching notification
         await supabase.from("notifications").insert({
@@ -370,6 +395,31 @@ Deno.serve(async (req) => {
             message: `${display_name || "A member"} has requested a coaching session at ${bayLabel} on ${new Date(start_time).toLocaleString()}. Please approve or reject.`,
             type: "admin",
           });
+        }
+
+        // Send pending coaching email
+        try {
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({
+              user_id: userId,
+              template: "coaching_pending",
+              subject: "🕐 Coaching Session Pending Approval",
+              data: {
+                city,
+                bay: bayLabel,
+                date: new Date(start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+                time: `${new Date(start_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} – ${new Date(end_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
+                duration: `${duration_minutes / 60}h`,
+              },
+            }),
+          });
+        } catch (e) {
+          console.error("Failed to send pending coaching email:", e);
         }
       }
 
