@@ -90,45 +90,12 @@ export function useCreateBooking() {
       if (res.data?.error) throw new Error(res.data.error);
       return res.data;
     },
-    onSuccess: (_data, variables) => {
-      if (user) {
-        const startDate = new Date(variables.start_time);
-        const endDate = new Date(variables.end_time);
-        const isPending = _data?.booking?.status === "pending";
-        
-        if (isPending) {
-          sendNotificationEmail({
-            user_id: user.id,
-            template: "coaching_pending",
-            subject: "🕐 Coaching Session Pending Approval",
-            data: {
-              city: variables.city,
-              bay: variables.bay_name || variables.city,
-              date: startDate.toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
-              time: `${startDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} – ${endDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
-              duration: `${variables.duration_minutes / 60}h`,
-            },
-          });
-        } else {
-          sendNotificationEmail({
-            user_id: user.id,
-            template: "booking_confirmed",
-            subject: "✅ Bay Booking Confirmed!",
-            data: {
-              city: variables.city,
-              bay: variables.bay_name || variables.city,
-              date: startDate.toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
-              time: `${startDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} – ${endDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
-              duration: `${variables.duration_minutes / 60}h`,
-              hours_remaining: _data?.booking ? "—" : "—",
-            },
-          });
-        }
-      }
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["available_slots"] });
       queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
       queryClient.invalidateQueries({ queryKey: ["member_hours"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
     },
   });
 }
