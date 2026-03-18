@@ -402,7 +402,7 @@ Deno.serve(async (req) => {
         await supabase.from("notifications").insert({
           user_id: userId,
           title: isCoaching ? "Coaching Booked!" : "Bay Booked!",
-          message: `Your ${bayLabel} ${isCoaching ? "coaching session" : "bay"} has been booked for ${formatDateTimeIST(start_time)} (${hoursNeeded}h). ${remaining}h remaining.`,
+          message: `Your ${bayLabel} ${isCoaching ? "coaching session" : "bay"} has been booked for ${formatDateTime(start_time, calTz)} (${hoursNeeded}h). ${remaining}h remaining.`,
           type: "booking",
         });
 
