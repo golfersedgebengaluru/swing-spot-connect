@@ -529,6 +529,9 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Get the calendar's timezone for consistent formatting
+      const calTz = calendarEmail ? await getCalendarTimezone(accessToken, calendarEmail) : "UTC";
+
       const hoursNeeded = booking.session_type === "coaching" ? coachingHours : booking.duration_minutes / 60;
 
       // Check balance
