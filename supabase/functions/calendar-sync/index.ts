@@ -761,7 +761,7 @@ Deno.serve(async (req) => {
       await adminClient.from("notifications").insert({
         user_id: userId,
         title: "Booking Cancelled",
-        message: `Your ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${new Date(booking.start_time).toLocaleString()} has been cancelled.${hoursRefunded > 0 ? ` ${hoursRefunded}h refunded.` : ""}`,
+        message: `Your ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${formatDateTimeIST(booking.start_time)} has been cancelled.${hoursRefunded > 0 ? ` ${hoursRefunded}h refunded.` : ""}`,
         type: "booking",
       });
 
