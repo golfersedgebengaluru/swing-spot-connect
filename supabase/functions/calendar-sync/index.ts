@@ -658,6 +658,9 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Get the calendar's timezone for consistent formatting
+      const calTz = calendarEmail ? await getCalendarTimezone(accessToken, calendarEmail) : "UTC";
+
       // Delete calendar event to free slot
       if (booking.calendar_event_id && calendarEmail) {
         try {
