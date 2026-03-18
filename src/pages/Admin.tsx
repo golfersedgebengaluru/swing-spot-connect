@@ -732,7 +732,8 @@ function BookingLogsTab() {
 
   const handleReject = async (id: string) => {
     try {
-      await rejectBooking.mutateAsync(id);
+      await rejectBooking.mutateAsync({ bookingId: id, rejectMessage: rejectMessages[id] });
+      setRejectMessages((prev) => { const n = { ...prev }; delete n[id]; return n; });
       toast({ title: "Booking Rejected", description: "Coaching request declined and slot freed." });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
