@@ -563,8 +563,8 @@ Deno.serve(async (req) => {
             data: {
               bay: bayName,
               city: booking.city,
-              date: new Date(booking.start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
-              time: `${new Date(booking.start_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} – ${new Date(booking.end_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
+              date: formatDateIST(booking.start_time),
+              time: formatTimeRangeIST(booking.start_time, booking.end_time),
               hours_deducted: `${hoursNeeded}h`,
               hours_remaining: `${newRemaining}h`,
             },
