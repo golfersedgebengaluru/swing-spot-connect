@@ -1276,6 +1276,7 @@ export default function Admin() {
             <TabsContent value="settings" className="space-y-6">
               <PageVisibilitySettings />
               <SenderEmailCard />
+              <EmailRateLimitCard />
               <EmailTemplatesEditor />
               <ChangePasswordCard />
             </TabsContent>
