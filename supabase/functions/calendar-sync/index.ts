@@ -802,7 +802,7 @@ Deno.serve(async (req) => {
           user_id: userId,
           type: "refund",
           hours: hoursToRefund,
-          note: `Cancellation refund - ${bayName} - ${formatShortDateIST(booking.start_time)}`,
+          note: `Cancellation refund - ${bayName} - ${formatShortDate(booking.start_time, calTz)}`,
           created_by: userId,
         });
       }
