@@ -115,6 +115,7 @@ export function useCancelBooking() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["all_bookings"] });
       queryClient.invalidateQueries({ queryKey: ["available_slots"] });
       queryClient.invalidateQueries({ queryKey: ["member_hours"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });

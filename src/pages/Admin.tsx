@@ -811,7 +811,7 @@ function BookingLogsTab() {
                     variant={b.status === "confirmed" ? "secondary" : b.status === "rejected" ? "destructive" : b.status === "cancelled" ? "destructive" : "outline"}
                     className={b.status === "pending" ? "bg-amber-500/15 text-amber-600 border-amber-300" : ""}
                   >
-                    {b.status === "pending" ? "🟡 Pending" : b.status === "confirmed" ? "🟢 Confirmed" : b.status === "rejected" ? "🔴 Rejected" : b.status}
+                    {b.status === "pending" ? "🟡 Pending" : b.status === "confirmed" ? "🟢 Confirmed" : b.status === "rejected" ? "🔴 Rejected" : b.status === "cancelled" ? "🚫 Cancelled" : b.status}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
