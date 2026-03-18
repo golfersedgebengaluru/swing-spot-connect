@@ -705,7 +705,8 @@ Deno.serve(async (req) => {
       // Refund hours only if was confirmed (pending bookings never had hours deducted)
       let hoursRefunded = 0;
       if (booking.status === "confirmed") {
-        const hoursToRefund = booking.duration_minutes / 60;
+        const isCoaching = booking.session_type === "coaching";
+        const hoursToRefund = isCoaching ? coachingHours : booking.duration_minutes / 60;
         hoursRefunded = hoursToRefund;
 
         const { data: memberHours } = await adminClient
