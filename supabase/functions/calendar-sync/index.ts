@@ -151,26 +151,58 @@ function createAdminClient() {
   );
 }
 
-const IST = "Asia/Kolkata";
-
-function formatDateIST(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-IN", { timeZone: IST, weekday: "long", year: "numeric", month: "long", day: "numeric" });
+// Fetch the calendar's timezone from Google Calendar API
+async function getCalendarTimezone(accessToken: string, calendarId: string): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    const data = await res.json();
+    if (res.ok && data.timeZone) return data.timeZone;
+  } catch (e) {
+    console.error("Failed to fetch calendar timezone:", e);
+  }
+  return "UTC"; // fallback
 }
 
-function formatTimeIST(dateStr: string): string {
-  return new Date(dateStr).toLocaleTimeString("en-IN", { timeZone: IST, hour: "2-digit", minute: "2-digit" });
+function formatDate(dateStr: string, tz: string): string {
+  return new Date(dateStr).toLocaleDateString("en-IN", { timeZone: tz, weekday: "long", year: "numeric", month: "long", day: "numeric" });
 }
 
-function formatTimeRangeIST(start: string, end: string): string {
-  return `${formatTimeIST(start)} – ${formatTimeIST(end)}`;
+function formatTime(dateStr: string, tz: string): string {
+  return new Date(dateStr).toLocaleTimeString("en-IN", { timeZone: tz, hour: "2-digit", minute: "2-digit" });
 }
 
-function formatDateTimeIST(dateStr: string): string {
-  return new Date(dateStr).toLocaleString("en-IN", { timeZone: IST });
+function formatTimeRange(start: string, end: string, tz: string): string {
+  return `${formatTime(start, tz)} – ${formatTime(end, tz)}`;
 }
 
-function formatShortDateIST(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-IN", { timeZone: IST });
+function formatDateTime(dateStr: string, tz: string): string {
+  return new Date(dateStr).toLocaleString("en-IN", { timeZone: tz });
+}
+
+function formatShortDate(dateStr: string, tz: string): string {
+  return new Date(dateStr).toLocaleDateString("en-IN", { timeZone: tz });
+}
+
+// Build IANA-offset string for a given date in a given timezone (e.g. "+05:30")
+function getUtcOffsetForTz(date: string, tz: string): string {
+  const d = new Date(date);
+  // Format with timezone to get offset
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "longOffset" }).formatToParts(d);
+  const offsetPart = parts.find(p => p.type === "timeZoneName");
+  if (offsetPart) {
+    // Format is like "GMT+5:30" or "GMT-8" — normalize to "+05:30"
+    const match = offsetPart.value.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+    if (match) {
+      const sign = match[1];
+      const hrs = match[2].padStart(2, "0");
+      const mins = (match[3] || "00").padStart(2, "0");
+      return `${sign}${hrs}:${mins}`;
+    }
+  }
+  return "+00:00";
 }
 
 Deno.serve(async (req) => {
