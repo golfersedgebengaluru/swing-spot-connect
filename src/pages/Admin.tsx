@@ -713,11 +713,11 @@ function BookingLogsTab() {
     return true;
   });
 
-  // Sort pending first
+  // Sort pending first, then by start_time descending
   const sorted = [...filtered].sort((a: any, b: any) => {
     if (a.status === "pending" && b.status !== "pending") return -1;
     if (a.status !== "pending" && b.status === "pending") return 1;
-    return 0;
+    return new Date(b.start_time).getTime() - new Date(a.start_time).getTime();
   });
 
   const handleApprove = async (id: string) => {
