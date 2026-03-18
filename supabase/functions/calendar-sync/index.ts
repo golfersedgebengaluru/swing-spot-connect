@@ -760,6 +760,9 @@ Deno.serve(async (req) => {
         calendarEmail = bayConfig?.calendar_email || null;
       }
 
+      // Get the calendar's timezone for consistent formatting
+      const calTz = calendarEmail ? await getCalendarTimezone(accessToken, calendarEmail) : "UTC";
+
       // Delete calendar event
       if (booking.calendar_event_id && calendarEmail) {
         try {
