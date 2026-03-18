@@ -83,6 +83,7 @@ async function createEvent(
   summary: string,
   startTime: string,
   endTime: string,
+  timeZone: string,
   description?: string
 ) {
   const res = await fetch(
@@ -96,8 +97,8 @@ async function createEvent(
       body: JSON.stringify({
         summary,
         description,
-        start: { dateTime: startTime },
-        end: { dateTime: endTime },
+        start: { dateTime: startTime, timeZone },
+        end: { dateTime: endTime, timeZone },
       }),
     }
   );
