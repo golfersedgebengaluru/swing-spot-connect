@@ -434,8 +434,8 @@ Deno.serve(async (req) => {
               data: {
                 city,
                 bay: bayLabel,
-                date: new Date(start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
-                time: `${new Date(start_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} – ${new Date(end_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
+                date: formatDateIST(start_time),
+                time: formatTimeRangeIST(start_time, end_time),
                 duration: `${duration_minutes / 60}h`,
               },
             }),
