@@ -795,7 +795,7 @@ Deno.serve(async (req) => {
             data: {
               bay: bayName,
               city: booking.city,
-              date: new Date(booking.start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+              date: formatDateIST(booking.start_time),
               hours_refunded: hoursRefunded,
             },
           }),
