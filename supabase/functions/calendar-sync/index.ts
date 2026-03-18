@@ -752,7 +752,7 @@ Deno.serve(async (req) => {
           user_id: userId,
           type: "refund",
           hours: hoursToRefund,
-          note: `Cancellation refund - ${bayName} - ${new Date(booking.start_time).toLocaleDateString()}`,
+          note: `Cancellation refund - ${bayName} - ${formatShortDateIST(booking.start_time)}`,
           created_by: userId,
         });
       }
