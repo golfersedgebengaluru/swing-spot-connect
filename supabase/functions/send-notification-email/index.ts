@@ -296,20 +296,21 @@ Deno.serve(async (req) => {
           p_max_per_hour: maxPerHour,
         });
 
-      if (!rateLimitOk) {
-        await supabaseAdmin.from("email_log").insert({
-          user_id,
-          recipient_email: profile.email,
-          template,
-          subject,
-          status: "rate_limited",
-          metadata: { data },
-        });
-        return new Response(JSON.stringify({ success: false, status: "rate_limited" }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+        if (!rateLimitOk) {
+          await supabaseAdmin.from("email_log").insert({
+            user_id,
+            recipient_email: profile.email,
+            template,
+            subject,
+            status: "rate_limited",
+            metadata: { data },
+          });
+          return new Response(JSON.stringify({ success: false, status: "rate_limited" }), {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      } // end rate limit exempt check
 
       // Duplicate check
       const { data: recentEmails } = await supabaseAdmin
