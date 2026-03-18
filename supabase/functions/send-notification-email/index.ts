@@ -122,7 +122,10 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
         <div style="background:#f0f3f7;border-radius:8px;padding:20px;margin:0 0 24px">
           <table style="width:100%;border-collapse:collapse">
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Location</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.city}</td></tr>
-            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Original Date</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.date}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Bay</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.bay}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Date</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.date}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Time</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.time}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Duration</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.duration}</td></tr>
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Hours Refunded</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.hours_refunded}h</td></tr>
           </table>
         </div>
