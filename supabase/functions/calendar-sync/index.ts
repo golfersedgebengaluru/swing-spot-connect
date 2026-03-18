@@ -544,7 +544,7 @@ Deno.serve(async (req) => {
       await adminClient.from("notifications").insert({
         user_id: booking.user_id,
         title: "✅ Coaching Approved!",
-        message: `Your coaching session at ${bayName} on ${new Date(booking.start_time).toLocaleString()} has been approved. ${hoursNeeded}h deducted. ${newRemaining}h remaining.`,
+        message: `Your coaching session at ${bayName} on ${formatDateTimeIST(booking.start_time)} has been approved. ${hoursNeeded}h deducted. ${newRemaining}h remaining.`,
         type: "booking",
       });
 
