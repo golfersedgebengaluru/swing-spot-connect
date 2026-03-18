@@ -839,12 +839,12 @@ function BookingLogsTab() {
                           ✗ Reject
                         </Button>
                       </div>
-                      <Input
-                        placeholder="Rejection note (optional)"
+                       <Textarea
+                        placeholder="Enter next available slot or reason (optional)"
                         value={rejectMessages[b.id] || ""}
                         onChange={(e) => setRejectMessages((prev) => ({ ...prev, [b.id]: e.target.value }))}
-                        className="h-7 text-xs w-56"
-                      />
+                        className="text-xs w-56 min-h-[56px] resize-none"
+                       />
                     </div>
                   )}
                   {b.status === "rejected" && b.note && (

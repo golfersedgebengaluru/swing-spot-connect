@@ -632,6 +632,7 @@ Deno.serve(async (req) => {
               city: booking.city,
               date: new Date(booking.start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
               time: `${new Date(booking.start_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })} – ${new Date(booking.end_time).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}`,
+              admin_note: reject_message || "",
             },
           }),
         });
