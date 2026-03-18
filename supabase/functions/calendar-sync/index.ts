@@ -669,15 +669,17 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Get calendar email and bay name
+      // Get calendar email, bay name, and coaching hours
       const adminClient = createAdminClient();
       let calendarEmail: string | null = null;
       let bayName = booking.city;
+      let coachingHours = 1;
       if (booking.bay_id) {
-        const { data: bay } = await supabase.from("bays").select("calendar_email, name").eq("id", booking.bay_id).single();
+        const { data: bay } = await supabase.from("bays").select("calendar_email, name, coaching_hours").eq("id", booking.bay_id).single();
         if (bay) {
           calendarEmail = bay.calendar_email || null;
           bayName = bay.name || booking.city;
+          coachingHours = bay.coaching_hours || 1;
         }
       }
       if (!calendarEmail) {
