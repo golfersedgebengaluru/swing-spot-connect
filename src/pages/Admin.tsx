@@ -946,12 +946,28 @@ export default function Admin() {
   };
 
   const handleAddMember = async (data: any) => {
-    const { error } = await supabase.from("member_hours").insert({
-      user_id: data.user_id,
-      hours_purchased: data.hours_purchased,
-      hours_used: 0,
-    });
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    // Check if user already has a member_hours row
+    const { data: existing } = await supabase
+      .from("member_hours")
+      .select("id, hours_purchased")
+      .eq("user_id", data.user_id)
+      .maybeSingle();
+
+    if (existing) {
+      // Update existing row by adding hours
+      const { error } = await supabase
+        .from("member_hours")
+        .update({ hours_purchased: existing.hours_purchased + data.hours_purchased })
+        .eq("id", existing.id);
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    } else {
+      const { error } = await supabase.from("member_hours").insert({
+        user_id: data.user_id,
+        hours_purchased: data.hours_purchased,
+        hours_used: 0,
+      });
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    }
     // Log transaction
     await supabase.from("hours_transactions").insert({
       user_id: data.user_id,
