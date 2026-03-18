@@ -704,6 +704,7 @@ function BookingLogsTab() {
   const { toast } = useToast();
   const [cityFilter, setCityFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [rejectMessages, setRejectMessages] = useState<Record<string, string>>({});
 
   const cities = Array.from(new Set((bays ?? []).map((b: any) => b.city))).sort();
 
@@ -731,7 +732,8 @@ function BookingLogsTab() {
 
   const handleReject = async (id: string) => {
     try {
-      await rejectBooking.mutateAsync(id);
+      await rejectBooking.mutateAsync({ bookingId: id, rejectMessage: rejectMessages[id] });
+      setRejectMessages((prev) => { const n = { ...prev }; delete n[id]; return n; });
       toast({ title: "Booking Rejected", description: "Coaching request declined and slot freed." });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -816,26 +818,37 @@ function BookingLogsTab() {
                 </TableCell>
                 <TableCell className="text-right">
                   {b.status === "pending" && (
-                    <div className="flex gap-1 justify-end">
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => handleApprove(b.id)}
-                        disabled={approveBooking.isPending}
-                        className="h-7 text-xs"
-                      >
-                        ✓ Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleReject(b.id)}
-                        disabled={rejectBooking.isPending}
-                        className="h-7 text-xs"
-                      >
-                        ✗ Reject
-                      </Button>
+                    <div className="flex flex-col gap-1 items-end">
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => handleApprove(b.id)}
+                          disabled={approveBooking.isPending}
+                          className="h-7 text-xs"
+                        >
+                          ✓ Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleReject(b.id)}
+                          disabled={rejectBooking.isPending}
+                          className="h-7 text-xs"
+                        >
+                          ✗ Reject
+                        </Button>
+                      </div>
+                      <Input
+                        placeholder="Rejection note (optional)"
+                        value={rejectMessages[b.id] || ""}
+                        onChange={(e) => setRejectMessages((prev) => ({ ...prev, [b.id]: e.target.value }))}
+                        className="h-7 text-xs w-56"
+                      />
                     </div>
+                  )}
+                  {b.status === "rejected" && b.note && (
+                    <span className="text-xs text-muted-foreground italic">"{b.note}"</span>
                   )}
                 </TableCell>
               </TableRow>

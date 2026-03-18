@@ -149,9 +149,9 @@ export function useRejectBooking() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (bookingId: string) => {
+    mutationFn: async ({ bookingId, rejectMessage }: { bookingId: string; rejectMessage?: string }) => {
       const res = await supabase.functions.invoke("calendar-sync", {
-        body: { action: "reject_booking", booking_id: bookingId },
+        body: { action: "reject_booking", booking_id: bookingId, reject_message: rejectMessage || "" },
       });
       if (res.error) throw new Error(res.error.message || "Rejection failed");
       if (res.data?.error) throw new Error(res.data.error);

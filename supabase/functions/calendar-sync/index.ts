@@ -558,7 +558,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "reject_booking") {
-      const { booking_id } = params;
+      const { booking_id, reject_message } = params;
 
       const adminClient = createAdminClient();
       const { data: isAdmin } = await adminClient.rpc("has_role", { _user_id: userId, _role: "admin" });
@@ -601,14 +601,17 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Update booking status
-      await adminClient.from("bookings").update({ status: "rejected" }).eq("id", booking_id);
+      // Update booking status with optional note
+      const updateData: Record<string, string> = { status: "rejected" };
+      if (reject_message) updateData.note = reject_message;
+      await adminClient.from("bookings").update(updateData).eq("id", booking_id);
 
       // Notify user
+      const noteText = reject_message ? ` Admin note: ${reject_message}` : "";
       await adminClient.from("notifications").insert({
         user_id: booking.user_id,
         title: "❌ Coaching Request Rejected",
-        message: `Your coaching session request at ${bayName} on ${new Date(booking.start_time).toLocaleString()} has been declined. No hours were deducted.`,
+        message: `Your coaching session request at ${bayName} on ${new Date(booking.start_time).toLocaleString()} has been declined. No hours were deducted.${noteText}`,
         type: "booking",
       });
 
