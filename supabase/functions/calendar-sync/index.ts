@@ -290,6 +290,9 @@ Deno.serve(async (req) => {
     if (action === "create_booking") {
       const { calendar_email, start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type } = params;
 
+      // Get the calendar's timezone for consistent formatting
+      const calTz = await getCalendarTimezone(accessToken, calendar_email);
+
       // Get bay config for coaching mode
       let coachingMode = "instant";
       let coachingHours = 1;
@@ -354,7 +357,7 @@ Deno.serve(async (req) => {
         ? `Pending coaching approval for ${display_name || "Member"} via Golfer's Edge`
         : `Booked by ${display_name || "Member"} via Golfer's Edge${isCoaching ? " - Coaching Session" : ""}`;
 
-      const calEvent = await createEvent(accessToken, calendar_email, calSummary, start_time, end_time, calDesc);
+      const calEvent = await createEvent(accessToken, calendar_email, calSummary, start_time, end_time, calTz, calDesc);
 
       // Create booking record
       const bookingStatus = needsApproval ? "pending" : "confirmed";
