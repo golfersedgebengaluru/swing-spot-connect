@@ -704,6 +704,7 @@ function BookingLogsTab() {
   const { toast } = useToast();
   const [cityFilter, setCityFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [rejectMessages, setRejectMessages] = useState<Record<string, string>>({});
 
   const cities = Array.from(new Set((bays ?? []).map((b: any) => b.city))).sort();
 
