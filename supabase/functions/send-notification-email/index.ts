@@ -273,11 +273,28 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Rate limit check (3/hour)
-      const { data: rateLimitOk } = await supabaseAdmin.rpc("check_email_rate_limit", {
-        p_user_id: user_id,
-        p_max_per_hour: 3,
-      });
+    // Skip rate limit for critical notification templates
+      const RATE_LIMIT_EXEMPT_TEMPLATES = [
+        "booking_confirmed",
+        "booking_cancelled",
+        "coaching_pending",
+        "coaching_approved",
+        "coaching_rejected",
+      ];
+
+      if (!RATE_LIMIT_EXEMPT_TEMPLATES.includes(template)) {
+        // Get configurable rate limit from admin_config (default 10)
+        const { data: rateLimitConfig } = await supabaseAdmin
+          .from("admin_config")
+          .select("value")
+          .eq("key", "email_rate_limit_per_hour")
+          .single();
+        const maxPerHour = rateLimitConfig?.value ? parseInt(rateLimitConfig.value, 10) : 10;
+
+        const { data: rateLimitOk } = await supabaseAdmin.rpc("check_email_rate_limit", {
+          p_user_id: user_id,
+          p_max_per_hour: maxPerHour,
+        });
 
       if (!rateLimitOk) {
         await supabaseAdmin.from("email_log").insert({
