@@ -95,6 +95,7 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
       <div style="padding:32px 24px">
         <p style="color:#1a2332;font-size:16px;margin:0 0 16px">Hi ${d.display_name || "there"},</p>
         <p style="color:#1a2332;font-size:16px;margin:0 0 24px">Unfortunately, your coaching session request has been declined. No hours were deducted from your balance.</p>
+        ${d.admin_note ? `<p style="color:#1a2332;font-size:16px;margin:0 0 24px">Next available slot - ${d.admin_note}.</p><p style="color:#1a2332;font-size:16px;margin:0 0 24px">If this works for you, please return to your portal to book this slot.</p>` : ""}
         <div style="background:#f0f3f7;border-radius:8px;padding:20px;margin:0 0 24px">
           <table style="width:100%;border-collapse:collapse">
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Location</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.city}</td></tr>
