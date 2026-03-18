@@ -713,11 +713,11 @@ function BookingLogsTab() {
     return true;
   });
 
-  // Sort pending first
+  // Sort pending first, then by start_time descending
   const sorted = [...filtered].sort((a: any, b: any) => {
     if (a.status === "pending" && b.status !== "pending") return -1;
     if (a.status !== "pending" && b.status === "pending") return 1;
-    return 0;
+    return new Date(b.start_time).getTime() - new Date(a.start_time).getTime();
   });
 
   const handleApprove = async (id: string) => {
@@ -811,7 +811,7 @@ function BookingLogsTab() {
                     variant={b.status === "confirmed" ? "secondary" : b.status === "rejected" ? "destructive" : b.status === "cancelled" ? "destructive" : "outline"}
                     className={b.status === "pending" ? "bg-amber-500/15 text-amber-600 border-amber-300" : ""}
                   >
-                    {b.status === "pending" ? "🟡 Pending" : b.status === "confirmed" ? "🟢 Confirmed" : b.status === "rejected" ? "🔴 Rejected" : b.status}
+                    {b.status === "pending" ? "🟡 Pending" : b.status === "confirmed" ? "🟢 Confirmed" : b.status === "rejected" ? "🔴 Rejected" : b.status === "cancelled" ? "🚫 Cancelled" : b.status}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
