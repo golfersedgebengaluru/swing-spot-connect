@@ -25,16 +25,88 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
         <div style="background:#f0f3f7;border-radius:8px;padding:20px;margin:0 0 24px">
           <table style="width:100%;border-collapse:collapse">
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Location</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.city}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Bay</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.bay}</td></tr>
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Date</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.date}</td></tr>
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Time</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.time}</td></tr>
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Duration</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.duration}</td></tr>
-            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Hours Remaining</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.hours_remaining}h</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Hours Remaining</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.hours_remaining}</td></tr>
           </table>
         </div>
         <p style="color:#6b7a8d;font-size:14px;margin:0 0 8px">${d._footer_text || "Need to cancel? You can do so up to 24 hours before your booking. Please login to your account to cancel."}</p>
       </div>
       <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
-        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge · <a href="{{unsubscribe_url}}" style="color:#6b7a8d">Unsubscribe</a></p>
+        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
+      </div>
+    </div>`,
+
+  coaching_pending: (d) => `
+    <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff">
+      <div style="background:#2b3544;padding:32px 24px;text-align:center">
+        <h1 style="color:#f5f0eb;margin:0;font-family:'Playfair Display',Georgia,serif;font-size:24px">🕐 Coaching Session Pending</h1>
+      </div>
+      <div style="padding:32px 24px">
+        <p style="color:#1a2332;font-size:16px;margin:0 0 16px">Hi ${d.display_name || "there"},</p>
+        <p style="color:#1a2332;font-size:16px;margin:0 0 24px">Your coaching session request has been submitted and is awaiting admin approval. No hours have been deducted yet.</p>
+        <div style="background:#f0f3f7;border-radius:8px;padding:20px;margin:0 0 24px">
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Location</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.city}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Bay</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.bay}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Date</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.date}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Time</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.time}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Duration</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.duration}</td></tr>
+          </table>
+        </div>
+        <p style="color:#6b7a8d;font-size:14px;margin:0">You'll receive an email once the admin approves or declines your request.</p>
+      </div>
+      <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
+        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
+      </div>
+    </div>`,
+
+  coaching_approved: (d) => `
+    <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff">
+      <div style="background:#2b3544;padding:32px 24px;text-align:center">
+        <h1 style="color:#f5f0eb;margin:0;font-family:'Playfair Display',Georgia,serif;font-size:24px">✅ Coaching Session Approved!</h1>
+      </div>
+      <div style="padding:32px 24px">
+        <p style="color:#1a2332;font-size:16px;margin:0 0 16px">Hi ${d.display_name || "there"},</p>
+        <p style="color:#1a2332;font-size:16px;margin:0 0 24px">Great news! Your coaching session has been approved.</p>
+        <div style="background:#f0f3f7;border-radius:8px;padding:20px;margin:0 0 24px">
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Location</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.city}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Bay</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.bay}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Date</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.date}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Time</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.time}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Hours Deducted</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.hours_deducted}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Hours Remaining</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.hours_remaining}</td></tr>
+          </table>
+        </div>
+      </div>
+      <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
+        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
+      </div>
+    </div>`,
+
+  coaching_rejected: (d) => `
+    <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff">
+      <div style="background:#2b3544;padding:32px 24px;text-align:center">
+        <h1 style="color:#f5f0eb;margin:0;font-family:'Playfair Display',Georgia,serif;font-size:24px">❌ Coaching Request Declined</h1>
+      </div>
+      <div style="padding:32px 24px">
+        <p style="color:#1a2332;font-size:16px;margin:0 0 16px">Hi ${d.display_name || "there"},</p>
+        <p style="color:#1a2332;font-size:16px;margin:0 0 24px">Unfortunately, your coaching session request has been declined. No hours were deducted from your balance.</p>
+        <div style="background:#f0f3f7;border-radius:8px;padding:20px;margin:0 0 24px">
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Location</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.city}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Bay</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.bay}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Date</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.date}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Time</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.time}</td></tr>
+          </table>
+        </div>
+        <p style="color:#6b7a8d;font-size:14px;margin:0">Please try booking a different slot or contact us for assistance.</p>
+      </div>
+      <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
+        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
       </div>
     </div>`,
 
@@ -55,7 +127,7 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
         </div>
       </div>
       <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
-        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge · <a href="{{unsubscribe_url}}" style="color:#6b7a8d">Unsubscribe</a></p>
+        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
       </div>
     </div>`,
 
@@ -74,7 +146,7 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
         <p style="color:#1a2332;font-size:16px;margin:0">Your balance: <strong>${d.total_points} points</strong></p>
       </div>
       <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
-        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge · <a href="{{unsubscribe_url}}" style="color:#6b7a8d">Unsubscribe</a></p>
+        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
       </div>
     </div>`,
 
@@ -92,7 +164,7 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
         <p style="color:#1a2332;font-size:16px;margin:0">Remaining balance: <strong>${d.total_points} points</strong></p>
       </div>
       <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
-        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge · <a href="{{unsubscribe_url}}" style="color:#6b7a8d">Unsubscribe</a></p>
+        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
       </div>
     </div>`,
 
@@ -106,7 +178,7 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
         <p style="color:#1a2332;font-size:16px;margin:0 0 16px">${d.message}</p>
       </div>
       <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
-        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge · <a href="{{unsubscribe_url}}" style="color:#6b7a8d">Unsubscribe</a></p>
+        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
       </div>
     </div>`,
 };
@@ -114,6 +186,9 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
 // Template to preference field mapping
 const TEMPLATE_PREF_MAP: Record<string, string> = {
   booking_confirmed: "booking_confirmed",
+  coaching_pending: "booking_confirmed",
+  coaching_approved: "booking_confirmed",
+  coaching_rejected: "booking_confirmed",
   booking_cancelled: "booking_cancelled",
   booking_rescheduled: "booking_rescheduled",
   points_earned: "points_earned",
@@ -135,7 +210,7 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Auth check - allow service role calls (from other edge functions) or authenticated users
+    // Auth check
     const authHeader = req.headers.get("Authorization");
     let callerId: string | null = null;
     
@@ -183,9 +258,7 @@ Deno.serve(async (req) => {
           .eq("user_id", user_id)
           .single();
 
-        // If preferences exist and this type is opted out, skip
         if (prefs && prefs[prefField] === false) {
-          // Log as suppressed
           await supabaseAdmin.from("email_log").insert({
             user_id,
             recipient_email: profile.email,
@@ -221,7 +294,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Duplicate check - don't send same template to same user within 5 minutes
+      // Duplicate check
       const { data: recentEmails } = await supabaseAdmin
         .from("email_log")
         .select("id")
@@ -255,7 +328,6 @@ Deno.serve(async (req) => {
     const tplMap: Record<string, string> = {};
     tplConfigs?.forEach((c: any) => { tplMap[c.key] = c.value; });
 
-    // Map template config keys to template data fields
     const TEMPLATE_CONTENT_MAP: Record<string, string> = {
       booking_confirmed: "email_tpl_booking_confirmed_footer",
       booking_cancelled: "email_tpl_booking_cancelled_body",
@@ -311,7 +383,6 @@ Deno.serve(async (req) => {
     const resendData = await resendRes.json();
 
     if (!resendRes.ok) {
-      // Update log with error
       if (logEntry?.id) {
         await supabaseAdmin.from("email_log").update({
           status: "failed",
@@ -321,7 +392,6 @@ Deno.serve(async (req) => {
       throw new Error(`Resend error: ${JSON.stringify(resendData)}`);
     }
 
-    // Update log as sent
     if (logEntry?.id) {
       await supabaseAdmin.from("email_log").update({
         status: "sent",
