@@ -619,11 +619,16 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Get calendar email
+      // Get calendar email and bay name
+      const adminClient = createAdminClient();
       let calendarEmail: string | null = null;
+      let bayName = booking.city;
       if (booking.bay_id) {
         const { data: bay } = await supabase.from("bays").select("calendar_email, name").eq("id", booking.bay_id).single();
-        calendarEmail = bay?.calendar_email || null;
+        if (bay) {
+          calendarEmail = bay.calendar_email || null;
+          bayName = bay.name || booking.city;
+        }
       }
       if (!calendarEmail) {
         const { data: bayConfig } = await supabase.from("bay_config").select("calendar_email").eq("city", booking.city).single();
@@ -639,51 +644,86 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Update booking status
-      await supabase
+      // Update booking status (use adminClient to ensure it works)
+      await adminClient
         .from("bookings")
         .update({ status: "cancelled" })
         .eq("id", booking_id);
 
       // Refund hours only if was confirmed (pending bookings never had hours deducted)
+      let hoursRefunded = 0;
       if (booking.status === "confirmed") {
-        const hoursToRefund = booking.session_type === "coaching"
-          ? (() => {
-              // Get coaching hours from bay
-              // We already have bay info above, but let's be safe
-              return booking.duration_minutes / 60; // fallback
-            })()
-          : booking.duration_minutes / 60;
+        const hoursToRefund = booking.duration_minutes / 60;
+        hoursRefunded = hoursToRefund;
 
-        const { data: memberHours } = await supabase
+        const { data: memberHours } = await adminClient
           .from("member_hours")
           .select("*")
           .eq("user_id", userId)
           .single();
 
         if (memberHours) {
-          await supabase
+          await adminClient
             .from("member_hours")
             .update({ hours_used: Math.max(0, memberHours.hours_used - hoursToRefund) })
             .eq("user_id", userId);
         }
 
-        await supabase.from("hours_transactions").insert({
+        await adminClient.from("hours_transactions").insert({
           user_id: userId,
-          type: "adjustment",
+          type: "refund",
           hours: hoursToRefund,
-          note: `Cancellation refund - ${booking.city} - ${new Date(booking.start_time).toLocaleDateString()}`,
+          note: `Cancellation refund - ${bayName} - ${new Date(booking.start_time).toLocaleDateString()}`,
           created_by: userId,
         });
       }
 
-      // Notification
-      await supabase.from("notifications").insert({
+      // User notification
+      await adminClient.from("notifications").insert({
         user_id: userId,
         title: "Booking Cancelled",
-        message: `Your ${booking.session_type === "coaching" ? "coaching" : "bay"} booking in ${booking.city} on ${new Date(booking.start_time).toLocaleString()} has been cancelled.${booking.status === "confirmed" ? " Hours refunded." : ""}`,
+        message: `Your ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${new Date(booking.start_time).toLocaleString()} has been cancelled.${hoursRefunded > 0 ? ` ${hoursRefunded}h refunded.` : ""}`,
         type: "booking",
       });
+
+      // Admin notifications
+      const { data: adminRoles } = await adminClient.from("user_roles").select("user_id").eq("role", "admin");
+      const { data: userProfile } = await adminClient.from("profiles").select("display_name").eq("user_id", userId).single();
+      const displayName = userProfile?.display_name || "A member";
+      for (const admin of adminRoles ?? []) {
+        if (admin.user_id !== userId) {
+          await adminClient.from("notifications").insert({
+            user_id: admin.user_id,
+            title: "🚫 Booking Cancelled",
+            message: `${displayName} cancelled their ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${new Date(booking.start_time).toLocaleString()}.${hoursRefunded > 0 ? ` ${hoursRefunded}h refunded.` : ""}`,
+            type: "admin",
+          });
+        }
+      }
+
+      // Send cancellation email
+      try {
+        await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            template: "booking_cancelled",
+            subject: "🚫 Booking Cancelled",
+            data: {
+              bay: bayName,
+              city: booking.city,
+              date: new Date(booking.start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+              hours_refunded: hoursRefunded,
+            },
+          }),
+        });
+      } catch (e) {
+        console.error("Failed to send cancellation email:", e);
+      }
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
