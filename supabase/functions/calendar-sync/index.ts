@@ -562,7 +562,7 @@ Deno.serve(async (req) => {
         user_id: booking.user_id,
         type: "deduction",
         hours: hoursNeeded,
-        note: `Coaching approved - ${bayName} - ${formatShortDateIST(booking.start_time)}`,
+        note: `Coaching approved - ${bayName} - ${formatShortDate(booking.start_time, calTz)}`,
         created_by: userId,
       });
 
