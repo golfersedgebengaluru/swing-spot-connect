@@ -459,6 +459,8 @@ function EmailRateLimitCard() {
     </Card>
   );
 
+}
+
 function PageContentEditor() {
   const { data: pages, isLoading } = useAllPageContent();
   const updatePage = useUpdatePageContent();
