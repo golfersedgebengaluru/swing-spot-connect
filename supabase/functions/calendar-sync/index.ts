@@ -455,7 +455,7 @@ Deno.serve(async (req) => {
           await adminClient.from("notifications").insert({
             user_id: admin.user_id,
             title: "📋 New Coaching Request",
-            message: `${display_name || "A member"} has requested a coaching session at ${bayLabel} on ${formatDateTimeIST(start_time)}. Please approve or reject.`,
+            message: `${display_name || "A member"} has requested a coaching session at ${bayLabel} on ${formatDateTime(start_time, calTz)}. Please approve or reject.`,
             type: "admin",
           });
         }
