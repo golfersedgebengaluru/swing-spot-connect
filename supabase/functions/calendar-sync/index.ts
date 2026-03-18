@@ -150,6 +150,28 @@ function createAdminClient() {
   );
 }
 
+const IST = "Asia/Kolkata";
+
+function formatDateIST(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-IN", { timeZone: IST, weekday: "long", year: "numeric", month: "long", day: "numeric" });
+}
+
+function formatTimeIST(dateStr: string): string {
+  return new Date(dateStr).toLocaleTimeString("en-IN", { timeZone: IST, hour: "2-digit", minute: "2-digit" });
+}
+
+function formatTimeRangeIST(start: string, end: string): string {
+  return `${formatTimeIST(start)} – ${formatTimeIST(end)}`;
+}
+
+function formatDateTimeIST(dateStr: string): string {
+  return new Date(dateStr).toLocaleString("en-IN", { timeZone: IST });
+}
+
+function formatShortDateIST(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-IN", { timeZone: IST });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
