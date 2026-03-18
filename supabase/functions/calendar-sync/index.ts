@@ -680,7 +680,7 @@ Deno.serve(async (req) => {
       await adminClient.from("notifications").insert({
         user_id: booking.user_id,
         title: "❌ Coaching Request Rejected",
-        message: `Your coaching session request at ${bayName} on ${formatDateTimeIST(booking.start_time)} has been declined. No hours were deducted.${noteText}`,
+        message: `Your coaching session request at ${bayName} on ${formatDateTime(booking.start_time, calTz)} has been declined. No hours were deducted.${noteText}`,
         type: "booking",
       });
 
