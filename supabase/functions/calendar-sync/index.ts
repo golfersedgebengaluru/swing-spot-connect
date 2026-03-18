@@ -83,6 +83,7 @@ async function createEvent(
   summary: string,
   startTime: string,
   endTime: string,
+  timeZone: string,
   description?: string
 ) {
   const res = await fetch(
@@ -96,8 +97,8 @@ async function createEvent(
       body: JSON.stringify({
         summary,
         description,
-        start: { dateTime: startTime },
-        end: { dateTime: endTime },
+        start: { dateTime: startTime, timeZone },
+        end: { dateTime: endTime, timeZone },
       }),
     }
   );
@@ -150,26 +151,58 @@ function createAdminClient() {
   );
 }
 
-const IST = "Asia/Kolkata";
-
-function formatDateIST(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-IN", { timeZone: IST, weekday: "long", year: "numeric", month: "long", day: "numeric" });
+// Fetch the calendar's timezone from Google Calendar API
+async function getCalendarTimezone(accessToken: string, calendarId: string): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    const data = await res.json();
+    if (res.ok && data.timeZone) return data.timeZone;
+  } catch (e) {
+    console.error("Failed to fetch calendar timezone:", e);
+  }
+  return "UTC"; // fallback
 }
 
-function formatTimeIST(dateStr: string): string {
-  return new Date(dateStr).toLocaleTimeString("en-IN", { timeZone: IST, hour: "2-digit", minute: "2-digit" });
+function formatDate(dateStr: string, tz: string): string {
+  return new Date(dateStr).toLocaleDateString("en-IN", { timeZone: tz, weekday: "long", year: "numeric", month: "long", day: "numeric" });
 }
 
-function formatTimeRangeIST(start: string, end: string): string {
-  return `${formatTimeIST(start)} – ${formatTimeIST(end)}`;
+function formatTime(dateStr: string, tz: string): string {
+  return new Date(dateStr).toLocaleTimeString("en-IN", { timeZone: tz, hour: "2-digit", minute: "2-digit" });
 }
 
-function formatDateTimeIST(dateStr: string): string {
-  return new Date(dateStr).toLocaleString("en-IN", { timeZone: IST });
+function formatTimeRange(start: string, end: string, tz: string): string {
+  return `${formatTime(start, tz)} – ${formatTime(end, tz)}`;
 }
 
-function formatShortDateIST(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-IN", { timeZone: IST });
+function formatDateTime(dateStr: string, tz: string): string {
+  return new Date(dateStr).toLocaleString("en-IN", { timeZone: tz });
+}
+
+function formatShortDate(dateStr: string, tz: string): string {
+  return new Date(dateStr).toLocaleDateString("en-IN", { timeZone: tz });
+}
+
+// Build IANA-offset string for a given date in a given timezone (e.g. "+05:30")
+function getUtcOffsetForTz(date: string, tz: string): string {
+  const d = new Date(date);
+  // Format with timezone to get offset
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "longOffset" }).formatToParts(d);
+  const offsetPart = parts.find(p => p.type === "timeZoneName");
+  if (offsetPart) {
+    // Format is like "GMT+5:30" or "GMT-8" — normalize to "+05:30"
+    const match = offsetPart.value.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+    if (match) {
+      const sign = match[1];
+      const hrs = match[2].padStart(2, "0");
+      const mins = (match[3] || "00").padStart(2, "0");
+      return `${sign}${hrs}:${mins}`;
+    }
+  }
+  return "+00:00";
 }
 
 Deno.serve(async (req) => {
@@ -221,8 +254,13 @@ Deno.serve(async (req) => {
 
     if (action === "list_slots") {
       const { calendar_email, date, open_time, close_time } = params;
-      const timeMin = `${date}T${open_time}:00+05:30`;
-      const timeMax = `${date}T${close_time}:00+05:30`;
+
+      // Get the calendar's actual timezone
+      const calTz = await getCalendarTimezone(accessToken, calendar_email);
+      const offset = getUtcOffsetForTz(`${date}T${open_time}:00`, calTz);
+
+      const timeMin = `${date}T${open_time}:00${offset}`;
+      const timeMax = `${date}T${close_time}:00${offset}`;
 
       const events = await listEvents(accessToken, calendar_email, timeMin, timeMax);
 
@@ -231,8 +269,8 @@ Deno.serve(async (req) => {
         end: new Date(e.end.dateTime || e.end.date).getTime(),
       }));
 
-      const dayStart = new Date(`${date}T${open_time}:00+05:30`).getTime();
-      const dayEnd = new Date(`${date}T${close_time}:00+05:30`).getTime();
+      const dayStart = new Date(`${date}T${open_time}:00${offset}`).getTime();
+      const dayEnd = new Date(`${date}T${close_time}:00${offset}`).getTime();
       const slots: { time: string; available: boolean }[] = [];
 
       for (let t = dayStart; t < dayEnd; t += 30 * 60 * 1000) {
@@ -251,6 +289,9 @@ Deno.serve(async (req) => {
 
     if (action === "create_booking") {
       const { calendar_email, start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type } = params;
+
+      // Get the calendar's timezone for consistent formatting
+      const calTz = await getCalendarTimezone(accessToken, calendar_email);
 
       // Get bay config for coaching mode
       let coachingMode = "instant";
@@ -316,7 +357,7 @@ Deno.serve(async (req) => {
         ? `Pending coaching approval for ${display_name || "Member"} via Golfer's Edge`
         : `Booked by ${display_name || "Member"} via Golfer's Edge${isCoaching ? " - Coaching Session" : ""}`;
 
-      const calEvent = await createEvent(accessToken, calendar_email, calSummary, start_time, end_time, calDesc);
+      const calEvent = await createEvent(accessToken, calendar_email, calSummary, start_time, end_time, calTz, calDesc);
 
       // Create booking record
       const bookingStatus = needsApproval ? "pending" : "confirmed";
@@ -352,7 +393,7 @@ Deno.serve(async (req) => {
           user_id: userId,
           type: "deduction",
           hours: hoursNeeded,
-          note: `${isCoaching ? "Coaching" : "Bay"} booking - ${bayLabel} - ${formatShortDateIST(start_time)}`,
+          note: `${isCoaching ? "Coaching" : "Bay"} booking - ${bayLabel} - ${formatShortDate(start_time, calTz)}`,
           created_by: userId,
         });
 
@@ -361,7 +402,7 @@ Deno.serve(async (req) => {
         await supabase.from("notifications").insert({
           user_id: userId,
           title: isCoaching ? "Coaching Booked!" : "Bay Booked!",
-          message: `Your ${bayLabel} ${isCoaching ? "coaching session" : "bay"} has been booked for ${formatDateTimeIST(start_time)} (${hoursNeeded}h). ${remaining}h remaining.`,
+          message: `Your ${bayLabel} ${isCoaching ? "coaching session" : "bay"} has been booked for ${formatDateTime(start_time, calTz)} (${hoursNeeded}h). ${remaining}h remaining.`,
           type: "booking",
         });
 
@@ -388,8 +429,8 @@ Deno.serve(async (req) => {
               data: {
                 city,
                 bay: bayLabel,
-                date: formatDateIST(start_time),
-                time: formatTimeRangeIST(start_time, end_time),
+                date: formatDate(start_time, calTz),
+                time: formatTimeRange(start_time, end_time, calTz),
                 duration: `${hoursNeeded}h`,
                 hours_remaining: `${remaining}h`,
               },
@@ -403,7 +444,7 @@ Deno.serve(async (req) => {
         await supabase.from("notifications").insert({
           user_id: userId,
           title: "🕐 Coaching Pending Approval",
-          message: `Your coaching session at ${bayLabel} on ${formatDateTimeIST(start_time)} is awaiting admin approval.`,
+          message: `Your coaching session at ${bayLabel} on ${formatDateTime(start_time, calTz)} is awaiting admin approval.`,
           type: "booking",
         });
 
@@ -414,7 +455,7 @@ Deno.serve(async (req) => {
           await adminClient.from("notifications").insert({
             user_id: admin.user_id,
             title: "📋 New Coaching Request",
-            message: `${display_name || "A member"} has requested a coaching session at ${bayLabel} on ${formatDateTimeIST(start_time)}. Please approve or reject.`,
+            message: `${display_name || "A member"} has requested a coaching session at ${bayLabel} on ${formatDateTime(start_time, calTz)}. Please approve or reject.`,
             type: "admin",
           });
         }
@@ -434,8 +475,8 @@ Deno.serve(async (req) => {
               data: {
                 city,
                 bay: bayLabel,
-                date: formatDateIST(start_time),
-                time: formatTimeRangeIST(start_time, end_time),
+                date: formatDate(start_time, calTz),
+                time: formatTimeRange(start_time, end_time, calTz),
                 duration: `${duration_minutes / 60}h`,
               },
             }),
@@ -488,6 +529,9 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Get the calendar's timezone for consistent formatting
+      const calTz = calendarEmail ? await getCalendarTimezone(accessToken, calendarEmail) : "UTC";
+
       const hoursNeeded = booking.session_type === "coaching" ? coachingHours : booking.duration_minutes / 60;
 
       // Check balance
@@ -518,7 +562,7 @@ Deno.serve(async (req) => {
         user_id: booking.user_id,
         type: "deduction",
         hours: hoursNeeded,
-        note: `Coaching approved - ${bayName} - ${formatShortDateIST(booking.start_time)}`,
+        note: `Coaching approved - ${bayName} - ${formatShortDate(booking.start_time, calTz)}`,
         created_by: userId,
       });
 
@@ -544,7 +588,7 @@ Deno.serve(async (req) => {
       await adminClient.from("notifications").insert({
         user_id: booking.user_id,
         title: "✅ Coaching Approved!",
-        message: `Your coaching session at ${bayName} on ${formatDateTimeIST(booking.start_time)} has been approved. ${hoursNeeded}h deducted. ${newRemaining}h remaining.`,
+        message: `Your coaching session at ${bayName} on ${formatDateTime(booking.start_time, calTz)} has been approved. ${hoursNeeded}h deducted. ${newRemaining}h remaining.`,
         type: "booking",
       });
 
@@ -563,8 +607,8 @@ Deno.serve(async (req) => {
             data: {
               bay: bayName,
               city: booking.city,
-              date: formatDateIST(booking.start_time),
-              time: formatTimeRangeIST(booking.start_time, booking.end_time),
+              date: formatDate(booking.start_time, calTz),
+              time: formatTimeRange(booking.start_time, booking.end_time, calTz),
               hours_deducted: `${hoursNeeded}h`,
               hours_remaining: `${newRemaining}h`,
             },
@@ -614,6 +658,9 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Get the calendar's timezone for consistent formatting
+      const calTz = calendarEmail ? await getCalendarTimezone(accessToken, calendarEmail) : "UTC";
+
       // Delete calendar event to free slot
       if (booking.calendar_event_id && calendarEmail) {
         try {
@@ -633,7 +680,7 @@ Deno.serve(async (req) => {
       await adminClient.from("notifications").insert({
         user_id: booking.user_id,
         title: "❌ Coaching Request Rejected",
-        message: `Your coaching session request at ${bayName} on ${formatDateTimeIST(booking.start_time)} has been declined. No hours were deducted.${noteText}`,
+        message: `Your coaching session request at ${bayName} on ${formatDateTime(booking.start_time, calTz)} has been declined. No hours were deducted.${noteText}`,
         type: "booking",
       });
 
@@ -652,8 +699,8 @@ Deno.serve(async (req) => {
             data: {
               bay: bayName,
               city: booking.city,
-              date: formatDateIST(booking.start_time),
-              time: formatTimeRangeIST(booking.start_time, booking.end_time),
+              date: formatDate(booking.start_time, calTz),
+              time: formatTimeRange(booking.start_time, booking.end_time, calTz),
               admin_note: reject_message || "",
             },
           }),
@@ -713,6 +760,9 @@ Deno.serve(async (req) => {
         calendarEmail = bayConfig?.calendar_email || null;
       }
 
+      // Get the calendar's timezone for consistent formatting
+      const calTz = calendarEmail ? await getCalendarTimezone(accessToken, calendarEmail) : "UTC";
+
       // Delete calendar event
       if (booking.calendar_event_id && calendarEmail) {
         try {
@@ -752,7 +802,7 @@ Deno.serve(async (req) => {
           user_id: userId,
           type: "refund",
           hours: hoursToRefund,
-          note: `Cancellation refund - ${bayName} - ${formatShortDateIST(booking.start_time)}`,
+          note: `Cancellation refund - ${bayName} - ${formatShortDate(booking.start_time, calTz)}`,
           created_by: userId,
         });
       }
@@ -761,7 +811,7 @@ Deno.serve(async (req) => {
       await adminClient.from("notifications").insert({
         user_id: userId,
         title: "Booking Cancelled",
-        message: `Your ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${formatDateTimeIST(booking.start_time)} has been cancelled.${hoursRefunded > 0 ? ` ${hoursRefunded}h refunded.` : ""}`,
+        message: `Your ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${formatDateTime(booking.start_time, calTz)} has been cancelled.${hoursRefunded > 0 ? ` ${hoursRefunded}h refunded.` : ""}`,
         type: "booking",
       });
 
@@ -774,7 +824,7 @@ Deno.serve(async (req) => {
           await adminClient.from("notifications").insert({
             user_id: admin.user_id,
             title: "🚫 Booking Cancelled",
-            message: `${displayName} cancelled their ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${formatDateTimeIST(booking.start_time)}.${hoursRefunded > 0 ? ` ${hoursRefunded}h refunded.` : ""}`,
+            message: `${displayName} cancelled their ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${formatDateTime(booking.start_time, calTz)}.${hoursRefunded > 0 ? ` ${hoursRefunded}h refunded.` : ""}`,
             type: "admin",
           });
         }
@@ -795,7 +845,7 @@ Deno.serve(async (req) => {
             data: {
               bay: bayName,
               city: booking.city,
-              date: formatDateIST(booking.start_time),
+              date: formatDate(booking.start_time, calTz),
               hours_refunded: hoursRefunded,
             },
           }),
