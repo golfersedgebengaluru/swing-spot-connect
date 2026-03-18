@@ -444,7 +444,7 @@ Deno.serve(async (req) => {
         await supabase.from("notifications").insert({
           user_id: userId,
           title: "🕐 Coaching Pending Approval",
-          message: `Your coaching session at ${bayLabel} on ${formatDateTimeIST(start_time)} is awaiting admin approval.`,
+          message: `Your coaching session at ${bayLabel} on ${formatDateTime(start_time, calTz)} is awaiting admin approval.`,
           type: "booking",
         });
 
