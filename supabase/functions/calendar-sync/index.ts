@@ -845,7 +845,7 @@ Deno.serve(async (req) => {
             data: {
               bay: bayName,
               city: booking.city,
-              date: formatDateIST(booking.start_time),
+              date: formatDate(booking.start_time, calTz),
               hours_refunded: hoursRefunded,
             },
           }),
