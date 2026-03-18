@@ -475,8 +475,8 @@ Deno.serve(async (req) => {
               data: {
                 city,
                 bay: bayLabel,
-                date: formatDateIST(start_time),
-                time: formatTimeRangeIST(start_time, end_time),
+                date: formatDate(start_time, calTz),
+                time: formatTimeRange(start_time, end_time, calTz),
                 duration: `${duration_minutes / 60}h`,
               },
             }),
