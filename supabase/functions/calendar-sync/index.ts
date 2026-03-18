@@ -558,7 +558,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "reject_booking") {
-      const { booking_id } = params;
+      const { booking_id, reject_message } = params;
 
       const adminClient = createAdminClient();
       const { data: isAdmin } = await adminClient.rpc("has_role", { _user_id: userId, _role: "admin" });
