@@ -257,21 +257,31 @@ export function useUserHoursBalance() {
     queryKey: ["user_hours_balance", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      // Use member_hours for purchased/used display values
-      const { data: hoursRow, error } = await supabase
-        .from("member_hours")
-        .select("hours_purchased, hours_used")
-        .eq("user_id", user!.id)
-        .single();
-      if (error && error.code !== "PGRST116") throw error;
+      // Derive all values from transactions as the single source of truth
+      const { data: txns, error } = await supabase
+        .from("hours_transactions")
+        .select("type, hours")
+        .eq("user_id", user!.id);
+      if (error) throw error;
 
-      // Use transaction-derived balance as the authoritative remaining figure
-      const { data: balance } = await supabase
-        .rpc("get_hours_balance", { p_user_id: user!.id });
+      let purchased = 0;
+      let used = 0;
 
-      const purchased = hoursRow?.hours_purchased ?? 0;
-      const used = hoursRow?.hours_used ?? 0;
-      const remaining = typeof balance === "number" ? balance : purchased - used;
+      for (const t of txns ?? []) {
+        if (t.type === "purchase" || t.type === "credit") {
+          purchased += Number(t.hours);
+        } else if (t.type === "adjustment") {
+          // Adjustments (refunds) reduce the used total
+          used -= Number(t.hours);
+        } else {
+          // deduction
+          used += Number(t.hours);
+        }
+      }
+
+      // Ensure used doesn't go negative from adjustments
+      used = Math.max(0, used);
+      const remaining = purchased - used;
 
       return { purchased, used, remaining };
     },
