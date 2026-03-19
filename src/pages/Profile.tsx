@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { User, MapPin, Clock, Gift, Trophy, Target, Pencil, Check, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile, useUserHoursBalance } from "@/hooks/useBookings";
-import { useUserPoints, usePointsTransactions } from "@/hooks/usePoints";
+import { useUserPoints } from "@/hooks/usePoints";
 import { EmailPreferencesCard } from "@/components/EmailPreferencesCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
