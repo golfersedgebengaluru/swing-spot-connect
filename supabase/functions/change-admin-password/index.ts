@@ -89,6 +89,16 @@ serve(async (req) => {
       );
     }
 
+    // Also sync the admin user's login password
+    const adminEmail = "admin@golfers-edge.com";
+    const { data: existingUsers } = await adminClient.auth.admin.listUsers();
+    const adminUser = existingUsers?.users?.find((u: any) => u.email === adminEmail);
+    if (adminUser) {
+      await adminClient.auth.admin.updateUserById(adminUser.id, {
+        password: new_password,
+      });
+    }
+
     return new Response(
       JSON.stringify({ success: true, message: "Admin password updated successfully" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
