@@ -222,66 +222,34 @@ export default function Profile() {
             </Card>
           </div>
 
-          {/* Transaction History + Email Prefs */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            {/* Points History */}
-            <Card className="shadow-elegant">
-              <CardHeader>
-                <CardTitle className="font-display text-xl flex items-center gap-2">
-                  <Gift className="h-5 w-5 text-primary" />
-                  Points History
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {pointsTx.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No points transactions yet.</p>
-                ) : (
-                  <div className="space-y-3 max-h-64 overflow-y-auto">
-                    {pointsTx.slice(0, 10).map((tx: any) => (
-                      <div key={tx.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{tx.description || tx.type}</p>
-                          <p className="text-xs text-muted-foreground">{format(new Date(tx.created_at), "MMM d, yyyy")}</p>
-                        </div>
-                        <span className={`text-sm font-semibold ${tx.type === "redemption" ? "text-destructive" : "text-primary"}`}>
-                          {tx.type === "redemption" ? "-" : "+"}{tx.points}
-                        </span>
+          {/* Points History */}
+          <Card className="shadow-elegant">
+            <CardHeader>
+              <CardTitle className="font-display text-xl flex items-center gap-2">
+                <Gift className="h-5 w-5 text-primary" />
+                Points History
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {pointsTx.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No points transactions yet.</p>
+              ) : (
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {pointsTx.slice(0, 10).map((tx: any) => (
+                    <div key={tx.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{tx.description || tx.type}</p>
+                        <p className="text-xs text-muted-foreground">{format(new Date(tx.created_at), "MMM d, yyyy")}</p>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Hours History */}
-            <Card className="shadow-elegant">
-              <CardHeader>
-                <CardTitle className="font-display text-xl flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-primary" />
-                  Hours History
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {hoursTx.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No hours transactions yet.</p>
-                ) : (
-                  <div className="space-y-3 max-h-64 overflow-y-auto">
-                    {hoursTx.slice(0, 10).map((tx: any) => (
-                      <div key={tx.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{tx.note || tx.type}</p>
-                          <p className="text-xs text-muted-foreground">{format(new Date(tx.created_at), "MMM d, yyyy")}</p>
-                        </div>
-                        <span className={`text-sm font-semibold ${tx.type === "deduction" ? "text-destructive" : "text-primary"}`}>
-                          {tx.type === "deduction" ? "-" : "+"}{tx.hours}h
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                      <span className={`text-sm font-semibold ${tx.type === "redemption" ? "text-destructive" : "text-primary"}`}>
+                        {tx.type === "redemption" ? "-" : "+"}{tx.points}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Email Preferences */}
           <div className="mt-6">
