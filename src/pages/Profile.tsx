@@ -11,19 +11,18 @@ import { Separator } from "@/components/ui/separator";
 import { User, MapPin, Clock, Gift, Trophy, Target, Pencil, Check, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile, useUserHoursBalance } from "@/hooks/useBookings";
-import { useUserPoints, usePointsTransactions } from "@/hooks/usePoints";
+import { useUserPoints } from "@/hooks/usePoints";
 import { EmailPreferencesCard } from "@/components/EmailPreferencesCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+
 
 export default function Profile() {
   const { user } = useAuth();
   const { data: profile, isLoading: profileLoading } = useUserProfile();
   const { data: balance } = useUserHoursBalance();
   const { data: currentPoints = 0 } = useUserPoints();
-  const { data: pointsTx = [] } = usePointsTransactions();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -220,34 +219,6 @@ export default function Profile() {
             </Card>
           </div>
 
-          {/* Points History */}
-          <Card className="shadow-elegant">
-            <CardHeader>
-              <CardTitle className="font-display text-xl flex items-center gap-2">
-                <Gift className="h-5 w-5 text-primary" />
-                Points History
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {pointsTx.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No points transactions yet.</p>
-              ) : (
-                <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {pointsTx.slice(0, 10).map((tx: any) => (
-                    <div key={tx.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{tx.description || tx.type}</p>
-                        <p className="text-xs text-muted-foreground">{format(new Date(tx.created_at), "MMM d, yyyy")}</p>
-                      </div>
-                      <span className={`text-sm font-semibold ${tx.type === "redemption" ? "text-destructive" : "text-primary"}`}>
-                        {tx.type === "redemption" ? "-" : "+"}{tx.points}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
 
           {/* Email Preferences */}
           <div className="mt-6">
