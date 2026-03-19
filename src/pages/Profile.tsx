@@ -12,7 +12,6 @@ import { User, MapPin, Clock, Gift, Trophy, Target, Pencil, Check, X } from "luc
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile, useUserHoursBalance } from "@/hooks/useBookings";
 import { useUserPoints, usePointsTransactions } from "@/hooks/usePoints";
-import { useHoursTransactions } from "@/hooks/useMemberHours";
 import { EmailPreferencesCard } from "@/components/EmailPreferencesCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
