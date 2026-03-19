@@ -16,7 +16,7 @@ import { EmailPreferencesCard } from "@/components/EmailPreferencesCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+
 
 export default function Profile() {
   const { user } = useAuth();
