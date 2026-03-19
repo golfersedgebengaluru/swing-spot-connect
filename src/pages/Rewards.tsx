@@ -172,31 +172,37 @@ export default function Rewards() {
               <div>
                 <Card className="shadow-elegant">
                   <CardHeader>
-                    <CardTitle className="font-display text-xl">Points History</CardTitle>
+                    <CardTitle className="font-display text-xl flex items-center gap-2">
+                      <Gift className="h-5 w-5 text-primary" />
+                      Points History
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     {loadingTx ? (
-                      <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+                      <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />
                     ) : !transactions?.length ? (
-                      <p className="text-sm text-muted-foreground">No activity yet</p>
+                      <p className="text-sm text-muted-foreground text-center py-4">No activity yet. Start earning points!</p>
                     ) : (
-                      <div className="space-y-3 max-h-80 overflow-y-auto">
+                      <div className="space-y-1 max-h-96 overflow-y-auto pr-1">
                         {transactions.map((t: any) => (
-                          <div key={t.id} className="flex items-start justify-between rounded-lg border border-border p-3">
-                            <div className="flex items-start gap-2">
-                              {t.type === "redemption" ? (
-                                <MinusCircle className="mt-0.5 h-4 w-4 text-destructive" />
-                              ) : (
-                                <PlusCircle className="mt-0.5 h-4 w-4 text-primary" />
-                              )}
+                          <div key={t.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
+                            <div className="flex items-center gap-3">
+                              <div className={`flex h-8 w-8 items-center justify-center rounded-full ${t.type === "redemption" ? "bg-destructive/10" : "bg-primary/10"}`}>
+                                {t.type === "redemption" ? (
+                                  <MinusCircle className="h-4 w-4 text-destructive" />
+                                ) : (
+                                  <PlusCircle className="h-4 w-4 text-primary" />
+                                )}
+                              </div>
                               <div>
-                                <p className="text-sm font-medium capitalize">{t.type}</p>
-                                {t.description && <p className="text-xs text-muted-foreground">{t.description}</p>}
-                                <p className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</p>
+                                <p className="text-sm font-medium text-foreground capitalize">{t.description || t.type}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(t.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                                </p>
                               </div>
                             </div>
-                            <span className={`text-sm font-medium ${t.type === "redemption" ? "text-destructive" : "text-primary"}`}>
-                              {t.type === "redemption" ? "-" : "+"}{t.points}
+                            <span className={`text-sm font-bold tabular-nums ${t.type === "redemption" ? "text-destructive" : "text-primary"}`}>
+                              {t.type === "redemption" ? "−" : "+"}{t.points} pts
                             </span>
                           </div>
                         ))}
