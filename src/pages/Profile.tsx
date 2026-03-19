@@ -24,7 +24,6 @@ export default function Profile() {
   const { data: balance } = useUserHoursBalance();
   const { data: currentPoints = 0 } = useUserPoints();
   const { data: pointsTx = [] } = usePointsTransactions();
-  const { data: hoursTx = [] } = useHoursTransactions(user?.id);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
