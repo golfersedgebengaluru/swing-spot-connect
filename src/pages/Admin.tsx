@@ -1380,6 +1380,7 @@ export default function Admin() {
 
             {/* Settings Tab */}
             <TabsContent value="settings" className="space-y-6">
+              <AdminRolesManager />
               <PageVisibilitySettings />
               <SenderEmailCard />
               <EmailRateLimitCard />
