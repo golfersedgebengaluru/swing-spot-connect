@@ -172,6 +172,36 @@ export type Database = {
           },
         ]
       }
+      community_posts: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          likes_count: number
+          post_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          likes_count?: number
+          post_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          likes_count?: number
+          post_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       earn_methods: {
         Row: {
           created_at: string
@@ -424,6 +454,42 @@ export type Database = {
         }
         Relationships: []
       }
+      orders: {
+        Row: {
+          city: string | null
+          created_at: string
+          id: string
+          items: Json
+          note: string | null
+          status: string
+          total_price: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          id?: string
+          items?: Json
+          note?: string | null
+          status?: string
+          total_price?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          id?: string
+          items?: Json
+          note?: string | null
+          status?: string
+          total_price?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       page_content: {
         Row: {
           content: string
@@ -645,6 +711,7 @@ export type Database = {
         Args: { p_max_per_hour?: number; p_user_id: string }
         Returns: boolean
       }
+      get_hours_balance: { Args: { p_user_id: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
