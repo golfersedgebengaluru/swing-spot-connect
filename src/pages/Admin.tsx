@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2, Loader2, Calendar, ShoppingBag, Gift, Users, Clock, MinusCircle, PlusCircle, History, UserCheck, Settings, KeyRound, FileText, Save, Star, Award, MapPin, ClipboardList, Mail } from "lucide-react";
 import { AdminEmailLogsTab } from "@/components/admin/AdminEmailLogsTab";
+import { AdminRolesManager } from "@/components/admin/AdminRolesManager";
 import { EmailTemplatesEditor } from "@/components/admin/EmailTemplatesEditor";
 import { useToast } from "@/hooks/use-toast";
 import { useEvents } from "@/hooks/useEvents";
@@ -1379,6 +1380,7 @@ export default function Admin() {
 
             {/* Settings Tab */}
             <TabsContent value="settings" className="space-y-6">
+              <AdminRolesManager />
               <PageVisibilitySettings />
               <SenderEmailCard />
               <EmailRateLimitCard />
