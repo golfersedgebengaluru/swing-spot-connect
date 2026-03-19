@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Clock, Users, MapPin, Trophy, Loader2 } from "lucide-react";
+import { Calendar, Clock, Users, MapPin, Trophy } from "lucide-react";
+import { CardSkeleton, EmptyState } from "@/components/ui/PageSkeleton";
 import { cn } from "@/lib/utils";
 import { useEvents } from "@/hooks/useEvents";
 import { format } from "date-fns";
@@ -114,9 +115,7 @@ export default function Events() {
           </div>
 
           {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
+            <CardSkeleton count={4} />
           ) : (
             <Tabs defaultValue="upcoming" className="space-y-6">
               <TabsList>
@@ -127,14 +126,27 @@ export default function Events() {
               </TabsList>
               <TabsContent value="upcoming" className="space-y-4">
                 {(events ?? []).map((event) => <EventCard key={event.id} event={event} />)}
-                {events?.length === 0 && <p className="py-8 text-center text-muted-foreground">No upcoming events</p>}
+                {(events ?? []).length === 0 && (
+                  <EmptyState
+                    icon={<Calendar className="h-8 w-8" />}
+                    title="No upcoming events"
+                    description="Check back soon — new events and tournaments are added regularly."
+                  />
+                )}
               </TabsContent>
               {["tournaments", "clinics", "social"].map((tab) => {
                 const type = tab === "tournaments" ? "tournament" : tab === "clinics" ? "clinic" : "social";
+                const filtered = filterByType(type);
                 return (
                   <TabsContent key={tab} value={tab} className="space-y-4">
-                    {filterByType(type).map((event) => <EventCard key={event.id} event={event} />)}
-                    {filterByType(type).length === 0 && <p className="py-8 text-center text-muted-foreground">No {tab} events</p>}
+                    {filtered.map((event) => <EventCard key={event.id} event={event} />)}
+                    {filtered.length === 0 && (
+                      <EmptyState
+                        icon={<Trophy className="h-8 w-8" />}
+                        title={`No ${tab} scheduled`}
+                        description="New events will appear here when available."
+                      />
+                    )}
                   </TabsContent>
                 );
               })}

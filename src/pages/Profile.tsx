@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { User, MapPin, Clock, Gift, Trophy, Target, Pencil, Check, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useUserProfile, useUserHoursBalance } from "@/hooks/useBookings";
+import { useUserProfile, useUserHoursBalance, useCities } from "@/hooks/useBookings";
 import { useUserPoints } from "@/hooks/usePoints";
 import { EmailPreferencesCard } from "@/components/EmailPreferencesCard";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +23,7 @@ export default function Profile() {
   const { data: profile, isLoading: profileLoading } = useUserProfile();
   const { data: balance } = useUserHoursBalance();
   const { data: currentPoints = 0 } = useUserPoints();
+  const { data: cities } = useCities();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -141,8 +142,9 @@ export default function Profile() {
                             <SelectValue placeholder="Select city" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Chennai">Chennai</SelectItem>
-                            <SelectItem value="Bengaluru">Bengaluru</SelectItem>
+                            {(cities ?? []).map((city) => (
+                              <SelectItem key={city} value={city}>{city}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       ) : (

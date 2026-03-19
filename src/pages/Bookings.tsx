@@ -54,7 +54,8 @@ export default function Bookings() {
     currentBay?.calendar_email,
     dateStr,
     currentBay?.open_time,
-    currentBay?.close_time
+    currentBay?.close_time,
+    { refetchInterval: 30000 }
   );
 
   // Hours calculation based on session type

@@ -2,7 +2,8 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, Trophy, Calendar, Gift, Target, Clock, ArrowRight } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TrendingUp, Trophy, Calendar, Gift, Target, Clock, ArrowRight, HelpCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useUserPoints } from "@/hooks/usePoints";
 import { useUserHoursBalance } from "@/hooks/useBookings";
@@ -28,10 +29,10 @@ export default function Dashboard() {
   const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || "Golfer";
 
   const stats = [
-    { label: "Current Handicap", value: "12.4", change: "-0.8", icon: Target, positive: true },
-    { label: "Hours Balance", value: `${balance?.remaining ?? 0}h`, change: "", icon: Clock, positive: true },
-    { label: "Leaderboard Rank", value: "#12", change: "+3", icon: Trophy, positive: true },
-    { label: "Reward Points", value: currentPoints.toLocaleString(), change: "", icon: Gift, positive: true },
+    { label: "Current Handicap", value: "12.4", change: "-0.8", icon: Target, positive: true, tooltip: "" },
+    { label: "Hours Balance", value: `${balance?.remaining ?? 0}h`, change: "", icon: Clock, positive: true, tooltip: "Used to book practice sessions. 1 hour = 1 booking slot." },
+    { label: "Leaderboard Rank", value: "#12", change: "+3", icon: Trophy, positive: true, tooltip: "" },
+    { label: "Reward Points", value: currentPoints.toLocaleString(), change: "", icon: Gift, positive: true, tooltip: "Earned through activity. Redeem for perks in the Rewards section." },
   ];
 
   return (
@@ -67,30 +68,81 @@ export default function Dashboard() {
           </div>
 
           {/* Stats Grid */}
-          <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {stats.map((stat) => (
-              <Card key={stat.label} className="bg-gradient-card shadow-elegant">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">{stat.label}</p>
-                      <p className="mt-1 font-display text-3xl font-bold text-foreground">
-                        {stat.value}
-                      </p>
-                      {stat.change && (
-                        <p className={`mt-1 text-sm ${stat.positive ? "text-primary" : "text-destructive"}`}>
-                          {stat.change} this month
+          <TooltipProvider>
+            <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {stats.map((stat) => (
+                <Card key={stat.label} className="bg-gradient-card shadow-elegant">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-1">
+                          <p className="text-sm text-muted-foreground">{stat.label}</p>
+                          {stat.tooltip && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-48 text-xs">
+                                {stat.tooltip}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                        <p className="mt-1 font-display text-3xl font-bold text-foreground">
+                          {stat.value}
                         </p>
-                      )}
+                        {stat.change && (
+                          <p className={`mt-1 text-sm ${stat.positive ? "text-primary" : "text-destructive"}`}>
+                            {stat.change} this month
+                          </p>
+                        )}
+                      </div>
+                      <div className="rounded-xl bg-primary/10 p-3">
+                        <stat.icon className="h-5 w-5 text-primary" />
+                      </div>
                     </div>
-                    <div className="rounded-xl bg-primary/10 p-3">
-                      <stat.icon className="h-5 w-5 text-primary" />
-                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TooltipProvider>
+
+          {/* Your Wallet */}
+          <Card className="mb-8 shadow-elegant">
+            <CardHeader>
+              <CardTitle className="font-display text-xl">Your Wallet</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="flex items-start gap-4 rounded-lg border border-border p-4">
+                  <div className="rounded-xl bg-primary/10 p-3">
+                    <Clock className="h-5 w-5 text-primary" />
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  <div>
+                    <p className="font-medium text-foreground">Bay Hours</p>
+                    <p className="font-display text-3xl font-bold text-primary">{balance?.remaining ?? 0}h</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Used to book practice sessions. 1 hour = 1 booking slot.</p>
+                    <Link to="/bookings">
+                      <Button variant="link" size="sm" className="mt-1 h-auto p-0 text-xs">Book a bay <ArrowRight className="ml-1 h-3 w-3" /></Button>
+                    </Link>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4 rounded-lg border border-border p-4">
+                  <div className="rounded-xl bg-accent/10 p-3">
+                    <Gift className="h-5 w-5 text-accent" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">Reward Points</p>
+                    <p className="font-display text-3xl font-bold text-accent">{currentPoints.toLocaleString()}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Earned through activity. Redeem for perks in the Rewards section.</p>
+                    <Link to="/rewards">
+                      <Button variant="link" size="sm" className="mt-1 h-auto p-0 text-xs">View rewards <ArrowRight className="ml-1 h-3 w-3" /></Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Content Grid */}
           <div className="grid gap-6 lg:grid-cols-2">

@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { MapPin } from "lucide-react";
-import { useUserProfile, useUpdatePreferredCity } from "@/hooks/useBookings";
+import { useUserProfile, useUpdatePreferredCity, useCities } from "@/hooks/useBookings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
 export function CitySelectionModal() {
   const { user } = useAuth();
   const { data: profile, isLoading } = useUserProfile();
+  const { data: cities, isLoading: citiesLoading } = useCities();
   const updateCity = useUpdatePreferredCity();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -43,25 +45,28 @@ export function CitySelectionModal() {
             Choose your preferred location for bay bookings. You can change this later in settings.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-4 pt-4">
-          <Button
-            variant="outline"
-            className="h-24 flex-col gap-2 text-lg hover:bg-primary/10 hover:border-primary"
-            onClick={() => handleSelect("Chennai")}
-            disabled={updateCity.isPending}
-          >
-            <MapPin className="h-6 w-6" />
-            Chennai
-          </Button>
-          <Button
-            variant="outline"
-            className="h-24 flex-col gap-2 text-lg hover:bg-primary/10 hover:border-primary"
-            onClick={() => handleSelect("Bengaluru")}
-            disabled={updateCity.isPending}
-          >
-            <MapPin className="h-6 w-6" />
-            Bengaluru
-          </Button>
+        <div className="pt-4">
+          {citiesLoading ? (
+            <div className="grid grid-cols-2 gap-4">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              {(cities ?? []).map((city) => (
+                <Button
+                  key={city}
+                  variant="outline"
+                  className="h-24 flex-col gap-2 text-lg hover:bg-primary/10 hover:border-primary"
+                  onClick={() => handleSelect(city)}
+                  disabled={updateCity.isPending}
+                >
+                  <MapPin className="h-6 w-6" />
+                  {city}
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

@@ -31,7 +31,13 @@ export function useBayConfig() {
   });
 }
 
-export function useAvailableSlots(calendarEmail: string | undefined, date: string | undefined, openTime: string | undefined, closeTime: string | undefined) {
+export function useAvailableSlots(
+  calendarEmail: string | undefined,
+  date: string | undefined,
+  openTime: string | undefined,
+  closeTime: string | undefined,
+  options: { refetchInterval?: number } = {}
+) {
   return useQuery({
     queryKey: ["available_slots", calendarEmail, date],
     enabled: !!calendarEmail && !!date && !!openTime && !!closeTime,
@@ -53,7 +59,20 @@ export function useAvailableSlots(calendarEmail: string | undefined, date: strin
       if (res.error) throw new Error(res.error.message || "Failed to fetch slots");
       return res.data.slots as { time: string; available: boolean }[];
     },
-    refetchInterval: 30000,
+    ...options,
+  });
+}
+
+export function useCities() {
+  return useQuery({
+    queryKey: ["cities"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("bays")
+        .select("city")
+        .eq("is_active", true);
+      return [...new Set((data ?? []).map((b: any) => b.city))].sort() as string[];
+    },
   });
 }
 
@@ -235,21 +254,26 @@ export function useAllBookings() {
 export function useUserHoursBalance() {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["user_hours_balance"],
+    queryKey: ["user_hours_balance", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Use member_hours for purchased/used display values
+      const { data: hoursRow, error } = await supabase
         .from("member_hours")
         .select("hours_purchased, hours_used")
         .eq("user_id", user!.id)
         .single();
       if (error && error.code !== "PGRST116") throw error;
-      if (!data) return { purchased: 0, used: 0, remaining: 0 };
-      return {
-        purchased: data.hours_purchased,
-        used: data.hours_used,
-        remaining: data.hours_purchased - data.hours_used,
-      };
+
+      // Use transaction-derived balance as the authoritative remaining figure
+      const { data: balance } = await supabase
+        .rpc("get_hours_balance", { p_user_id: user!.id });
+
+      const purchased = hoursRow?.hours_purchased ?? 0;
+      const used = hoursRow?.hours_used ?? 0;
+      const remaining = typeof balance === "number" ? balance : purchased - used;
+
+      return { purchased, used, remaining };
     },
   });
 }

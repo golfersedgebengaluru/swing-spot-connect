@@ -1,26 +1,30 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import Dashboard from "./pages/Dashboard";
-import Leaderboard from "./pages/Leaderboard";
-import Events from "./pages/Events";
-import Community from "./pages/Community";
-import Shop from "./pages/Shop";
-import Rewards from "./pages/Rewards";
-import Admin from "./pages/Admin";
-import AdminSetup from "./pages/AdminSetup";
-import Bookings from "./pages/Bookings";
-import MyBookings from "./pages/MyBookings";
-import PageView from "./pages/PageView";
-import Profile from "./pages/Profile";
-import NotFound from "./pages/NotFound";
 import { AdminRoute } from "@/components/AdminRoute";
 import { CitySelectionModal } from "@/components/CitySelectionModal";
+import { PageLoader } from "@/components/PageLoader";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+
+const Index = lazy(() => import("./pages/Index"));
+const Auth = lazy(() => import("./pages/Auth"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Leaderboard = lazy(() => import("./pages/Leaderboard"));
+const Events = lazy(() => import("./pages/Events"));
+const Community = lazy(() => import("./pages/Community"));
+const Shop = lazy(() => import("./pages/Shop"));
+const Rewards = lazy(() => import("./pages/Rewards"));
+const Admin = lazy(() => import("./pages/Admin"));
+const AdminSetup = lazy(() => import("./pages/AdminSetup"));
+const Bookings = lazy(() => import("./pages/Bookings"));
+const MyBookings = lazy(() => import("./pages/MyBookings"));
+const PageView = lazy(() => import("./pages/PageView"));
+const Profile = lazy(() => import("./pages/Profile"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
@@ -32,23 +36,25 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <CitySelectionModal />
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/leaderboard" element={<Leaderboard />} />
-            <Route path="/events" element={<Events />} />
-            <Route path="/community" element={<Community />} />
-            <Route path="/shop" element={<Shop />} />
-            <Route path="/rewards" element={<Rewards />} />
-            <Route path="/bookings" element={<Bookings />} />
-            <Route path="/my-bookings" element={<MyBookings />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/admin/setup" element={<AdminSetup />} />
-            <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
-            <Route path="/page/:slug" element={<PageView />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<ErrorBoundary><Index /></ErrorBoundary>} />
+              <Route path="/auth" element={<ErrorBoundary><Auth /></ErrorBoundary>} />
+              <Route path="/dashboard" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
+              <Route path="/leaderboard" element={<ErrorBoundary><Leaderboard /></ErrorBoundary>} />
+              <Route path="/events" element={<ErrorBoundary><Events /></ErrorBoundary>} />
+              <Route path="/community" element={<ErrorBoundary><Community /></ErrorBoundary>} />
+              <Route path="/shop" element={<ErrorBoundary><Shop /></ErrorBoundary>} />
+              <Route path="/rewards" element={<ErrorBoundary><Rewards /></ErrorBoundary>} />
+              <Route path="/bookings" element={<ErrorBoundary><Bookings /></ErrorBoundary>} />
+              <Route path="/my-bookings" element={<ErrorBoundary><MyBookings /></ErrorBoundary>} />
+              <Route path="/profile" element={<ErrorBoundary><Profile /></ErrorBoundary>} />
+              <Route path="/admin/setup" element={<ErrorBoundary><AdminSetup /></ErrorBoundary>} />
+              <Route path="/admin" element={<ErrorBoundary><AdminRoute><Admin /></AdminRoute></ErrorBoundary>} />
+              <Route path="/page/:slug" element={<ErrorBoundary><PageView /></ErrorBoundary>} />
+              <Route path="*" element={<ErrorBoundary><NotFound /></ErrorBoundary>} />
+            </Routes>
+          </Suspense>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
