@@ -23,7 +23,7 @@ export default function Profile() {
   const { data: profile, isLoading: profileLoading } = useUserProfile();
   const { data: balance } = useUserHoursBalance();
   const { data: currentPoints = 0 } = useUserPoints();
-  const { data: pointsTx = [] } = usePointsTransactions();
+  const { data: currentPoints = 0 } = useUserPoints();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
