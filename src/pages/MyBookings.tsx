@@ -34,12 +34,22 @@ import {
 } from "@/components/ui/select";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMyBookings, useCancelBooking, useUserHoursBalance } from "@/hooks/useBookings";
+import { useMyBookings, useCancelBooking, useUserHoursBalance, useBays } from "@/hooks/useBookings";
 import { useHoursTransactions } from "@/hooks/useMemberHours";
 import { useToast } from "@/hooks/use-toast";
 import { Navigate, useNavigate } from "react-router-dom";
 import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
 import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type SortField = "date" | "status" | "hours";
 type SortDir = "asc" | "desc";
