@@ -19,7 +19,7 @@ interface Gateway {
   api_secret: string | null;
   is_active: boolean;
   is_test_mode: boolean;
-  config: Record<string, unknown>;
+  config: Json;
   sort_order: number;
 }
 
