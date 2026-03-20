@@ -595,7 +595,7 @@ Deno.serve(async (req) => {
       let calendarEmail: string | null = null;
       let bayName = booking.city;
       if (booking.bay_id) {
-        const { data: bay } = await adminClient.from("bays").select("coaching_hours, calendar_email, name").eq("id", booking.bay_id).single();
+        const { data: bay } = await adminClient.from("bays").select("coaching_hours, coaching_cancellation_refund_hours, calendar_email, name").eq("id", booking.bay_id).single();
         if (bay) {
           coachingHours = bay.coaching_hours || 1;
           calendarEmail = bay.calendar_email;
