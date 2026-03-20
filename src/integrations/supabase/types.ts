@@ -604,7 +604,7 @@ export type Database = {
         Insert: {
           api_key?: string | null
           api_secret?: string | null
-          city?: string
+          city: string
           config?: Json
           created_at?: string
           display_name: string
