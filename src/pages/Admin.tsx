@@ -1,7 +1,7 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, ShoppingBag, Gift, Users, Clock, UserCheck, FileText, MapPin, ClipboardList, Mail, Settings } from "lucide-react";
+import { Calendar, ShoppingBag, Gift, Users, Clock, UserCheck, FileText, MapPin, ClipboardList, Mail, Settings, CreditCard } from "lucide-react";
 import { AdminEventsTab } from "@/components/admin/AdminEventsTab";
 import { AdminProductsTab } from "@/components/admin/AdminProductsTab";
 import { AdminRewardsTab } from "@/components/admin/AdminRewardsTab";
