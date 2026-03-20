@@ -872,13 +872,14 @@ Deno.serve(async (req) => {
             .eq("user_id", userId);
         }
 
-        await adminClient.from("hours_transactions").insert({
+        const { error: txError } = await adminClient.from("hours_transactions").insert({
           user_id: userId,
           type: "refund",
           hours: hoursToRefund,
           note: `Cancellation refund - ${bayName} - ${formatShortDate(booking.start_time, calTz)}`,
           created_by: userId,
         });
+        if (txError) console.error("Failed to insert refund transaction:", txError);
       }
 
       // User notification
