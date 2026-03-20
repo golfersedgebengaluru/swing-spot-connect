@@ -39,7 +39,8 @@ export default function PublicBooking() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [duration, setDuration] = useState(60);
-  const [sessionType, setSessionType] = useState<string>("individual");
+  const [numPlayers, setNumPlayers] = useState(1);
+  const sessionType = numPlayers === 1 ? "individual" : numPlayers === 2 ? "couple" : "group";
 
   // Payment method: "hours" or "pay"
   const [paymentMethod, setPaymentMethod] = useState<"hours" | "pay">("pay");
