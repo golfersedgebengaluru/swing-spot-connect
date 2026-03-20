@@ -11,8 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   CalendarIcon, Clock, MapPin, Loader2, LayoutGrid,
-  GraduationCap, ArrowLeft, ArrowRight, CreditCard, Timer,
-  User, Mail, Phone, CheckCircle2,
+  ArrowLeft, ArrowRight, CreditCard, Timer,
+  User, Mail, Phone, CheckCircle2, Users,
 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -39,7 +39,8 @@ export default function PublicBooking() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [duration, setDuration] = useState(60);
-  const [sessionType, setSessionType] = useState<string>("individual");
+  const [numPlayers, setNumPlayers] = useState(1);
+  const sessionType = numPlayers === 1 ? "individual" : numPlayers === 2 ? "couple" : "group";
 
   // Payment method: "hours" or "pay"
   const [paymentMethod, setPaymentMethod] = useState<"hours" | "pay">("pay");
@@ -287,23 +288,39 @@ export default function PublicBooking() {
                 </Card>
               )}
 
-              {/* Session Type */}
+              {/* Number of Players */}
               {currentBay && (
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2">
-                      <GraduationCap className="h-4 w-4" /> Session Type
+                      <Users className="h-4 w-4" /> Number of Players
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <Select value={sessionType} onValueChange={setSessionType}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="individual">Individual (1 person)</SelectItem>
-                        <SelectItem value="couple">Couple (2 persons)</SelectItem>
-                        <SelectItem value="group">Group (3-6 persons)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9"
+                        disabled={numPlayers <= 1}
+                        onClick={() => setNumPlayers((p) => Math.max(1, p - 1))}
+                      >
+                        −
+                      </Button>
+                      <span className="w-10 text-center text-lg font-medium">{numPlayers}</span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9"
+                        disabled={numPlayers >= 6}
+                        onClick={() => setNumPlayers((p) => Math.min(6, p + 1))}
+                      >
+                        +
+                      </Button>
+                      <Badge variant="secondary" className="ml-2 text-xs">
+                        {sessionType === "individual" ? "Individual" : sessionType === "couple" ? "Couple" : "Group"} rate
+                      </Badge>
+                    </div>
                     {currentPrice && (
                       <p className="mt-2 text-sm text-muted-foreground">
                         ₹{currentPrice.price_per_hour}/hr · {currentPrice.label || currentPrice.session_type}
