@@ -402,14 +402,25 @@ export default function MyBookings() {
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
                             {canCancel && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCancelTarget(booking)}
-                                disabled={cancelBooking.isPending}
-                              >
-                                <X className="mr-1 h-3 w-3" /> Cancel
-                              </Button>
+                              confirmingCancelId === booking.id ? (
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => performCancel(booking)}
+                                  disabled={cancelBooking.isPending}
+                                >
+                                  {`⚠ ${getCancelInfo(booking).penalty}h penalty. Yes, Cancel`}
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleCancelClick(booking)}
+                                  disabled={cancelBooking.isPending}
+                                >
+                                  <X className="mr-1 h-3 w-3" /> Cancel
+                                </Button>
+                              )
                             )}
                             {isPast && ["confirmed", "cancelled"].includes(booking.status) && (
                               <Button variant="ghost" size="sm" onClick={() => navigate("/bookings")}>
