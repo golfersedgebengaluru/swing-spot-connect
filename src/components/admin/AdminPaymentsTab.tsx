@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { CreditCard, Eye, EyeOff, Loader2, Save } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CreditCard, Eye, EyeOff, Loader2, Save, MapPin, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,7 +22,14 @@ interface Gateway {
   is_test_mode: boolean;
   config: Json;
   sort_order: number;
+  city: string;
 }
+
+const GATEWAY_TEMPLATES = [
+  { name: "razorpay", display_name: "Razorpay" },
+  { name: "stripe", display_name: "Stripe" },
+  { name: "paypal", display_name: "PayPal" },
+];
 
 export function AdminPaymentsTab() {
   const { toast } = useToast();
@@ -35,9 +43,20 @@ export function AdminPaymentsTab() {
       const { data, error } = await supabase
         .from("payment_gateways")
         .select("*")
+        .order("city")
         .order("sort_order");
       if (error) throw error;
       return data as Gateway[];
+    },
+  });
+
+  const { data: cities } = useQuery({
+    queryKey: ["bays_cities_for_payments"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("bays").select("city");
+      if (error) throw error;
+      const unique = Array.from(new Set((data ?? []).map((b) => b.city))).sort();
+      return unique;
     },
   });
 
@@ -52,6 +71,42 @@ export function AdminPaymentsTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payment_gateways"] });
       toast({ title: "Gateway Updated", description: "Payment gateway configuration saved." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const addGateway = useMutation({
+    mutationFn: async (gw: { name: string; display_name: string; city: string }) => {
+      const { error } = await supabase.from("payment_gateways").insert({
+        name: gw.name,
+        display_name: gw.display_name,
+        city: gw.city,
+        is_active: false,
+        is_test_mode: true,
+        config: {},
+        sort_order: (gateways?.length ?? 0),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payment_gateways"] });
+      toast({ title: "Gateway Added" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const deleteGateway = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("payment_gateways").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payment_gateways"] });
+      toast({ title: "Gateway Removed" });
     },
     onError: (err: any) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -79,8 +134,7 @@ export function AdminPaymentsTab() {
   };
 
   const handleToggleActive = (gw: Gateway) => {
-    const newActive = !gw.is_active;
-    updateGateway.mutate({ id: gw.id, updates: { is_active: newActive } });
+    updateGateway.mutate({ id: gw.id, updates: { is_active: !gw.is_active } });
   };
 
   const handleToggleTestMode = (gw: Gateway) => {
@@ -96,6 +150,16 @@ export function AdminPaymentsTab() {
 
   if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
 
+  // Group gateways by city
+  const allCities = Array.from(
+    new Set([...(cities ?? []), ...(gateways ?? []).map((g) => g.city)])
+  ).sort();
+
+  const gatewaysByCity: Record<string, Gateway[]> = {};
+  for (const city of allCities) {
+    gatewaysByCity[city] = (gateways ?? []).filter((g) => g.city === city);
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -104,86 +168,133 @@ export function AdminPaymentsTab() {
             <CreditCard className="h-5 w-5" /> Payment Gateways
           </CardTitle>
           <CardDescription>
-            Configure payment gateways for bay bookings. Enable one or more gateways — the first active one will be the default.
+            Configure payment gateways per city. Each city can have its own active gateway.
           </CardDescription>
         </CardHeader>
       </Card>
 
-      {(gateways ?? []).map((gw) => {
-        const merged = getEdit(gw);
-        const hasChanges = !!edits[gw.id];
-        const isVisible = showSecrets[gw.id];
+      {allCities.map((city) => {
+        const cityGateways = gatewaysByCity[city] ?? [];
+        const existingNames = cityGateways.map((g) => g.name);
+        const availableTemplates = GATEWAY_TEMPLATES.filter(
+          (t) => !existingNames.includes(t.name)
+        );
 
         return (
-          <Card key={gw.id} className={gw.is_active ? "border-primary/40" : ""}>
+          <Card key={city}>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <CardTitle className="text-lg">{gw.display_name}</CardTitle>
-                  {gw.is_active && <Badge className="bg-green-500/15 text-green-600 border-green-300">Active</Badge>}
-                  {merged.is_test_mode && <Badge variant="outline" className="text-amber-600 border-amber-300">Test Mode</Badge>}
-                </div>
-                <Switch checked={gw.is_active} onCheckedChange={() => handleToggleActive(gw)} />
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <MapPin className="h-5 w-5" /> {city}
+                  <Badge variant="secondary">{cityGateways.length} gateway{cityGateways.length !== 1 ? "s" : ""}</Badge>
+                </CardTitle>
+                {availableTemplates.length > 0 && (
+                  <Select onValueChange={(name) => {
+                    const tpl = GATEWAY_TEMPLATES.find((t) => t.name === name);
+                    if (tpl) addGateway.mutate({ ...tpl, city });
+                  }}>
+                    <SelectTrigger className="w-[160px]">
+                      <Plus className="h-4 w-4 mr-1" />
+                      <SelectValue placeholder="Add gateway" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableTemplates.map((t) => (
+                        <SelectItem key={t.name} value={t.name}>{t.display_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>API Key {gw.name === "razorpay" && "(Key ID)"}</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type={isVisible ? "text" : "password"}
-                      placeholder={`Enter ${gw.display_name} API key`}
-                      value={edits[gw.id]?.api_key ?? (isVisible ? gw.api_key ?? "" : maskValue(gw.api_key))}
-                      onChange={(e) => handleFieldChange(gw.id, "api_key", e.target.value)}
-                      onFocus={() => {
-                        if (!edits[gw.id]?.api_key && gw.api_key) {
-                          handleFieldChange(gw.id, "api_key", gw.api_key);
-                        }
-                      }}
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setShowSecrets((p) => ({ ...p, [gw.id]: !p[gw.id] }))}
-                    >
-                      {isVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
+              {cityGateways.length === 0 && (
+                <p className="text-sm text-muted-foreground">No gateways configured for this city yet.</p>
+              )}
+              {cityGateways.map((gw) => {
+                const merged = getEdit(gw);
+                const hasChanges = !!edits[gw.id];
+                const isVisible = showSecrets[gw.id];
+
+                return (
+                  <div key={gw.id} className="rounded-lg border border-border p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="font-medium">{gw.display_name}</span>
+                        {gw.is_active && <Badge className="bg-green-500/15 text-green-600 border-green-300">Active</Badge>}
+                        {merged.is_test_mode && <Badge variant="outline" className="text-amber-600 border-amber-300">Test Mode</Badge>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch checked={gw.is_active} onCheckedChange={() => handleToggleActive(gw)} />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteGateway.mutate(gw.id)}
+                          disabled={deleteGateway.isPending}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>API Key {gw.name === "razorpay" && "(Key ID)"}</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type={isVisible ? "text" : "password"}
+                            placeholder={`Enter ${gw.display_name} API key`}
+                            value={edits[gw.id]?.api_key ?? (isVisible ? gw.api_key ?? "" : maskValue(gw.api_key))}
+                            onChange={(e) => handleFieldChange(gw.id, "api_key", e.target.value)}
+                            onFocus={() => {
+                              if (!edits[gw.id]?.api_key && gw.api_key) {
+                                handleFieldChange(gw.id, "api_key", gw.api_key);
+                              }
+                            }}
+                          />
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setShowSecrets((p) => ({ ...p, [gw.id]: !p[gw.id] }))}
+                          >
+                            {isVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>API Secret {gw.name === "razorpay" && "(Key Secret)"}</Label>
+                        <Input
+                          type={isVisible ? "text" : "password"}
+                          placeholder={`Enter ${gw.display_name} API secret`}
+                          value={edits[gw.id]?.api_secret ?? (isVisible ? gw.api_secret ?? "" : maskValue(gw.api_secret))}
+                          onChange={(e) => handleFieldChange(gw.id, "api_secret", e.target.value)}
+                          onFocus={() => {
+                            if (!edits[gw.id]?.api_secret && gw.api_secret) {
+                              handleFieldChange(gw.id, "api_secret", gw.api_secret);
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={merged.is_test_mode}
+                          onCheckedChange={() => handleToggleTestMode(gw)}
+                          id={`test-${gw.id}`}
+                        />
+                        <Label htmlFor={`test-${gw.id}`} className="text-sm">Test Mode</Label>
+                      </div>
+                      {hasChanges && (
+                        <Button size="sm" onClick={() => handleSave(gw)} disabled={updateGateway.isPending}>
+                          {updateGateway.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+                          Save Changes
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>API Secret {gw.name === "razorpay" && "(Key Secret)"}</Label>
-                  <Input
-                    type={isVisible ? "text" : "password"}
-                    placeholder={`Enter ${gw.display_name} API secret`}
-                    value={edits[gw.id]?.api_secret ?? (isVisible ? gw.api_secret ?? "" : maskValue(gw.api_secret))}
-                    onChange={(e) => handleFieldChange(gw.id, "api_secret", e.target.value)}
-                    onFocus={() => {
-                      if (!edits[gw.id]?.api_secret && gw.api_secret) {
-                        handleFieldChange(gw.id, "api_secret", gw.api_secret);
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={merged.is_test_mode}
-                    onCheckedChange={() => handleToggleTestMode(gw)}
-                    id={`test-${gw.id}`}
-                  />
-                  <Label htmlFor={`test-${gw.id}`} className="text-sm">Test Mode</Label>
-                </div>
-
-                {hasChanges && (
-                  <Button size="sm" onClick={() => handleSave(gw)} disabled={updateGateway.isPending}>
-                    {updateGateway.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
-                    Save Changes
-                  </Button>
-                )}
-              </div>
+                );
+              })}
             </CardContent>
           </Card>
         );

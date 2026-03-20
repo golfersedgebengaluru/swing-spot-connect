@@ -590,6 +590,7 @@ export type Database = {
         Row: {
           api_key: string | null
           api_secret: string | null
+          city: string
           config: Json
           created_at: string
           display_name: string
@@ -603,6 +604,7 @@ export type Database = {
         Insert: {
           api_key?: string | null
           api_secret?: string | null
+          city?: string
           config?: Json
           created_at?: string
           display_name: string
@@ -616,6 +618,7 @@ export type Database = {
         Update: {
           api_key?: string | null
           api_secret?: string | null
+          city?: string
           config?: Json
           created_at?: string
           display_name?: string
