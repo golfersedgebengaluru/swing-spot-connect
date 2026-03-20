@@ -25,6 +25,7 @@ interface BayForm {
   sort_order: number;
   coaching_mode: string;
   coaching_hours: number;
+  coaching_cancellation_refund_hours: number;
   currency: string;
 }
 
@@ -38,6 +39,7 @@ const emptyForm: BayForm = {
   sort_order: 0,
   coaching_mode: "instant",
   coaching_hours: 1,
+  coaching_cancellation_refund_hours: 0,
   currency: "INR",
 };
 
@@ -54,6 +56,11 @@ export function BayConfigTab() {
 
   const handleSave = async () => {
     if (!editing) return;
+    // Validate cancellation refund hours
+    if (editing.coaching_cancellation_refund_hours > editing.coaching_hours) {
+      toast({ title: "Validation Error", description: "Cancellation refund hours cannot exceed coaching hours per session.", variant: "destructive" });
+      return;
+    }
     const payload = {
       city: editing.city,
       name: editing.name,
@@ -64,6 +71,7 @@ export function BayConfigTab() {
       sort_order: editing.sort_order,
       coaching_mode: editing.coaching_mode,
       coaching_hours: editing.coaching_hours,
+      coaching_cancellation_refund_hours: editing.coaching_cancellation_refund_hours,
       currency: editing.currency,
     };
 
@@ -249,6 +257,20 @@ export function BayConfigTab() {
                 <Label>Coaching Hours per Session</Label>
                 <Input type="number" step="0.5" min="0.5" value={editing.coaching_hours} onChange={(e) => setEditing({ ...editing, coaching_hours: Number(e.target.value) })} />
                 <p className="text-xs text-muted-foreground mt-1">Hours deducted for coaching sessions</p>
+              </div>
+              <div>
+                <Label>Coaching Cancellation Refund Hours</Label>
+                <Input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  max={editing.coaching_hours}
+                  value={editing.coaching_cancellation_refund_hours}
+                  onChange={(e) => setEditing({ ...editing, coaching_cancellation_refund_hours: Math.min(Number(e.target.value), editing.coaching_hours) })}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Hours refunded when an approved coaching session is cancelled (max: {editing.coaching_hours}h). Set to 0 for no refund.
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
