@@ -39,6 +39,7 @@ const emptyForm: BayForm = {
   sort_order: 0,
   coaching_mode: "instant",
   coaching_hours: 1,
+  coaching_cancellation_refund_hours: 0,
   currency: "INR",
 };
 
