@@ -32,7 +32,7 @@ const tabComponents: Record<string, React.ComponentType> = {
 };
 
 export default function Admin() {
-  const [activeTab, setActiveTab] = useState("events");
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
