@@ -247,9 +247,22 @@ export default function Bookings() {
                       </p>
                     )}
                     {sessionType === "coaching" && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Coaching deducts {currentBay.coaching_hours ?? 1}h per session
-                      </p>
+                      <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                        <p>Coaching deducts <span className="font-medium text-foreground">{currentBay.coaching_hours ?? 1}h</span> per session.</p>
+                        {(() => {
+                          const coachingHrs = currentBay.coaching_hours ?? 1;
+                          const refundHrs = currentBay.coaching_cancellation_refund_hours ?? 0;
+                          const penaltyHrs = coachingHrs - refundHrs;
+                          if (penaltyHrs > 0) {
+                            return (
+                              <p className="text-amber-600 dark:text-amber-400">
+                                Cancellation penalty: <span className="font-medium">{penaltyHrs}h</span> ({refundHrs}h of {coachingHrs}h refunded)
+                              </p>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
                     )}
                   </CardContent>
                 </Card>
