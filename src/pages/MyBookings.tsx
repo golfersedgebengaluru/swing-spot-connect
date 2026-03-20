@@ -78,6 +78,7 @@ export default function MyBookings() {
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [cancelTarget, setCancelTarget] = useState<any>(null);
+  const [confirmingCancelId, setConfirmingCancelId] = useState<string | null>(null);
 
   if (!authLoading && !user) return <Navigate to="/auth" />;
 
@@ -96,10 +97,17 @@ export default function MyBookings() {
     return { isCoaching: false, coachingHrs: 0, refundHrs: practiceHrs, penalty: 0 };
   };
 
-  const handleCancelConfirm = async () => {
-    if (!cancelTarget) return;
-    const booking = cancelTarget;
-    setCancelTarget(null);
+  const handleCancelClick = (booking: any) => {
+    const info = getCancelInfo(booking);
+    if (info.isCoaching && info.penalty > 0) {
+      setConfirmingCancelId(booking.id);
+    } else {
+      performCancel(booking);
+    }
+  };
+
+  const performCancel = async (booking: any) => {
+    setConfirmingCancelId(null);
     try {
       await cancelBooking.mutateAsync(booking.id);
       toast({ title: "Booking Cancelled", description: "Your hours have been refunded." });
@@ -200,15 +208,27 @@ export default function MyBookings() {
               <p className="font-medium text-foreground text-sm">{format(start, "EEE, MMM d, yyyy")}</p>
             </div>
             {canCancel && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCancelTarget(booking)}
-                disabled={cancelBooking.isPending}
-                className="shrink-0"
-              >
-                <X className="mr-1 h-3 w-3" /> Cancel
-              </Button>
+              confirmingCancelId === booking.id ? (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => performCancel(booking)}
+                  disabled={cancelBooking.isPending}
+                  className="shrink-0 text-xs"
+                >
+                  {`⚠ ${getCancelInfo(booking).penalty}h penalty. Yes, Cancel`}
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleCancelClick(booking)}
+                  disabled={cancelBooking.isPending}
+                  className="shrink-0"
+                >
+                  <X className="mr-1 h-3 w-3" /> Cancel
+                </Button>
+              )
             )}
           </div>
 
@@ -382,14 +402,25 @@ export default function MyBookings() {
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
                             {canCancel && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCancelTarget(booking)}
-                                disabled={cancelBooking.isPending}
-                              >
-                                <X className="mr-1 h-3 w-3" /> Cancel
-                              </Button>
+                              confirmingCancelId === booking.id ? (
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => performCancel(booking)}
+                                  disabled={cancelBooking.isPending}
+                                >
+                                  {`⚠ ${getCancelInfo(booking).penalty}h penalty. Yes, Cancel`}
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleCancelClick(booking)}
+                                  disabled={cancelBooking.isPending}
+                                >
+                                  <X className="mr-1 h-3 w-3" /> Cancel
+                                </Button>
+                              )
                             )}
                             {isPast && ["confirmed", "cancelled"].includes(booking.status) && (
                               <Button variant="ghost" size="sm" onClick={() => navigate("/bookings")}>
@@ -438,42 +469,6 @@ export default function MyBookings() {
       </main>
       <Footer />
 
-      {/* Cancel confirmation dialog */}
-      <AlertDialog open={!!cancelTarget} onOpenChange={(open) => !open && setCancelTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                {cancelTarget && (() => {
-                  const info = getCancelInfo(cancelTarget);
-                  if (info.isCoaching && info.penalty > 0) {
-                    return (
-                      <>
-                        <p>This is a coaching session. Cancelling will refund <span className="font-medium text-foreground">{info.refundHrs}h</span> of the <span className="font-medium text-foreground">{info.coachingHrs}h</span> deducted.</p>
-                        <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
-                          <p className="text-amber-800 dark:text-amber-300 text-sm font-medium">⚠ Cancellation penalty: {info.penalty}h will not be refunded</p>
-                        </div>
-                      </>
-                    );
-                  }
-                  return <p>Your hours will be fully refunded upon cancellation.</p>;
-                })()}
-                <p className="text-sm">This action cannot be undone.</p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep Booking</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleCancelConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Yes, Cancel Booking
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
