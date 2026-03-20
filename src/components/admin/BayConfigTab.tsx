@@ -56,6 +56,11 @@ export function BayConfigTab() {
 
   const handleSave = async () => {
     if (!editing) return;
+    // Validate cancellation refund hours
+    if (editing.coaching_cancellation_refund_hours > editing.coaching_hours) {
+      toast({ title: "Validation Error", description: "Cancellation refund hours cannot exceed coaching hours per session.", variant: "destructive" });
+      return;
+    }
     const payload = {
       city: editing.city,
       name: editing.name,
@@ -66,6 +71,7 @@ export function BayConfigTab() {
       sort_order: editing.sort_order,
       coaching_mode: editing.coaching_mode,
       coaching_hours: editing.coaching_hours,
+      coaching_cancellation_refund_hours: editing.coaching_cancellation_refund_hours,
       currency: editing.currency,
     };
 
