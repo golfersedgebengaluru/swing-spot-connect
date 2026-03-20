@@ -21,6 +21,7 @@ const Rewards = lazy(() => import("./pages/Rewards"));
 const Admin = lazy(() => import("./pages/Admin"));
 const AdminSetup = lazy(() => import("./pages/AdminSetup"));
 const Bookings = lazy(() => import("./pages/Bookings"));
+const PublicBooking = lazy(() => import("./pages/PublicBooking"));
 const MyBookings = lazy(() => import("./pages/MyBookings"));
 const PageView = lazy(() => import("./pages/PageView"));
 const Profile = lazy(() => import("./pages/Profile"));
