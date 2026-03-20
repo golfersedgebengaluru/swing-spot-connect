@@ -258,6 +258,20 @@ export function BayConfigTab() {
                 <Input type="number" step="0.5" min="0.5" value={editing.coaching_hours} onChange={(e) => setEditing({ ...editing, coaching_hours: Number(e.target.value) })} />
                 <p className="text-xs text-muted-foreground mt-1">Hours deducted for coaching sessions</p>
               </div>
+              <div>
+                <Label>Coaching Cancellation Refund Hours</Label>
+                <Input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  max={editing.coaching_hours}
+                  value={editing.coaching_cancellation_refund_hours}
+                  onChange={(e) => setEditing({ ...editing, coaching_cancellation_refund_hours: Math.min(Number(e.target.value), editing.coaching_hours) })}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Hours refunded when an approved coaching session is cancelled (max: {editing.coaching_hours}h). Set to 0 for no refund.
+                </p>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Sort Order</Label>
