@@ -13,6 +13,7 @@ import { AdminSettingsTab } from "@/components/admin/AdminSettingsTab";
 import { AdminOrdersTab } from "@/components/admin/AdminOrdersTab";
 import { AdminEmailLogsTab } from "@/components/admin/AdminEmailLogsTab";
 import { BayConfigTab } from "@/components/admin/BayConfigTab";
+import { AdminPaymentsTab } from "@/components/admin/AdminPaymentsTab";
 
 export default function Admin() {
   return (
