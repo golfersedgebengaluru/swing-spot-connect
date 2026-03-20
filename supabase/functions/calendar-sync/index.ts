@@ -448,20 +448,22 @@ Deno.serve(async (req) => {
       const { data: booking, error: bookingError } = await supabase.from("bookings").insert(bookingInsert).select().single();
       if (bookingError) throw bookingError;
 
-      // Deduct hours only for instant bookings
+      // Deduct hours only for instant bookings — use admin client to bypass RLS
       if (!needsApproval) {
-        const { data: hours } = await supabase
+        const adminClient = createAdminClient();
+
+        const { data: hours } = await adminClient
           .from("member_hours")
           .select("*")
           .eq("user_id", userId)
           .single();
 
-        await supabase
+        await adminClient
           .from("member_hours")
           .update({ hours_used: (hours?.hours_used ?? 0) + hoursNeeded })
           .eq("user_id", userId);
 
-        await supabase.from("hours_transactions").insert({
+        await adminClient.from("hours_transactions").insert({
           user_id: userId,
           type: "deduction",
           hours: hoursNeeded,
@@ -471,7 +473,7 @@ Deno.serve(async (req) => {
 
         const remaining = (hours?.hours_purchased ?? 0) - (hours?.hours_used ?? 0) - hoursNeeded;
 
-        await supabase.from("notifications").insert({
+        await adminClient.from("notifications").insert({
           user_id: userId,
           title: isCoaching ? "Coaching Booked!" : "Bay Booked!",
           message: `Your ${bayLabel} ${isCoaching ? "coaching session" : "bay"} has been booked for ${formatDateTime(start_time, calTz)} (${hoursNeeded}h). ${remaining}h remaining.`,
