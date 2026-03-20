@@ -109,6 +109,7 @@ export type Database = {
           calendar_email: string | null
           city: string
           close_time: string
+          coaching_cancellation_refund_hours: number
           coaching_hours: number
           coaching_mode: string
           created_at: string
@@ -124,6 +125,7 @@ export type Database = {
           calendar_email?: string | null
           city: string
           close_time?: string
+          coaching_cancellation_refund_hours?: number
           coaching_hours?: number
           coaching_mode?: string
           created_at?: string
@@ -139,6 +141,7 @@ export type Database = {
           calendar_email?: string | null
           city?: string
           close_time?: string
+          coaching_cancellation_refund_hours?: number
           coaching_hours?: number
           coaching_mode?: string
           created_at?: string

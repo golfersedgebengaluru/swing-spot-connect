@@ -1,0 +1,1 @@
+ALTER TABLE public.bays ADD COLUMN IF NOT EXISTS coaching_cancellation_refund_hours numeric NOT NULL DEFAULT 0;
