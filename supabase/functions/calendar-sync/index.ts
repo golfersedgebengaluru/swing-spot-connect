@@ -685,6 +685,21 @@ Deno.serve(async (req) => {
               time: formatTimeRange(booking.start_time, booking.end_time, calTz),
               hours_deducted: `${hoursNeeded}h`,
               hours_remaining: `${newRemaining}h`,
+              cancellation_penalty: (() => {
+                if (booking.bay_id) {
+                  const refundHrs = (bay as any)?.coaching_cancellation_refund_hours ?? 0;
+                  const penalty = hoursNeeded - refundHrs;
+                  if (penalty > 0) return `${penalty}h`;
+                }
+                return null;
+              })(),
+              cancellation_refund: (() => {
+                if (booking.bay_id) {
+                  const refundHrs = (bay as any)?.coaching_cancellation_refund_hours ?? 0;
+                  return `${refundHrs}h`;
+                }
+                return `${hoursNeeded}h`;
+              })(),
             },
           }),
         });
