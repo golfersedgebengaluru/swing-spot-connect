@@ -469,42 +469,6 @@ export default function MyBookings() {
       </main>
       <Footer />
 
-      {/* Cancel confirmation dialog */}
-      <AlertDialog open={!!cancelTarget} onOpenChange={(open) => !open && setCancelTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                {cancelTarget && (() => {
-                  const info = getCancelInfo(cancelTarget);
-                  if (info.isCoaching && info.penalty > 0) {
-                    return (
-                      <>
-                        <p>This is a coaching session. Cancelling will refund <span className="font-medium text-foreground">{info.refundHrs}h</span> of the <span className="font-medium text-foreground">{info.coachingHrs}h</span> deducted.</p>
-                        <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
-                          <p className="text-amber-800 dark:text-amber-300 text-sm font-medium">⚠ Cancellation penalty: {info.penalty}h will not be refunded</p>
-                        </div>
-                      </>
-                    );
-                  }
-                  return <p>Your hours will be fully refunded upon cancellation.</p>;
-                })()}
-                <p className="text-sm">This action cannot be undone.</p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep Booking</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleCancelConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Yes, Cancel Booking
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
