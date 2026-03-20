@@ -273,8 +273,8 @@ export function useUserHoursBalance() {
       for (const t of txns ?? []) {
         if (t.type === "purchase" || t.type === "credit") {
           purchased += Number(t.hours);
-        } else if (t.type === "adjustment") {
-          // Adjustments (refunds) reduce the used total
+        } else if (t.type === "adjustment" || t.type === "refund") {
+          // Adjustments and refunds reduce the used total
           used -= Number(t.hours);
         } else {
           // deduction
