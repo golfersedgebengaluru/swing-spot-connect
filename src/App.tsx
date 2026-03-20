@@ -47,6 +47,7 @@ const App = () => (
               <Route path="/community" element={<ErrorBoundary><Community /></ErrorBoundary>} />
               <Route path="/shop" element={<ErrorBoundary><Shop /></ErrorBoundary>} />
               <Route path="/rewards" element={<ErrorBoundary><Rewards /></ErrorBoundary>} />
+              <Route path="/book" element={<ErrorBoundary><PublicBooking /></ErrorBoundary>} />
               <Route path="/bookings" element={<ErrorBoundary><Bookings /></ErrorBoundary>} />
               <Route path="/my-bookings" element={<ErrorBoundary><MyBookings /></ErrorBoundary>} />
               <Route path="/profile" element={<ErrorBoundary><Profile /></ErrorBoundary>} />
