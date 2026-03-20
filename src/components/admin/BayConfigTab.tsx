@@ -25,6 +25,7 @@ interface BayForm {
   sort_order: number;
   coaching_mode: string;
   coaching_hours: number;
+  coaching_cancellation_refund_hours: number;
   currency: string;
 }
 
