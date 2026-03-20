@@ -805,11 +805,14 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Get calendar email, bay name, and coaching hours
+      const adminClient = createAdminClient();
+
       // Check configurable cancellation policy (applies to confirmed bookings)
       if (booking.status === "confirmed") {
         // Fetch cancellation window from admin_config (default 24h)
         let cancellationWindowHours = 24;
-        const { data: configRow } = await supabaseAdmin
+        const { data: configRow } = await adminClient
           .from("admin_config")
           .select("value")
           .eq("key", "cancellation_window_hours")
@@ -827,9 +830,6 @@ Deno.serve(async (req) => {
           );
         }
       }
-
-      // Get calendar email, bay name, and coaching hours
-      const adminClient = createAdminClient();
       let calendarEmail: string | null = null;
       let bayName = booking.city;
       let coachingHours = 1;
