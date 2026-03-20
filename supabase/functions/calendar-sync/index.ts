@@ -805,12 +805,24 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Check 24h cancellation policy (applies to confirmed bookings)
+      // Check configurable cancellation policy (applies to confirmed bookings)
       if (booking.status === "confirmed") {
+        // Fetch cancellation window from admin_config (default 24h)
+        let cancellationWindowHours = 24;
+        const { data: configRow } = await supabaseAdmin
+          .from("admin_config")
+          .select("value")
+          .eq("key", "cancellation_window_hours")
+          .single();
+        if (configRow?.value) {
+          const parsed = parseFloat(configRow.value);
+          if (!isNaN(parsed) && parsed >= 0) cancellationWindowHours = parsed;
+        }
+
         const hoursUntil = (new Date(booking.start_time).getTime() - Date.now()) / (1000 * 60 * 60);
-        if (hoursUntil < 24) {
+        if (hoursUntil < cancellationWindowHours) {
           return new Response(
-            JSON.stringify({ error: "Cancellations must be made at least 24 hours in advance." }),
+            JSON.stringify({ error: `Cancellations must be made at least ${cancellationWindowHours} hours in advance.` }),
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }

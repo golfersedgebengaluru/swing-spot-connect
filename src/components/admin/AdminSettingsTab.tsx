@@ -262,11 +262,88 @@ function ChangePasswordCard() {
   );
 }
 
+function CancellationWindowCard() {
+  const { toast } = useToast();
+  const [windowHours, setWindowHours] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data: config, isLoading } = useQuery({
+    queryKey: ["admin_config", "cancellation_window_hours"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("admin_config")
+        .select("value")
+        .eq("key", "cancellation_window_hours")
+        .single();
+      return data?.value || "24";
+    },
+  });
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const val = parseFloat(windowHours || config || "24");
+    if (isNaN(val) || val < 0) {
+      toast({ title: "Error", description: "Please enter a valid number (minimum 0)", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from("admin_config")
+        .update({ value: String(val) })
+        .eq("key", "cancellation_window_hours");
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["admin_config", "cancellation_window_hours"] });
+      toast({ title: "Saved", description: "Cancellation window updated." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to update", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
+
+  return (
+    <Card className="max-w-md">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Clock className="h-5 w-5" />Cancellation Window</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSave} className="space-y-4">
+          <div>
+            <Label htmlFor="cancel-window">Minimum hours before booking start</Label>
+            <Input
+              id="cancel-window"
+              type="number"
+              min={0}
+              step="0.5"
+              placeholder="24"
+              defaultValue={config || "24"}
+              onChange={(e) => setWindowHours(e.target.value)}
+              className="mt-1"
+              required
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Users must cancel at least this many hours before the booking start time. Set to 0 to allow cancellations anytime.
+            </p>
+          </div>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : <><Save className="mr-2 h-4 w-4" />Save</>}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function AdminSettingsTab() {
   return (
     <div className="space-y-6">
       <AdminRolesManager />
       <PageVisibilitySettings />
+      <CancellationWindowCard />
       <SenderEmailCard />
       <EmailRateLimitCard />
       <EmailTemplatesEditor />
