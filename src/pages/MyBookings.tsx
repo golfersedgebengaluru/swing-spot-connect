@@ -208,15 +208,27 @@ export default function MyBookings() {
               <p className="font-medium text-foreground text-sm">{format(start, "EEE, MMM d, yyyy")}</p>
             </div>
             {canCancel && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCancelTarget(booking)}
-                disabled={cancelBooking.isPending}
-                className="shrink-0"
-              >
-                <X className="mr-1 h-3 w-3" /> Cancel
-              </Button>
+              confirmingCancelId === booking.id ? (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => performCancel(booking)}
+                  disabled={cancelBooking.isPending}
+                  className="shrink-0 text-xs"
+                >
+                  {`⚠ ${getCancelInfo(booking).penalty}h penalty. Yes, Cancel`}
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleCancelClick(booking)}
+                  disabled={cancelBooking.isPending}
+                  className="shrink-0"
+                >
+                  <X className="mr-1 h-3 w-3" /> Cancel
+                </Button>
+              )
             )}
           </div>
 
