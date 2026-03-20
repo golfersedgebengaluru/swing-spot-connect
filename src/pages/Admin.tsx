@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AdminDashboardTab } from "@/components/admin/AdminDashboardTab";
 import { AdminEventsTab } from "@/components/admin/AdminEventsTab";
 import { AdminProductsTab } from "@/components/admin/AdminProductsTab";
 import { AdminRewardsTab } from "@/components/admin/AdminRewardsTab";
@@ -15,6 +16,7 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminTopbar, getTabTitle } from "@/components/admin/AdminTopbar";
 
 const tabComponents: Record<string, React.ComponentType> = {
+  dashboard: AdminDashboardTab,
   events: AdminEventsTab,
   products: AdminProductsTab,
   orders: AdminOrdersTab,
