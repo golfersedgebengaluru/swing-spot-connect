@@ -833,12 +833,14 @@ Deno.serve(async (req) => {
       let calendarEmail: string | null = null;
       let bayName = booking.city;
       let coachingHours = 1;
+      let coachingCancellationRefundHours: number | null = null;
       if (booking.bay_id) {
-        const { data: bay } = await supabase.from("bays").select("calendar_email, name, coaching_hours").eq("id", booking.bay_id).single();
+        const { data: bay } = await supabase.from("bays").select("calendar_email, name, coaching_hours, coaching_cancellation_refund_hours").eq("id", booking.bay_id).single();
         if (bay) {
           calendarEmail = bay.calendar_email || null;
           bayName = bay.name || booking.city;
           coachingHours = bay.coaching_hours || 1;
+          coachingCancellationRefundHours = bay.coaching_cancellation_refund_hours ?? null;
         }
       }
       if (!calendarEmail) {
