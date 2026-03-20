@@ -81,6 +81,11 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Hours Remaining</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.hours_remaining}</td></tr>
           </table>
         </div>
+        ${d.cancellation_penalty ? `
+        <div style="background:#fff8f0;border:1px solid #f0d4a8;border-radius:8px;padding:16px;margin:0 0 24px">
+          <p style="color:#92610a;font-size:14px;font-weight:600;margin:0 0 6px">⚠ Cancellation Policy</p>
+          <p style="color:#92610a;font-size:13px;margin:0">If you cancel this session, only ${d.cancellation_refund} of ${d.hours_deducted} will be refunded. A penalty of ${d.cancellation_penalty} will apply.</p>
+        </div>` : ""}
       </div>
       <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
         <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>

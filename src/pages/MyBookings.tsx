@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -34,12 +34,22 @@ import {
 } from "@/components/ui/select";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMyBookings, useCancelBooking, useUserHoursBalance } from "@/hooks/useBookings";
+import { useMyBookings, useCancelBooking, useUserHoursBalance, useBays } from "@/hooks/useBookings";
 import { useHoursTransactions } from "@/hooks/useMemberHours";
 import { useToast } from "@/hooks/use-toast";
 import { Navigate, useNavigate } from "react-router-dom";
 import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
 import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type SortField = "date" | "status" | "hours";
 type SortDir = "asc" | "desc";
@@ -58,6 +68,7 @@ export default function MyBookings() {
   const { data: bookings, isLoading } = useMyBookings();
   const { data: balance } = useUserHoursBalance();
   const { data: hoursTx = [] } = useHoursTransactions(user?.id);
+  const { data: bays } = useBays();
   const cancelBooking = useCancelBooking();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -66,10 +77,29 @@ export default function MyBookings() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [cancelTarget, setCancelTarget] = useState<any>(null);
 
   if (!authLoading && !user) return <Navigate to="/auth" />;
 
-  const handleCancel = async (booking: any) => {
+  // Get cancellation penalty info for a booking
+  const getCancelInfo = (booking: any) => {
+    if (booking.session_type === "coaching" && booking.bay_id && bays) {
+      const bay = bays.find((b: any) => b.id === booking.bay_id);
+      if (bay) {
+        const coachingHrs = bay.coaching_hours ?? 1;
+        const refundHrs = bay.coaching_cancellation_refund_hours ?? 0;
+        const penalty = coachingHrs - refundHrs;
+        return { isCoaching: true, coachingHrs, refundHrs, penalty };
+      }
+    }
+    const practiceHrs = booking.duration_minutes / 60;
+    return { isCoaching: false, coachingHrs: 0, refundHrs: practiceHrs, penalty: 0 };
+  };
+
+  const handleCancelConfirm = async () => {
+    if (!cancelTarget) return;
+    const booking = cancelTarget;
+    setCancelTarget(null);
     try {
       await cancelBooking.mutateAsync(booking.id);
       toast({ title: "Booking Cancelled", description: "Your hours have been refunded." });
@@ -173,7 +203,7 @@ export default function MyBookings() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleCancel(booking)}
+                onClick={() => setCancelTarget(booking)}
                 disabled={cancelBooking.isPending}
                 className="shrink-0"
               >
@@ -355,7 +385,7 @@ export default function MyBookings() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleCancel(booking)}
+                                onClick={() => setCancelTarget(booking)}
                                 disabled={cancelBooking.isPending}
                               >
                                 <X className="mr-1 h-3 w-3" /> Cancel
@@ -407,6 +437,43 @@ export default function MyBookings() {
         </div>
       </main>
       <Footer />
+
+      {/* Cancel confirmation dialog */}
+      <AlertDialog open={!!cancelTarget} onOpenChange={(open) => !open && setCancelTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                {cancelTarget && (() => {
+                  const info = getCancelInfo(cancelTarget);
+                  if (info.isCoaching && info.penalty > 0) {
+                    return (
+                      <>
+                        <p>This is a coaching session. Cancelling will refund <span className="font-medium text-foreground">{info.refundHrs}h</span> of the <span className="font-medium text-foreground">{info.coachingHrs}h</span> deducted.</p>
+                        <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
+                          <p className="text-amber-800 dark:text-amber-300 text-sm font-medium">⚠ Cancellation penalty: {info.penalty}h will not be refunded</p>
+                        </div>
+                      </>
+                    );
+                  }
+                  return <p>Your hours will be fully refunded upon cancellation.</p>;
+                })()}
+                <p className="text-sm">This action cannot be undone.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Booking</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Yes, Cancel Booking
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
