@@ -68,6 +68,7 @@ export default function MyBookings() {
   const { data: bookings, isLoading } = useMyBookings();
   const { data: balance } = useUserHoursBalance();
   const { data: hoursTx = [] } = useHoursTransactions(user?.id);
+  const { data: bays } = useBays();
   const cancelBooking = useCancelBooking();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -76,10 +77,29 @@ export default function MyBookings() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [cancelTarget, setCancelTarget] = useState<any>(null);
 
   if (!authLoading && !user) return <Navigate to="/auth" />;
 
-  const handleCancel = async (booking: any) => {
+  // Get cancellation penalty info for a booking
+  const getCancelInfo = (booking: any) => {
+    if (booking.session_type === "coaching" && booking.bay_id && bays) {
+      const bay = bays.find((b: any) => b.id === booking.bay_id);
+      if (bay) {
+        const coachingHrs = bay.coaching_hours ?? 1;
+        const refundHrs = bay.coaching_cancellation_refund_hours ?? 0;
+        const penalty = coachingHrs - refundHrs;
+        return { isCoaching: true, coachingHrs, refundHrs, penalty };
+      }
+    }
+    const practiceHrs = booking.duration_minutes / 60;
+    return { isCoaching: false, coachingHrs: 0, refundHrs: practiceHrs, penalty: 0 };
+  };
+
+  const handleCancelConfirm = async () => {
+    if (!cancelTarget) return;
+    const booking = cancelTarget;
+    setCancelTarget(null);
     try {
       await cancelBooking.mutateAsync(booking.id);
       toast({ title: "Booking Cancelled", description: "Your hours have been refunded." });
