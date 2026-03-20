@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { TrendingUp, Trophy, Calendar, Gift, Target, Clock, ArrowRight, HelpCircle, Package, Loader2 } from "lucide-react";
+import { TrendingUp, Trophy, Calendar, Gift, Target, Clock, ArrowRight, HelpCircle, Package, Loader2, Timer, CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useUserPoints } from "@/hooks/usePoints";
 import { useUserHoursBalance } from "@/hooks/useBookings";
