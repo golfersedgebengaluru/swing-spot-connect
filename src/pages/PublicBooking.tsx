@@ -11,8 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   CalendarIcon, Clock, MapPin, Loader2, LayoutGrid,
-  GraduationCap, ArrowLeft, ArrowRight, CreditCard, Timer,
-  User, Mail, Phone, CheckCircle2,
+  ArrowLeft, ArrowRight, CreditCard, Timer,
+  User, Mail, Phone, CheckCircle2, Users,
 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
