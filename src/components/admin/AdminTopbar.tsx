@@ -20,6 +20,7 @@ const tabTitles: Record<string, string> = {
   bayconfig: "Bay Config",
   bookinglogs: "Bookings",
   payments: "Payments",
+  pricing: "Pricing",
   emails: "Emails",
   settings: "Settings",
 };
