@@ -211,6 +211,79 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const body = await req.json();
+    const { action, ...params } = body;
+
+    // Guest booking does not require authentication
+    if (action === "guest_booking") {
+      const {
+        start_time, end_time, duration_minutes, city, bay_id, bay_name,
+        session_type, guest_name, guest_email, guest_phone, calendar_email,
+      } = params;
+
+      const adminClient = createAdminClient();
+
+      // Check for overlapping bookings
+      const overlapQuery = adminClient
+        .from("bookings")
+        .select("id")
+        .in("status", ["confirmed", "pending"])
+        .gte("end_time", start_time)
+        .lte("start_time", end_time);
+      if (bay_id) overlapQuery.eq("bay_id", bay_id);
+      else overlapQuery.eq("city", city);
+
+      const { data: existing } = await overlapQuery;
+      if (existing && existing.length > 0) {
+        return new Response(
+          JSON.stringify({ error: "This slot is no longer available. Please refresh and try again." }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Try to create Google Calendar event (skip if no service account configured)
+      let calendarEventId: string | null = null;
+      const serviceAccountKeyStr = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
+      if (serviceAccountKeyStr && calendar_email) {
+        try {
+          const serviceAccountKey = JSON.parse(serviceAccountKeyStr);
+          const accessToken = await getAccessToken(serviceAccountKey);
+          const calTz = await getCalendarTimezone(accessToken, calendar_email);
+          const summary = `${bay_name || city} - ${guest_name} (Guest)`;
+          const desc = `Guest booking by ${guest_name}\nEmail: ${guest_email}\nPhone: ${guest_phone}`;
+          const calEvent = await createEvent(accessToken, calendar_email, summary, start_time, end_time, calTz, desc);
+          calendarEventId = calEvent.id;
+        } catch (e) {
+          console.error("Calendar event creation failed (non-fatal for guest):", e);
+        }
+      }
+
+      // Insert booking with a placeholder user_id for guest bookings
+      const { data: booking, error: bookingError } = await adminClient
+        .from("bookings")
+        .insert({
+          user_id: "00000000-0000-0000-0000-000000000000", // guest placeholder
+          city,
+          start_time,
+          end_time,
+          duration_minutes,
+          status: "confirmed",
+          session_type: session_type || "practice",
+          bay_id: bay_id || null,
+          calendar_event_id: calendarEventId,
+          note: `Guest: ${guest_name} | ${guest_email} | ${guest_phone}`,
+        })
+        .select()
+        .single();
+
+      if (bookingError) throw bookingError;
+
+      return new Response(JSON.stringify({ booking }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // All other actions require authentication
     const serviceAccountKeyStr = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
     if (!serviceAccountKeyStr) throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY not configured");
 
@@ -249,7 +322,6 @@ Deno.serve(async (req) => {
     }
     const userId = claimsData.claims.sub as string;
 
-    const { action, ...params } = await req.json();
     const accessToken = await getAccessToken(serviceAccountKey);
 
     if (action === "list_slots") {
