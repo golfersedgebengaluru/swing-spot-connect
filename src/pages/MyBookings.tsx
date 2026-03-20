@@ -203,7 +203,7 @@ export default function MyBookings() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleCancel(booking)}
+                onClick={() => setCancelTarget(booking)}
                 disabled={cancelBooking.isPending}
                 className="shrink-0"
               >
