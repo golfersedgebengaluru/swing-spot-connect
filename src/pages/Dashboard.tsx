@@ -28,7 +28,9 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { data: currentPoints = 0 } = useUserPoints();
   const { data: balance } = useUserHoursBalance();
+  const { data: hourPackages, isLoading: loadingPackages } = useHourPackages();
   const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || "Golfer";
+  const activePackages = (hourPackages ?? []).filter((p: any) => p.is_active && p.price > 0);
 
   const stats = [
     { label: "Current Handicap", value: "12.4", change: "-0.8", icon: Target, positive: true, tooltip: "" },
