@@ -1,0 +1,2 @@
+ALTER TABLE public.hours_transactions DROP CONSTRAINT hours_transactions_type_check;
+ALTER TABLE public.hours_transactions ADD CONSTRAINT hours_transactions_type_check CHECK (type = ANY (ARRAY['purchase', 'deduction', 'adjustment', 'refund', 'credit']));
