@@ -9,6 +9,7 @@ import { CreditCard, Eye, EyeOff, Loader2, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 interface Gateway {
   id: string;
