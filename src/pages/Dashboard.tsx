@@ -59,8 +59,14 @@ export default function Dashboard() {
           <div className="mb-8 flex flex-wrap gap-3">
             <Link to="/bookings">
               <Button variant="default">
-                Book a Bay
-                <ArrowRight className="ml-2 h-4 w-4" />
+                <Timer className="mr-2 h-4 w-4" />
+                Book w/ Hours
+              </Button>
+            </Link>
+            <Link to="/book">
+              <Button variant="outline">
+                <CreditCard className="mr-2 h-4 w-4" />
+                Pay-Per-Use
               </Button>
             </Link>
             <Link to="/shop">
