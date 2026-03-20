@@ -68,6 +68,42 @@ export type Database = {
         }
         Relationships: []
       }
+      bay_pricing: {
+        Row: {
+          city: string
+          created_at: string
+          currency: string
+          day_type: string
+          id: string
+          label: string
+          price_per_hour: number
+          session_type: string
+          updated_at: string
+        }
+        Insert: {
+          city: string
+          created_at?: string
+          currency?: string
+          day_type?: string
+          id?: string
+          label?: string
+          price_per_hour?: number
+          session_type?: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string
+          created_at?: string
+          currency?: string
+          day_type?: string
+          id?: string
+          label?: string
+          price_per_hour?: number
+          session_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bays: {
         Row: {
           calendar_email: string | null
@@ -363,6 +399,42 @@ export type Database = {
           time_start?: string | null
           title?: string
           type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hour_packages: {
+        Row: {
+          created_at: string
+          currency: string
+          hours: number
+          id: string
+          is_active: boolean
+          label: string
+          price: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          hours: number
+          id?: string
+          is_active?: boolean
+          label?: string
+          price?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          hours?: number
+          id?: string
+          is_active?: boolean
+          label?: string
+          price?: number
+          sort_order?: number
           updated_at?: string
         }
         Relationships: []

@@ -2,11 +2,13 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { TrendingUp, Trophy, Calendar, Gift, Target, Clock, ArrowRight, HelpCircle } from "lucide-react";
+import { TrendingUp, Trophy, Calendar, Gift, Target, Clock, ArrowRight, HelpCircle, Package, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useUserPoints } from "@/hooks/usePoints";
 import { useUserHoursBalance } from "@/hooks/useBookings";
+import { useHourPackages } from "@/hooks/usePricing";
 import { useAuth } from "@/contexts/AuthContext";
 import { EmailPreferencesCard } from "@/components/EmailPreferencesCard";
 
@@ -26,7 +28,9 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { data: currentPoints = 0 } = useUserPoints();
   const { data: balance } = useUserHoursBalance();
+  const { data: hourPackages, isLoading: loadingPackages } = useHourPackages();
   const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || "Golfer";
+  const activePackages = (hourPackages ?? []).filter((p: any) => p.is_active && p.price > 0);
 
   const stats = [
     { label: "Current Handicap", value: "12.4", change: "-0.8", icon: Target, positive: true, tooltip: "" },
@@ -213,7 +217,41 @@ export default function Dashboard() {
             </Card>
           </div>
 
-          {/* Progress Chart Placeholder */}
+          {/* Buy Hours */}
+          {activePackages.length > 0 && (
+            <Card className="mt-6 shadow-elegant">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="font-display text-xl flex items-center gap-2">
+                  <Package className="h-5 w-5 text-primary" />
+                  Buy Hours
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {activePackages.map((pkg: any) => (
+                    <div
+                      key={pkg.id}
+                      className="relative rounded-lg border border-border p-5 transition-colors hover:border-primary/40 hover:bg-muted/30"
+                    >
+                      {pkg.hours === 25 && (
+                        <Badge className="absolute -top-2.5 right-3 bg-amber-100 text-amber-800 hover:bg-amber-100 text-xs">
+                          Birdie Member
+                        </Badge>
+                      )}
+                      <p className="font-display text-3xl font-bold text-foreground">{pkg.hours}h</p>
+                      <p className="text-sm text-muted-foreground mt-1">{pkg.label}</p>
+                      <p className="font-display text-xl font-bold text-primary mt-3">₹{pkg.price.toLocaleString()}</p>
+                      <Button className="w-full mt-4" variant={pkg.hours === 25 ? "default" : "outline"}>
+                        Buy Now
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
             <Card className="shadow-elegant">
               <CardHeader>

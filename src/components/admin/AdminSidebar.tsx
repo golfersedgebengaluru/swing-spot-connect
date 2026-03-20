@@ -46,6 +46,7 @@ const operationsItems = [
 ];
 
 const configItems = [
+  { id: "pricing", label: "Pricing", icon: CreditCard },
   { id: "payments", label: "Payments", icon: CreditCard },
   { id: "emails", label: "Emails", icon: Mail },
   { id: "settings", label: "Settings", icon: Award },
