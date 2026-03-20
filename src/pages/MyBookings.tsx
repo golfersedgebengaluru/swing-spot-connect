@@ -97,10 +97,17 @@ export default function MyBookings() {
     return { isCoaching: false, coachingHrs: 0, refundHrs: practiceHrs, penalty: 0 };
   };
 
-  const handleCancelConfirm = async () => {
-    if (!cancelTarget) return;
-    const booking = cancelTarget;
-    setCancelTarget(null);
+  const handleCancelClick = (booking: any) => {
+    const info = getCancelInfo(booking);
+    if (info.isCoaching && info.penalty > 0) {
+      setConfirmingCancelId(booking.id);
+    } else {
+      performCancel(booking);
+    }
+  };
+
+  const performCancel = async (booking: any) => {
+    setConfirmingCancelId(null);
     try {
       await cancelBooking.mutateAsync(booking.id);
       toast({ title: "Booking Cancelled", description: "Your hours have been refunded." });
