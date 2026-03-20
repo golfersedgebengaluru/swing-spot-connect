@@ -21,6 +21,7 @@ const Rewards = lazy(() => import("./pages/Rewards"));
 const Admin = lazy(() => import("./pages/Admin"));
 const AdminSetup = lazy(() => import("./pages/AdminSetup"));
 const Bookings = lazy(() => import("./pages/Bookings"));
+const PublicBooking = lazy(() => import("./pages/PublicBooking"));
 const MyBookings = lazy(() => import("./pages/MyBookings"));
 const PageView = lazy(() => import("./pages/PageView"));
 const Profile = lazy(() => import("./pages/Profile"));
@@ -46,6 +47,7 @@ const App = () => (
               <Route path="/community" element={<ErrorBoundary><Community /></ErrorBoundary>} />
               <Route path="/shop" element={<ErrorBoundary><Shop /></ErrorBoundary>} />
               <Route path="/rewards" element={<ErrorBoundary><Rewards /></ErrorBoundary>} />
+              <Route path="/book" element={<ErrorBoundary><PublicBooking /></ErrorBoundary>} />
               <Route path="/bookings" element={<ErrorBoundary><Bookings /></ErrorBoundary>} />
               <Route path="/my-bookings" element={<ErrorBoundary><MyBookings /></ErrorBoundary>} />
               <Route path="/profile" element={<ErrorBoundary><Profile /></ErrorBoundary>} />

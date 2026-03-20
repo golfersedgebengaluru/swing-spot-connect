@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { TrendingUp, Trophy, Calendar, Gift, Target, Clock, ArrowRight, HelpCircle, Package, Loader2 } from "lucide-react";
+import { TrendingUp, Trophy, Calendar, Gift, Target, Clock, ArrowRight, HelpCircle, Package, Loader2, Timer, CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useUserPoints } from "@/hooks/usePoints";
 import { useUserHoursBalance } from "@/hooks/useBookings";
@@ -59,8 +59,14 @@ export default function Dashboard() {
           <div className="mb-8 flex flex-wrap gap-3">
             <Link to="/bookings">
               <Button variant="default">
-                Book a Bay
-                <ArrowRight className="ml-2 h-4 w-4" />
+                <Timer className="mr-2 h-4 w-4" />
+                Book w/ Hours
+              </Button>
+            </Link>
+            <Link to="/book">
+              <Button variant="outline">
+                <CreditCard className="mr-2 h-4 w-4" />
+                Pay-Per-Use
               </Button>
             </Link>
             <Link to="/shop">

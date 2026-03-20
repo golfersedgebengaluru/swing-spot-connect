@@ -47,10 +47,15 @@ export function HeroSection() {
 
           {/* CTA Buttons */}
           <div className="animate-fade-up mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row" style={{ animationDelay: "0.3s" }}>
-            <Link to="/auth?mode=signup">
+            <Link to="/book">
               <Button variant="gold" size="xl">
-                Join the Collective
+                Book Now
                 <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+            <Link to="/auth?mode=signup">
+              <Button variant="heroOutline" size="xl">
+                Join the Collective
               </Button>
             </Link>
             <Link to="/auth">
