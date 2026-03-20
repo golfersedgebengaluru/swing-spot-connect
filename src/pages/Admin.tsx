@@ -36,7 +36,7 @@ export default function Admin() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  const ActiveComponent = tabComponents[activeTab] ?? AdminEventsTab;
+  const ActiveComponent = tabComponents[activeTab] ?? AdminDashboardTab;
 
   return (
     <div className="flex min-h-screen bg-muted/40">
