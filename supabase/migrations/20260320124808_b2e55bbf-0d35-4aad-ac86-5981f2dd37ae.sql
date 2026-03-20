@@ -1,0 +1,1 @@
+ALTER TABLE public.payment_gateways ADD COLUMN city text NOT NULL DEFAULT 'all';
