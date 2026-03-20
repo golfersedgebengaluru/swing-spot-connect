@@ -115,6 +115,7 @@ export function useCreateBooking() {
       queryClient.invalidateQueries({ queryKey: ["member_hours"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
+      queryClient.invalidateQueries({ queryKey: ["hours_transactions"] });
     },
   });
 }
