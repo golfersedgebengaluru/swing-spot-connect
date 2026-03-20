@@ -1,7 +1,7 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, ShoppingBag, Gift, Users, Clock, UserCheck, FileText, MapPin, ClipboardList, Mail, Settings } from "lucide-react";
+import { Calendar, ShoppingBag, Gift, Users, Clock, UserCheck, FileText, MapPin, ClipboardList, Mail, Settings, CreditCard } from "lucide-react";
 import { AdminEventsTab } from "@/components/admin/AdminEventsTab";
 import { AdminProductsTab } from "@/components/admin/AdminProductsTab";
 import { AdminRewardsTab } from "@/components/admin/AdminRewardsTab";
@@ -13,6 +13,7 @@ import { AdminSettingsTab } from "@/components/admin/AdminSettingsTab";
 import { AdminOrdersTab } from "@/components/admin/AdminOrdersTab";
 import { AdminEmailLogsTab } from "@/components/admin/AdminEmailLogsTab";
 import { BayConfigTab } from "@/components/admin/BayConfigTab";
+import { AdminPaymentsTab } from "@/components/admin/AdminPaymentsTab";
 
 export default function Admin() {
   return (
@@ -36,6 +37,7 @@ export default function Admin() {
               <TabsTrigger value="pages" className="gap-2"><FileText className="h-4 w-4" />Pages</TabsTrigger>
               <TabsTrigger value="bayconfig" className="gap-2"><MapPin className="h-4 w-4" />Bay Config</TabsTrigger>
               <TabsTrigger value="bookinglogs" className="gap-2"><ClipboardList className="h-4 w-4" />Booking Logs</TabsTrigger>
+              <TabsTrigger value="payments" className="gap-2"><CreditCard className="h-4 w-4" />Payments</TabsTrigger>
               <TabsTrigger value="emails" className="gap-2"><Mail className="h-4 w-4" />Emails</TabsTrigger>
               <TabsTrigger value="settings" className="gap-2"><Settings className="h-4 w-4" />Settings</TabsTrigger>
             </TabsList>
@@ -49,6 +51,7 @@ export default function Admin() {
             <TabsContent value="pages" className="space-y-4"><AdminPagesTab /></TabsContent>
             <TabsContent value="bayconfig" className="space-y-4"><BayConfigTab /></TabsContent>
             <TabsContent value="bookinglogs" className="space-y-4"><AdminBookingLogsTab /></TabsContent>
+            <TabsContent value="payments" className="space-y-4"><AdminPaymentsTab /></TabsContent>
             <TabsContent value="emails" className="space-y-4"><AdminEmailLogsTab /></TabsContent>
             <TabsContent value="settings" className="space-y-6"><AdminSettingsTab /></TabsContent>
           </Tabs>
