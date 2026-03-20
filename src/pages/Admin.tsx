@@ -51,6 +51,7 @@ export default function Admin() {
             <TabsContent value="pages" className="space-y-4"><AdminPagesTab /></TabsContent>
             <TabsContent value="bayconfig" className="space-y-4"><BayConfigTab /></TabsContent>
             <TabsContent value="bookinglogs" className="space-y-4"><AdminBookingLogsTab /></TabsContent>
+            <TabsContent value="payments" className="space-y-4"><AdminPaymentsTab /></TabsContent>
             <TabsContent value="emails" className="space-y-4"><AdminEmailLogsTab /></TabsContent>
             <TabsContent value="settings" className="space-y-6"><AdminSettingsTab /></TabsContent>
           </Tabs>
