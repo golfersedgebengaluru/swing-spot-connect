@@ -78,6 +78,7 @@ export default function MyBookings() {
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [cancelTarget, setCancelTarget] = useState<any>(null);
+  const [confirmingCancelId, setConfirmingCancelId] = useState<string | null>(null);
 
   if (!authLoading && !user) return <Navigate to="/auth" />;
 
