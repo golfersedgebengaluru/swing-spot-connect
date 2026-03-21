@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { AdminRolesManager } from "@/components/admin/AdminRolesManager";
 import { EmailTemplatesEditor } from "@/components/admin/EmailTemplatesEditor";
+import { BrandingSettingsCard } from "@/components/admin/BrandingSettingsCard";
 
 const pageVisibilityItems = [
   { key: "page_events_visible", label: "Events", description: "Show the Events tab in navigation" },
@@ -341,6 +342,7 @@ function CancellationWindowCard() {
 export function AdminSettingsTab() {
   return (
     <div className="space-y-6">
+      <BrandingSettingsCard />
       <AdminRolesManager />
       <PageVisibilitySettings />
       <CancellationWindowCard />

@@ -6,6 +6,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
+import { useBranding } from "@/hooks/useBranding";
 import bannerLogo from "@/assets/golfers-edge-banner.jpg";
 
 const allNavLinks = [
@@ -22,6 +23,7 @@ const allNavLinks = [
 export function Navbar() {
   const { user, loading, signOut } = useAuth();
   const { data: visibility } = usePageVisibility();
+  const { data: branding } = useBranding();
   const navigate = useNavigate();
   const isAuthenticated = !loading && !!user;
 
@@ -42,9 +44,9 @@ export function Navbar() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3">
-            <img src={bannerLogo} alt="Golfer's Edge" className="h-8 w-auto" />
+            <img src={branding?.logo_url || bannerLogo} alt={branding?.studio_name || "Golfer's Edge"} className="h-8 w-auto" />
             <span className="font-display text-lg font-semibold text-foreground">
-              EdgeCollective
+              {branding?.studio_name || "EdgeCollective"}
             </span>
           </Link>
 
