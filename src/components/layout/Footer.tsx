@@ -24,7 +24,7 @@ export function Footer() {
 
           {/* Copyright */}
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} EdgeCollective by Golfer's Edge. All rights reserved.
+            © {new Date().getFullYear()} EdgeCollective by TEETIME VENTURES. All rights reserved.
           </p>
         </div>
       </div>
