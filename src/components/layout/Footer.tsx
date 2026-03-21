@@ -1,16 +1,22 @@
 import { Link } from "react-router-dom";
+import { useBranding } from "@/hooks/useBranding";
 import bannerLogo from "@/assets/golfers-edge-banner.jpg";
 
 export function Footer() {
+  const { data: branding } = useBranding();
+
+  const footerText = (branding?.footer_text || "© {year} EdgeCollective by TEETIME VENTURES. All rights reserved.")
+    .replace("{year}", String(new Date().getFullYear()));
+
   return (
     <footer className="border-t border-border bg-card py-12">
       <div className="container mx-auto px-4">
         <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3">
-            <img src={bannerLogo} alt="Golfer's Edge" className="h-7 w-auto" />
+            <img src={branding?.logo_url || bannerLogo} alt={branding?.studio_name || "Golfer's Edge"} className="h-7 w-auto" />
             <span className="font-display text-lg font-semibold text-foreground">
-              EdgeCollective
+              {branding?.studio_name || "EdgeCollective"}
             </span>
           </Link>
 
@@ -24,7 +30,7 @@ export function Footer() {
 
           {/* Copyright */}
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} EdgeCollective by TEETIME VENTURES. All rights reserved.
+            {footerText}
           </p>
         </div>
       </div>
