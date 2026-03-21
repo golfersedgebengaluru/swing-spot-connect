@@ -44,9 +44,9 @@ export function Navbar() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3">
-            <img src={bannerLogo} alt="Golfer's Edge" className="h-8 w-auto" />
+            <img src={branding?.logo_url || bannerLogo} alt={branding?.studio_name || "Golfer's Edge"} className="h-8 w-auto" />
             <span className="font-display text-lg font-semibold text-foreground">
-              EdgeCollective
+              {branding?.studio_name || "EdgeCollective"}
             </span>
           </Link>
 
