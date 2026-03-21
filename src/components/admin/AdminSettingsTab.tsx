@@ -342,6 +342,7 @@ function CancellationWindowCard() {
 export function AdminSettingsTab() {
   return (
     <div className="space-y-6">
+      <BrandingSettingsCard />
       <AdminRolesManager />
       <PageVisibilitySettings />
       <CancellationWindowCard />
