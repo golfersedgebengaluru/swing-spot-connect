@@ -6,6 +6,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
+import { useBranding } from "@/hooks/useBranding";
 import bannerLogo from "@/assets/golfers-edge-banner.jpg";
 
 const allNavLinks = [
