@@ -23,6 +23,7 @@ const allNavLinks = [
 export function Navbar() {
   const { user, loading, signOut } = useAuth();
   const { data: visibility } = usePageVisibility();
+  const { data: branding } = useBranding();
   const navigate = useNavigate();
   const isAuthenticated = !loading && !!user;
 
