@@ -258,11 +258,36 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Insert booking with a placeholder user_id for guest bookings
+      // Find or create a non-registered profile for this guest
+      let guestUserId = "00000000-0000-0000-0000-000000000000";
+      if (guest_email) {
+        const { data: existingProfile } = await adminClient
+          .from("profiles")
+          .select("id, user_id")
+          .eq("email", guest_email)
+          .maybeSingle();
+
+        if (existingProfile) {
+          guestUserId = existingProfile.user_id || existingProfile.id;
+        } else {
+          const { data: newProfile } = await adminClient
+            .from("profiles")
+            .insert({
+              display_name: guest_name,
+              email: guest_email,
+              user_type: "non-registered",
+            })
+            .select("id")
+            .single();
+          if (newProfile) guestUserId = newProfile.id;
+        }
+      }
+
+      // Insert booking
       const { data: booking, error: bookingError } = await adminClient
         .from("bookings")
         .insert({
-          user_id: "00000000-0000-0000-0000-000000000000", // guest placeholder
+          user_id: guestUserId,
           city,
           start_time,
           end_time,
