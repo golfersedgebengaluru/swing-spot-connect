@@ -259,44 +259,57 @@ export function AdminAllUsersTab() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Points</TableHead>
-                  <TableHead className="text-right">Hours Balance</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(allUsers ?? []).length === 0 && (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">No users found.</TableCell></TableRow>
-                )}
-                {(allUsers ?? []).map((u: any) => (
-                  <TableRow key={u.id || u.user_id}>
-                    <TableCell className="font-medium">{u.display_name || "Unknown"}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{u.email || "—"}</TableCell>
-                    <TableCell>
-                      <Badge variant={u.user_id ? "secondary" : "outline"}>
-                        {u.user_id ? "Active" : "Pending"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant="default">{u.points ?? 0} pts</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Badge variant={u.hours_remaining <= 3 ? "destructive" : "secondary"}>
-                        {u.hours_remaining} hrs
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {u.user_id && (
-                        <Button variant="ghost" size="icon" onClick={() => { setViewingPointsHistory(u.user_id); setDialogOpen("pointshistory"); }}>
-                          <History className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                   <TableHead>Name</TableHead>
+                   <TableHead>Email</TableHead>
+                   <TableHead>Status</TableHead>
+                   <TableHead>Membership</TableHead>
+                   <TableHead className="text-right">Points</TableHead>
+                   <TableHead className="text-right">Hours Balance</TableHead>
+                   <TableHead className="text-right">Actions</TableHead>
+                 </TableRow>
+               </TableHeader>
+               <TableBody>
+                 {(allUsers ?? []).length === 0 && (
+                   <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No users found.</TableCell></TableRow>
+                 )}
+                 {(allUsers ?? []).map((u: any) => (
+                   <TableRow key={u.id || u.user_id}>
+                     <TableCell className="font-medium">{u.display_name || "Unknown"}</TableCell>
+                     <TableCell className="text-sm text-muted-foreground">{u.email || "—"}</TableCell>
+                     <TableCell>
+                       <Badge variant={u.user_id ? "secondary" : "outline"}>
+                         {u.user_id ? "Active" : "Pending"}
+                       </Badge>
+                     </TableCell>
+                     <TableCell>
+                       <Select value={u.user_type || "registered"} onValueChange={(v) => handleChangeUserType(u.id, v)}>
+                         <SelectTrigger className="w-[150px] h-8 text-xs">
+                           <SelectValue />
+                         </SelectTrigger>
+                         <SelectContent>
+                           {USER_TYPES.map((t) => (
+                             <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                           ))}
+                         </SelectContent>
+                       </Select>
+                     </TableCell>
+                     <TableCell className="text-right">
+                       <Badge variant="default">{u.points ?? 0} pts</Badge>
+                     </TableCell>
+                     <TableCell className="text-right">
+                       <Badge variant={u.hours_remaining <= 3 ? "destructive" : "secondary"}>
+                         {u.hours_remaining} hrs
+                       </Badge>
+                     </TableCell>
+                     <TableCell className="text-right">
+                       {u.user_id && (
+                         <Button variant="ghost" size="icon" onClick={() => { setViewingPointsHistory(u.user_id); setDialogOpen("pointshistory"); }}>
+                           <History className="h-4 w-4" />
+                         </Button>
+                       )}
+                     </TableCell>
+                   </TableRow>
+                 ))}
               </TableBody>
             </Table>
           )}
