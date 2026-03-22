@@ -1,0 +1,1 @@
+UPDATE bays SET currency = 'INR' WHERE id = '4406d329-9dcd-472f-adc6-b16edac36e15';
