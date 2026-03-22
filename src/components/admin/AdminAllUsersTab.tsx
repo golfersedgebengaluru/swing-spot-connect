@@ -294,7 +294,7 @@ export function AdminAllUsersTab() {
                        </Select>
                      </TableCell>
                      <TableCell className="text-right">
-                       <Badge variant="default">{u.points ?? 0} pts</Badge>
+                       <Badge variant="default">{u.points ?? 0}</Badge>
                      </TableCell>
                      <TableCell className="text-right">
                        <Badge variant={u.hours_remaining <= 3 ? "destructive" : "secondary"}>
