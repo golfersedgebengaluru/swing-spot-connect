@@ -81,7 +81,7 @@ export function AppleProfileCompletionModal({
   return (
     <Dialog open={open}>
       <DialogContent
-        className="sm:max-w-md"
+        className="sm:max-w-md [&>button[class*='absolute']]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
