@@ -297,9 +297,9 @@ export function AdminAllUsersTab() {
                        <Badge variant="default">{u.points ?? 0}</Badge>
                      </TableCell>
                      <TableCell className="text-right">
-                       <Badge variant={u.hours_remaining <= 3 ? "destructive" : "secondary"}>
-                         {u.hours_remaining} hrs
-                       </Badge>
+                        <Badge variant={u.hours_remaining <= 3 ? "destructive" : "secondary"}>
+                          {u.hours_remaining}
+                        </Badge>
                      </TableCell>
                      <TableCell className="text-right">
                        {u.user_id && (
