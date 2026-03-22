@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ClipboardList, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAllBookings, useBays, useApproveBooking, useRejectBooking } from "@/hooks/useBookings";
+import { useAllBookings, useBays, useApproveBooking, useRejectBooking, useAdminCancelBooking } from "@/hooks/useBookings";
 import { format } from "date-fns";
 
 export function AdminBookingLogsTab() {

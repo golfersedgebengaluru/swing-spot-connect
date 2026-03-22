@@ -189,6 +189,30 @@ export function useRejectBooking() {
   });
 }
 
+export function useAdminCancelBooking() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (bookingId: string) => {
+      const res = await supabase.functions.invoke("calendar-sync", {
+        body: { action: "admin_cancel_booking", booking_id: bookingId },
+      });
+      if (res.error) throw new Error(res.error.message || "Cancellation failed");
+      if (res.data?.error) throw new Error(res.data.error);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all_bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["available_slots"] });
+      queryClient.invalidateQueries({ queryKey: ["member_hours"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
+      queryClient.invalidateQueries({ queryKey: ["hours_transactions"] });
+    },
+  });
+}
+
 export function useMyBookings() {
   const { user } = useAuth();
   return useQuery({
