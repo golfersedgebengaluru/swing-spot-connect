@@ -119,7 +119,12 @@ export function AdminBookingLogsTab() {
             )}
             {sorted.map((b: any) => (
               <TableRow key={b.id} className={b.status === "pending" ? "bg-amber-500/5" : ""}>
-                <TableCell className="font-medium">{b.display_name}</TableCell>
+                <TableCell className="font-medium">
+                  <div>{b.display_name}</div>
+                  <Badge variant="outline" className="text-[10px] mt-0.5">
+                    {b.user_type === "member" ? "👤 Member" : b.user_type === "non-registered" ? "🔗 Guest" : "📝 Registered"}
+                  </Badge>
+                </TableCell>
                 <TableCell>
                   <div>{b.city}</div>
                   {b.bay_name && <div className="text-xs text-muted-foreground">{b.bay_name}</div>}
