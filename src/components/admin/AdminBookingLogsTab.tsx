@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ClipboardList, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAllBookings, useBays, useApproveBooking, useRejectBooking } from "@/hooks/useBookings";
+import { useAllBookings, useBays, useApproveBooking, useRejectBooking, useAdminCancelBooking } from "@/hooks/useBookings";
 import { format } from "date-fns";
 
 export function AdminBookingLogsTab() {
@@ -15,6 +15,7 @@ export function AdminBookingLogsTab() {
   const { data: bays } = useBays();
   const approveBooking = useApproveBooking();
   const rejectBooking = useRejectBooking();
+  const adminCancelBooking = useAdminCancelBooking();
   const { toast } = useToast();
   const [cityFilter, setCityFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -48,6 +49,16 @@ export function AdminBookingLogsTab() {
       await rejectBooking.mutateAsync({ bookingId: id, rejectMessage: rejectMessages[id] });
       setRejectMessages((prev) => { const n = { ...prev }; delete n[id]; return n; });
       toast({ title: "Booking Rejected", description: "Coaching request declined and slot freed." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleAdminCancel = async (id: string) => {
+    if (!window.confirm("Are you sure you want to cancel this booking? Hours will be refunded if applicable.")) return;
+    try {
+      await adminCancelBooking.mutateAsync(id);
+      toast({ title: "Booking Cancelled", description: "Booking has been cancelled and hours refunded." });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
@@ -108,7 +119,12 @@ export function AdminBookingLogsTab() {
             )}
             {sorted.map((b: any) => (
               <TableRow key={b.id} className={b.status === "pending" ? "bg-amber-500/5" : ""}>
-                <TableCell className="font-medium">{b.display_name}</TableCell>
+                <TableCell className="font-medium">
+                  <div>{b.display_name}</div>
+                  <Badge variant="outline" className="text-[10px] mt-0.5">
+                    {b.user_type === "member" ? "👤 Member" : b.user_type === "non-registered" ? "🔗 Guest" : "📝 Registered"}
+                  </Badge>
+                </TableCell>
                 <TableCell>
                   <div>{b.city}</div>
                   {b.bay_name && <div className="text-xs text-muted-foreground">{b.bay_name}</div>}
@@ -147,6 +163,17 @@ export function AdminBookingLogsTab() {
                         className="text-xs w-56 min-h-[56px] resize-none"
                       />
                     </div>
+                  )}
+                  {(b.status === "confirmed" || b.status === "pending") && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleAdminCancel(b.id)}
+                      disabled={adminCancelBooking.isPending}
+                      className="h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 mt-1"
+                    >
+                      🚫 Cancel
+                    </Button>
                   )}
                   {b.status === "rejected" && b.note && (
                     <span className="text-xs text-muted-foreground italic">"{b.note}"</span>

@@ -258,11 +258,36 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Insert booking with a placeholder user_id for guest bookings
+      // Find or create a non-registered profile for this guest
+      let guestUserId = "00000000-0000-0000-0000-000000000000";
+      if (guest_email) {
+        const { data: existingProfile } = await adminClient
+          .from("profiles")
+          .select("id, user_id")
+          .eq("email", guest_email)
+          .maybeSingle();
+
+        if (existingProfile) {
+          guestUserId = existingProfile.user_id || existingProfile.id;
+        } else {
+          const { data: newProfile } = await adminClient
+            .from("profiles")
+            .insert({
+              display_name: guest_name,
+              email: guest_email,
+              user_type: "non-registered",
+            })
+            .select("id")
+            .single();
+          if (newProfile) guestUserId = newProfile.id;
+        }
+      }
+
+      // Insert booking
       const { data: booking, error: bookingError } = await adminClient
         .from("bookings")
         .insert({
-          user_id: "00000000-0000-0000-0000-000000000000", // guest placeholder
+          user_id: guestUserId,
           city,
           start_time,
           end_time,
@@ -954,6 +979,109 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.error("Failed to send cancellation email:", e);
       }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Admin cancel booking — bypasses user ownership check and cancellation window
+    if (action === "admin_cancel_booking") {
+      const { booking_id } = params;
+      const adminClient = createAdminClient();
+
+      // Verify caller is admin
+      const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: "Admin access required" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: booking } = await adminClient
+        .from("bookings")
+        .select("*")
+        .eq("id", booking_id)
+        .single();
+
+      if (!booking) {
+        return new Response(JSON.stringify({ error: "Booking not found" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      let calendarEmail: string | null = null;
+      let bayName = booking.city;
+      let coachingHours = 1;
+      let coachingCancellationRefundHours: number | null = null;
+      if (booking.bay_id) {
+        const { data: bay } = await adminClient.from("bays").select("calendar_email, name, coaching_hours, coaching_cancellation_refund_hours").eq("id", booking.bay_id).single();
+        if (bay) {
+          calendarEmail = bay.calendar_email || null;
+          bayName = bay.name || booking.city;
+          coachingHours = bay.coaching_hours || 1;
+          coachingCancellationRefundHours = bay.coaching_cancellation_refund_hours ?? null;
+        }
+      }
+      if (!calendarEmail) {
+        const { data: bayConfig } = await adminClient.from("bay_config").select("calendar_email").eq("city", booking.city).single();
+        calendarEmail = bayConfig?.calendar_email || null;
+      }
+
+      const calTz = calendarEmail ? await getCalendarTimezone(accessToken, calendarEmail) : "UTC";
+
+      // Delete calendar event
+      if (booking.calendar_event_id && calendarEmail) {
+        try { await deleteEvent(accessToken, calendarEmail, booking.calendar_event_id); } catch (e) { console.error("Failed to delete calendar event:", e); }
+      }
+
+      // Update booking status
+      await adminClient.from("bookings").update({ status: "cancelled", note: booking.note ? `${booking.note} | Admin cancelled` : "Admin cancelled" }).eq("id", booking_id);
+
+      // Refund hours if was confirmed
+      let hoursRefunded = 0;
+      if (booking.status === "confirmed") {
+        const isCoaching = booking.session_type === "coaching";
+        const hoursToRefund = isCoaching
+          ? Math.min(coachingCancellationRefundHours ?? coachingHours, coachingHours)
+          : booking.duration_minutes / 60;
+        hoursRefunded = hoursToRefund;
+
+        const { data: memberHours } = await adminClient.from("member_hours").select("*").eq("user_id", booking.user_id).single();
+        if (memberHours) {
+          await adminClient.from("member_hours").update({ hours_used: Math.max(0, memberHours.hours_used - hoursToRefund) }).eq("user_id", booking.user_id);
+        }
+
+        await adminClient.from("hours_transactions").insert({
+          user_id: booking.user_id,
+          type: "refund",
+          hours: hoursToRefund,
+          note: `Admin cancellation refund - ${bayName} - ${formatShortDate(booking.start_time, calTz)}`,
+          created_by: userId,
+        });
+      }
+
+      // Notify booking owner
+      await adminClient.from("notifications").insert({
+        user_id: booking.user_id,
+        title: "Booking Cancelled by Admin",
+        message: `Your ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${formatDateTime(booking.start_time, calTz)} has been cancelled by admin.${hoursRefunded > 0 ? ` ${hoursRefunded}h refunded.` : ""}`,
+        type: "booking",
+      });
+
+      // Send cancellation email
+      try {
+        await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+          body: JSON.stringify({
+            user_id: booking.user_id,
+            template: "booking_cancelled",
+            subject: "🚫 Booking Cancelled by Admin",
+            data: { bay: bayName, city: booking.city, date: formatDate(booking.start_time, calTz), time: formatTime(booking.start_time, calTz), duration: `${booking.duration_minutes} min`, hours_refunded: hoursRefunded },
+          }),
+        });
+      } catch (e) { console.error("Failed to send cancellation email:", e); }
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -189,6 +189,30 @@ export function useRejectBooking() {
   });
 }
 
+export function useAdminCancelBooking() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (bookingId: string) => {
+      const res = await supabase.functions.invoke("calendar-sync", {
+        body: { action: "admin_cancel_booking", booking_id: bookingId },
+      });
+      if (res.error) throw new Error(res.error.message || "Cancellation failed");
+      if (res.data?.error) throw new Error(res.data.error);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all_bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["available_slots"] });
+      queryClient.invalidateQueries({ queryKey: ["member_hours"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
+      queryClient.invalidateQueries({ queryKey: ["hours_transactions"] });
+    },
+  });
+}
+
 export function useMyBookings() {
   const { user } = useAuth();
   return useQuery({
@@ -230,7 +254,7 @@ export function useAllBookings() {
 
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("user_id, display_name, email");
+        .select("user_id, display_name, email, user_type");
 
       const profileMap = new Map(
         (profiles ?? []).map((p) => [p.user_id, p])
@@ -248,6 +272,7 @@ export function useAllBookings() {
         ...b,
         display_name: profileMap.get(b.user_id)?.display_name || "Unknown",
         email: profileMap.get(b.user_id)?.email || "",
+        user_type: profileMap.get(b.user_id)?.user_type || "non-registered",
         bay_name: bayMap.get(b.bay_id) || null,
       }));
     },
