@@ -54,6 +54,16 @@ export function AdminBookingLogsTab() {
     }
   };
 
+  const handleAdminCancel = async (id: string) => {
+    if (!window.confirm("Are you sure you want to cancel this booking? Hours will be refunded if applicable.")) return;
+    try {
+      await adminCancelBooking.mutateAsync(id);
+      toast({ title: "Booking Cancelled", description: "Booking has been cancelled and hours refunded." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
   if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
 
   const pendingCount = (bookings ?? []).filter((b: any) => b.status === "pending").length;
