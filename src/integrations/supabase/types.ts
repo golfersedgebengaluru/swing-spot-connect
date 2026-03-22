@@ -741,6 +741,7 @@ export type Database = {
           total_rounds: number | null
           updated_at: string
           user_id: string | null
+          user_type: string
         }
         Insert: {
           apple_user_id?: string | null
@@ -756,6 +757,7 @@ export type Database = {
           total_rounds?: number | null
           updated_at?: string
           user_id?: string | null
+          user_type?: string
         }
         Update: {
           apple_user_id?: string | null
@@ -771,6 +773,7 @@ export type Database = {
           total_rounds?: number | null
           updated_at?: string
           user_id?: string | null
+          user_type?: string
         }
         Relationships: []
       }
