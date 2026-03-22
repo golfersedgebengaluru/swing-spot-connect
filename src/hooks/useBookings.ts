@@ -272,6 +272,7 @@ export function useAllBookings() {
         ...b,
         display_name: profileMap.get(b.user_id)?.display_name || "Unknown",
         email: profileMap.get(b.user_id)?.email || "",
+        user_type: profileMap.get(b.user_id)?.user_type || "non-registered",
         bay_name: bayMap.get(b.bay_id) || null,
       }));
     },
