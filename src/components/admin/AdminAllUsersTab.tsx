@@ -139,12 +139,20 @@ export function AdminAllUsersTab() {
   const [viewingPointsHistory, setViewingPointsHistory] = useState<string | null>(null);
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
 
+  const USER_TYPES = [
+    { value: "member", label: "Member" },
+    { value: "registered", label: "Registered" },
+    { value: "non-registered", label: "Guest" },
+    { value: "birdie", label: "Birdie Member" },
+    { value: "coaching", label: "Coaching Member" },
+  ];
+
   const { data: allUsers, isLoading } = useQuery({
     queryKey: ["admin_all_users"],
     queryFn: async () => {
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, user_id, display_name, email, points, created_at")
+        .select("id, user_id, display_name, email, points, created_at, user_type")
         .order("created_at", { ascending: false });
       const { data: hours } = await supabase.from("member_hours").select("*");
       const hoursMap = new Map((hours ?? []).map((h: any) => [h.user_id, h]));
@@ -156,6 +164,16 @@ export function AdminAllUsersTab() {
       }));
     },
   });
+
+  const handleChangeUserType = async (profileId: string, newType: string) => {
+    const { error } = await supabase.from("profiles").update({ user_type: newType }).eq("id", profileId);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Membership updated" });
+      queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
+    }
+  };
 
   const loadProfiles = async () => {
     const { data } = await supabase.from("profiles").select("user_id, display_name, email, points");
