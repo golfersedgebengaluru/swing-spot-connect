@@ -158,6 +158,12 @@ export default function Profile() {
                       <Label className="text-muted-foreground text-xs uppercase tracking-wide">Tier</Label>
                       <p className="font-medium text-foreground mt-1 capitalize">{profile?.tier || "Bronze"}</p>
                     </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs uppercase tracking-wide">Membership</Label>
+                      <p className="font-medium text-foreground mt-1 capitalize">
+                        {({ member: "Member", registered: "Registered", "non-registered": "Guest", birdie: "Birdie Member", coaching: "Coaching Member" } as Record<string, string>)[profile?.user_type || "registered"] || profile?.user_type || "Registered"}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
