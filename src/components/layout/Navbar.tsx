@@ -11,7 +11,6 @@ import bannerLogo from "@/assets/golfers-edge-banner.jpg";
 
 const allNavLinks = [
   { href: "/dashboard", label: "Dashboard", visibilityKey: null },
-  { href: "/bookings", label: "Book Bay", visibilityKey: null },
   { href: "/my-bookings", label: "My Bookings", visibilityKey: null },
   { href: "/leaderboard", label: "Leaderboard", visibilityKey: "page_leaderboard_visible" },
   { href: "/events", label: "Events", visibilityKey: "page_events_visible" },
