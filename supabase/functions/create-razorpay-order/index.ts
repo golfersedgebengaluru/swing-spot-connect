@@ -42,16 +42,21 @@ serve(async (req) => {
       );
     }
 
-    if (!gateway.api_key || !gateway.api_secret) {
+    const apiKey = (gateway.api_key || "").trim();
+    const apiSecret = (gateway.api_secret || "").trim();
+
+    if (!apiKey || !apiSecret) {
       return new Response(
         JSON.stringify({ error: "Razorpay API credentials not configured for this city" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    console.log(`Using Razorpay key: ${apiKey.substring(0, 12)}... (${apiKey.length} chars), secret: ${apiSecret.length} chars, test_mode: ${gateway.is_test_mode}`);
+
     // Create Razorpay order via their API
     const razorpayUrl = "https://api.razorpay.com/v1/orders";
-    const auth = btoa(`${gateway.api_key}:${gateway.api_secret}`);
+    const auth = btoa(`${apiKey}:${apiSecret}`);
 
     const orderPayload = {
       amount: Math.round(amount * 100), // Razorpay expects paise
