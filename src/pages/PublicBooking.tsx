@@ -104,13 +104,29 @@ export default function PublicBooking() {
   const today = new Date();
   const maxDate = addDays(today, 30);
 
+  // Load Razorpay script
+  const loadRazorpayScript = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (document.getElementById("razorpay-script")) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.id = "razorpay-script";
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handleConfirmBooking = async () => {
     if (!selectedSlot || !endTime || !currentBay) return;
     setIsProcessing(true);
 
     try {
       if (user && paymentMethod === "hours") {
-        // Member booking with hours
+        // Member booking with hours — no payment needed
         await createBooking.mutateAsync({
           calendar_email: currentBay.calendar_email,
           start_time: selectedSlot,
@@ -124,46 +140,120 @@ export default function PublicBooking() {
         setBookingComplete(true);
         toast({ title: "Booking Confirmed!", description: "Hours have been deducted from your balance." });
       } else {
-        // Payment flow (simulated for now)
-        // For guests, store booking without user_id via edge function or direct insert
-        // For members paying, same flow but no hours deduction
-        if (user) {
-          await createBooking.mutateAsync({
-            calendar_email: currentBay.calendar_email,
-            start_time: selectedSlot,
-            end_time: endTime,
-            duration_minutes: duration,
-            city: selectedCity,
-            bay_id: currentBay.id,
-            bay_name: currentBay.name,
-            session_type: sessionType,
-          });
-        } else {
-          // Guest booking - insert directly via edge function
-          const res = await supabase.functions.invoke("calendar-sync", {
-            body: {
-              action: "guest_booking",
-              start_time: selectedSlot,
-              end_time: endTime,
-              duration_minutes: duration,
-              city: selectedCity,
-              bay_id: currentBay.id,
-              bay_name: currentBay.name,
-              session_type: sessionType,
-              guest_name: guestName,
-              guest_email: guestEmail,
-              guest_phone: guestPhone,
-              calendar_email: currentBay.calendar_email,
-            },
-          });
-          if (res.error) throw new Error(res.error.message || "Booking failed");
-          if (res.data?.error) throw new Error(res.data.error);
+        // Payment flow via Razorpay
+        if (totalCost <= 0) {
+          toast({ title: "Error", description: "Price not available for this selection.", variant: "destructive" });
+          setIsProcessing(false);
+          return;
         }
+
+        // 1. Create Razorpay order via edge function
+        const orderRes = await supabase.functions.invoke("create-razorpay-order", {
+          body: {
+            amount: totalCost,
+            currency: currentPrice?.currency || "INR",
+            city: selectedCity,
+            receipt: `booking_${Date.now()}`,
+            booking_summary: {
+              bay: currentBay.name,
+              city: selectedCity,
+              date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : "",
+              duration: `${duration / 60}h`,
+              session_type: sessionType,
+            },
+          },
+        });
+
+        if (orderRes.error || orderRes.data?.error) {
+          throw new Error(orderRes.data?.error || orderRes.error?.message || "Failed to create payment order");
+        }
+
+        const { order_id, key_id, currency: rzpCurrency } = orderRes.data;
+
+        // 2. Load Razorpay checkout script
+        const loaded = await loadRazorpayScript();
+        if (!loaded) {
+          throw new Error("Failed to load payment gateway. Please try again.");
+        }
+
+        // 3. Open Razorpay Checkout
+        await new Promise<void>((resolve, reject) => {
+          const options = {
+            key: key_id,
+            amount: Math.round(totalCost * 100),
+            currency: rzpCurrency || "INR",
+            name: "Golfer's Edge",
+            description: `${currentBay.name} · ${duration / 60}h ${sessionType}`,
+            order_id: order_id,
+            handler: async (response: any) => {
+              // Payment successful — now create the booking
+              try {
+                if (user) {
+                  await createBooking.mutateAsync({
+                    calendar_email: currentBay.calendar_email,
+                    start_time: selectedSlot,
+                    end_time: endTime!,
+                    duration_minutes: duration,
+                    city: selectedCity,
+                    bay_id: currentBay.id,
+                    bay_name: currentBay.name,
+                    session_type: sessionType,
+                  });
+                } else {
+                  // Guest booking
+                  const res = await supabase.functions.invoke("calendar-sync", {
+                    body: {
+                      action: "guest_booking",
+                      start_time: selectedSlot,
+                      end_time: endTime,
+                      duration_minutes: duration,
+                      city: selectedCity,
+                      bay_id: currentBay.id,
+                      bay_name: currentBay.name,
+                      session_type: sessionType,
+                      guest_name: guestName,
+                      guest_email: guestEmail,
+                      guest_phone: guestPhone,
+                      calendar_email: currentBay.calendar_email,
+                      payment_id: response.razorpay_payment_id,
+                      order_id: response.razorpay_order_id,
+                    },
+                  });
+                  if (res.error) throw new Error(res.error.message || "Booking failed");
+                  if (res.data?.error) throw new Error(res.data.error);
+                }
+                resolve();
+              } catch (err) {
+                reject(err);
+              }
+            },
+            prefill: {
+              name: user ? undefined : guestName,
+              email: user ? undefined : guestEmail,
+              contact: user ? undefined : guestPhone,
+            },
+            theme: { color: "#16a34a" },
+            modal: {
+              ondismiss: () => {
+                reject(new Error("Payment cancelled"));
+              },
+            },
+          };
+
+          const rzp = new (window as any).Razorpay(options);
+          rzp.on("payment.failed", (response: any) => {
+            reject(new Error(response.error?.description || "Payment failed"));
+          });
+          rzp.open();
+        });
+
         setBookingComplete(true);
         toast({ title: "Booking Confirmed!", description: "Payment processed successfully." });
       }
     } catch (err: any) {
-      toast({ title: "Booking Failed", description: err.message, variant: "destructive" });
+      if (err.message !== "Payment cancelled") {
+        toast({ title: "Booking Failed", description: err.message, variant: "destructive" });
+      }
     } finally {
       setIsProcessing(false);
     }
