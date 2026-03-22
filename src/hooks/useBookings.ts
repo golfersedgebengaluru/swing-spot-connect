@@ -254,7 +254,7 @@ export function useAllBookings() {
 
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("user_id, display_name, email");
+        .select("user_id, display_name, email, user_type");
 
       const profileMap = new Map(
         (profiles ?? []).map((p) => [p.user_id, p])
