@@ -15,6 +15,7 @@ export function AdminBookingLogsTab() {
   const { data: bays } = useBays();
   const approveBooking = useApproveBooking();
   const rejectBooking = useRejectBooking();
+  const adminCancelBooking = useAdminCancelBooking();
   const { toast } = useToast();
   const [cityFilter, setCityFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
