@@ -90,7 +90,7 @@ serve(async (req) => {
         order_id: order.id,
         amount: order.amount,
         currency: order.currency,
-        key_id: gateway.api_key, // Public key needed by checkout.js
+        key_id: apiKey,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

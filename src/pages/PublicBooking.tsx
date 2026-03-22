@@ -178,6 +178,20 @@ export default function PublicBooking() {
 
         // 3. Open Razorpay Checkout
         await new Promise<void>((resolve, reject) => {
+          let settled = false;
+
+          const finishResolve = () => {
+            if (settled) return;
+            settled = true;
+            resolve();
+          };
+
+          const finishReject = (error: Error) => {
+            if (settled) return;
+            settled = true;
+            reject(error);
+          };
+
           const options = {
             key: key_id,
             amount: Math.round(totalCost * 100),
@@ -186,8 +200,9 @@ export default function PublicBooking() {
             description: `${currentBay.name} · ${duration / 60}h ${sessionType}`,
             order_id: order_id,
             handler: async (response: any) => {
-              // Payment successful — now create the booking
               try {
+                setIsProcessing(true);
+
                 if (user) {
                   await createBooking.mutateAsync({
                     calendar_email: currentBay.calendar_email,
@@ -200,7 +215,6 @@ export default function PublicBooking() {
                     session_type: sessionType,
                   });
                 } else {
-                  // Guest booking
                   const res = await supabase.functions.invoke("calendar-sync", {
                     body: {
                       action: "guest_booking",
@@ -219,12 +233,14 @@ export default function PublicBooking() {
                       order_id: response.razorpay_order_id,
                     },
                   });
+
                   if (res.error) throw new Error(res.error.message || "Booking failed");
                   if (res.data?.error) throw new Error(res.data.error);
                 }
-                resolve();
+
+                finishResolve();
               } catch (err) {
-                reject(err);
+                finishReject(err instanceof Error ? err : new Error("Booking failed"));
               }
             },
             prefill: {
@@ -235,15 +251,18 @@ export default function PublicBooking() {
             theme: { color: "#16a34a" },
             modal: {
               ondismiss: () => {
-                reject(new Error("Payment cancelled"));
+                finishReject(new Error("Payment cancelled"));
               },
             },
           };
 
           const rzp = new (window as any).Razorpay(options);
+
           rzp.on("payment.failed", (response: any) => {
-            reject(new Error(response.error?.description || "Payment failed"));
+            finishReject(new Error(response?.error?.description || "Payment failed"));
           });
+
+          setIsProcessing(false);
           rzp.open();
         });
 
