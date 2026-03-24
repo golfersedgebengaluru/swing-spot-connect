@@ -34,7 +34,7 @@ export default function Dashboard() {
 
   const stats = [
     { label: "Current Handicap", value: "12.4", change: "-0.8", icon: Target, positive: true, tooltip: "" },
-    { label: "Hours Balance", value: `${balance?.remaining ?? 0}h`, change: "", icon: Clock, positive: true, tooltip: "Used to book practice sessions. 1 hour = 1 booking slot." },
+    { label: "Hours Balance", value: `${balance?.remaining ?? 0}`, change: "", icon: Clock, positive: true, tooltip: "Used to book practice sessions. 1 hour = 1 booking slot." },
     { label: "Leaderboard Rank", value: "#12", change: "+3", icon: Trophy, positive: true, tooltip: "" },
     { label: "Reward Points", value: currentPoints.toLocaleString(), change: "", icon: Gift, positive: true, tooltip: "Earned through activity. Redeem for perks in the Rewards section." },
   ];
@@ -130,7 +130,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <p className="font-medium text-foreground">Bay Hours</p>
-                    <p className="font-display text-3xl font-bold text-primary">{balance?.remaining ?? 0}h</p>
+                    <p className="font-display text-3xl font-bold text-primary">{balance?.remaining ?? 0}</p>
                     <p className="mt-1 text-xs text-muted-foreground">Used to book practice sessions. 1 hour = 1 booking slot.</p>
                     <Link to="/bookings">
                       <Button variant="link" size="sm" className="mt-1 h-auto p-0 text-xs">Book a bay <ArrowRight className="ml-1 h-3 w-3" /></Button>
