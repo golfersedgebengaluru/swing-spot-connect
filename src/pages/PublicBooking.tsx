@@ -204,7 +204,7 @@ export default function PublicBooking() {
                 setIsProcessing(true);
 
                 if (user) {
-                  await createBooking.mutateAsync({
+                  const bookingResult = await createBooking.mutateAsync({
                     calendar_email: currentBay.calendar_email,
                     start_time: selectedSlot,
                     end_time: endTime!,
@@ -214,6 +214,23 @@ export default function PublicBooking() {
                     bay_name: currentBay.name,
                     session_type: sessionType,
                   });
+                  // Create revenue transaction for registered user payment
+                  try {
+                    await supabase.from("revenue_transactions").insert({
+                      transaction_type: "payment" as any,
+                      amount: totalCost,
+                      currency: currentPrice?.currency || "INR",
+                      user_id: user.id,
+                      gateway_name: "razorpay",
+                      gateway_order_ref: response.razorpay_order_id,
+                      gateway_payment_ref: response.razorpay_payment_id,
+                      booking_id: (bookingResult as any)?.booking?.id || null,
+                      description: `Payment - ${currentBay.name} · ${duration / 60}h ${sessionType}`,
+                      status: "confirmed",
+                    });
+                  } catch (e) {
+                    console.error("Failed to create revenue transaction:", e);
+                  }
                 } else {
                   const res = await supabase.functions.invoke("calendar-sync", {
                     body: {
@@ -231,6 +248,9 @@ export default function PublicBooking() {
                       calendar_email: currentBay.calendar_email,
                       payment_id: response.razorpay_payment_id,
                       order_id: response.razorpay_order_id,
+                      amount: totalCost,
+                      currency: currentPrice?.currency || "INR",
+                      gateway_name: "razorpay",
                     },
                   });
 
