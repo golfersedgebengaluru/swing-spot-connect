@@ -127,13 +127,28 @@ export function AdminMembersTab() {
       });
       if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     }
-    await supabase.from("hours_transactions").insert({
+    const { data: htxn } = await supabase.from("hours_transactions").insert({
       user_id: data.user_id,
       type: "purchase",
       hours: data.hours_purchased,
       note: "Initial hours setup",
       created_by: user?.id,
-    });
+    }).select("id").single();
+
+    // Create revenue transaction for prepaid hours purchase
+    try {
+      await supabase.from("revenue_transactions").insert({
+        transaction_type: "payment" as any,
+        amount: 0, // Admin-side entry; amount can be updated if price is known
+        currency: "INR",
+        user_id: data.user_id,
+        hours_transaction_id: htxn?.id || null,
+        description: `Prepaid hours purchase - ${data.hours_purchased}h`,
+        status: "confirmed",
+      });
+    } catch (e) {
+      console.error("Failed to create revenue transaction:", e);
+    }
     toast({ title: "Member hours added" });
     queryClient.invalidateQueries({ queryKey: ["member_hours"] });
     setDialogOpen(null);
@@ -152,13 +167,30 @@ export function AdminMembersTab() {
     }).eq("user_id", member.user_id);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
 
-    await supabase.from("hours_transactions").insert({
+    const { data: htxn } = await supabase.from("hours_transactions").insert({
       user_id: member.user_id,
       type: data.type,
       hours: data.hours,
       note: data.note || null,
       created_by: user?.id,
-    });
+    }).select("id").single();
+
+    // Create revenue transaction for purchase-type adjustments
+    if (data.type === "purchase") {
+      try {
+        await supabase.from("revenue_transactions").insert({
+          transaction_type: "payment" as any,
+          amount: 0,
+          currency: "INR",
+          user_id: member.user_id,
+          hours_transaction_id: htxn?.id || null,
+          description: `Prepaid hours purchase - ${data.hours}h${data.note ? ` (${data.note})` : ""}`,
+          status: "confirmed",
+        });
+      } catch (e) {
+        console.error("Failed to create revenue transaction:", e);
+      }
+    }
 
     if (data.type === "deduction") {
       const remaining = newPurchased - newUsed;
