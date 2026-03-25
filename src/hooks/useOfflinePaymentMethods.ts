@@ -11,7 +11,7 @@ export function useOfflinePaymentMethods() {
         .eq("is_active", true)
         .order("sort_order");
       if (error) throw error;
-      return (data ?? []) as { id: string; label: string; is_active: boolean; sort_order: number }[];
+      return (data ?? []) as unknown as { id: string; label: string; is_active: boolean; sort_order: number }[];
     },
   });
 }
@@ -25,7 +25,7 @@ export function useAllOfflinePaymentMethods() {
         .select("*")
         .order("sort_order");
       if (error) throw error;
-      return (data ?? []) as { id: string; label: string; is_active: boolean; sort_order: number; created_at: string }[];
+      return (data ?? []) as unknown as { id: string; label: string; is_active: boolean; sort_order: number; created_at: string }[];
     },
   });
 }
