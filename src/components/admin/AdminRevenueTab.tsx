@@ -12,6 +12,7 @@ import {
   CreditCard, Clock, Users, ArrowUpDown,
 } from "lucide-react";
 import { useRevenueTransactions, useRevenueSummary, useActiveFinancialYear } from "@/hooks/useRevenue";
+import { useCities } from "@/hooks/useBookings";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, subYears, addMonths } from "date-fns";
 import { AdminFinancialYearsCard } from "./AdminFinancialYearsCard";
 
@@ -111,11 +112,13 @@ const typeColors: Record<string, string> = {
 
 export function AdminRevenueTab() {
   const { data: activeFY } = useActiveFinancialYear();
+  const { data: cities } = useCities();
   const [period, setPeriod] = useState<Period>("month");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [cityFilter, setCityFilter] = useState<string>("all");
   const [page, setPage] = useState(0);
 
   const dates = useMemo(() => {
@@ -125,13 +128,15 @@ export function AdminRevenueTab() {
     return getPeriodDates(period, activeFY?.start_date);
   }, [period, customStart, customEnd, activeFY]);
 
-  const { data: summary, isLoading: loadingSummary } = useRevenueSummary(dates.start, dates.end);
-  const { data: prevSummary } = useRevenueSummary(dates.prevStart || undefined, dates.prevEnd || undefined);
+  const selectedCity = cityFilter !== "all" ? cityFilter : undefined;
+  const { data: summary, isLoading: loadingSummary } = useRevenueSummary(dates.start, dates.end, selectedCity);
+  const { data: prevSummary } = useRevenueSummary(dates.prevStart || undefined, dates.prevEnd || undefined, selectedCity);
 
   const { data: txnResult, isLoading: loadingTxns } = useRevenueTransactions({
     startDate: dates.start,
     endDate: dates.end,
     type: typeFilter !== "all" ? typeFilter : undefined,
+    city: selectedCity,
     search: search || undefined,
     page,
     pageSize: 25,
@@ -147,10 +152,11 @@ export function AdminRevenueTab() {
 
   const handleExportCSV = () => {
     if (!transactions.length) return;
-    const headers = ["Date", "Type", "Description", "Amount", "Currency", "User/Guest", "Gateway", "Payment Ref", "Status"];
+    const headers = ["Date", "Type", "City", "Description", "Amount", "Currency", "User/Guest", "Gateway", "Payment Ref", "Status"];
     const rows = transactions.map((t: any) => [
       format(new Date(t.created_at), "yyyy-MM-dd HH:mm"),
       typeLabels[t.transaction_type] || t.transaction_type,
+      t.city || "",
       t.description || "",
       t.amount,
       t.currency,
@@ -295,6 +301,17 @@ export function AdminRevenueTab() {
             <SelectItem value="refund">Refund</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); setPage(0); }}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="All cities" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Cities</SelectItem>
+            {(cities ?? []).map((city) => (
+              <SelectItem key={city} value={city}>{city}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!transactions.length}>
           <Download className="mr-1 h-4 w-4" /> CSV
         </Button>
@@ -324,6 +341,7 @@ export function AdminRevenueTab() {
                       <TableHead>Date</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Description</TableHead>
+                      <TableHead>City</TableHead>
                       <TableHead>User/Guest</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead>Gateway</TableHead>
@@ -342,6 +360,7 @@ export function AdminRevenueTab() {
                           </Badge>
                         </TableCell>
                         <TableCell className="max-w-[200px] truncate text-sm">{t.description || "—"}</TableCell>
+                        <TableCell className="text-sm">{(t as any).city || "—"}</TableCell>
                         <TableCell className="text-sm">
                           {t.guest_name || (t.user_id ? t.user_id.substring(0, 8) + "…" : "—")}
                         </TableCell>

@@ -1,0 +1,1 @@
+ALTER TABLE public.revenue_transactions ADD COLUMN city text;

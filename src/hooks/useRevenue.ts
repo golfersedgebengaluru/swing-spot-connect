@@ -78,6 +78,7 @@ export function useRevenueTransactions(filters?: {
   endDate?: string;
   type?: string;
   search?: string;
+  city?: string;
   page?: number;
   pageSize?: number;
 }) {
@@ -95,6 +96,7 @@ export function useRevenueTransactions(filters?: {
       if (filters?.startDate) query = query.gte("created_at", filters.startDate);
       if (filters?.endDate) query = query.lte("created_at", filters.endDate + "T23:59:59.999Z");
       if (filters?.type) query = query.eq("transaction_type", filters.type);
+      if (filters?.city) query = query.eq("city", filters.city);
       if (filters?.search) {
         query = query.or(`description.ilike.%${filters.search}%,guest_name.ilike.%${filters.search}%,guest_email.ilike.%${filters.search}%,gateway_payment_ref.ilike.%${filters.search}%`);
       }
@@ -108,9 +110,9 @@ export function useRevenueTransactions(filters?: {
   });
 }
 
-export function useRevenueSummary(startDate?: string, endDate?: string) {
+export function useRevenueSummary(startDate?: string, endDate?: string, city?: string) {
   return useQuery({
-    queryKey: ["revenue_summary", startDate, endDate],
+    queryKey: ["revenue_summary", startDate, endDate, city],
     queryFn: async () => {
       let query = supabase
         .from("revenue_transactions")
@@ -118,6 +120,7 @@ export function useRevenueSummary(startDate?: string, endDate?: string) {
 
       if (startDate) query = query.gte("created_at", startDate);
       if (endDate) query = query.lte("created_at", endDate + "T23:59:59.999Z");
+      if (city) query = query.eq("city", city);
 
       const { data, error } = await query;
       if (error) throw error;
