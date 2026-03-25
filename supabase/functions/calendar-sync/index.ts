@@ -304,6 +304,26 @@ Deno.serve(async (req) => {
 
       if (bookingError) throw bookingError;
 
+      // Create revenue transaction for guest booking
+      try {
+        await adminClient.from("revenue_transactions").insert({
+          transaction_type: "guest_booking",
+          amount: params.amount || 0,
+          currency: params.currency || "INR",
+          guest_name,
+          guest_email,
+          guest_phone,
+          gateway_name: params.gateway_name || "razorpay",
+          gateway_order_ref: order_id || null,
+          gateway_payment_ref: payment_id || null,
+          booking_id: booking.id,
+          description: `Guest booking - ${bay_name || city} - ${guest_name}`,
+          status: "confirmed",
+        });
+      } catch (e) {
+        console.error("Failed to create revenue transaction for guest:", e);
+      }
+
       return new Response(JSON.stringify({ booking }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -489,13 +509,29 @@ Deno.serve(async (req) => {
           .update({ hours_used: (hours?.hours_used ?? 0) + hoursNeeded })
           .eq("user_id", userId);
 
-        await adminClient.from("hours_transactions").insert({
+        const { data: htxn } = await adminClient.from("hours_transactions").insert({
           user_id: userId,
           type: "deduction",
           hours: hoursNeeded,
           note: `${isCoaching ? "Coaching" : "Bay"} booking - ${bayLabel} - ${formatShortDate(start_time, calTz)}`,
           created_by: userId,
-        });
+        }).select("id").single();
+
+        // Create revenue transaction for hours deduction
+        try {
+          await adminClient.from("revenue_transactions").insert({
+            transaction_type: "hours_deduction",
+            amount: 0,
+            currency: "INR",
+            user_id: userId,
+            booking_id: booking.id,
+            hours_transaction_id: htxn?.id || null,
+            description: `${isCoaching ? "Coaching" : "Bay"} booking (${hoursNeeded}h) - ${bayLabel}`,
+            status: "confirmed",
+          });
+        } catch (e) {
+          console.error("Failed to create revenue transaction for hours deduction:", e);
+        }
 
         const remaining = (hours?.hours_purchased ?? 0) - (hours?.hours_used ?? 0) - hoursNeeded;
 
