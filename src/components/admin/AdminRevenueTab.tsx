@@ -308,6 +308,7 @@ export function AdminRevenueTab() {
             <SelectItem value="payment">Payment</SelectItem>
             <SelectItem value="hours_deduction">Hours Used</SelectItem>
             <SelectItem value="guest_booking">Guest Booking</SelectItem>
+            <SelectItem value="product_order">Shop Order</SelectItem>
             <SelectItem value="refund">Refund</SelectItem>
           </SelectContent>
         </Select>
