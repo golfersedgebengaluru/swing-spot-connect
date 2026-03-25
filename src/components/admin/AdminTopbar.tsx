@@ -10,6 +10,7 @@ interface AdminTopbarProps {
 
 const tabTitles: Record<string, string> = {
   dashboard: "Dashboard",
+  walkin: "Walk-in Booking",
   events: "Events",
   products: "Products",
   orders: "Orders",

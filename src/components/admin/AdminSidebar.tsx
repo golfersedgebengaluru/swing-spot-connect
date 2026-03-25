@@ -34,6 +34,7 @@ interface AdminSidebarProps {
 
 const coreItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "walkin", label: "Walk-in Booking", icon: CalendarDays },
   { id: "bookinglogs", label: "Bookings", icon: CalendarDays },
   { id: "members", label: "Members", icon: Users },
   { id: "bayconfig", label: "Bays", icon: MapPin },
