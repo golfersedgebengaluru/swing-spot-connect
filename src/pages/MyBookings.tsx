@@ -40,6 +40,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Navigate, useNavigate } from "react-router-dom";
 import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -79,6 +81,19 @@ export default function MyBookings() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [cancelTarget, setCancelTarget] = useState<any>(null);
   const [confirmingCancelId, setConfirmingCancelId] = useState<string | null>(null);
+
+  const { data: cancellationWindowHours = 24 } = useQuery({
+    queryKey: ["cancellation_window_hours"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("admin_config")
+        .select("value")
+        .eq("key", "cancellation_window_hours")
+        .single();
+      const parsed = parseFloat(data?.value ?? "");
+      return !isNaN(parsed) && parsed >= 0 ? parsed : 24;
+    },
+  });
 
   if (!authLoading && !user) return <Navigate to="/auth" />;
 
@@ -183,7 +198,7 @@ export default function MyBookings() {
 
   const canCancelBooking = (booking: any) => {
     const hoursUntil = (new Date(booking.start_time).getTime() - now.getTime()) / (1000 * 60 * 60);
-    return hoursUntil >= 24 && ["confirmed", "pending"].includes(booking.status);
+    return hoursUntil >= cancellationWindowHours && ["confirmed", "pending"].includes(booking.status);
   };
 
   // Mobile card for a booking
