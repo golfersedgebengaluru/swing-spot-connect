@@ -12,6 +12,7 @@ import {
   CreditCard, Clock, Users, ArrowUpDown,
 } from "lucide-react";
 import { useRevenueTransactions, useRevenueSummary, useActiveFinancialYear } from "@/hooks/useRevenue";
+import { useCities } from "@/hooks/useBookings";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, subYears, addMonths } from "date-fns";
 import { AdminFinancialYearsCard } from "./AdminFinancialYearsCard";
 
@@ -111,11 +112,13 @@ const typeColors: Record<string, string> = {
 
 export function AdminRevenueTab() {
   const { data: activeFY } = useActiveFinancialYear();
+  const { data: cities } = useCities();
   const [period, setPeriod] = useState<Period>("month");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [cityFilter, setCityFilter] = useState<string>("all");
   const [page, setPage] = useState(0);
 
   const dates = useMemo(() => {
@@ -125,13 +128,15 @@ export function AdminRevenueTab() {
     return getPeriodDates(period, activeFY?.start_date);
   }, [period, customStart, customEnd, activeFY]);
 
-  const { data: summary, isLoading: loadingSummary } = useRevenueSummary(dates.start, dates.end);
-  const { data: prevSummary } = useRevenueSummary(dates.prevStart || undefined, dates.prevEnd || undefined);
+  const selectedCity = cityFilter !== "all" ? cityFilter : undefined;
+  const { data: summary, isLoading: loadingSummary } = useRevenueSummary(dates.start, dates.end, selectedCity);
+  const { data: prevSummary } = useRevenueSummary(dates.prevStart || undefined, dates.prevEnd || undefined, selectedCity);
 
   const { data: txnResult, isLoading: loadingTxns } = useRevenueTransactions({
     startDate: dates.start,
     endDate: dates.end,
     type: typeFilter !== "all" ? typeFilter : undefined,
+    city: selectedCity,
     search: search || undefined,
     page,
     pageSize: 25,
