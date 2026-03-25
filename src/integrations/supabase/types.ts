@@ -811,6 +811,7 @@ export type Database = {
         Row: {
           amount: number
           booking_id: string | null
+          city: string | null
           created_at: string
           currency: string
           description: string | null
@@ -832,6 +833,7 @@ export type Database = {
         Insert: {
           amount?: number
           booking_id?: string | null
+          city?: string | null
           created_at?: string
           currency?: string
           description?: string | null
@@ -853,6 +855,7 @@ export type Database = {
         Update: {
           amount?: number
           booking_id?: string | null
+          city?: string | null
           created_at?: string
           currency?: string
           description?: string | null
