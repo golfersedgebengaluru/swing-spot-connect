@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import {
   DollarSign, Download, Loader2, Search, TrendingUp, TrendingDown,
-  CreditCard, Clock, Users, ArrowUpDown,
+  CreditCard, Clock, Users, ArrowUpDown, ShoppingBag,
 } from "lucide-react";
 import { useRevenueTransactions, useRevenueSummary, useActiveFinancialYear } from "@/hooks/useRevenue";
 import { useCities } from "@/hooks/useBookings";
@@ -101,6 +101,7 @@ const typeLabels: Record<string, string> = {
   payment: "Payment",
   hours_deduction: "Hours Used",
   guest_booking: "Guest Booking",
+  product_order: "Shop Order",
   refund: "Refund",
 };
 
@@ -108,6 +109,7 @@ const typeColors: Record<string, string> = {
   payment: "bg-green-100 text-green-800",
   hours_deduction: "bg-blue-100 text-blue-800",
   guest_booking: "bg-amber-100 text-amber-800",
+  product_order: "bg-purple-100 text-purple-800",
   refund: "bg-red-100 text-red-800",
 };
 
@@ -206,7 +208,7 @@ export function AdminRevenueTab() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
@@ -277,6 +279,22 @@ export function AdminRevenueTab() {
             </div>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Shop Orders</p>
+                <p className="mt-1 font-display text-2xl font-bold text-foreground">
+                  {loadingSummary ? "…" : `₹${(summary?.byType?.product_order ?? 0).toLocaleString()}`}
+                </p>
+              </div>
+              <div className="rounded-xl bg-purple-100 p-3">
+                <ShoppingBag className="h-5 w-5 text-purple-700" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* User Spend Breakdown */}
@@ -306,6 +324,7 @@ export function AdminRevenueTab() {
             <SelectItem value="payment">Payment</SelectItem>
             <SelectItem value="hours_deduction">Hours Used</SelectItem>
             <SelectItem value="guest_booking">Guest Booking</SelectItem>
+            <SelectItem value="product_order">Shop Order</SelectItem>
             <SelectItem value="refund">Refund</SelectItem>
           </SelectContent>
         </Select>

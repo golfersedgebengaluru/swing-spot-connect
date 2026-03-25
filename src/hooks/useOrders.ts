@@ -50,11 +50,29 @@ export function useCreateOrder() {
         .select()
         .single();
       if (error) throw error;
+
+      // Record revenue transaction for product order
+      if (params.total_price > 0) {
+        const itemsSummary = params.items.map(i => `${i.quantity}× ${i.name}`).join(", ");
+        await supabase.from("revenue_transactions").insert({
+          user_id: user!.id,
+          transaction_type: "product_order",
+          amount: params.total_price,
+          currency: "INR",
+          city: params.city || null,
+          description: `Shop order: ${itemsSummary}`,
+          status: "confirmed",
+          metadata: { order_id: data.id, items: params.items },
+        } as any);
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my_orders"] });
       queryClient.invalidateQueries({ queryKey: ["admin_orders"] });
+      queryClient.invalidateQueries({ queryKey: ["revenue_transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["revenue_summary"] });
     },
   });
 }
