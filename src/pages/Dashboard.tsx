@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -7,10 +8,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { TrendingUp, Trophy, Calendar, Gift, Target, Clock, ArrowRight, HelpCircle, Package, Loader2, Timer, CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useUserPoints } from "@/hooks/usePoints";
-import { useUserHoursBalance } from "@/hooks/useBookings";
+import { useUserHoursBalance, useUserProfile } from "@/hooks/useBookings";
 import { useHourPackages } from "@/hooks/usePricing";
 import { useAuth } from "@/contexts/AuthContext";
 import { EmailPreferencesCard } from "@/components/EmailPreferencesCard";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 const recentRounds = [
   { date: "Nov 28", course: "Bay 3", score: 78, par: 72 },
