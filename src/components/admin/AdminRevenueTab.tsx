@@ -340,6 +340,7 @@ export function AdminRevenueTab() {
                       <TableHead>Date</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Description</TableHead>
+                      <TableHead>City</TableHead>
                       <TableHead>User/Guest</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead>Gateway</TableHead>
@@ -358,6 +359,7 @@ export function AdminRevenueTab() {
                           </Badge>
                         </TableCell>
                         <TableCell className="max-w-[200px] truncate text-sm">{t.description || "—"}</TableCell>
+                        <TableCell className="text-sm">{(t as any).city || "—"}</TableCell>
                         <TableCell className="text-sm">
                           {t.guest_name || (t.user_id ? t.user_id.substring(0, 8) + "…" : "—")}
                         </TableCell>
