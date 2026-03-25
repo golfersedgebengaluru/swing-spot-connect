@@ -696,13 +696,29 @@ Deno.serve(async (req) => {
         .update({ hours_used: (hours?.hours_used ?? 0) + hoursNeeded })
         .eq("user_id", booking.user_id);
 
-      await adminClient.from("hours_transactions").insert({
+      const { data: htxn } = await adminClient.from("hours_transactions").insert({
         user_id: booking.user_id,
         type: "deduction",
         hours: hoursNeeded,
         note: `Coaching approved - ${bayName} - ${formatShortDate(booking.start_time, calTz)}`,
         created_by: userId,
-      });
+      }).select("id").single();
+
+      // Revenue transaction for coaching approval
+      try {
+        await adminClient.from("revenue_transactions").insert({
+          transaction_type: "hours_deduction",
+          amount: 0,
+          currency: "INR",
+          user_id: booking.user_id,
+          booking_id: booking_id,
+          hours_transaction_id: htxn?.id || null,
+          description: `Coaching approved (${hoursNeeded}h) - ${bayName}`,
+          status: "confirmed",
+        });
+      } catch (e) {
+        console.error("Failed to create revenue transaction for coaching approval:", e);
+      }
 
       // Update calendar event title
       if (booking.calendar_event_id && calendarEmail) {
