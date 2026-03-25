@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import {
   DollarSign, Download, Loader2, Search, TrendingUp, TrendingDown,
-  CreditCard, Clock, Users, ArrowUpDown,
+  CreditCard, Clock, Users, ArrowUpDown, ShoppingBag,
 } from "lucide-react";
 import { useRevenueTransactions, useRevenueSummary, useActiveFinancialYear } from "@/hooks/useRevenue";
 import { useCities } from "@/hooks/useBookings";
@@ -208,7 +208,7 @@ export function AdminRevenueTab() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
@@ -275,6 +275,22 @@ export function AdminRevenueTab() {
               </div>
               <div className="rounded-xl bg-amber-100 p-3">
                 <Users className="h-5 w-5 text-amber-700" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Shop Orders</p>
+                <p className="mt-1 font-display text-2xl font-bold text-foreground">
+                  {loadingSummary ? "…" : `₹${(summary?.byType?.product_order ?? 0).toLocaleString()}`}
+                </p>
+              </div>
+              <div className="rounded-xl bg-purple-100 p-3">
+                <ShoppingBag className="h-5 w-5 text-purple-700" />
               </div>
             </div>
           </CardContent>
