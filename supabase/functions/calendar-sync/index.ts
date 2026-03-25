@@ -217,6 +217,7 @@ Deno.serve(async (req) => {
     // Guest booking does not require authentication
     if (action === "guest_booking") {
       const {
+        payment_id, order_id,
         start_time, end_time, duration_minutes, city, bay_id, bay_name,
         session_type, guest_name, guest_email, guest_phone, calendar_email,
       } = params;
