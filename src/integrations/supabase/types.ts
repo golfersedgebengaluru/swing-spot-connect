@@ -406,6 +406,36 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_years: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: string
+          is_active: boolean
+          label: string
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          is_active?: boolean
+          label: string
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       hour_packages: {
         Row: {
           created_at: string
@@ -776,6 +806,94 @@ export type Database = {
           user_type?: string
         }
         Relationships: []
+      }
+      revenue_transactions: {
+        Row: {
+          amount: number
+          booking_id: string | null
+          created_at: string
+          currency: string
+          description: string | null
+          gateway_name: string | null
+          gateway_order_ref: string | null
+          gateway_payment_ref: string | null
+          guest_email: string | null
+          guest_name: string | null
+          guest_phone: string | null
+          hours_transaction_id: string | null
+          id: string
+          metadata: Json | null
+          original_transaction_id: string | null
+          status: string
+          transaction_type: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          amount?: number
+          booking_id?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          gateway_name?: string | null
+          gateway_order_ref?: string | null
+          gateway_payment_ref?: string | null
+          guest_email?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
+          hours_transaction_id?: string | null
+          id?: string
+          metadata?: Json | null
+          original_transaction_id?: string | null
+          status?: string
+          transaction_type: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          booking_id?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          gateway_name?: string | null
+          gateway_order_ref?: string | null
+          gateway_payment_ref?: string | null
+          guest_email?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
+          hours_transaction_id?: string | null
+          id?: string
+          metadata?: Json | null
+          original_transaction_id?: string | null
+          status?: string
+          transaction_type?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revenue_transactions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revenue_transactions_hours_transaction_id_fkey"
+            columns: ["hours_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "hours_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revenue_transactions_original_transaction_id_fkey"
+            columns: ["original_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "revenue_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rewards: {
         Row: {

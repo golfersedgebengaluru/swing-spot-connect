@@ -13,6 +13,7 @@ import { AdminEmailLogsTab } from "@/components/admin/AdminEmailLogsTab";
 import { BayConfigTab } from "@/components/admin/BayConfigTab";
 import { AdminPaymentsTab } from "@/components/admin/AdminPaymentsTab";
 import { AdminPricingTab } from "@/components/admin/AdminPricingTab";
+import { AdminRevenueTab } from "@/components/admin/AdminRevenueTab";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminTopbar, getTabTitle } from "@/components/admin/AdminTopbar";
 
@@ -30,6 +31,7 @@ const tabComponents: Record<string, React.ComponentType> = {
   payments: AdminPaymentsTab,
   pricing: AdminPricingTab,
   emails: AdminEmailLogsTab,
+  revenue: AdminRevenueTab,
   settings: AdminSettingsTab,
 };
 

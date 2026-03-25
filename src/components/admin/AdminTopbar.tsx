@@ -22,6 +22,7 @@ const tabTitles: Record<string, string> = {
   payments: "Payments",
   pricing: "Pricing",
   emails: "Emails",
+  revenue: "Revenue & Reporting",
   settings: "Settings",
 };
 
