@@ -373,8 +373,13 @@ export default function Dashboard() {
                       <p className="font-display text-3xl font-bold text-foreground">{pkg.hours}h</p>
                       <p className="text-sm text-muted-foreground mt-1">{pkg.label}</p>
                       <p className="font-display text-xl font-bold text-primary mt-3">₹{pkg.price.toLocaleString()}</p>
-                      <Button className="w-full mt-4" variant={pkg.hours === 25 ? "default" : "outline"}>
-                        Buy Now
+                      <Button
+                        className="w-full mt-4"
+                        variant={pkg.hours === 25 ? "default" : "outline"}
+                        onClick={() => handleBuyHours(pkg)}
+                        disabled={buyingPkgId === pkg.id}
+                      >
+                        {buyingPkgId === pkg.id ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</> : "Buy Now"}
                       </Button>
                     </div>
                   ))}
