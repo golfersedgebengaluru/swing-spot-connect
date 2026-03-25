@@ -30,11 +30,133 @@ const upcomingEvents = [
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: currentPoints = 0 } = useUserPoints();
   const { data: balance } = useUserHoursBalance();
   const { data: hourPackages, isLoading: loadingPackages } = useHourPackages();
+  const { data: profile } = useUserProfile();
+  const [buyingPkgId, setBuyingPkgId] = useState<string | null>(null);
   const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || "Golfer";
   const activePackages = (hourPackages ?? []).filter((p: any) => p.is_active && p.price > 0);
+
+  const loadRazorpayScript = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (document.getElementById("razorpay-script")) { resolve(true); return; }
+      const script = document.createElement("script");
+      script.id = "razorpay-script";
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleBuyHours = async (pkg: any) => {
+    if (!user) return;
+    const city = profile?.preferred_city;
+    if (!city) {
+      toast({ title: "Set your city first", description: "Please set your preferred city in your profile before purchasing.", variant: "destructive" });
+      return;
+    }
+    setBuyingPkgId(pkg.id);
+    try {
+      // 1. Create Razorpay order
+      const orderRes = await supabase.functions.invoke("create-razorpay-order", {
+        body: {
+          amount: pkg.price,
+          currency: pkg.currency || "INR",
+          city,
+          receipt: `hours_${pkg.hours}h_${Date.now()}`,
+          booking_summary: { type: "hour_package", hours: pkg.hours, label: pkg.label },
+        },
+      });
+      if (orderRes.error || orderRes.data?.error) throw new Error(orderRes.data?.error || orderRes.error?.message || "Failed to create order");
+
+      const { order_id, key_id, currency: rzpCurrency } = orderRes.data;
+
+      // 2. Load Razorpay
+      const loaded = await loadRazorpayScript();
+      if (!loaded) throw new Error("Failed to load payment gateway");
+
+      // 3. Open checkout
+      await new Promise<void>((resolve, reject) => {
+        let settled = false;
+        const finish = (fn: () => void) => { if (!settled) { settled = true; fn(); } };
+
+        const rzp = new (window as any).Razorpay({
+          key: key_id,
+          amount: Math.round(pkg.price * 100),
+          currency: rzpCurrency || "INR",
+          name: "Golfer's Edge",
+          description: `${pkg.hours}h Hour Package - ${pkg.label}`,
+          order_id,
+          handler: async (response: any) => {
+            try {
+              // Credit hours to user
+              const { data: existing } = await supabase
+                .from("member_hours")
+                .select("id, hours_purchased")
+                .eq("user_id", user.id)
+                .maybeSingle();
+
+              if (existing) {
+                await supabase.from("member_hours").update({
+                  hours_purchased: existing.hours_purchased + pkg.hours,
+                }).eq("id", existing.id);
+              } else {
+                await supabase.from("member_hours").insert({
+                  user_id: user.id,
+                  hours_purchased: pkg.hours,
+                  hours_used: 0,
+                });
+              }
+
+              const { data: htxn } = await supabase.from("hours_transactions").insert({
+                user_id: user.id,
+                type: "purchase",
+                hours: pkg.hours,
+                note: `Purchased ${pkg.hours}h package (₹${pkg.price})`,
+              }).select("id").single();
+
+              // Create revenue transaction
+              await supabase.from("revenue_transactions").insert({
+                transaction_type: "payment" as any,
+                amount: pkg.price,
+                currency: pkg.currency || "INR",
+                user_id: user.id,
+                hours_transaction_id: htxn?.id || null,
+                gateway_name: "razorpay",
+                gateway_order_ref: response.razorpay_order_id,
+                gateway_payment_ref: response.razorpay_payment_id,
+                description: `Hour package purchase - ${pkg.hours}h (${pkg.label})`,
+                status: "confirmed",
+              });
+
+              queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
+              queryClient.invalidateQueries({ queryKey: ["member_hours"] });
+              finish(() => resolve());
+            } catch (err) {
+              finish(() => reject(err instanceof Error ? err : new Error("Failed to credit hours")));
+            }
+          },
+          theme: { color: "#16a34a" },
+          modal: { ondismiss: () => finish(() => reject(new Error("Payment cancelled"))) },
+        });
+        rzp.on("payment.failed", (r: any) => finish(() => reject(new Error(r?.error?.description || "Payment failed"))));
+        setBuyingPkgId(null);
+        rzp.open();
+      });
+
+      toast({ title: "Hours Purchased!", description: `${pkg.hours} hours have been added to your balance.` });
+    } catch (err: any) {
+      if (err.message !== "Payment cancelled") {
+        toast({ title: "Purchase Failed", description: err.message, variant: "destructive" });
+      }
+    } finally {
+      setBuyingPkgId(null);
+    }
+  };
 
   const stats = [
     { label: "Current Handicap", value: "12.4", change: "-0.8", icon: Target, positive: true, tooltip: "" },
