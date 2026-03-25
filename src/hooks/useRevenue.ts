@@ -116,7 +116,7 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
     queryFn: async () => {
       let query = supabase
         .from("revenue_transactions")
-        .select("transaction_type, amount, status, user_id, guest_name, created_at");
+        .select("transaction_type, amount, status, user_id, guest_name, guest_email, created_at");
 
       if (startDate) query = query.gte("created_at", startDate);
       if (endDate) query = query.lte("created_at", endDate + "T23:59:59.999Z");
@@ -143,7 +143,7 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
 
       // Breakdown by user
       const byUser: Record<string, { name: string; amount: number; count: number }> = {};
-      const guestTotal = { amount: 0, count: 0 };
+      const byGuest: Record<string, { name: string; email: string; amount: number; count: number }> = {};
 
       for (const t of confirmed.filter((t) => t.transaction_type !== "refund")) {
         if (t.user_id) {
@@ -151,12 +151,28 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
           byUser[t.user_id].amount += Number(t.amount);
           byUser[t.user_id].count += 1;
         } else if (t.guest_name) {
-          guestTotal.amount += Number(t.amount);
-          guestTotal.count += 1;
+          const key = t.guest_email || t.guest_name;
+          if (!byGuest[key]) byGuest[key] = { name: t.guest_name, email: t.guest_email || "", amount: 0, count: 0 };
+          byGuest[key].amount += Number(t.amount);
+          byGuest[key].count += 1;
         }
       }
 
-      return { totalRevenue, totalRefunds, netRevenue: totalRevenue - totalRefunds, byType, byUser, guestTotal, totalCount: transactions.length };
+      // Fetch display names for registered users
+      const userIds = Object.keys(byUser);
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, display_name, email, user_type")
+          .in("user_id", userIds);
+        for (const p of profiles ?? []) {
+          if (p.user_id && byUser[p.user_id]) {
+            byUser[p.user_id].name = p.display_name || p.email || p.user_id;
+          }
+        }
+      }
+
+      return { totalRevenue, totalRefunds, netRevenue: totalRevenue - totalRefunds, byType, byUser, byGuest, totalCount: transactions.length };
     },
     enabled: !!startDate && !!endDate,
   });
