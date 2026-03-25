@@ -974,14 +974,30 @@ Deno.serve(async (req) => {
             .eq("user_id", userId);
         }
 
-        const { error: txError } = await adminClient.from("hours_transactions").insert({
+        const { data: refundTxn, error: txError } = await adminClient.from("hours_transactions").insert({
           user_id: userId,
           type: "refund",
           hours: hoursToRefund,
           note: `Cancellation refund - ${bayName} - ${formatShortDate(booking.start_time, calTz)}`,
           created_by: userId,
-        });
+        }).select("id").single();
         if (txError) console.error("Failed to insert refund transaction:", txError);
+
+        // Revenue refund transaction
+        try {
+          await adminClient.from("revenue_transactions").insert({
+            transaction_type: "refund",
+            amount: 0,
+            currency: "INR",
+            user_id: userId,
+            booking_id: booking.id,
+            hours_transaction_id: refundTxn?.id || null,
+            description: `Cancellation refund (${hoursToRefund}h) - ${bayName}`,
+            status: "confirmed",
+          });
+        } catch (e) {
+          console.error("Failed to create revenue refund transaction:", e);
+        }
       }
 
       // User notification
@@ -1105,13 +1121,29 @@ Deno.serve(async (req) => {
           await adminClient.from("member_hours").update({ hours_used: Math.max(0, memberHours.hours_used - hoursToRefund) }).eq("user_id", booking.user_id);
         }
 
-        await adminClient.from("hours_transactions").insert({
+        const { data: refundTxn } = await adminClient.from("hours_transactions").insert({
           user_id: booking.user_id,
           type: "refund",
           hours: hoursToRefund,
           note: `Admin cancellation refund - ${bayName} - ${formatShortDate(booking.start_time, calTz)}`,
           created_by: userId,
-        });
+        }).select("id").single();
+
+        // Revenue refund transaction
+        try {
+          await adminClient.from("revenue_transactions").insert({
+            transaction_type: "refund",
+            amount: 0,
+            currency: "INR",
+            user_id: booking.user_id,
+            booking_id: booking_id,
+            hours_transaction_id: refundTxn?.id || null,
+            description: `Admin cancellation refund (${hoursToRefund}h) - ${bayName}`,
+            status: "confirmed",
+          });
+        } catch (e) {
+          console.error("Failed to create revenue refund transaction:", e);
+        }
       }
 
       // Notify booking owner
