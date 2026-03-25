@@ -152,10 +152,11 @@ export function AdminRevenueTab() {
 
   const handleExportCSV = () => {
     if (!transactions.length) return;
-    const headers = ["Date", "Type", "Description", "Amount", "Currency", "User/Guest", "Gateway", "Payment Ref", "Status"];
+    const headers = ["Date", "Type", "City", "Description", "Amount", "Currency", "User/Guest", "Gateway", "Payment Ref", "Status"];
     const rows = transactions.map((t: any) => [
       format(new Date(t.created_at), "yyyy-MM-dd HH:mm"),
       typeLabels[t.transaction_type] || t.transaction_type,
+      t.city || "",
       t.description || "",
       t.amount,
       t.currency,
