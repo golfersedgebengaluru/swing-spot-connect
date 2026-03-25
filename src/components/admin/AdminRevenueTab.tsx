@@ -15,6 +15,7 @@ import { useRevenueTransactions, useRevenueSummary, useActiveFinancialYear } fro
 import { useCities } from "@/hooks/useBookings";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, subYears, addMonths } from "date-fns";
 import { AdminFinancialYearsCard } from "./AdminFinancialYearsCard";
+import { RevenueUserBreakdown } from "./RevenueUserBreakdown";
 
 type Period = "week" | "month" | "quarter" | "year" | "custom";
 
@@ -277,6 +278,13 @@ export function AdminRevenueTab() {
           </CardContent>
         </Card>
       </div>
+
+      {/* User Spend Breakdown */}
+      <RevenueUserBreakdown
+        byUser={summary?.byUser ?? {}}
+        byGuest={summary?.byGuest ?? {}}
+        isLoading={loadingSummary}
+      />
 
       {/* Filters + Export */}
       <div className="flex flex-wrap items-center gap-3">
