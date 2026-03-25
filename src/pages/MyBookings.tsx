@@ -162,6 +162,8 @@ export default function MyBookings() {
   }, [bookings, statusFilter, sortField, sortDir]);
 
   if (!authLoading && !user) return <Navigate to="/auth" />;
+
+  const toggleSort = (field: SortField) => {
     if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setSortField(field); setSortDir("desc"); }
   };
