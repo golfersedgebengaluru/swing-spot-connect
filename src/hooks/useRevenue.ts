@@ -91,6 +91,7 @@ export function useRevenueTransactions(filters?: {
       let query = supabase
         .from("revenue_transactions")
         .select("*", { count: "exact" })
+        .neq("transaction_type", "hours_deduction")
         .order("created_at", { ascending: false });
 
       if (filters?.startDate) query = query.gte("created_at", filters.startDate);
@@ -116,7 +117,8 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
     queryFn: async () => {
       let query = supabase
         .from("revenue_transactions")
-        .select("transaction_type, amount, status, user_id, guest_name, guest_email, created_at");
+        .select("transaction_type, amount, status, user_id, guest_name, guest_email, created_at")
+        .neq("transaction_type", "hours_deduction");
 
       if (startDate) query = query.gte("created_at", startDate);
       if (endDate) query = query.lte("created_at", endDate + "T23:59:59.999Z");
