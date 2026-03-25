@@ -300,6 +300,17 @@ export function AdminRevenueTab() {
             <SelectItem value="refund">Refund</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); setPage(0); }}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="All cities" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Cities</SelectItem>
+            {(cities ?? []).map((city) => (
+              <SelectItem key={city} value={city}>{city}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!transactions.length}>
           <Download className="mr-1 h-4 w-4" /> CSV
         </Button>
