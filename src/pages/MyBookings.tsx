@@ -95,7 +95,7 @@ export default function MyBookings() {
     },
   });
 
-  if (!authLoading && !user) return <Navigate to="/auth" />;
+  
 
   // Get cancellation penalty info for a booking
   const getCancelInfo = (booking: any) => {
@@ -161,7 +161,7 @@ export default function MyBookings() {
     return list;
   }, [bookings, statusFilter, sortField, sortDir]);
 
-  const toggleSort = (field: SortField) => {
+  if (!authLoading && !user) return <Navigate to="/auth" />;
     if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setSortField(field); setSortDir("desc"); }
   };
