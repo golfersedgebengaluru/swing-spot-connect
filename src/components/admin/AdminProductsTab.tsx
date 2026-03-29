@@ -27,12 +27,19 @@ function ProductForm({ product, onSave, onCancel }: { product?: any; onSave: (da
     colors: product?.colors?.join(", ") ?? "",
     in_stock: product?.in_stock ?? true,
     sort_order: product?.sort_order ?? 0,
+    item_type: product?.item_type ?? "product",
+    hsn_code: product?.hsn_code ?? "",
+    sac_code: product?.sac_code ?? "",
+    gst_rate: product?.gst_rate ?? 0,
   });
 
   const handleSave = () => {
     onSave({
       ...form,
       price: Number(form.price),
+      gst_rate: Number(form.gst_rate),
+      hsn_code: form.item_type === "product" ? (form.hsn_code || null) : null,
+      sac_code: form.item_type === "service" ? (form.sac_code || null) : null,
       sizes: form.sizes ? form.sizes.split(",").map((s: string) => s.trim()).filter(Boolean) : null,
       colors: form.colors ? form.colors.split(",").map((s: string) => s.trim()).filter(Boolean) : null,
       badge: form.badge || null,
@@ -45,7 +52,7 @@ function ProductForm({ product, onSave, onCancel }: { product?: any; onSave: (da
       <div><Label>Description</Label><RichTextEditor content={form.description} onChange={(html) => setForm({ ...form, description: html })} minHeight="120px" /></div>
       <div className="grid grid-cols-2 gap-4">
         <div><Label>Price</Label><Input type="number" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></div>
-        <div><Label>Type</Label>
+        <div><Label>Display Type</Label>
           <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -55,6 +62,46 @@ function ProductForm({ product, onSave, onCancel }: { product?: any; onSave: (da
           </Select>
         </div>
       </div>
+
+      {/* GST Classification */}
+      <div className="rounded-lg border border-border p-4 space-y-4 bg-muted/30">
+        <h4 className="text-sm font-medium text-foreground">GST Classification</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>Item Type</Label>
+            <Select value={form.item_type} onValueChange={(v) => setForm({ ...form, item_type: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="product">Product (Goods)</SelectItem>
+                <SelectItem value="service">Service</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>{form.item_type === "service" ? "SAC Code" : "HSN Code"}</Label>
+            <Input
+              value={form.item_type === "service" ? form.sac_code : form.hsn_code}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  ...(form.item_type === "service" ? { sac_code: e.target.value } : { hsn_code: e.target.value }),
+                })
+              }
+              placeholder={form.item_type === "service" ? "e.g. 998311" : "e.g. 6110"}
+            />
+          </div>
+        </div>
+        <div className="max-w-[200px]">
+          <Label>GST Rate (%)</Label>
+          <Input type="number" step="0.01" min={0} value={form.gst_rate} onChange={(e) => setForm({ ...form, gst_rate: e.target.value })} placeholder="18" />
+          {Number(form.gst_rate) > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">
+              CGST: {(Number(form.gst_rate) / 2).toFixed(1)}% + SGST: {(Number(form.gst_rate) / 2).toFixed(1)}%
+            </p>
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div><Label>Category</Label><Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="coffee, beer, apparel..." /></div>
         <div><Label>Badge</Label><Input value={form.badge} onChange={(e) => setForm({ ...form, badge: e.target.value })} placeholder="e.g. Premium" /></div>
@@ -119,8 +166,18 @@ export function AdminProductsTab() {
             <Card key={product.id} className="shadow-elegant">
               <CardContent className="flex items-center justify-between p-4">
                 <div>
-                  <h3 className="font-medium text-foreground">{product.name}</h3>
-                  <p className="text-sm text-muted-foreground">{currency.format(Number(product.price))} · {product.type} · {product.category}</p>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium text-foreground">{product.name}</h3>
+                    <Badge variant="outline" className="text-[10px]">
+                      {(product as any).item_type === "service" ? "Service" : "Product"}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {currency.format(Number(product.price))} · {product.type} · {product.category}
+                    {Number((product as any).gst_rate) > 0 && ` · GST ${(product as any).gst_rate}%`}
+                    {(product as any).hsn_code && ` · HSN: ${(product as any).hsn_code}`}
+                    {(product as any).sac_code && ` · SAC: ${(product as any).sac_code}`}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   {!product.in_stock && <Badge variant="secondary">Out of stock</Badge>}

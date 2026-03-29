@@ -14,6 +14,7 @@ import {
   ChevronRight,
   PanelLeftClose,
   X,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -44,6 +45,7 @@ const coreItems = [
 const operationsItems = [
   { id: "products", label: "Products", icon: ShoppingBag },
   { id: "orders", label: "Orders", icon: ClipboardList },
+  { id: "finance", label: "Finance", icon: Receipt },
 ];
 
 const configItems = [
