@@ -27,9 +27,22 @@ function BayPricingSection() {
   const { toast } = useToast();
   const { data: pricing, isLoading } = useBayPricing();
   const { data: bays } = useBays();
+  const { data: allProducts } = useAllProducts();
   const upsert = useUpsertBayPricing();
   const [edits, setEdits] = useState<Record<string, string>>({});
+  const [serviceEdits, setServiceEdits] = useState<Record<string, string | null>>({});
   const [selectedCity, setSelectedCity] = useState<string>("");
+
+  const services = useMemo(() =>
+    (allProducts ?? []).filter((p: any) => p.item_type === "service"),
+    [allProducts]
+  );
+
+  const serviceMap = useMemo(() => {
+    const m: Record<string, any> = {};
+    services.forEach((s: any) => { m[s.id] = s; });
+    return m;
+  }, [services]);
 
   const cities = useMemo(() => {
     const set = new Set((bays ?? []).map((b: any) => b.city));
@@ -38,7 +51,6 @@ function BayPricingSection() {
 
   const effectiveCity = selectedCity || cities[0] || "";
 
-  // Build a map: `${day_type}_${session_type}` → pricing row
   const pricingMap = useMemo(() => {
     const map: Record<string, any> = {};
     (pricing ?? [])
@@ -57,8 +69,19 @@ function BayPricingSection() {
     return pricingMap[k]?.price_per_hour?.toString() ?? "0";
   };
 
+  const getServiceId = (session: string) => {
+    // Service is linked per session type (same across day types for a city)
+    const weekdayKey = `weekday_${session}`;
+    if (serviceEdits[session] !== undefined) return serviceEdits[session];
+    return pricingMap[weekdayKey]?.service_product_id ?? null;
+  };
+
   const handleChange = (day: string, session: string, value: string) => {
     setEdits((prev) => ({ ...prev, [getKey(day, session)]: value }));
+  };
+
+  const handleServiceChange = (session: string, value: string) => {
+    setServiceEdits((prev) => ({ ...prev, [session]: value === "none" ? null : value }));
   };
 
   const handleSave = async () => {
@@ -66,16 +89,24 @@ function BayPricingSection() {
     for (const day of DAY_TYPES) {
       for (const session of SESSION_TYPES) {
         const k = getKey(day.key, session.key);
-        const val = edits[k];
-        if (val === undefined) continue;
+        const priceChanged = edits[k] !== undefined;
+        const serviceChanged = serviceEdits[session.key] !== undefined;
+        if (!priceChanged && !serviceChanged) continue;
+
+        const existingRow = pricingMap[k];
+        const serviceProductId = serviceEdits[session.key] !== undefined
+          ? serviceEdits[session.key]
+          : existingRow?.service_product_id ?? null;
+
         promises.push(
           upsert.mutateAsync({
             city: effectiveCity,
             day_type: day.key,
             session_type: session.key,
             label: session.label,
-            price_per_hour: parseFloat(val) || 0,
+            price_per_hour: edits[k] !== undefined ? (parseFloat(edits[k]) || 0) : (existingRow?.price_per_hour ?? 0),
             currency: "INR",
+            service_product_id: serviceProductId,
           })
         );
       }
@@ -87,11 +118,14 @@ function BayPricingSection() {
     try {
       await Promise.all(promises);
       setEdits({});
+      setServiceEdits({});
       toast({ title: "Saved", description: "Bay pricing updated." });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
   };
+
+  const hasChanges = Object.keys(edits).length > 0 || Object.keys(serviceEdits).length > 0;
 
   if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
 
@@ -121,38 +155,73 @@ function BayPricingSection() {
 
         {effectiveCity && (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[400px]">
+            <table className="w-full text-sm min-w-[600px]">
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left py-2 px-3 text-muted-foreground font-medium">Session Type</th>
+                  <th className="text-left py-2 px-3 text-muted-foreground font-medium">Linked Service</th>
                   {DAY_TYPES.map((d) => (
                     <th key={d.key} className="text-left py-2 px-3 text-muted-foreground font-medium">{d.label} (₹/hr)</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {SESSION_TYPES.map((session) => (
-                  <tr key={session.key} className="border-b border-border/50">
-                    <td className="py-2 px-3 font-medium text-foreground">{session.label}</td>
-                    {DAY_TYPES.map((day) => (
-                      <td key={day.key} className="py-2 px-3">
-                        <Input
-                          type="number"
-                          min={0}
-                          className="w-28"
-                          value={getValue(day.key, session.key)}
-                          onChange={(e) => handleChange(day.key, session.key, e.target.value)}
-                        />
+                {SESSION_TYPES.map((session) => {
+                  const linkedId = getServiceId(session.key);
+                  const linkedService = linkedId ? serviceMap[linkedId] : null;
+                  return (
+                    <tr key={session.key} className="border-b border-border/50">
+                      <td className="py-2 px-3 font-medium text-foreground">
+                        <div>{session.label}</div>
+                        {linkedService && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            <Badge variant="outline" className="text-[10px] font-normal">SAC: {linkedService.sac_code || "—"}</Badge>
+                            <Badge variant="outline" className="text-[10px] font-normal">GST: {linkedService.gst_rate}%</Badge>
+                          </div>
+                        )}
                       </td>
-                    ))}
-                  </tr>
-                ))}
+                      <td className="py-2 px-3">
+                        <Select
+                          value={linkedId ?? "none"}
+                          onValueChange={(v) => handleServiceChange(session.key, v)}
+                        >
+                          <SelectTrigger className="w-44 h-8 text-xs">
+                            <SelectValue placeholder="None" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">— None —</SelectItem>
+                            {services.map((s: any) => (
+                              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      {DAY_TYPES.map((day) => (
+                        <td key={day.key} className="py-2 px-3">
+                          <Input
+                            type="number"
+                            min={0}
+                            className="w-28"
+                            value={getValue(day.key, session.key)}
+                            onChange={(e) => handleChange(day.key, session.key, e.target.value)}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
 
-        <Button onClick={handleSave} disabled={upsert.isPending || Object.keys(edits).length === 0}>
+        {services.length === 0 && (
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <Link2 className="h-3 w-3" /> Add services in the Products tab (item type = Service) to link SAC codes and GST rates.
+          </p>
+        )}
+
+        <Button onClick={handleSave} disabled={upsert.isPending || !hasChanges}>
           {upsert.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
           Save Pricing
         </Button>
