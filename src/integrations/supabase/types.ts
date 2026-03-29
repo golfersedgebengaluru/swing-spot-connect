@@ -77,6 +77,7 @@ export type Database = {
           id: string
           label: string
           price_per_hour: number
+          service_product_id: string | null
           session_type: string
           updated_at: string
         }
@@ -88,6 +89,7 @@ export type Database = {
           id?: string
           label?: string
           price_per_hour?: number
+          service_product_id?: string | null
           session_type?: string
           updated_at?: string
         }
@@ -99,10 +101,19 @@ export type Database = {
           id?: string
           label?: string
           price_per_hour?: number
+          service_product_id?: string | null
           session_type?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bay_pricing_service_product_id_fkey"
+            columns: ["service_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bays: {
         Row: {
@@ -502,6 +513,234 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_line_items: {
+        Row: {
+          cgst_amount: number
+          created_at: string
+          gst_rate: number
+          hsn_code: string | null
+          id: string
+          igst_amount: number
+          invoice_id: string
+          item_name: string
+          item_type: string
+          line_total: number
+          product_id: string | null
+          quantity: number
+          sac_code: string | null
+          sgst_amount: number
+          sort_order: number
+          unit_price: number
+        }
+        Insert: {
+          cgst_amount?: number
+          created_at?: string
+          gst_rate?: number
+          hsn_code?: string | null
+          id?: string
+          igst_amount?: number
+          invoice_id: string
+          item_name: string
+          item_type?: string
+          line_total?: number
+          product_id?: string | null
+          quantity?: number
+          sac_code?: string | null
+          sgst_amount?: number
+          sort_order?: number
+          unit_price?: number
+        }
+        Update: {
+          cgst_amount?: number
+          created_at?: string
+          gst_rate?: number
+          hsn_code?: string | null
+          id?: string
+          igst_amount?: number
+          invoice_id?: string
+          item_name?: string
+          item_type?: string
+          line_total?: number
+          product_id?: string | null
+          quantity?: number
+          sac_code?: string | null
+          sgst_amount?: number
+          sort_order?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_line_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_line_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_sequences: {
+        Row: {
+          created_at: string
+          financial_year_id: string
+          gstin: string
+          id: string
+          last_number: number
+          prefix: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          financial_year_id: string
+          gstin: string
+          id?: string
+          last_number?: number
+          prefix?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          financial_year_id?: string
+          gstin?: string
+          id?: string
+          last_number?: number
+          prefix?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_sequences_financial_year_id_fkey"
+            columns: ["financial_year_id"]
+            isOneToOne: false
+            referencedRelation: "financial_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          business_address: string | null
+          business_gstin: string
+          business_name: string
+          business_state: string | null
+          business_state_code: string | null
+          cgst_total: number
+          city: string | null
+          created_at: string
+          credit_note_for: string | null
+          customer_email: string | null
+          customer_gstin: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          customer_state: string | null
+          customer_state_code: string | null
+          customer_user_id: string | null
+          financial_year_id: string | null
+          id: string
+          igst_total: number
+          invoice_date: string
+          invoice_number: string
+          invoice_type: string
+          payment_method: string | null
+          revenue_transaction_id: string | null
+          sgst_total: number
+          status: string
+          subtotal: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          business_address?: string | null
+          business_gstin: string
+          business_name: string
+          business_state?: string | null
+          business_state_code?: string | null
+          cgst_total?: number
+          city?: string | null
+          created_at?: string
+          credit_note_for?: string | null
+          customer_email?: string | null
+          customer_gstin?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          customer_state?: string | null
+          customer_state_code?: string | null
+          customer_user_id?: string | null
+          financial_year_id?: string | null
+          id?: string
+          igst_total?: number
+          invoice_date?: string
+          invoice_number: string
+          invoice_type?: string
+          payment_method?: string | null
+          revenue_transaction_id?: string | null
+          sgst_total?: number
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          business_address?: string | null
+          business_gstin?: string
+          business_name?: string
+          business_state?: string | null
+          business_state_code?: string | null
+          cgst_total?: number
+          city?: string | null
+          created_at?: string
+          credit_note_for?: string | null
+          customer_email?: string | null
+          customer_gstin?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          customer_state?: string | null
+          customer_state_code?: string | null
+          customer_user_id?: string | null
+          financial_year_id?: string | null
+          id?: string
+          igst_total?: number
+          invoice_date?: string
+          invoice_number?: string
+          invoice_type?: string
+          payment_method?: string | null
+          revenue_transaction_id?: string | null
+          sgst_total?: number
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_credit_note_for_fkey"
+            columns: ["credit_note_for"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_financial_year_id_fkey"
+            columns: ["financial_year_id"]
+            isOneToOne: false
+            referencedRelation: "financial_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_revenue_transaction_id_fkey"
+            columns: ["revenue_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "revenue_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_hours: {
         Row: {
           created_at: string
@@ -739,11 +978,15 @@ export type Database = {
           colors: string[] | null
           created_at: string
           description: string | null
+          gst_rate: number
+          hsn_code: string | null
           id: string
           image_url: string | null
           in_stock: boolean | null
+          item_type: string
           name: string
           price: number
+          sac_code: string | null
           sizes: string[] | null
           sort_order: number | null
           type: string
@@ -755,11 +998,15 @@ export type Database = {
           colors?: string[] | null
           created_at?: string
           description?: string | null
+          gst_rate?: number
+          hsn_code?: string | null
           id?: string
           image_url?: string | null
           in_stock?: boolean | null
+          item_type?: string
           name: string
           price?: number
+          sac_code?: string | null
           sizes?: string[] | null
           sort_order?: number | null
           type?: string
@@ -771,11 +1018,15 @@ export type Database = {
           colors?: string[] | null
           created_at?: string
           description?: string | null
+          gst_rate?: number
+          hsn_code?: string | null
           id?: string
           image_url?: string | null
           in_stock?: boolean | null
+          item_type?: string
           name?: string
           price?: number
+          sac_code?: string | null
           sizes?: string[] | null
           sort_order?: number | null
           type?: string
@@ -986,6 +1237,15 @@ export type Database = {
         Returns: boolean
       }
       get_hours_balance: { Args: { p_user_id: string }; Returns: number }
+      get_next_invoice_number: {
+        Args: {
+          p_fy_id: string
+          p_gstin: string
+          p_prefix?: string
+          p_start?: number
+        }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
