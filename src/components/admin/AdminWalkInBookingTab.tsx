@@ -30,6 +30,8 @@ export function AdminWalkInBookingTab() {
   const { data: bays, isLoading: loadingBays } = useBays();
   const { data: bayPricing } = useBayPricing();
   const { data: offlineMethods } = useOfflinePaymentMethods();
+  const { data: products } = useProducts();
+  const createInvoice = useCreateInvoice();
 
   const [step, setStep] = useState<Step>("select");
   const [selectedCity, setSelectedCity] = useState("");
