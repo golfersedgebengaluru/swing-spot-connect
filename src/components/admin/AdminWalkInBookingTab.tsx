@@ -19,7 +19,9 @@ import { useOfflinePaymentMethods } from "@/hooks/useOfflinePaymentMethods";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-
+import { useCreateInvoice } from "@/hooks/useInvoices";
+import { calculateLineItems, getGstType } from "@/lib/gst-utils";
+import { useProducts } from "@/hooks/useProducts";
 type Step = "select" | "payment" | "confirm";
 
 export function AdminWalkInBookingTab() {
@@ -28,6 +30,8 @@ export function AdminWalkInBookingTab() {
   const { data: bays, isLoading: loadingBays } = useBays();
   const { data: bayPricing } = useBayPricing();
   const { data: offlineMethods } = useOfflinePaymentMethods();
+  const { data: products } = useProducts();
+  const createInvoice = useCreateInvoice();
 
   const [step, setStep] = useState<Step>("select");
   const [selectedCity, setSelectedCity] = useState("");
@@ -94,6 +98,7 @@ export function AdminWalkInBookingTab() {
 
     try {
       // Create booking via calendar-sync edge function
+      // The edge function also creates the revenue transaction, so we don't duplicate it here
       const res = await supabase.functions.invoke("calendar-sync", {
         body: {
           action: "guest_booking",
@@ -108,7 +113,6 @@ export function AdminWalkInBookingTab() {
           guest_email: guestEmail || null,
           guest_phone: guestPhone || null,
           calendar_email: currentBay.calendar_email,
-          // No online payment fields
           payment_id: null,
           order_id: null,
           amount: totalCost,
@@ -120,28 +124,82 @@ export function AdminWalkInBookingTab() {
       if (res.error) throw new Error(res.error.message || "Booking failed");
       if (res.data?.error) throw new Error(res.data.error);
 
-      // Create revenue transaction
-      await supabase.from("revenue_transactions").insert({
-        transaction_type: "guest_booking" as any,
-        amount: totalCost,
-        currency: currentPrice?.currency || "INR",
-        guest_name: guestName,
-        guest_email: guestEmail || null,
-        guest_phone: guestPhone || null,
-        gateway_name: selectedPaymentMethod,
-        booking_id: res.data?.booking?.id || null,
-        description: `Walk-in: ${currentBay.name} · ${duration / 60}h ${sessionType}`,
-        status: "confirmed",
-        city: selectedCity,
-      });
+      // Generate GST invoice for this walk-in booking
+      try {
+        // Find the linked service product from bay pricing
+        const linkedPricing = currentPrice as any;
+        const serviceProductId = linkedPricing?.service_product_id;
+        const serviceProduct = serviceProductId
+          ? (products ?? []).find((p: any) => p.id === serviceProductId)
+          : null;
+
+        const itemName = serviceProduct?.name || `${currentBay.name} - ${sessionType} session`;
+        const gstRate = serviceProduct?.gst_rate ?? 18;
+        const sacCode = serviceProduct?.sac_code || "";
+        const hsnCode = serviceProduct?.hsn_code || "";
+
+        // Fetch business state code for GST type determination
+        const { data: configRows } = await supabase
+          .from("admin_config")
+          .select("key, value")
+          .in("key", ["gst_state_code", "gst_gstin"]);
+        const config: Record<string, string> = {};
+        for (const r of configRows ?? []) config[r.key] = r.value;
+        const businessStateCode = config.gst_state_code || "";
+
+        // Walk-in guests have no GSTIN → always CGST+SGST (intra-state/B2C)
+        const gstType = getGstType(businessStateCode, undefined);
+
+        const lineItems = [{
+          itemName,
+          itemType: "service" as const,
+          hsnCode: hsnCode || undefined,
+          sacCode: sacCode || undefined,
+          quantity: duration / 60,
+          unitPrice: currentPrice?.price_per_hour || totalCost,
+          gstRate,
+        }];
+
+        const calc = calculateLineItems(lineItems, gstType);
+
+        // Find the revenue transaction created by the edge function
+        let revenueTransactionId: string | undefined;
+        if (res.data?.booking?.id) {
+          const { data: revTx } = await supabase
+            .from("revenue_transactions")
+            .select("id")
+            .eq("booking_id", res.data.booking.id)
+            .maybeSingle();
+          revenueTransactionId = revTx?.id;
+        }
+
+        await createInvoice.mutateAsync({
+          customerName: guestName,
+          customerEmail: guestEmail || undefined,
+          customerPhone: guestPhone || undefined,
+          lineItems: calc.lines,
+          subtotal: calc.subtotal,
+          cgstTotal: calc.cgstTotal,
+          sgstTotal: calc.sgstTotal,
+          igstTotal: calc.igstTotal,
+          total: calc.total,
+          paymentMethod: selectedPaymentMethod,
+          revenueTransactionId,
+          city: selectedCity,
+        });
+      } catch (invoiceErr: any) {
+        console.error("Invoice generation failed (non-fatal):", invoiceErr);
+        // Don't fail the booking if invoice generation fails
+      }
 
       queryClient.invalidateQueries({ queryKey: ["revenue_transactions"] });
       queryClient.invalidateQueries({ queryKey: ["revenue_summary"] });
       queryClient.invalidateQueries({ queryKey: ["all_bookings"] });
       queryClient.invalidateQueries({ queryKey: ["available_slots"] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
 
       setBookingComplete(true);
-      toast({ title: "Walk-in Booking Created!", description: `Payment via ${selectedPaymentMethod} recorded.` });
+      toast({ title: "Walk-in Booking Created!", description: `Payment via ${selectedPaymentMethod} recorded. Invoice generated.` });
     } catch (err: any) {
       toast({ title: "Booking Failed", description: err.message, variant: "destructive" });
     } finally {
