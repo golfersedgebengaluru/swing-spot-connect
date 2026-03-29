@@ -26,7 +26,7 @@ export function useGstProfile() {
       if (error) throw error;
       const profile: Record<string, string> = {};
       for (const row of data ?? []) profile[row.key] = row.value;
-      return profile as GstProfile;
+      return profile as unknown as GstProfile;
     },
   });
 }
