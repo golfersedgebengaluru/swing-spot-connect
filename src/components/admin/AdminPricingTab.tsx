@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Save, IndianRupee, Package } from "lucide-react";
+import { Loader2, Save, IndianRupee, Package, Link2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useBayPricing, useUpsertBayPricing, useHourPackages, useUpdateHourPackage } from "@/hooks/usePricing";
 import { useBays } from "@/hooks/useBookings";
+import { useAllProducts } from "@/hooks/useProducts";
 
 const SESSION_TYPES = [
   { key: "individual", label: "Individual / Single" },
