@@ -28,6 +28,7 @@ export function useUpsertBayPricing() {
       label: string;
       price_per_hour: number;
       currency: string;
+      service_product_id?: string | null;
     }) => {
       const { error } = await supabase
         .from("bay_pricing")
