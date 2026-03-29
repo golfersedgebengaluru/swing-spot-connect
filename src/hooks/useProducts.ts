@@ -13,3 +13,14 @@ export function useProducts(type?: string) {
     },
   });
 }
+
+export function useAllProducts() {
+  return useQuery({
+    queryKey: ["products", "all"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("products").select("*").order("sort_order");
+      if (error) throw error;
+      return data;
+    },
+  });
+}
