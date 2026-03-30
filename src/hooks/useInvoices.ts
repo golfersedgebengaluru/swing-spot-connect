@@ -243,6 +243,79 @@ export function useCreateInvoice() {
   });
 }
 
+export interface UpdateInvoiceParams {
+  invoiceId: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  customerGstin?: string;
+  customerState?: string;
+  customerStateCode?: string;
+  invoiceDate?: string;
+  paymentMethod?: string;
+  lineItems?: CalculatedLineItem[];
+  subtotal?: number;
+  cgstTotal?: number;
+  sgstTotal?: number;
+  igstTotal?: number;
+  total?: number;
+}
+
+export function useUpdateInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: UpdateInvoiceParams) => {
+      const { invoiceId, lineItems, ...invoiceFields } = params;
+      const updatePayload: Record<string, any> = {};
+      if (invoiceFields.customerName !== undefined) updatePayload.customer_name = invoiceFields.customerName;
+      if (invoiceFields.customerEmail !== undefined) updatePayload.customer_email = invoiceFields.customerEmail || null;
+      if (invoiceFields.customerPhone !== undefined) updatePayload.customer_phone = invoiceFields.customerPhone || null;
+      if (invoiceFields.customerGstin !== undefined) updatePayload.customer_gstin = invoiceFields.customerGstin || null;
+      if (invoiceFields.customerState !== undefined) updatePayload.customer_state = invoiceFields.customerState || null;
+      if (invoiceFields.customerStateCode !== undefined) updatePayload.customer_state_code = invoiceFields.customerStateCode || null;
+      if (invoiceFields.invoiceDate !== undefined) updatePayload.invoice_date = invoiceFields.invoiceDate;
+      if (invoiceFields.paymentMethod !== undefined) updatePayload.payment_method = invoiceFields.paymentMethod || null;
+      if (invoiceFields.subtotal !== undefined) updatePayload.subtotal = invoiceFields.subtotal;
+      if (invoiceFields.cgstTotal !== undefined) updatePayload.cgst_total = invoiceFields.cgstTotal;
+      if (invoiceFields.sgstTotal !== undefined) updatePayload.sgst_total = invoiceFields.sgstTotal;
+      if (invoiceFields.igstTotal !== undefined) updatePayload.igst_total = invoiceFields.igstTotal;
+      if (invoiceFields.total !== undefined) updatePayload.total = invoiceFields.total;
+
+      if (Object.keys(updatePayload).length > 0) {
+        const { error } = await (supabase as any).from("invoices").update(updatePayload).eq("id", invoiceId);
+        if (error) throw error;
+      }
+
+      if (lineItems) {
+        // Delete existing line items and re-insert
+        await (supabase as any).from("invoice_line_items").delete().eq("invoice_id", invoiceId);
+        const payload = lineItems.map((item, idx) => ({
+          invoice_id: invoiceId,
+          item_name: item.itemName,
+          item_type: item.itemType,
+          hsn_code: item.hsnCode || null,
+          sac_code: item.sacCode || null,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          gst_rate: item.gstRate,
+          cgst_amount: item.cgstAmount,
+          sgst_amount: item.sgstAmount,
+          igst_amount: item.igstAmount,
+          line_total: item.lineTotal,
+          product_id: item.productId || null,
+          sort_order: idx,
+        }));
+        const { error: liErr } = await (supabase as any).from("invoice_line_items").insert(payload);
+        if (liErr) throw liErr;
+      }
+    },
+    onSuccess: (_, params) => {
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: ["invoice", params.invoiceId] });
+    },
+  });
+}
+
 export function useCancelInvoice() {
   const qc = useQueryClient();
   return useMutation({

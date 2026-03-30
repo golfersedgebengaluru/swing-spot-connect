@@ -288,7 +288,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: Props) {
                       <th className="text-left py-2 px-2 font-medium text-muted-foreground">Item</th>
                       <th className="text-left py-2 px-2 font-medium text-muted-foreground w-20">Code</th>
                       <th className="text-right py-2 px-2 font-medium text-muted-foreground w-16">Qty</th>
-                      <th className="text-right py-2 px-2 font-medium text-muted-foreground w-24">Price</th>
+                      <th className="text-right py-2 px-2 font-medium text-muted-foreground w-24">Price (incl.)</th>
                       <th className="text-right py-2 px-2 font-medium text-muted-foreground w-16">GST%</th>
                       <th className="text-right py-2 px-2 font-medium text-muted-foreground w-24">Total</th>
                       <th className="w-8"></th>
@@ -346,7 +346,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: Props) {
           {lineItems.length > 0 && (
             <Card className="bg-muted/30">
               <CardContent className="p-4 space-y-1.5 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{currency.format(calculated.subtotal)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Taxable Amount</span><span>{currency.format(calculated.subtotal)}</span></div>
                 {gstType === "cgst_sgst" ? (
                   <>
                     <div className="flex justify-between"><span className="text-muted-foreground">CGST</span><span>{currency.format(calculated.cgstTotal)}</span></div>
@@ -357,7 +357,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: Props) {
                 )}
                 <Separator />
                 <div className="flex justify-between font-semibold text-base">
-                  <span>Total</span><span>{currency.format(calculated.total)}</span>
+                  <span>Total (incl. GST)</span><span>{currency.format(calculated.total)}</span>
                 </div>
               </CardContent>
             </Card>
