@@ -21,6 +21,7 @@ interface ProductFormProps {
 
 export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const { data: categories } = useProductCategories();
+  const { data: units } = useUnitsOfMeasure();
 
   const [form, setForm] = useState({
     name: product?.name ?? "",
@@ -176,7 +177,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
           <Select value={form.unit_of_measure} onValueChange={(v) => setForm({ ...form, unit_of_measure: v })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              {UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+              {(units ?? []).map((u) => <SelectItem key={u.id} value={u.name}>{u.name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
