@@ -103,6 +103,7 @@ export interface CalculatedLineItem extends GstLineItem {
   lineTotal: number;
 }
 
+// All prices are GST-inclusive. This function reverse-calculates the taxable amount.
 export function calculateLineItems(
   items: GstLineItem[],
   gstType: "igst" | "cgst_sgst"
@@ -113,20 +114,23 @@ export function calculateLineItems(
   let igstTotal = 0;
 
   const lines = items.map((item) => {
-    const taxableAmount = item.quantity * item.unitPrice;
+    const inclusiveAmount = item.quantity * item.unitPrice;
+    // Reverse-calculate: taxable = inclusive / (1 + gstRate/100)
+    const taxableAmount = Math.round((inclusiveAmount / (1 + item.gstRate / 100)) * 100) / 100;
+    const totalGst = Math.round((inclusiveAmount - taxableAmount) * 100) / 100;
     const halfRate = item.gstRate / 2;
     let cgstAmount = 0;
     let sgstAmount = 0;
     let igstAmount = 0;
 
     if (gstType === "igst") {
-      igstAmount = Math.round((taxableAmount * item.gstRate) / 100 * 100) / 100;
+      igstAmount = totalGst;
     } else {
-      cgstAmount = Math.round((taxableAmount * halfRate) / 100 * 100) / 100;
-      sgstAmount = Math.round((taxableAmount * halfRate) / 100 * 100) / 100;
+      cgstAmount = Math.round((totalGst / 2) * 100) / 100;
+      sgstAmount = Math.round((totalGst - cgstAmount) * 100) / 100; // remainder to avoid rounding mismatch
     }
 
-    const lineTotal = taxableAmount + cgstAmount + sgstAmount + igstAmount;
+    const lineTotal = inclusiveAmount; // Total stays the same (price is inclusive)
     subtotal += taxableAmount;
     cgstTotal += cgstAmount;
     sgstTotal += sgstAmount;
