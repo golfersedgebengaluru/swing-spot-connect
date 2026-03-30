@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
-  const { isAdmin, loading: adminLoading } = useAdmin();
+  const { hasAdminAccess, loading: adminLoading } = useAdmin();
 
   if (authLoading || adminLoading) {
     return (
@@ -19,7 +19,7 @@ export function AdminRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) return <Navigate to="/auth?redirect=/admin" replace />;
 
-  if (!isAdmin) {
+  if (!hasAdminAccess) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md text-center">
