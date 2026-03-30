@@ -1016,13 +1016,40 @@ export type Database = {
           },
         ]
       }
+      product_categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           badge: string | null
+          bookable: boolean
           category: string
           colors: string[] | null
+          cost_price: number
           created_at: string
           description: string | null
+          duration_minutes: number | null
           gst_rate: number
           hsn_code: string | null
           id: string
@@ -1030,19 +1057,27 @@ export type Database = {
           in_stock: boolean | null
           item_type: string
           name: string
+          opening_stock: number | null
           price: number
+          reorder_level: number | null
+          reorder_quantity: number | null
           sac_code: string | null
           sizes: string[] | null
+          sku: string | null
           sort_order: number | null
           type: string
+          unit_of_measure: string
           updated_at: string
         }
         Insert: {
           badge?: string | null
+          bookable?: boolean
           category?: string
           colors?: string[] | null
+          cost_price?: number
           created_at?: string
           description?: string | null
+          duration_minutes?: number | null
           gst_rate?: number
           hsn_code?: string | null
           id?: string
@@ -1050,19 +1085,27 @@ export type Database = {
           in_stock?: boolean | null
           item_type?: string
           name: string
+          opening_stock?: number | null
           price?: number
+          reorder_level?: number | null
+          reorder_quantity?: number | null
           sac_code?: string | null
           sizes?: string[] | null
+          sku?: string | null
           sort_order?: number | null
           type?: string
+          unit_of_measure?: string
           updated_at?: string
         }
         Update: {
           badge?: string | null
+          bookable?: boolean
           category?: string
           colors?: string[] | null
+          cost_price?: number
           created_at?: string
           description?: string | null
+          duration_minutes?: number | null
           gst_rate?: number
           hsn_code?: string | null
           id?: string
@@ -1070,11 +1113,16 @@ export type Database = {
           in_stock?: boolean | null
           item_type?: string
           name?: string
+          opening_stock?: number | null
           price?: number
+          reorder_level?: number | null
+          reorder_quantity?: number | null
           sac_code?: string | null
           sizes?: string[] | null
+          sku?: string | null
           sort_order?: number | null
           type?: string
+          unit_of_measure?: string
           updated_at?: string
         }
         Relationships: []
