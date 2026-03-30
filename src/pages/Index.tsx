@@ -11,11 +11,13 @@ const Index = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
+  const { hasAdminAccess, loading: adminLoading } = useAdmin();
+
   useEffect(() => {
-    if (!loading && user) {
-      navigate("/dashboard");
+    if (!loading && !adminLoading && user) {
+      navigate(hasAdminAccess ? "/admin" : "/dashboard");
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, adminLoading, hasAdminAccess, navigate]);
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />

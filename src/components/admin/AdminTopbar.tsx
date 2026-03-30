@@ -1,7 +1,9 @@
-import { Menu, Search, Settings } from "lucide-react";
+import { Menu, Search, Settings, LogOut } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 interface AdminTopbarProps {
   title: string;
