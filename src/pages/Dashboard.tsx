@@ -32,6 +32,14 @@ const upcomingEvents = [
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { hasAdminAccess, loading: adminLoading } = useAdmin();
+
+  useEffect(() => {
+    if (!adminLoading && hasAdminAccess) {
+      navigate("/admin", { replace: true });
+    }
+  }, [adminLoading, hasAdminAccess, navigate]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: currentPoints = 0 } = useUserPoints();
