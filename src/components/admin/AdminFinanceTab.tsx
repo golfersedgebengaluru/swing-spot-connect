@@ -16,21 +16,16 @@ import { CreateInvoiceDialog } from "@/components/admin/CreateInvoiceDialog";
 import { InvoiceViewDialog } from "@/components/admin/InvoiceViewDialog";
 import { format } from "date-fns";
 import { useAdmin } from "@/hooks/useAdmin";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useAllCities } from "@/hooks/useBookings";
 
-// Hook to get available cities
+// Hook to get available cities scoped by role
 function useAvailableCities() {
   const { isAdmin, assignedCities } = useAdmin();
-  return useQuery({
-    queryKey: ["available-cities-finance", isAdmin, assignedCities],
-    queryFn: async () => {
-      const { data } = await supabase.from("bay_config").select("city").eq("is_active", true);
-      const allCities = (data ?? []).map((d) => d.city);
-      if (isAdmin) return allCities;
-      return allCities.filter((c) => assignedCities.includes(c));
-    },
-  });
+  const { data: allCities, isLoading } = useAllCities();
+  const cities = isAdmin
+    ? allCities
+    : (allCities ?? []).filter((c) => assignedCities.includes(c));
+  return { data: cities, isLoading };
 }
 
 // ─── Invoice List ───────────────────────────────────────

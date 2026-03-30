@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAllCities } from "@/hooks/useBookings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -65,14 +66,8 @@ export function AdminRolesManager() {
     },
   });
 
-  // Fetch available cities
-  const { data: allCities } = useQuery({
-    queryKey: ["all-cities-for-roles"],
-    queryFn: async () => {
-      const { data } = await supabase.from("bay_config").select("city").eq("is_active", true);
-      return (data ?? []).map((d) => d.city);
-    },
-  });
+  // Fetch available cities from unified hook
+  const { data: allCities } = useAllCities();
 
   // Fetch site_admin city assignments
   const { data: cityAssignments } = useQuery({
