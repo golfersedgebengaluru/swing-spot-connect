@@ -111,12 +111,11 @@ export function AdminWalkInBookingTab() {
           guest_email: guestEmail || null,
           guest_phone: guestPhone || null,
           calendar_email: currentBay.calendar_email,
-          payment_id: null,
+          payment_id: paymentReference || null,
           order_id: null,
           amount: totalCost,
           currency: currentPrice?.currency || "INR",
           gateway_name: selectedPaymentMethod,
-          payment_id: paymentReference || null,
         },
       });
 
