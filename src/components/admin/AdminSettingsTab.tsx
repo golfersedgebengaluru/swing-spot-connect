@@ -15,6 +15,7 @@ import { BrandingSettingsCard } from "@/components/admin/BrandingSettingsCard";
 import { OfflinePaymentMethodsCard } from "@/components/admin/OfflinePaymentMethodsCard";
 import { AdminFinancialYearsCard } from "@/components/admin/AdminFinancialYearsCard";
 import { usePerCityFyToggle, useUpdatePerCityFyToggle } from "@/hooks/useRevenue";
+import { ProductCategoriesCard } from "@/components/admin/ProductCategoriesCard";
 
 const pageVisibilityItems = [
   { key: "page_events_visible", label: "Events", description: "Show the Events tab in navigation" },
@@ -388,6 +389,7 @@ export function AdminSettingsTab() {
       <AdminRolesManager />
       <FinancialYearSettingsSection />
       <PageVisibilitySettings />
+      <ProductCategoriesCard />
       <OfflinePaymentMethodsCard />
       <CancellationWindowCard />
       <SenderEmailCard />
