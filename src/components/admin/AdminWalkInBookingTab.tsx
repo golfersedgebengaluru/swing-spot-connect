@@ -46,6 +46,7 @@ export function AdminWalkInBookingTab() {
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
+  const [paymentReference, setPaymentReference] = useState("");
 
   const [bookingComplete, setBookingComplete] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -110,7 +111,7 @@ export function AdminWalkInBookingTab() {
           guest_email: guestEmail || null,
           guest_phone: guestPhone || null,
           calendar_email: currentBay.calendar_email,
-          payment_id: null,
+          payment_id: paymentReference || null,
           order_id: null,
           amount: totalCost,
           currency: currentPrice?.currency || "INR",
@@ -215,6 +216,7 @@ export function AdminWalkInBookingTab() {
     setGuestEmail("");
     setGuestPhone("");
     setSelectedPaymentMethod("");
+    setPaymentReference("");
     setBookingComplete(false);
   };
 
@@ -237,6 +239,7 @@ export function AdminWalkInBookingTab() {
               <p><span className="font-medium">Time:</span> {selectedSlot && format(new Date(selectedSlot), "h:mm a")} – {endTime && format(new Date(endTime), "h:mm a")}</p>
               <p><span className="font-medium">Duration:</span> {duration / 60}h</p>
               <p><span className="font-medium">Payment:</span> ₹{totalCost.toLocaleString()} via {selectedPaymentMethod}</p>
+              {paymentReference && <p><span className="font-medium">Reference:</span> {paymentReference}</p>}
             </div>
             <Button className="mt-6 w-full" onClick={resetForm}>
               Create Another Walk-in
@@ -514,6 +517,25 @@ export function AdminWalkInBookingTab() {
               )}
             </CardContent>
           </Card>
+
+          {/* Payment Reference — shown for non-Cash methods */}
+          {selectedPaymentMethod && selectedPaymentMethod.toLowerCase() !== "cash" && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Payment Reference</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Input
+                  placeholder="e.g. UPI Ref, Card Auth Code, Terminal ID"
+                  value={paymentReference}
+                  onChange={(e) => setPaymentReference(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Optional — transaction reference from the payment instrument.
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           <Button
             className="w-full"
