@@ -35,9 +35,29 @@ serve(async (req) => {
       });
     }
 
-    const { action, user_id, role } = await req.json();
+    const { action, user_id, role, cities } = await req.json();
 
-    if (!user_id || !role || !["admin", "moderator", "user"].includes(role)) {
+    if (action === "list") {
+      const { data: roles, error } = await adminClient
+        .from("user_roles")
+        .select("user_id, role");
+      if (error) throw error;
+      return new Response(JSON.stringify({ roles }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "list_cities") {
+      const { data: assignments, error } = await adminClient
+        .from("site_admin_cities")
+        .select("user_id, city");
+      if (error) throw error;
+      return new Response(JSON.stringify({ assignments }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!user_id || !role || !["admin", "site_admin", "user"].includes(role)) {
       return new Response(JSON.stringify({ error: "Invalid user_id or role" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -48,11 +68,20 @@ serve(async (req) => {
         .from("user_roles")
         .upsert({ user_id, role }, { onConflict: "user_id,role" });
       if (error) throw error;
+
+      // If site_admin, also assign cities
+      if (role === "site_admin" && Array.isArray(cities) && cities.length > 0) {
+        // Remove existing city assignments and re-insert
+        await adminClient.from("site_admin_cities").delete().eq("user_id", user_id);
+        const cityRows = cities.map((city: string) => ({ user_id, city }));
+        const { error: cityErr } = await adminClient.from("site_admin_cities").insert(cityRows);
+        if (cityErr) throw cityErr;
+      }
+
       return new Response(JSON.stringify({ success: true, message: `Role '${role}' granted` }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } else if (action === "revoke") {
-      // Prevent revoking own admin role
       if (user_id === user.id && role === "admin") {
         return new Response(JSON.stringify({ error: "Cannot revoke your own admin role" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -64,21 +93,18 @@ serve(async (req) => {
         .eq("user_id", user_id)
         .eq("role", role);
       if (error) throw error;
+
+      // If revoking site_admin, also remove city assignments
+      if (role === "site_admin") {
+        await adminClient.from("site_admin_cities").delete().eq("user_id", user_id);
+      }
+
       return new Response(JSON.stringify({ success: true, message: `Role '${role}' revoked` }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    } else if (action === "list") {
-      // List all users with their roles
-      const { data: roles, error } = await adminClient
-        .from("user_roles")
-        .select("user_id, role");
-      if (error) throw error;
-      return new Response(JSON.stringify({ roles }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ error: "Invalid action. Use 'grant', 'revoke', or 'list'" }), {
+    return new Response(JSON.stringify({ error: "Invalid action. Use 'grant', 'revoke', 'list', or 'list_cities'" }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: unknown) {

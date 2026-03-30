@@ -138,14 +138,13 @@ export function AdminWalkInBookingTab() {
         const sacCode = serviceProduct?.sac_code || "";
         const hsnCode = serviceProduct?.hsn_code || "";
 
-        // Fetch business state code for GST type determination
-        const { data: configRows } = await supabase
-          .from("admin_config")
-          .select("key, value")
-          .in("key", ["gst_state_code", "gst_gstin"]);
-        const config: Record<string, string> = {};
-        for (const r of configRows ?? []) config[r.key] = r.value;
-        const businessStateCode = config.gst_state_code || "";
+        // Fetch per-city GST profile for GST type determination
+        const { data: gstProfile } = await (supabase as any)
+          .from("gst_profiles")
+          .select("state_code, gstin")
+          .eq("city", selectedCity)
+          .maybeSingle();
+        const businessStateCode = gstProfile?.state_code || "";
 
         // Walk-in guests have no GSTIN → always CGST+SGST (intra-state/B2C)
         const gstType = getGstType(businessStateCode, undefined);

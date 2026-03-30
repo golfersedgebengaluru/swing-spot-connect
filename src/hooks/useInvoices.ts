@@ -2,31 +2,40 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { CalculatedLineItem } from "@/lib/gst-utils";
 
-// ─── GST Profile ────────────────────────────────────────
-const GST_KEYS = ["gst_legal_name", "gst_gstin", "gst_address", "gst_state", "gst_state_code", "invoice_prefix", "invoice_start_number"] as const;
-
+// ─── GST Profile (per-city) ─────────────────────────────
 export interface GstProfile {
-  gst_legal_name: string;
-  gst_gstin: string;
-  gst_address: string;
-  gst_state: string;
-  gst_state_code: string;
+  id?: string;
+  city: string;
+  legal_name: string;
+  gstin: string;
+  address: string;
+  state: string;
+  state_code: string;
   invoice_prefix: string;
-  invoice_start_number: string;
+  invoice_start_number: number;
 }
 
-export function useGstProfile() {
+export function useGstProfile(city?: string) {
   return useQuery({
-    queryKey: ["gst_profile"],
+    queryKey: ["gst_profile", city],
+    enabled: !!city,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("admin_config")
-        .select("key, value")
-        .in("key", GST_KEYS as any);
+      const { data, error } = await (supabase as any)
+        .from("gst_profiles")
+        .select("*")
+        .eq("city", city)
+        .maybeSingle();
       if (error) throw error;
-      const profile: Record<string, string> = {};
-      for (const row of data ?? []) profile[row.key] = row.value;
-      return profile as unknown as GstProfile;
+      return (data as GstProfile | null) ?? {
+        city: city!,
+        legal_name: "",
+        gstin: "",
+        address: "",
+        state: "",
+        state_code: "",
+        invoice_prefix: "INV",
+        invoice_start_number: 1,
+      };
     },
   });
 }
@@ -34,22 +43,25 @@ export function useGstProfile() {
 export function useSaveGstProfile() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (profile: Partial<GstProfile>) => {
-      for (const [key, value] of Object.entries(profile)) {
-        // Try update first
-        const { data } = await supabase
-          .from("admin_config")
-          .update({ value } as any)
-          .eq("key", key)
-          .select("id")
-          .maybeSingle();
-        // If no row updated, insert
-        if (!data) {
-          await supabase.from("admin_config").insert({ key, value } as any);
-        }
-      }
+    mutationFn: async (profile: GstProfile) => {
+      const { error } = await (supabase as any)
+        .from("gst_profiles")
+        .upsert(
+          {
+            city: profile.city,
+            legal_name: profile.legal_name,
+            gstin: profile.gstin,
+            address: profile.address,
+            state: profile.state,
+            state_code: profile.state_code,
+            invoice_prefix: profile.invoice_prefix,
+            invoice_start_number: profile.invoice_start_number,
+          },
+          { onConflict: "city" }
+        );
+      if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["gst_profile"] }),
+    onSuccess: (_, profile) => qc.invalidateQueries({ queryKey: ["gst_profile", profile.city] }),
   });
 }
 
@@ -60,6 +72,7 @@ export interface InvoiceFilters {
   status?: string;
   invoiceType?: string;
   search?: string;
+  city?: string;
   page?: number;
   pageSize?: number;
 }
@@ -76,6 +89,7 @@ export function useInvoices(filters?: InvoiceFilters) {
         .select("*", { count: "exact" })
         .order("created_at", { ascending: false });
 
+      if (filters?.city) query = query.eq("city", filters.city);
       if (filters?.startDate) query = query.gte("invoice_date", filters.startDate);
       if (filters?.endDate) query = query.lte("invoice_date", filters.endDate);
       if (filters?.status) query = query.eq("status", filters.status);
@@ -145,15 +159,16 @@ export function useCreateInvoice() {
 
   return useMutation({
     mutationFn: async (params: CreateInvoiceParams) => {
-      // 1. Get GST profile
-      const { data: configRows } = await supabase
-        .from("admin_config")
-        .select("key, value")
-        .in("key", GST_KEYS as any);
-      const config: Record<string, string> = {};
-      for (const r of configRows ?? []) config[r.key] = r.value;
+      if (!params.city) throw new Error("City is required for invoice generation.");
 
-      if (!config.gst_gstin) throw new Error("GST profile not configured. Please set up your GSTIN in Finance → GST Settings.");
+      // 1. Get per-city GST profile
+      const { data: gstProfile, error: gstErr } = await (supabase as any)
+        .from("gst_profiles")
+        .select("*")
+        .eq("city", params.city)
+        .maybeSingle();
+      if (gstErr) throw gstErr;
+      if (!gstProfile?.gstin) throw new Error(`GST profile not configured for ${params.city}. Please set up the GST profile in Finance → GST Settings.`);
 
       // 2. Get active financial year
       const { data: fy } = await supabase
@@ -167,10 +182,10 @@ export function useCreateInvoice() {
       const { data: invoiceNumber, error: seqErr } = await supabase.rpc(
         "get_next_invoice_number" as any,
         {
-          p_gstin: config.gst_gstin,
+          p_gstin: gstProfile.gstin,
           p_fy_id: fy.id,
-          p_prefix: config.invoice_prefix || "INV",
-          p_start: parseInt(config.invoice_start_number || "1", 10),
+          p_prefix: gstProfile.invoice_prefix || "INV",
+          p_start: gstProfile.invoice_start_number || 1,
         }
       );
       if (seqErr) throw seqErr;
@@ -187,11 +202,11 @@ export function useCreateInvoice() {
         customer_gstin: params.customerGstin || null,
         customer_state: params.customerState || null,
         customer_state_code: params.customerStateCode || null,
-        business_name: config.gst_legal_name,
-        business_gstin: config.gst_gstin,
-        business_address: config.gst_address || null,
-        business_state: config.gst_state || null,
-        business_state_code: config.gst_state_code || null,
+        business_name: gstProfile.legal_name,
+        business_gstin: gstProfile.gstin,
+        business_address: gstProfile.address || null,
+        business_state: gstProfile.state || null,
+        business_state_code: gstProfile.state_code || null,
         subtotal: params.subtotal,
         cgst_total: params.cgstTotal,
         sgst_total: params.sgstTotal,
@@ -202,7 +217,7 @@ export function useCreateInvoice() {
         credit_note_for: params.creditNoteFor || null,
         payment_method: params.paymentMethod || null,
         revenue_transaction_id: params.revenueTransactionId || null,
-        city: params.city || null,
+        city: params.city,
       };
 
       const { data: invoice, error: invErr } = await (supabase as any)
@@ -287,7 +302,6 @@ export function useUpdateInvoice() {
       }
 
       if (lineItems) {
-        // Delete existing line items and re-insert
         await (supabase as any).from("invoice_line_items").delete().eq("invoice_id", invoiceId);
         const payload = lineItems.map((item, idx) => ({
           invoice_id: invoiceId,
@@ -320,13 +334,11 @@ export function useCancelInvoice() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (invoiceId: string) => {
-      // Mark original as cancelled
       await (supabase as any)
         .from("invoices")
         .update({ status: "cancelled" })
         .eq("id", invoiceId);
 
-      // Fetch original invoice + items for credit note
       const { data: original } = await (supabase as any)
         .from("invoices")
         .select("*")
@@ -340,7 +352,6 @@ export function useCancelInvoice() {
 
       if (!original) throw new Error("Invoice not found");
 
-      // Get next number for credit note
       const { data: fy } = await supabase
         .from("financial_years")
         .select("*")
@@ -355,7 +366,6 @@ export function useCancelInvoice() {
         p_start: 1,
       });
 
-      // Create credit note
       const { data: creditNote, error: cnErr } = await (supabase as any)
         .from("invoices")
         .insert({
@@ -389,7 +399,6 @@ export function useCancelInvoice() {
         .single();
       if (cnErr) throw cnErr;
 
-      // Copy line items to credit note
       if (items?.length) {
         await (supabase as any).from("invoice_line_items").insert(
           items.map((item: any) => ({
@@ -421,7 +430,6 @@ export function useDeleteInvoice() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (invoiceId: string) => {
-      // Fetch the invoice to get its number details
       const { data: invoice, error: fetchErr } = await (supabase as any)
         .from("invoices")
         .select("*")
@@ -430,13 +438,10 @@ export function useDeleteInvoice() {
       if (fetchErr) throw fetchErr;
       if (!invoice) throw new Error("Invoice not found");
 
-      // Parse the invoice number to extract the sequence number
-      // Format: PREFIX/FY_LABEL/0001
       const parts = (invoice.invoice_number as string).split("/");
       const seqNumber = parts.length >= 3 ? parseInt(parts[parts.length - 1], 10) : null;
       const prefix = parts.length >= 3 ? parts[0] : "INV";
 
-      // Add the number to the recycled pool so it can be reused
       if (seqNumber && invoice.financial_year_id && invoice.business_gstin) {
         await (supabase as any).from("recycled_invoice_numbers").insert({
           gstin: invoice.business_gstin,
@@ -447,7 +452,6 @@ export function useDeleteInvoice() {
         });
       }
 
-      // Delete line items first, then the invoice
       await (supabase as any).from("invoice_line_items").delete().eq("invoice_id", invoiceId);
       const { error: delErr } = await (supabase as any).from("invoices").delete().eq("id", invoiceId);
       if (delErr) throw delErr;

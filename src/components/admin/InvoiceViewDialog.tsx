@@ -35,7 +35,7 @@ function useProductCatalogue() {
 
 export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
   const { data: invoice, isLoading } = useInvoiceWithItems(invoiceId);
-  const { data: gstProfile } = useGstProfile();
+  const { data: gstProfile } = useGstProfile(invoice?.city);
   const { data: paymentMethods } = useOfflinePaymentMethods();
   const { data: catalogue } = useProductCatalogue();
   const currency = useDefaultCurrency();
@@ -101,7 +101,7 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
     }
   };
 
-  const gstType = getGstType(gstProfile?.gst_state_code || invoice?.business_state_code || "", customerGstin || undefined);
+  const gstType = getGstType(gstProfile?.state_code || invoice?.business_state_code || "", customerGstin || undefined);
   const calculated = calculateLineItems(lineItems, gstType);
 
   const addLineItem = (product: any) => {
