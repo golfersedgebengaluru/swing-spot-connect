@@ -447,6 +447,48 @@ export type Database = {
         }
         Relationships: []
       }
+      gst_profiles: {
+        Row: {
+          address: string
+          city: string
+          created_at: string
+          gstin: string
+          id: string
+          invoice_prefix: string
+          invoice_start_number: number
+          legal_name: string
+          state: string
+          state_code: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string
+          city: string
+          created_at?: string
+          gstin?: string
+          id?: string
+          invoice_prefix?: string
+          invoice_start_number?: number
+          legal_name?: string
+          state?: string
+          state_code?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          city?: string
+          created_at?: string
+          gstin?: string
+          id?: string
+          invoice_prefix?: string
+          invoice_start_number?: number
+          legal_name?: string
+          state?: string
+          state_code?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       hour_packages: {
         Row: {
           created_at: string
@@ -1247,6 +1289,27 @@ export type Database = {
         }
         Relationships: []
       }
+      site_admin_cities: {
+        Row: {
+          city: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          city: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          city?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -1284,6 +1347,10 @@ export type Database = {
         }
         Returns: string
       }
+      has_city_access: {
+        Args: { _city: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1291,9 +1358,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin_or_site_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user"
+      app_role: "admin" | "site_admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1421,7 +1489,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user"],
+      app_role: ["admin", "site_admin", "user"],
     },
   },
 } as const
