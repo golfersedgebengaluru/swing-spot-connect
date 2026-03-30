@@ -14,7 +14,6 @@ import {
 import { useRevenueTransactions, useRevenueSummary, useActiveFinancialYear } from "@/hooks/useRevenue";
 import { useCities } from "@/hooks/useBookings";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, subYears, addMonths } from "date-fns";
-import { AdminFinancialYearsCard } from "./AdminFinancialYearsCard";
 import { RevenueUserBreakdown } from "./RevenueUserBreakdown";
 
 type Period = "week" | "month" | "quarter" | "year" | "custom";
@@ -410,8 +409,6 @@ export function AdminRevenueTab() {
         </CardContent>
       </Card>
 
-      {/* Financial Year Config */}
-      <AdminFinancialYearsCard />
     </div>
   );
 }
