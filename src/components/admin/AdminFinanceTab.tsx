@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,18 +6,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Download, Search, Loader2, Eye, FileX, Trash2, Save, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Download, Search, Loader2, Eye, FileX, Trash2, Save, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useInvoices, useGstProfile, useSaveGstProfile, useCancelInvoice, useDeleteInvoice } from "@/hooks/useInvoices";
+import { useInvoices, useGstProfile, useSaveGstProfile, useCancelInvoice, useDeleteInvoice, type GstProfile } from "@/hooks/useInvoices";
 import { useActiveFinancialYear } from "@/hooks/useRevenue";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { INDIAN_STATES, validateGSTIN } from "@/lib/gst-utils";
 import { CreateInvoiceDialog } from "@/components/admin/CreateInvoiceDialog";
 import { InvoiceViewDialog } from "@/components/admin/InvoiceViewDialog";
 import { format } from "date-fns";
+import { useAdmin } from "@/hooks/useAdmin";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+
+// Hook to get available cities
+function useAvailableCities() {
+  const { isAdmin, assignedCities } = useAdmin();
+  return useQuery({
+    queryKey: ["available-cities-finance", isAdmin, assignedCities],
+    queryFn: async () => {
+      const { data } = await supabase.from("bay_config").select("city").eq("is_active", true);
+      const allCities = (data ?? []).map((d) => d.city);
+      if (isAdmin) return allCities;
+      return allCities.filter((c) => assignedCities.includes(c));
+    },
+  });
+}
 
 // ─── Invoice List ───────────────────────────────────────
-function InvoiceListSection() {
+function InvoiceListSection({ city }: { city: string }) {
   const { toast } = useToast();
   const currency = useDefaultCurrency();
   const [search, setSearch] = useState("");
@@ -33,6 +50,7 @@ function InvoiceListSection() {
   const deleteInvoice = useDeleteInvoice();
 
   const { data, isLoading } = useInvoices({
+    city,
     search: search || undefined,
     status: statusFilter || undefined,
     invoiceType: typeFilter || undefined,
@@ -50,24 +68,15 @@ function InvoiceListSection() {
     if (!invoices.length) return;
     const headers = ["Invoice #", "Date", "Customer", "Type", "B2B/B2C", "Subtotal", "CGST", "SGST", "IGST", "Total", "Status"];
     const rows = invoices.map((inv: any) => [
-      inv.invoice_number,
-      inv.invoice_date,
-      inv.customer_name,
-      inv.invoice_type,
-      inv.customer_gstin ? "B2B" : "B2C",
-      inv.subtotal,
-      inv.cgst_total,
-      inv.sgst_total,
-      inv.igst_total,
-      inv.total,
-      inv.status,
+      inv.invoice_number, inv.invoice_date, inv.customer_name, inv.invoice_type,
+      inv.customer_gstin ? "B2B" : "B2C", inv.subtotal, inv.cgst_total, inv.sgst_total, inv.igst_total, inv.total, inv.status,
     ]);
     const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `invoices_${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `invoices_${city}_${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -94,7 +103,6 @@ function InvoiceListSection() {
 
   return (
     <div className="space-y-4">
-      {/* Actions */}
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> Create Invoice
@@ -104,7 +112,6 @@ function InvoiceListSection() {
         </Button>
       </div>
 
-      {/* Filters */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -130,7 +137,6 @@ function InvoiceListSection() {
         </Select>
       </div>
 
-      {/* Table */}
       {isLoading ? (
         <Loader2 className="mx-auto h-8 w-8 animate-spin" />
       ) : invoices.length === 0 ? (
@@ -156,9 +162,7 @@ function InvoiceListSection() {
                   <td className="py-2.5 px-3">{format(new Date(inv.invoice_date), "dd MMM yyyy")}</td>
                   <td className="py-2.5 px-3">
                     <div>{inv.customer_name}</div>
-                    {inv.customer_gstin && (
-                      <span className="text-xs text-muted-foreground">GSTIN: {inv.customer_gstin}</span>
-                    )}
+                    {inv.customer_gstin && <span className="text-xs text-muted-foreground">GSTIN: {inv.customer_gstin}</span>}
                   </td>
                   <td className="py-2.5 px-3">
                     <Badge variant={inv.invoice_type === "credit_note" ? "destructive" : "secondary"} className="text-xs">
@@ -167,9 +171,7 @@ function InvoiceListSection() {
                   </td>
                   <td className="py-2.5 px-3 text-right font-medium">{currency.format(Number(inv.total))}</td>
                   <td className="py-2.5 px-3">
-                    <Badge variant={inv.status === "cancelled" ? "destructive" : "outline"} className="text-xs">
-                      {inv.status}
-                    </Badge>
+                    <Badge variant={inv.status === "cancelled" ? "destructive" : "outline"} className="text-xs">{inv.status}</Badge>
                   </td>
                   <td className="py-2.5 px-3 text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -177,13 +179,11 @@ function InvoiceListSection() {
                         <Eye className="h-3.5 w-3.5" />
                       </Button>
                       {inv.status === "issued" && inv.invoice_type === "invoice" && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleCancel(inv.id)} disabled={cancelInvoice.isPending}
-                          title="Cancel & create credit note">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleCancel(inv.id)} disabled={cancelInvoice.isPending} title="Cancel & create credit note">
                           <FileX className="h-3.5 w-3.5 text-destructive" />
                         </Button>
                       )}
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(inv.id)} disabled={deleteInvoice.isPending}
-                        title="Permanently delete">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(inv.id)} disabled={deleteInvoice.isPending} title="Permanently delete">
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button>
                     </div>
@@ -195,7 +195,6 @@ function InvoiceListSection() {
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">{totalCount} invoices</p>
@@ -211,31 +210,38 @@ function InvoiceListSection() {
         </div>
       )}
 
-      <CreateInvoiceDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <CreateInvoiceDialog open={createOpen} onOpenChange={setCreateOpen} city={city} />
       <InvoiceViewDialog invoiceId={viewId} onClose={() => setViewId(null)} />
     </div>
   );
 }
 
-// ─── GST Settings ───────────────────────────────────────
-function GstSettingsSection() {
+// ─── GST Settings (per-city) ────────────────────────────
+function GstSettingsSection({ city }: { city: string }) {
   const { toast } = useToast();
-  const { data: profile, isLoading } = useGstProfile();
+  const { data: profile, isLoading } = useGstProfile(city);
   const save = useSaveGstProfile();
-  const [form, setForm] = useState<Record<string, string>>({});
+  const [form, setForm] = useState<Partial<GstProfile>>({});
   const [gstinValid, setGstinValid] = useState<boolean | null>(null);
 
-  const getValue = (key: string) => form[key] ?? profile?.[key as keyof typeof profile] ?? "";
+  // Reset form when city changes
+  useEffect(() => { setForm({}); setGstinValid(null); }, [city]);
+
+  const getValue = (key: keyof GstProfile) => {
+    if (key in form) return String(form[key] ?? "");
+    return String(profile?.[key] ?? "");
+  };
 
   const handleGstinChange = (value: string) => {
-    setForm((f) => ({ ...f, gst_gstin: value.toUpperCase() }));
-    if (value.length === 15) {
-      const result = validateGSTIN(value);
+    const upper = value.toUpperCase();
+    setForm((f) => ({ ...f, gstin: upper }));
+    if (upper.length === 15) {
+      const result = validateGSTIN(upper);
       setGstinValid(result.valid);
       if (result.valid && result.stateCode) {
         const state = INDIAN_STATES.find((s) => s.code === result.stateCode);
         if (state) {
-          setForm((f) => ({ ...f, gst_gstin: value.toUpperCase(), gst_state: state.name, gst_state_code: state.code }));
+          setForm((f) => ({ ...f, gstin: upper, state: state.name, state_code: state.code }));
         }
       }
     } else {
@@ -246,9 +252,19 @@ function GstSettingsSection() {
   const handleSave = async () => {
     if (Object.keys(form).length === 0) return;
     try {
-      await save.mutateAsync(form as any);
+      const merged: GstProfile = {
+        city,
+        legal_name: form.legal_name ?? profile?.legal_name ?? "",
+        gstin: form.gstin ?? profile?.gstin ?? "",
+        address: form.address ?? profile?.address ?? "",
+        state: form.state ?? profile?.state ?? "",
+        state_code: form.state_code ?? profile?.state_code ?? "",
+        invoice_prefix: form.invoice_prefix ?? profile?.invoice_prefix ?? "INV",
+        invoice_start_number: form.invoice_start_number ?? profile?.invoice_start_number ?? 1,
+      };
+      await save.mutateAsync(merged);
       setForm({});
-      toast({ title: "Saved", description: "GST profile updated." });
+      toast({ title: "Saved", description: `GST profile updated for ${city}.` });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
@@ -260,18 +276,18 @@ function GstSettingsSection() {
     <div className="space-y-6 max-w-2xl">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">GST Profile</CardTitle>
+          <CardTitle className="text-base">GST Profile — {city}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
             <Label>Legal Business Name</Label>
-            <Input value={getValue("gst_legal_name")} onChange={(e) => setForm((f) => ({ ...f, gst_legal_name: e.target.value }))} className="mt-1" />
+            <Input value={getValue("legal_name")} onChange={(e) => setForm((f) => ({ ...f, legal_name: e.target.value }))} className="mt-1" />
           </div>
           <div>
             <Label>GSTIN</Label>
             <div className="relative mt-1">
               <Input
-                value={getValue("gst_gstin")}
+                value={getValue("gstin")}
                 onChange={(e) => handleGstinChange(e.target.value)}
                 maxLength={15}
                 placeholder="22AAAAA0000A1Z5"
@@ -286,14 +302,14 @@ function GstSettingsSection() {
           </div>
           <div>
             <Label>Registered Address</Label>
-            <Input value={getValue("gst_address")} onChange={(e) => setForm((f) => ({ ...f, gst_address: e.target.value }))} className="mt-1" />
+            <Input value={getValue("address")} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} className="mt-1" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>State</Label>
-              <Select value={getValue("gst_state")} onValueChange={(v) => {
+              <Select value={getValue("state")} onValueChange={(v) => {
                 const state = INDIAN_STATES.find((s) => s.name === v);
-                setForm((f) => ({ ...f, gst_state: v, gst_state_code: state?.code ?? "" }));
+                setForm((f) => ({ ...f, state: v, state_code: state?.code ?? "" }));
               }}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Select state" /></SelectTrigger>
                 <SelectContent>
@@ -305,7 +321,7 @@ function GstSettingsSection() {
             </div>
             <div>
               <Label>State Code</Label>
-              <Input value={getValue("gst_state_code")} readOnly className="mt-1 bg-muted" />
+              <Input value={getValue("state_code")} readOnly className="mt-1 bg-muted" />
             </div>
           </div>
           <Button onClick={handleSave} disabled={save.isPending || Object.keys(form).length === 0}>
@@ -317,7 +333,7 @@ function GstSettingsSection() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Invoice Numbering</CardTitle>
+          <CardTitle className="text-base">Invoice Numbering — {city}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -328,7 +344,7 @@ function GstSettingsSection() {
             </div>
             <div>
               <Label>Starting Number (new FY)</Label>
-              <Input type="number" min={1} value={getValue("invoice_start_number")} onChange={(e) => setForm((f) => ({ ...f, invoice_start_number: e.target.value }))} className="mt-1" />
+              <Input type="number" min={1} value={getValue("invoice_start_number")} onChange={(e) => setForm((f) => ({ ...f, invoice_start_number: parseInt(e.target.value) || 1 }))} className="mt-1" />
             </div>
           </div>
           <Button onClick={handleSave} disabled={save.isPending || Object.keys(form).length === 0}>
@@ -344,19 +360,52 @@ function GstSettingsSection() {
 // ─── Main Tab ───────────────────────────────────────────
 export function AdminFinanceTab() {
   const [tab, setTab] = useState("invoices");
+  const { data: cities, isLoading: loadingCities } = useAvailableCities();
+  const [selectedCity, setSelectedCity] = useState<string>("");
+
+  // Auto-select first city
+  useEffect(() => {
+    if (cities?.length && !selectedCity) {
+      setSelectedCity(cities[0]);
+    }
+  }, [cities, selectedCity]);
+
+  if (loadingCities) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
+
+  if (!cities?.length) {
+    return <p className="text-center text-muted-foreground py-12">No cities configured. Set up a city in Bay Config first.</p>;
+  }
 
   return (
-    <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-      <TabsList>
-        <TabsTrigger value="invoices">Invoices</TabsTrigger>
-        <TabsTrigger value="settings">GST Settings</TabsTrigger>
-      </TabsList>
-      <TabsContent value="invoices">
-        <InvoiceListSection />
-      </TabsContent>
-      <TabsContent value="settings">
-        <GstSettingsSection />
-      </TabsContent>
-    </Tabs>
+    <div className="space-y-4">
+      {/* City selector */}
+      <div className="flex items-center gap-3">
+        <MapPin className="h-4 w-4 text-muted-foreground" />
+        <Select value={selectedCity} onValueChange={setSelectedCity}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Select instance" />
+          </SelectTrigger>
+          <SelectContent>
+            {cities.map((c) => (
+              <SelectItem key={c} value={c}>{c}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Badge variant="outline" className="text-xs">{selectedCity}</Badge>
+      </div>
+
+      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="invoices">Invoices</TabsTrigger>
+          <TabsTrigger value="settings">GST Settings</TabsTrigger>
+        </TabsList>
+        <TabsContent value="invoices">
+          {selectedCity && <InvoiceListSection city={selectedCity} />}
+        </TabsContent>
+        <TabsContent value="settings">
+          {selectedCity && <GstSettingsSection city={selectedCity} />}
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }
