@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 interface AdminTopbarProps {
   title: string;
   onMenuClick: () => void;
+  onSettingsClick: () => void;
 }
 
 const tabTitles: Record<string, string> = {
