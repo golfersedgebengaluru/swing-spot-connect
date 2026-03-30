@@ -17,7 +17,7 @@ import {
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { useBays, useAvailableSlots, useCreateBooking, useUserHoursBalance } from "@/hooks/useBookings";
+import { useBays, useAvailableSlots, useCreateBooking, useUserHoursBalance, useCities } from "@/hooks/useBookings";
 import { useBayPricing } from "@/hooks/usePricing";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
@@ -55,11 +55,8 @@ export default function PublicBooking() {
 
   const isGuest = !user;
 
-  // Cities from bays
-  const cities = useMemo(() => {
-    const s = new Set((bays ?? []).filter((b: any) => b.is_active).map((b: any) => b.city));
-    return Array.from(s).sort();
-  }, [bays]);
+  // Cities from unified hook
+  const { data: cities = [] } = useCities();
 
   const cityBays = useMemo(() => {
     return (bays ?? []).filter((b: any) => b.city === selectedCity && b.is_active);

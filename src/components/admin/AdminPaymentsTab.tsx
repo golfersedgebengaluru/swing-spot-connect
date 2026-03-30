@@ -10,6 +10,7 @@ import { CreditCard, Eye, EyeOff, Loader2, Save, MapPin, Plus, Trash2 } from "lu
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAllCities } from "@/hooks/useBookings";
 import type { Json } from "@/integrations/supabase/types";
 
 interface Gateway {
@@ -50,15 +51,7 @@ export function AdminPaymentsTab() {
     },
   });
 
-  const { data: cities } = useQuery({
-    queryKey: ["bays_cities_for_payments"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("bays").select("city");
-      if (error) throw error;
-      const unique = Array.from(new Set((data ?? []).map((b) => b.city))).sort();
-      return unique;
-    },
-  });
+  const { data: cities } = useAllCities();
 
   const updateGateway = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Gateway> }) => {

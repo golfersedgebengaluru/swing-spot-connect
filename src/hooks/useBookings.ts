@@ -76,6 +76,19 @@ export function useCities() {
   });
 }
 
+/** All cities from bays table (including inactive) — for admin contexts */
+export function useAllCities() {
+  return useQuery({
+    queryKey: ["all_cities"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("bays")
+        .select("city");
+      return [...new Set((data ?? []).map((b: any) => b.city))].sort() as string[];
+    },
+  });
+}
+
 export function useCreateBooking() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
