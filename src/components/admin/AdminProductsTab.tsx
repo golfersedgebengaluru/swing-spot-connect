@@ -1,126 +1,17 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { Plus, Pencil, Trash2, Loader2, Download, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAllProducts } from "@/hooks/useProducts";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { ProductForm } from "@/components/admin/ProductForm";
 
-function ProductForm({ product, onSave, onCancel }: { product?: any; onSave: (data: any) => void; onCancel: () => void }) {
-  const [form, setForm] = useState({
-    name: product?.name ?? "",
-    description: product?.description ?? "",
-    price: product?.price ?? 0,
-    category: product?.category ?? "other",
-    type: product?.type ?? "beverage",
-    badge: product?.badge ?? "",
-    sizes: product?.sizes?.join(", ") ?? "",
-    colors: product?.colors?.join(", ") ?? "",
-    in_stock: product?.in_stock ?? true,
-    sort_order: product?.sort_order ?? 0,
-    item_type: product?.item_type ?? "product",
-    hsn_code: product?.hsn_code ?? "",
-    sac_code: product?.sac_code ?? "",
-    gst_rate: product?.gst_rate ?? 0,
-  });
-
-  const handleSave = () => {
-    onSave({
-      ...form,
-      price: Number(form.price),
-      gst_rate: Number(form.gst_rate),
-      hsn_code: form.item_type === "product" ? (form.hsn_code || null) : null,
-      sac_code: form.item_type === "service" ? (form.sac_code || null) : null,
-      sizes: form.sizes ? form.sizes.split(",").map((s: string) => s.trim()).filter(Boolean) : null,
-      colors: form.colors ? form.colors.split(",").map((s: string) => s.trim()).filter(Boolean) : null,
-      badge: form.badge || null,
-    });
-  };
-
-  return (
-    <div className="space-y-4">
-      <div><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-      <div><Label>Description</Label><RichTextEditor content={form.description} onChange={(html) => setForm({ ...form, description: html })} minHeight="120px" /></div>
-      <div className="grid grid-cols-2 gap-4">
-        <div><Label>Price</Label><Input type="number" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></div>
-        <div><Label>Display Type</Label>
-          <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="beverage">Beverage</SelectItem>
-              <SelectItem value="merchandise">Merchandise</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* GST Classification */}
-      <div className="rounded-lg border border-border p-4 space-y-4 bg-muted/30">
-        <h4 className="text-sm font-medium text-foreground">GST Classification</h4>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label>Item Type</Label>
-            <Select value={form.item_type} onValueChange={(v) => setForm({ ...form, item_type: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="product">Product (Goods)</SelectItem>
-                <SelectItem value="service">Service</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>{form.item_type === "service" ? "SAC Code" : "HSN Code"}</Label>
-            <Input
-              value={form.item_type === "service" ? form.sac_code : form.hsn_code}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  ...(form.item_type === "service" ? { sac_code: e.target.value } : { hsn_code: e.target.value }),
-                })
-              }
-              placeholder={form.item_type === "service" ? "e.g. 998311" : "e.g. 6110"}
-            />
-          </div>
-        </div>
-        <div className="max-w-[200px]">
-          <Label>GST Rate (%)</Label>
-          <Input type="number" step="0.01" min={0} value={form.gst_rate} onChange={(e) => setForm({ ...form, gst_rate: e.target.value })} placeholder="18" />
-          {Number(form.gst_rate) > 0 && (
-            <p className="text-xs text-muted-foreground mt-1">
-              CGST: {(Number(form.gst_rate) / 2).toFixed(1)}% + SGST: {(Number(form.gst_rate) / 2).toFixed(1)}%
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div><Label>Category</Label><Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="coffee, beer, apparel..." /></div>
-        <div><Label>Badge</Label><Input value={form.badge} onChange={(e) => setForm({ ...form, badge: e.target.value })} placeholder="e.g. Premium" /></div>
-      </div>
-      <div><Label>Sizes (comma-separated)</Label><Input value={form.sizes} onChange={(e) => setForm({ ...form, sizes: e.target.value })} placeholder="S, M, L, XL" /></div>
-      <div><Label>Colors (comma-separated)</Label><Input value={form.colors} onChange={(e) => setForm({ ...form, colors: e.target.value })} placeholder="Black, White, Navy" /></div>
-      <div className="grid grid-cols-2 gap-4">
-        <div><Label>Sort Order</Label><Input type="number" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })} /></div>
-        <div className="flex items-center gap-2 pt-6"><Switch checked={form.in_stock} onCheckedChange={(v) => setForm({ ...form, in_stock: v })} /><Label>In Stock</Label></div>
-      </div>
-      <div className="flex gap-2 justify-end">
-        <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button onClick={handleSave}>Save</Button>
-      </div>
-    </div>
-  );
-}
-
-const CSV_HEADERS = ["name", "description", "price", "category", "type", "item_type", "hsn_code", "sac_code", "gst_rate", "badge", "sizes", "colors", "in_stock", "sort_order"];
+const CSV_HEADERS = ["name", "description", "price", "cost_price", "category", "item_type", "sku", "unit_of_measure", "hsn_code", "sac_code", "gst_rate", "in_stock", "opening_stock", "reorder_level", "reorder_quantity", "duration_minutes", "bookable"];
 
 function parseCSVLine(line: string): string[] {
   const result: string[] = [];
@@ -175,7 +66,6 @@ export function AdminProductsTab() {
     const rows = products.map((p: any) => CSV_HEADERS.map((h) => {
       const val = p[h];
       if (val === null || val === undefined) return "";
-      if (Array.isArray(val)) return `"${val.join(", ")}"`;
       const str = String(val);
       return str.includes(",") || str.includes('"') || str.includes("\n") ? `"${str.replace(/"/g, '""')}"` : str;
     }).join(","));
@@ -194,18 +84,13 @@ export function AdminProductsTab() {
     const file = e.target.files?.[0];
     if (!file) return;
     setImporting(true);
-
     try {
       const text = await file.text();
       const lines = text.split(/\r?\n/).filter((l) => l.trim());
       if (lines.length < 2) throw new Error("File must have a header row and at least one data row.");
-
       const headerLine = parseCSVLine(lines[0]);
       const headerMap = headerLine.map((h) => h.toLowerCase().replace(/\s+/g, "_"));
-
-      // Validate required column
       if (!headerMap.includes("name")) throw new Error("Missing required 'name' column.");
-
       const rows: any[] = [];
       for (let i = 1; i < lines.length; i++) {
         const values = parseCSVLine(lines[i]);
@@ -213,32 +98,29 @@ export function AdminProductsTab() {
         headerMap.forEach((col, idx) => {
           if (CSV_HEADERS.includes(col)) row[col] = values[idx] ?? "";
         });
-
-        if (!row.name) continue; // skip empty rows
-
-        // Type coercion
+        if (!row.name) continue;
         row.price = Number(row.price) || 0;
+        row.cost_price = Number(row.cost_price) || 0;
         row.gst_rate = Number(row.gst_rate) || 0;
-        row.sort_order = Number(row.sort_order) || 0;
         row.in_stock = row.in_stock === undefined || row.in_stock === "" || row.in_stock === "true" || row.in_stock === "TRUE" || row.in_stock === "1";
+        row.bookable = row.bookable === "true" || row.bookable === "TRUE" || row.bookable === "1";
         row.item_type = row.item_type === "service" ? "service" : "product";
-        row.type = row.type || "beverage";
-        row.category = row.category || "other";
+        row.type = row.item_type === "service" ? "beverage" : "merchandise";
+        row.category = row.category || "Other";
+        row.unit_of_measure = row.unit_of_measure || "Each";
         row.hsn_code = row.hsn_code || null;
         row.sac_code = row.sac_code || null;
-        row.badge = row.badge || null;
+        row.sku = row.sku || null;
         row.description = row.description || null;
-        row.sizes = row.sizes ? row.sizes.split(",").map((s: string) => s.trim()).filter(Boolean) : null;
-        row.colors = row.colors ? row.colors.split(",").map((s: string) => s.trim()).filter(Boolean) : null;
-
+        row.opening_stock = row.opening_stock ? Number(row.opening_stock) : null;
+        row.reorder_level = row.reorder_level ? Number(row.reorder_level) : null;
+        row.reorder_quantity = row.reorder_quantity ? Number(row.reorder_quantity) : null;
+        row.duration_minutes = row.duration_minutes ? Number(row.duration_minutes) : null;
         rows.push(row);
       }
-
       if (rows.length === 0) throw new Error("No valid data rows found.");
-
       const { error } = await supabase.from("products").insert(rows);
       if (error) throw error;
-
       queryClient.invalidateQueries({ queryKey: ["products"] });
       toast({ title: "Imported", description: `${rows.length} items imported.` });
     } catch (err: any) {
@@ -262,42 +144,49 @@ export function AdminProductsTab() {
         <input ref={fileInputRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleImport} />
         <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingProduct(null); }}>
           <DialogTrigger asChild>
-            <Button onClick={() => setEditingProduct({})}><Plus className="mr-2 h-4 w-4" />Add Product</Button>
+            <Button onClick={() => setEditingProduct({})}><Plus className="mr-2 h-4 w-4" />Add Item</Button>
           </DialogTrigger>
-          <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-lg">
-            <DialogHeader><DialogTitle>{editingProduct?.id ? "Edit Product" : "New Product"}</DialogTitle></DialogHeader>
+          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+            <DialogHeader><DialogTitle>{editingProduct?.id ? "Edit Item" : "New Item"}</DialogTitle></DialogHeader>
             <ProductForm product={editingProduct} onSave={handleSave} onCancel={() => { setDialogOpen(false); setEditingProduct(null); }} />
           </DialogContent>
         </Dialog>
       </div>
       {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
         <div className="space-y-3">
-          {(products ?? []).length === 0 && <p className="text-center text-muted-foreground py-8">No products yet.</p>}
-          {(products ?? []).map((product) => (
-            <Card key={product.id} className="shadow-elegant">
-              <CardContent className="flex items-center justify-between p-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium text-foreground">{product.name}</h3>
-                    <Badge variant="outline" className="text-[10px]">
-                      {(product as any).item_type === "service" ? "Service" : "Product"}
-                    </Badge>
+          {(products ?? []).length === 0 && <p className="text-center text-muted-foreground py-8">No products or services yet.</p>}
+          {(products ?? []).map((product) => {
+            const p = product as any;
+            const isService = p.item_type === "service";
+            return (
+              <Card key={product.id} className="shadow-elegant">
+                <CardContent className="flex items-center justify-between p-4">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-medium text-foreground">{product.name}</h3>
+                      <Badge variant="outline" className="text-[10px]">
+                        {isService ? "Service" : "Product"}
+                      </Badge>
+                      {p.sku && <span className="text-[10px] text-muted-foreground font-mono">{p.sku}</span>}
+                    </div>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {currency.format(Number(product.price))} · {product.category}
+                      {Number(p.gst_rate) > 0 && ` · GST ${p.gst_rate}%`}
+                      {p.hsn_code && ` · HSN: ${p.hsn_code}`}
+                      {p.sac_code && ` · SAC: ${p.sac_code}`}
+                      {isService && p.duration_minutes && ` · ${p.duration_minutes}min`}
+                      {isService && p.bookable && ` · Bookable`}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {currency.format(Number(product.price))} · {product.type} · {product.category}
-                    {Number((product as any).gst_rate) > 0 && ` · GST ${(product as any).gst_rate}%`}
-                    {(product as any).hsn_code && ` · HSN: ${(product as any).hsn_code}`}
-                    {(product as any).sac_code && ` · SAC: ${(product as any).sac_code}`}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {!product.in_stock && <Badge variant="secondary">Out of stock</Badge>}
-                  <Button variant="outline" size="icon" onClick={() => { setEditingProduct(product); setDialogOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                  <Button variant="outline" size="icon" onClick={() => handleDelete(product.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {!product.in_stock && <Badge variant="secondary">Out of stock</Badge>}
+                    <Button variant="outline" size="icon" onClick={() => { setEditingProduct(product); setDialogOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                    <Button variant="outline" size="icon" onClick={() => handleDelete(product.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
