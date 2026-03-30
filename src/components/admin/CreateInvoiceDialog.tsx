@@ -346,7 +346,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: Props) {
           {lineItems.length > 0 && (
             <Card className="bg-muted/30">
               <CardContent className="p-4 space-y-1.5 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{currency.format(calculated.subtotal)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Taxable Amount</span><span>{currency.format(calculated.subtotal)}</span></div>
                 {gstType === "cgst_sgst" ? (
                   <>
                     <div className="flex justify-between"><span className="text-muted-foreground">CGST</span><span>{currency.format(calculated.cgstTotal)}</span></div>
@@ -357,7 +357,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: Props) {
                 )}
                 <Separator />
                 <div className="flex justify-between font-semibold text-base">
-                  <span>Total</span><span>{currency.format(calculated.total)}</span>
+                  <span>Total (incl. GST)</span><span>{currency.format(calculated.total)}</span>
                 </div>
               </CardContent>
             </Card>
