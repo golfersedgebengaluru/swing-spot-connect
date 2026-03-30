@@ -288,7 +288,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: Props) {
                       <th className="text-left py-2 px-2 font-medium text-muted-foreground">Item</th>
                       <th className="text-left py-2 px-2 font-medium text-muted-foreground w-20">Code</th>
                       <th className="text-right py-2 px-2 font-medium text-muted-foreground w-16">Qty</th>
-                      <th className="text-right py-2 px-2 font-medium text-muted-foreground w-24">Price</th>
+                      <th className="text-right py-2 px-2 font-medium text-muted-foreground w-24">Price (incl.)</th>
                       <th className="text-right py-2 px-2 font-medium text-muted-foreground w-16">GST%</th>
                       <th className="text-right py-2 px-2 font-medium text-muted-foreground w-24">Total</th>
                       <th className="w-8"></th>
