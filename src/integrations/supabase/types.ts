@@ -419,6 +419,7 @@ export type Database = {
       }
       financial_years: {
         Row: {
+          city: string | null
           created_at: string
           end_date: string
           id: string
@@ -428,6 +429,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          city?: string | null
           created_at?: string
           end_date: string
           id?: string
@@ -437,6 +439,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          city?: string | null
           created_at?: string
           end_date?: string
           id?: string
