@@ -1,14 +1,45 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-// Financial Years
+// ─── Admin config toggle ────────────────────────────────
+export function usePerCityFyToggle() {
+  return useQuery({
+    queryKey: ["admin_config", "allow_per_city_fy"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("admin_config")
+        .select("value")
+        .eq("key", "allow_per_city_fy")
+        .maybeSingle();
+      return data?.value === "true";
+    },
+  });
+}
+
+export function useUpdatePerCityFyToggle() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const { error } = await supabase
+        .from("admin_config")
+        .update({ value: enabled ? "true" : "false" } as any)
+        .eq("key", "allow_per_city_fy");
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin_config", "allow_per_city_fy"] }),
+  });
+}
+
+// ─── Financial Years ────────────────────────────────────
+// Global FYs (city IS NULL)
 export function useFinancialYears() {
   return useQuery({
-    queryKey: ["financial_years"],
+    queryKey: ["financial_years", "global"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("financial_years")
         .select("*")
+        .is("city", null)
         .order("start_date", { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -16,14 +47,32 @@ export function useFinancialYears() {
   });
 }
 
+// City-specific FYs
+export function useCityFinancialYears(city?: string) {
+  return useQuery({
+    queryKey: ["financial_years", "city", city],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("financial_years")
+        .select("*")
+        .eq("city", city!)
+        .order("start_date", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!city,
+  });
+}
+
 export function useActiveFinancialYear() {
   return useQuery({
-    queryKey: ["financial_years", "active"],
+    queryKey: ["financial_years", "active", "global"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("financial_years")
         .select("*")
         .eq("is_active", true)
+        .is("city", null)
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -31,15 +80,35 @@ export function useActiveFinancialYear() {
   });
 }
 
+// Effective FY: city override if exists, else global fallback
+export function useEffectiveFinancialYear(city?: string) {
+  const { data: globalFY } = useActiveFinancialYear();
+  const { data: cityFYs } = useCityFinancialYears(city);
+  const { data: overrideEnabled } = usePerCityFyToggle();
+
+  const cityActiveFY = overrideEnabled && city
+    ? (cityFYs ?? []).find((fy: any) => fy.is_active)
+    : null;
+
+  return cityActiveFY || globalFY || null;
+}
+
 export function useCreateFinancialYear() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (fy: { label: string; start_date: string; end_date: string; is_active: boolean }) => {
-      // If setting as active, deactivate others first
+    mutationFn: async (fy: { label: string; start_date: string; end_date: string; is_active: boolean; city?: string | null }) => {
+      const cityVal = fy.city ?? null;
+      // If setting as active, deactivate others in same scope
       if (fy.is_active) {
-        await supabase.from("financial_years").update({ is_active: false } as any).eq("is_active", true);
+        let q = supabase.from("financial_years").update({ is_active: false } as any).eq("is_active", true);
+        if (cityVal) {
+          q = q.eq("city", cityVal);
+        } else {
+          q = q.is("city", null);
+        }
+        await q;
       }
-      const { data, error } = await supabase.from("financial_years").insert(fy as any).select().single();
+      const { data, error } = await supabase.from("financial_years").insert({ ...fy, city: cityVal } as any).select().single();
       if (error) throw error;
       return data;
     },
@@ -50,9 +119,16 @@ export function useCreateFinancialYear() {
 export function useUpdateFinancialYear() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string; label?: string; start_date?: string; end_date?: string; is_active?: boolean }) => {
+    mutationFn: async ({ id, city, ...updates }: { id: string; city?: string | null; label?: string; start_date?: string; end_date?: string; is_active?: boolean }) => {
       if (updates.is_active) {
-        await supabase.from("financial_years").update({ is_active: false } as any).eq("is_active", true);
+        const cityVal = city ?? null;
+        let q = supabase.from("financial_years").update({ is_active: false } as any).eq("is_active", true);
+        if (cityVal) {
+          q = q.eq("city", cityVal);
+        } else {
+          q = q.is("city", null);
+        }
+        await q;
       }
       const { error } = await supabase.from("financial_years").update(updates as any).eq("id", id);
       if (error) throw error;
@@ -72,7 +148,7 @@ export function useDeleteFinancialYear() {
   });
 }
 
-// Revenue Transactions
+// ─── Revenue Transactions ───────────────────────────────
 export function useRevenueTransactions(filters?: {
   startDate?: string;
   endDate?: string;
@@ -143,7 +219,6 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
         byType[t.transaction_type] = (byType[t.transaction_type] || 0) + Number(t.amount);
       }
 
-      // Breakdown by user
       const byUser: Record<string, { name: string; amount: number; count: number }> = {};
       const byGuest: Record<string, { name: string; email: string; amount: number; count: number }> = {};
 
@@ -160,7 +235,6 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
         }
       }
 
-      // Fetch display names for registered users
       const userIds = Object.keys(byUser);
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
