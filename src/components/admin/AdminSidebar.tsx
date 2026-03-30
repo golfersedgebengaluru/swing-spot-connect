@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdmin } from "@/hooks/useAdmin";
 import {
   Collapsible,
   CollapsibleContent,
@@ -160,9 +161,11 @@ export function AdminSidebar({
   onToggleCollapse,
 }: AdminSidebarProps) {
   const { user } = useAuth();
+  const { role } = useAdmin();
   const initials = user?.email
     ? user.email.substring(0, 2).toUpperCase()
     : "AD";
+  const roleLabel = role === "admin" ? "Administrator" : role === "site_admin" ? "Site-Admin" : "User";
 
   const handleNavClick = (tab: string) => {
     onTabChange(tab);
@@ -249,7 +252,7 @@ export function AdminSidebar({
               <p className="truncate text-sm font-medium text-foreground">
                 {user?.email?.split("@")[0] ?? "Admin"}
               </p>
-              <p className="text-xs text-muted-foreground">Administrator</p>
+              <p className="text-xs text-muted-foreground">{roleLabel}</p>
             </div>
           )}
         </div>
