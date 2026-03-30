@@ -1085,6 +1085,44 @@ export type Database = {
         }
         Relationships: []
       }
+      recycled_invoice_numbers: {
+        Row: {
+          created_at: string
+          financial_year_id: string
+          gstin: string
+          id: string
+          invoice_number_text: string
+          number: number
+          prefix: string
+        }
+        Insert: {
+          created_at?: string
+          financial_year_id: string
+          gstin: string
+          id?: string
+          invoice_number_text: string
+          number: number
+          prefix?: string
+        }
+        Update: {
+          created_at?: string
+          financial_year_id?: string
+          gstin?: string
+          id?: string
+          invoice_number_text?: string
+          number?: number
+          prefix?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recycled_invoice_numbers_financial_year_id_fkey"
+            columns: ["financial_year_id"]
+            isOneToOne: false
+            referencedRelation: "financial_years"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       revenue_transactions: {
         Row: {
           amount: number
