@@ -19,6 +19,7 @@ import { validateGSTIN, getGstType, calculateLineItems, type GstLineItem } from 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  city?: string;
 }
 
 function useProductCatalogue() {
@@ -48,10 +49,10 @@ function useProfileSearch(search: string) {
   });
 }
 
-export function CreateInvoiceDialog({ open, onOpenChange }: Props) {
+export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
   const { toast } = useToast();
   const currency = useDefaultCurrency();
-  const { data: profile } = useGstProfile();
+  const { data: profile } = useGstProfile(city);
   const { data: paymentMethods } = useOfflinePaymentMethods();
   const { data: catalogue } = useProductCatalogue();
   const createInvoice = useCreateInvoice();
@@ -126,7 +127,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: Props) {
   };
 
   // GST calculation
-  const gstType = getGstType(profile?.gst_state_code || "", customerGstin || undefined);
+  const gstType = getGstType(profile?.state_code || "", customerGstin || undefined);
   const calculated = calculateLineItems(lineItems, gstType);
 
   const handleSubmit = async () => {
@@ -157,6 +158,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: Props) {
         igstTotal: calculated.igstTotal,
         total: calculated.total,
         paymentMethod,
+        city,
       });
       toast({ title: "Invoice created" });
       onOpenChange(false);
