@@ -30,6 +30,7 @@ function InvoiceListSection() {
   const [viewId, setViewId] = useState<string | null>(null);
 
   const cancelInvoice = useCancelInvoice();
+  const deleteInvoice = useDeleteInvoice();
 
   const { data, isLoading } = useInvoices({
     search: search || undefined,
@@ -76,6 +77,16 @@ function InvoiceListSection() {
     try {
       await cancelInvoice.mutateAsync(id);
       toast({ title: "Invoice cancelled", description: "Credit note generated." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Permanently delete this invoice? The invoice number will be recycled for the next invoice. This cannot be undone.")) return;
+    try {
+      await deleteInvoice.mutateAsync(id);
+      toast({ title: "Invoice deleted", description: "Invoice number will be reused." });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
