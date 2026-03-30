@@ -6,8 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { useProductCategories } from "@/hooks/useProductCategories";
-
-const UNITS = ["Each", "Kg", "Litre", "Hour", "Session"];
+import { useUnitsOfMeasure } from "@/hooks/useUnitsOfMeasure";
 
 function generateSKU(itemType: string) {
   const prefix = itemType === "service" ? "SVC" : "PRD";
