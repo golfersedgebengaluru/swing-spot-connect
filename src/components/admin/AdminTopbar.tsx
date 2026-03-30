@@ -1,11 +1,14 @@
-import { Menu, Search, Settings } from "lucide-react";
+import { Menu, Search, Settings, LogOut } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 interface AdminTopbarProps {
   title: string;
   onMenuClick: () => void;
+  onSettingsClick: () => void;
 }
 
 const tabTitles: Record<string, string> = {
@@ -32,7 +35,15 @@ export function getTabTitle(tab: string) {
   return tabTitles[tab] ?? "Admin";
 }
 
-export function AdminTopbar({ title, onMenuClick }: AdminTopbarProps) {
+export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbarProps) {
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth");
+  };
+
   return (
     <header className="sticky top-0 z-30 flex h-[52px] items-center gap-3 border-b border-border/50 bg-background px-4">
       <button
@@ -62,9 +73,14 @@ export function AdminTopbar({ title, onMenuClick }: AdminTopbarProps) {
 
         <NotificationBell />
 
-        <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]">
+        <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" onClick={onSettingsClick}>
           <Settings className="h-4 w-4" />
           <span className="sr-only">Settings</span>
+        </Button>
+
+        <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive" onClick={handleSignOut}>
+          <LogOut className="h-4 w-4" />
+          <span className="sr-only">Sign Out</span>
         </Button>
       </div>
     </header>

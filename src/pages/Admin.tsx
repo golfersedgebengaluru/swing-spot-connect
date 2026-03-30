@@ -61,6 +61,7 @@ export default function Admin() {
         <AdminTopbar
           title={getTabTitle(activeTab)}
           onMenuClick={() => setSidebarOpen(true)}
+          onSettingsClick={() => setActiveTab("settings")}
         />
 
         <main className="flex-1 p-4 md:p-6">

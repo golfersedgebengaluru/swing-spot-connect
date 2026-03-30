@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdmin } from "@/hooks/useAdmin";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { HeroSection } from "@/components/home/HeroSection";
@@ -11,11 +12,13 @@ const Index = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
+  const { hasAdminAccess, loading: adminLoading } = useAdmin();
+
   useEffect(() => {
-    if (!loading && user) {
-      navigate("/dashboard");
+    if (!loading && !adminLoading && user) {
+      navigate(hasAdminAccess ? "/admin" : "/dashboard");
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, adminLoading, hasAdminAccess, navigate]);
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
