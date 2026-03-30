@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useBays, useAvailableSlots } from "@/hooks/useBookings";
+import { useBays, useAvailableSlots, useCities } from "@/hooks/useBookings";
 import { useBayPricing } from "@/hooks/usePricing";
 import { useOfflinePaymentMethods } from "@/hooks/useOfflinePaymentMethods";
 import { useToast } from "@/hooks/use-toast";
@@ -50,10 +50,7 @@ export function AdminWalkInBookingTab() {
   const [bookingComplete, setBookingComplete] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const cities = useMemo(() => {
-    const s = new Set((bays ?? []).filter((b: any) => b.is_active).map((b: any) => b.city));
-    return Array.from(s).sort();
-  }, [bays]);
+  const { data: cities = [] } = useCities();
 
   const cityBays = useMemo(() => {
     return (bays ?? []).filter((b: any) => b.city === selectedCity && b.is_active);

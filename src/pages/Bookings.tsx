@@ -11,7 +11,7 @@ import { CalendarIcon, Clock, MapPin, Loader2, AlertTriangle, LayoutGrid, Gradua
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { useBays, useAvailableSlots, useCreateBooking, useUserHoursBalance, useUserProfile, useUpdatePreferredCity } from "@/hooks/useBookings";
+import { useBays, useAvailableSlots, useCreateBooking, useUserHoursBalance, useUserProfile, useUpdatePreferredCity, useCities } from "@/hooks/useBookings";
 import { useToast } from "@/hooks/use-toast";
 import { Navigate } from "react-router-dom";
 
@@ -31,11 +31,8 @@ export default function Bookings() {
   const [duration, setDuration] = useState<number>(60);
   const [sessionType, setSessionType] = useState<"practice" | "coaching">("practice");
 
-  // Derive cities from bays
-  const cities = useMemo(() => {
-    const citySet = new Set((bays ?? []).filter((b: any) => b.is_active).map((b: any) => b.city));
-    return Array.from(citySet).sort();
-  }, [bays]);
+  // Cities from unified hook
+  const { data: cities = [] } = useCities();
 
   const effectiveCity = selectedCity || profile?.preferred_city || "";
 

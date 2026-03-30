@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Save, IndianRupee, Package, Link2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useBayPricing, useUpsertBayPricing, useHourPackages, useUpdateHourPackage } from "@/hooks/usePricing";
-import { useBays } from "@/hooks/useBookings";
+import { useBays, useAllCities } from "@/hooks/useBookings";
 import { useAllProducts } from "@/hooks/useProducts";
 
 const SESSION_TYPES = [
@@ -44,10 +44,7 @@ function BayPricingSection() {
     return m;
   }, [services]);
 
-  const cities = useMemo(() => {
-    const set = new Set((bays ?? []).map((b: any) => b.city));
-    return Array.from(set).sort();
-  }, [bays]);
+  const { data: cities = [] } = useAllCities();
 
   const effectiveCity = selectedCity || cities[0] || "";
 

@@ -50,15 +50,7 @@ export function AdminPaymentsTab() {
     },
   });
 
-  const { data: cities } = useQuery({
-    queryKey: ["bays_cities_for_payments"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("bays").select("city");
-      if (error) throw error;
-      const unique = Array.from(new Set((data ?? []).map((b) => b.city))).sort();
-      return unique;
-    },
-  });
+  const { data: cities } = useAllCitiesHook();
 
   const updateGateway = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Gateway> }) => {

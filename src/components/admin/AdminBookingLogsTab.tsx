@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ClipboardList, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAllBookings, useBays, useApproveBooking, useRejectBooking, useAdminCancelBooking } from "@/hooks/useBookings";
+import { useAllBookings, useBays, useApproveBooking, useRejectBooking, useAdminCancelBooking, useAllCities } from "@/hooks/useBookings";
 import { format } from "date-fns";
 
 export function AdminBookingLogsTab() {
@@ -21,7 +21,7 @@ export function AdminBookingLogsTab() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [rejectMessages, setRejectMessages] = useState<Record<string, string>>({});
 
-  const cities = Array.from(new Set((bays ?? []).map((b: any) => b.city))).sort();
+  const { data: cities = [] } = useAllCities();
 
   const filtered = (bookings ?? []).filter((b: any) => {
     if (cityFilter !== "all" && b.city !== cityFilter) return false;
