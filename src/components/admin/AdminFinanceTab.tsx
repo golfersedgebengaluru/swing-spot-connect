@@ -356,8 +356,13 @@ function GstSettingsSection({ city }: { city: string }) {
 // ─── Main Tab ───────────────────────────────────────────
 export function AdminFinanceTab() {
   const [tab, setTab] = useState("invoices");
+  const { isAdmin, isSiteAdmin } = useAdmin();
+  const { data: perCityFyEnabled } = usePerCityFyToggle();
   const { data: cities, isLoading: loadingCities } = useAvailableCities();
   const [selectedCity, setSelectedCity] = useState<string>("");
+
+  // Show per-city FY tab only when toggle is on AND user is site-admin (or admin)
+  const showCityFY = !!perCityFyEnabled;
 
   // Auto-select first city
   useEffect(() => {
