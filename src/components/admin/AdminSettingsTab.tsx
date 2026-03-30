@@ -16,6 +16,7 @@ import { OfflinePaymentMethodsCard } from "@/components/admin/OfflinePaymentMeth
 import { AdminFinancialYearsCard } from "@/components/admin/AdminFinancialYearsCard";
 import { usePerCityFyToggle, useUpdatePerCityFyToggle } from "@/hooks/useRevenue";
 import { ProductCategoriesCard } from "@/components/admin/ProductCategoriesCard";
+import { UnitOfMeasureCard } from "@/components/admin/UnitOfMeasureCard";
 
 const pageVisibilityItems = [
   { key: "page_events_visible", label: "Events", description: "Show the Events tab in navigation" },
@@ -390,6 +391,7 @@ export function AdminSettingsTab() {
       <FinancialYearSettingsSection />
       <PageVisibilitySettings />
       <ProductCategoriesCard />
+      <UnitOfMeasureCard />
       <OfflinePaymentMethodsCard />
       <CancellationWindowCard />
       <SenderEmailCard />
