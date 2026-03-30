@@ -416,3 +416,42 @@ export function useCancelInvoice() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["invoices"] }),
   });
 }
+
+export function useDeleteInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (invoiceId: string) => {
+      // Fetch the invoice to get its number details
+      const { data: invoice, error: fetchErr } = await (supabase as any)
+        .from("invoices")
+        .select("*")
+        .eq("id", invoiceId)
+        .single();
+      if (fetchErr) throw fetchErr;
+      if (!invoice) throw new Error("Invoice not found");
+
+      // Parse the invoice number to extract the sequence number
+      // Format: PREFIX/FY_LABEL/0001
+      const parts = (invoice.invoice_number as string).split("/");
+      const seqNumber = parts.length >= 3 ? parseInt(parts[parts.length - 1], 10) : null;
+      const prefix = parts.length >= 3 ? parts[0] : "INV";
+
+      // Add the number to the recycled pool so it can be reused
+      if (seqNumber && invoice.financial_year_id && invoice.business_gstin) {
+        await (supabase as any).from("recycled_invoice_numbers").insert({
+          gstin: invoice.business_gstin,
+          financial_year_id: invoice.financial_year_id,
+          prefix,
+          number: seqNumber,
+          invoice_number_text: invoice.invoice_number,
+        });
+      }
+
+      // Delete line items first, then the invoice
+      await (supabase as any).from("invoice_line_items").delete().eq("invoice_id", invoiceId);
+      const { error: delErr } = await (supabase as any).from("invoices").delete().eq("id", invoiceId);
+      if (delErr) throw delErr;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["invoices"] }),
+  });
+}

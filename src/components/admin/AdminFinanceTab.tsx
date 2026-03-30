@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Download, Search, Loader2, Eye, FileX, Save, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Download, Search, Loader2, Eye, FileX, Trash2, Save, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useInvoices, useGstProfile, useSaveGstProfile, useCancelInvoice } from "@/hooks/useInvoices";
+import { useInvoices, useGstProfile, useSaveGstProfile, useCancelInvoice, useDeleteInvoice } from "@/hooks/useInvoices";
 import { useActiveFinancialYear } from "@/hooks/useRevenue";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { INDIAN_STATES, validateGSTIN } from "@/lib/gst-utils";
@@ -30,6 +30,7 @@ function InvoiceListSection() {
   const [viewId, setViewId] = useState<string | null>(null);
 
   const cancelInvoice = useCancelInvoice();
+  const deleteInvoice = useDeleteInvoice();
 
   const { data, isLoading } = useInvoices({
     search: search || undefined,
@@ -76,6 +77,16 @@ function InvoiceListSection() {
     try {
       await cancelInvoice.mutateAsync(id);
       toast({ title: "Invoice cancelled", description: "Credit note generated." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Permanently delete this invoice? The invoice number will be recycled for the next invoice. This cannot be undone.")) return;
+    try {
+      await deleteInvoice.mutateAsync(id);
+      toast({ title: "Invoice deleted", description: "Invoice number will be reused." });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
@@ -166,10 +177,15 @@ function InvoiceListSection() {
                         <Eye className="h-3.5 w-3.5" />
                       </Button>
                       {inv.status === "issued" && inv.invoice_type === "invoice" && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleCancel(inv.id)} disabled={cancelInvoice.isPending}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleCancel(inv.id)} disabled={cancelInvoice.isPending}
+                          title="Cancel & create credit note">
                           <FileX className="h-3.5 w-3.5 text-destructive" />
                         </Button>
                       )}
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(inv.id)} disabled={deleteInvoice.isPending}
+                        title="Permanently delete">
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
                     </div>
                   </td>
                 </tr>
