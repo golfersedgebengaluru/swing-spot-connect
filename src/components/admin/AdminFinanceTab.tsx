@@ -9,11 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Download, Search, Loader2, Eye, FileX, Trash2, Save, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useInvoices, useGstProfile, useSaveGstProfile, useCancelInvoice, useDeleteInvoice, type GstProfile } from "@/hooks/useInvoices";
-import { useActiveFinancialYear } from "@/hooks/useRevenue";
+import { useActiveFinancialYear, usePerCityFyToggle } from "@/hooks/useRevenue";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { INDIAN_STATES, validateGSTIN } from "@/lib/gst-utils";
 import { CreateInvoiceDialog } from "@/components/admin/CreateInvoiceDialog";
 import { InvoiceViewDialog } from "@/components/admin/InvoiceViewDialog";
+import { AdminFinancialYearsCard } from "@/components/admin/AdminFinancialYearsCard";
 import { format } from "date-fns";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAllCities } from "@/hooks/useBookings";
@@ -355,8 +356,13 @@ function GstSettingsSection({ city }: { city: string }) {
 // ─── Main Tab ───────────────────────────────────────────
 export function AdminFinanceTab() {
   const [tab, setTab] = useState("invoices");
+  const { isAdmin, isSiteAdmin } = useAdmin();
+  const { data: perCityFyEnabled } = usePerCityFyToggle();
   const { data: cities, isLoading: loadingCities } = useAvailableCities();
   const [selectedCity, setSelectedCity] = useState<string>("");
+
+  // Show per-city FY tab only when toggle is on AND user is site-admin (or admin)
+  const showCityFY = !!perCityFyEnabled;
 
   // Auto-select first city
   useEffect(() => {
@@ -393,6 +399,7 @@ export function AdminFinanceTab() {
         <TabsList>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="settings">GST Settings</TabsTrigger>
+          {showCityFY && <TabsTrigger value="financial_year">Financial Year</TabsTrigger>}
         </TabsList>
         <TabsContent value="invoices">
           {selectedCity && <InvoiceListSection city={selectedCity} />}
@@ -400,6 +407,16 @@ export function AdminFinanceTab() {
         <TabsContent value="settings">
           {selectedCity && <GstSettingsSection city={selectedCity} />}
         </TabsContent>
+        {showCityFY && (
+          <TabsContent value="financial_year">
+            {selectedCity && (
+              <AdminFinancialYearsCard
+                city={selectedCity}
+                title={`Financial Year — ${selectedCity}`}
+              />
+            )}
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

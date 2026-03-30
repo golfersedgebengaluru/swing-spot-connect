@@ -6,12 +6,28 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { CalendarDays, Plus, Trash2, Loader2, Save } from "lucide-react";
-import { useFinancialYears, useCreateFinancialYear, useUpdateFinancialYear, useDeleteFinancialYear } from "@/hooks/useRevenue";
+import {
+  useFinancialYears,
+  useCityFinancialYears,
+  useCreateFinancialYear,
+  useUpdateFinancialYear,
+  useDeleteFinancialYear,
+} from "@/hooks/useRevenue";
 import { useToast } from "@/hooks/use-toast";
 
-export function AdminFinancialYearsCard() {
+interface Props {
+  city?: string | null; // null/undefined = global FYs
+  title?: string;
+}
+
+export function AdminFinancialYearsCard({ city, title }: Props) {
   const { toast } = useToast();
-  const { data: years, isLoading } = useFinancialYears();
+  const globalQuery = useFinancialYears();
+  const cityQuery = useCityFinancialYears(city ?? undefined);
+
+  const isCity = !!city;
+  const { data: years, isLoading } = isCity ? cityQuery : globalQuery;
+
   const createFY = useCreateFinancialYear();
   const updateFY = useUpdateFinancialYear();
   const deleteFY = useDeleteFinancialYear();
@@ -29,7 +45,13 @@ export function AdminFinancialYearsCard() {
       return;
     }
     try {
-      await createFY.mutateAsync({ label, start_date: startDate, end_date: endDate, is_active: isActive });
+      await createFY.mutateAsync({
+        label,
+        start_date: startDate,
+        end_date: endDate,
+        is_active: isActive,
+        city: city ?? null,
+      });
       toast({ title: "Created", description: "Financial year added." });
       setShowForm(false);
       setLabel("");
@@ -43,7 +65,7 @@ export function AdminFinancialYearsCard() {
 
   const handleSetActive = async (id: string) => {
     try {
-      await updateFY.mutateAsync({ id, is_active: true });
+      await updateFY.mutateAsync({ id, is_active: true, city: city ?? null });
       toast({ title: "Updated", description: "Active financial year changed." });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -65,7 +87,7 @@ export function AdminFinancialYearsCard() {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2">
-          <CalendarDays className="h-5 w-5" /> Financial Years
+          <CalendarDays className="h-5 w-5" /> {title || "Financial Years"}
         </CardTitle>
         <Button variant="outline" size="sm" onClick={() => setShowForm(!showForm)}>
           <Plus className="mr-1 h-4 w-4" /> Add
@@ -100,7 +122,11 @@ export function AdminFinancialYearsCard() {
         )}
 
         {(years ?? []).length === 0 && !showForm && (
-          <p className="text-sm text-muted-foreground">No financial years configured. Add one to enable period-based reporting.</p>
+          <p className="text-sm text-muted-foreground">
+            {isCity
+              ? "No city-specific financial year set. The global financial year will be used."
+              : "No financial years configured. Add one to enable period-based reporting."}
+          </p>
         )}
 
         {(years ?? []).map((fy: any) => (

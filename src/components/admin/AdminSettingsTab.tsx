@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Mail, Clock, KeyRound, Settings, Save, Loader2 } from "lucide-react";
+import { Mail, Clock, KeyRound, Settings, Save, Loader2, CalendarDays } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { usePageVisibility, useUpdatePageVisibility } from "@/hooks/usePageVisibility";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +13,8 @@ import { AdminRolesManager } from "@/components/admin/AdminRolesManager";
 import { EmailTemplatesEditor } from "@/components/admin/EmailTemplatesEditor";
 import { BrandingSettingsCard } from "@/components/admin/BrandingSettingsCard";
 import { OfflinePaymentMethodsCard } from "@/components/admin/OfflinePaymentMethodsCard";
+import { AdminFinancialYearsCard } from "@/components/admin/AdminFinancialYearsCard";
+import { usePerCityFyToggle, useUpdatePerCityFyToggle } from "@/hooks/useRevenue";
 
 const pageVisibilityItems = [
   { key: "page_events_visible", label: "Events", description: "Show the Events tab in navigation" },
@@ -340,11 +342,51 @@ function CancellationWindowCard() {
   );
 }
 
+function FinancialYearSettingsSection() {
+  const { toast } = useToast();
+  const { data: toggleEnabled, isLoading } = usePerCityFyToggle();
+  const updateToggle = useUpdatePerCityFyToggle();
+
+  const handleToggle = (checked: boolean) => {
+    updateToggle.mutate(checked, {
+      onSuccess: () => toast({ title: "Updated", description: checked ? "Per-city financial year overrides enabled." : "Per-city overrides disabled. Global FY applies to all instances." }),
+      onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    });
+  };
+
+  if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
+
+  return (
+    <div className="space-y-4">
+      <AdminFinancialYearsCard title="Global Financial Years" />
+      <Card className="max-w-md">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarDays className="h-5 w-5" /> Per-City Override
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">Allow per-city financial year override</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                When enabled, Site-Admins can set a financial year specific to their instance. If no override is set, the global FY is used as fallback.
+              </p>
+            </div>
+            <Switch checked={toggleEnabled ?? false} onCheckedChange={handleToggle} disabled={updateToggle.isPending} />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export function AdminSettingsTab() {
   return (
     <div className="space-y-6">
       <BrandingSettingsCard />
       <AdminRolesManager />
+      <FinancialYearSettingsSection />
       <PageVisibilitySettings />
       <OfflinePaymentMethodsCard />
       <CancellationWindowCard />
