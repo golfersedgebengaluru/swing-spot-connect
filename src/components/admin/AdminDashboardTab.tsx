@@ -6,9 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 
-function useAdminDashboardStats() {
+function useAdminDashboardStats(cityFilter: string) {
   return useQuery({
-    queryKey: ["admin-dashboard-stats"],
+    queryKey: ["admin-dashboard-stats", cityFilter],
     queryFn: async () => {
       const now = new Date();
       const monthStart = startOfMonth(now).toISOString();
