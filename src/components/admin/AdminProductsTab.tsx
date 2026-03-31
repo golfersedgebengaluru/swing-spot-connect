@@ -144,6 +144,14 @@ export function AdminProductsTab() {
         row.reorder_level = row.reorder_level ? Number(row.reorder_level) : null;
         row.reorder_quantity = row.reorder_quantity ? Number(row.reorder_quantity) : null;
         row.duration_minutes = row.duration_minutes ? Number(row.duration_minutes) : null;
+        // City: use CSV value, or auto-assign for site-admin
+        if (row.city && row.city.trim()) {
+          row.city = row.city.trim();
+        } else if (isSiteAdmin && !isAdmin && assignedCities.length === 1) {
+          row.city = assignedCities[0];
+        } else {
+          row.city = null;
+        }
         rows.push(row);
       }
       if (rows.length === 0) throw new Error("No valid data rows found.");
