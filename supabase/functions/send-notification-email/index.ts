@@ -430,7 +430,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: `Golfer's Edge <${senderEmail}>`,
         to: [profile.email],
-        subject,
+        subject: finalSubject,
         html,
       }),
     });
