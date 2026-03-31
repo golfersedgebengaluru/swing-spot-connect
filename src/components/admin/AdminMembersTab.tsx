@@ -147,8 +147,23 @@ export function AdminMembersTab() {
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
 
   const loadProfiles = async () => {
-    const { data } = await supabase.from("profiles").select("user_id, display_name, email");
-    setAllProfiles(data ?? []);
+    const { data } = await supabase.from("profiles").select("user_id, display_name, email, preferred_city");
+    let filtered = data ?? [];
+    if (!isAdmin) {
+      const citiesToFilter = selectedCity ? [selectedCity] : assignedCities;
+      if (citiesToFilter.length > 0) {
+        const { data: cityBookings } = await supabase
+          .from("bookings")
+          .select("user_id, city")
+          .in("city", citiesToFilter);
+        const bookingUserIds = new Set((cityBookings ?? []).map((b: any) => b.user_id));
+        filtered = filtered.filter((p: any) =>
+          (p.preferred_city && citiesToFilter.includes(p.preferred_city)) ||
+          (p.user_id && bookingUserIds.has(p.user_id))
+        );
+      }
+    }
+    setAllProfiles(filtered);
   };
 
   const handleAddMember = async (data: any) => {
