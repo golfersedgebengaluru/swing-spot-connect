@@ -16,6 +16,7 @@ import { CreateInvoiceDialog } from "@/components/admin/CreateInvoiceDialog";
 import { InvoiceViewDialog } from "@/components/admin/InvoiceViewDialog";
 import { AdminFinancialYearsCard } from "@/components/admin/AdminFinancialYearsCard";
 import { InvoiceSettingsCard } from "@/components/admin/InvoiceSettingsCard";
+import { CityPaymentsSection } from "@/components/admin/CityPaymentsSection";
 import { format } from "date-fns";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAllCities } from "@/hooks/useBookings";
