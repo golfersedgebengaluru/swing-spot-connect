@@ -336,10 +336,11 @@ export function useUserHoursBalance() {
 }
 
 export function useUserProfile() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   return useQuery({
     queryKey: ["user_profile", user?.id],
-    enabled: !!user,
+    enabled: !!user && !loading,
+    retry: 2,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")

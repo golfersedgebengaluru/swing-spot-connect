@@ -20,8 +20,8 @@ import { useToast } from "@/hooks/use-toast";
 
 
 export default function Profile() {
-  const { user } = useAuth();
-  const { data: profile, isLoading: profileLoading } = useUserProfile();
+  const { user, loading: authLoading } = useAuth();
+  const { data: profile, isLoading: profileLoading, isError } = useUserProfile();
   const { data: balance } = useUserHoursBalance();
   const { data: currentPoints = 0 } = useUserPoints();
   const { data: cities } = useCities();
@@ -65,12 +65,24 @@ export default function Profile() {
     .toUpperCase()
     .slice(0, 2);
 
-  if (profileLoading) {
+  if (authLoading || profileLoading) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Navbar />
         <main className="flex-1 flex items-center justify-center">
           <p className="text-muted-foreground">Loading...</p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (isError || !profile) {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <p className="text-muted-foreground">Unable to load profile. Please try refreshing.</p>
         </main>
         <Footer />
       </div>
