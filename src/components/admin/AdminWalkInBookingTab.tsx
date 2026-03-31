@@ -465,7 +465,7 @@ export function AdminWalkInBookingTab() {
           <Button
             className="w-full"
             size="lg"
-            disabled={!canProceedToPayment || !guestName.trim()}
+            disabled={!canProceedToPayment || !guestName.trim() || !guestEmail.trim() || !guestPhone.trim()}
             onClick={() => setStep("payment")}
           >
             Continue to Payment
