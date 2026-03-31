@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: "",
   });
   const [phoneMissing, setPhoneMissing] = useState(false);
-  const phoneCheckedRef = { current: false };
+  const phoneCheckedRef = useRef(false);
 
   const runProfileChecks = async (u: User) => {
     const check = await checkAppleProfile(u);
