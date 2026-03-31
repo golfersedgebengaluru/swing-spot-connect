@@ -45,7 +45,7 @@ export default function Profile() {
     if (!user) return;
     const { error } = await supabase
       .from("profiles")
-      .update({ display_name: displayName, preferred_city: preferredCity })
+      .update({ display_name: displayName, preferred_city: preferredCity, phone: phone } as any)
       .eq("user_id", user.id);
 
     if (error) {
