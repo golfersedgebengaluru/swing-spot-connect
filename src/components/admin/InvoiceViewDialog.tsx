@@ -16,7 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { validateGSTIN, getGstType, calculateLineItems, type GstLineItem } from "@/lib/gst-utils";
 import { useGstProfile } from "@/hooks/useInvoices";
 import { format } from "date-fns";
-import { useInvoiceSettings } from "@/hooks/useInvoiceSettings";
+import { useEffectiveInvoiceSettings } from "@/hooks/useInvoiceSettings";
 import { renderInvoiceHtml, openPrintWindow } from "@/lib/invoice-templates";
 
 interface Props {
