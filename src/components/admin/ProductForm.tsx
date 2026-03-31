@@ -138,6 +138,31 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
 
   return (
     <div className="space-y-4">
+      {/* Location / City */}
+      <div>
+        <Label>Location</Label>
+        {isSiteAdmin && !isAdmin ? (
+          <Select value={form.city} onValueChange={(v) => setForm({ ...form, city: v })}>
+            <SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
+            <SelectContent>
+              {assignedCities.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Select value={form.city || "all"} onValueChange={(v) => setForm({ ...form, city: v === "all" ? "" : v })}>
+            <SelectTrigger><SelectValue placeholder="All Locations" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Locations (Global)</SelectItem>
+              {(cities ?? []).map((c: string) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
       {/* Item Type Toggle */}
       <div>
         <Label>Item Type</Label>
