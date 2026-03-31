@@ -8,12 +8,13 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  DollarSign, Download, Loader2, Search, TrendingUp, TrendingDown,
+  Download, Loader2, Search, TrendingUp, TrendingDown,
   CreditCard, Users, ArrowUpDown, ShoppingBag,
 } from "lucide-react";
 import { useRevenueTransactions, useRevenueSummary, useActiveFinancialYear } from "@/hooks/useRevenue";
 import { useAllCities } from "@/hooks/useBookings";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, subYears, addMonths } from "date-fns";
 import { RevenueUserBreakdown } from "./RevenueUserBreakdown";
 
