@@ -157,6 +157,20 @@ export default function Profile() {
                       )}
                     </div>
                     <div>
+                      <Label className="text-muted-foreground text-xs uppercase tracking-wide">Phone</Label>
+                      {editing ? (
+                        <Input
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          className="mt-1"
+                          placeholder="+91 98765 43210"
+                        />
+                      ) : (
+                        <p className="font-medium text-foreground mt-1">{(profile as any)?.phone || "Not set"}</p>
+                      )}
+                    </div>
+                    <div>
                       <Label className="text-muted-foreground text-xs uppercase tracking-wide">Tier</Label>
                       <p className="font-medium text-foreground mt-1 capitalize">{profile?.tier || "Bronze"}</p>
                     </div>
