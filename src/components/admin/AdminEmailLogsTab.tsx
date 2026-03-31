@@ -154,6 +154,7 @@ export function AdminEmailLogsTab() {
         </CardHeader>
         <CardContent>
           {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
