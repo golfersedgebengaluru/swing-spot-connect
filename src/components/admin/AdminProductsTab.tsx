@@ -122,10 +122,32 @@ export function AdminProductsTab() {
         rows.push(row);
       }
       if (rows.length === 0) throw new Error("No valid data rows found.");
-      const { error } = await supabase.from("products").insert(rows);
-      if (error) throw error;
+      // Upsert by SKU if available, otherwise insert (append)
+      let upserted = 0;
+      let inserted = 0;
+      for (const row of rows) {
+        if (row.sku) {
+          const { data: existing } = await supabase.from("products").select("id").eq("sku", row.sku).maybeSingle();
+          if (existing) {
+            const { error } = await supabase.from("products").update(row).eq("id", existing.id);
+            if (error) throw error;
+            upserted++;
+          } else {
+            const { error } = await supabase.from("products").insert(row);
+            if (error) throw error;
+            inserted++;
+          }
+        } else {
+          const { error } = await supabase.from("products").insert(row);
+          if (error) throw error;
+          inserted++;
+        }
+      }
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast({ title: "Imported", description: `${rows.length} items imported.` });
+      const parts = [];
+      if (inserted > 0) parts.push(`${inserted} added`);
+      if (upserted > 0) parts.push(`${upserted} updated`);
+      toast({ title: "Imported", description: parts.join(", ") + "." });
     } catch (err: any) {
       toast({ title: "Import failed", description: err.message, variant: "destructive" });
     } finally {
