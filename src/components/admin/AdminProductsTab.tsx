@@ -246,9 +246,11 @@ export function AdminProductsTab() {
                         {isService ? "Service" : "Product"}
                       </Badge>
                       {p.sku && <span className="text-[10px] text-muted-foreground font-mono">{p.sku}</span>}
-                    </div>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {currency.format(Number(product.price))} · {product.category}
+                      {p.city ? (
+                        <Badge variant="secondary" className="text-[10px]">{p.city}</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground">Global</Badge>
+                      )}
                       {Number(p.gst_rate) > 0 && ` · GST ${p.gst_rate}%`}
                       {p.hsn_code && ` · HSN: ${p.hsn_code}`}
                       {p.sac_code && ` · SAC: ${p.sac_code}`}
