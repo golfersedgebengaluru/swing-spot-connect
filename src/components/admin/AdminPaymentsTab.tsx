@@ -52,7 +52,11 @@ export function AdminPaymentsTab() {
     },
   });
 
-  const { data: cities } = useAllCities();
+  const { data: allCitiesData } = useAllCities();
+  const { isAdmin, assignedCities } = useAdmin();
+  const cities = isAdmin
+    ? allCitiesData
+    : (allCitiesData ?? []).filter((c) => assignedCities.includes(c));
 
   const updateGateway = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Gateway> }) => {
