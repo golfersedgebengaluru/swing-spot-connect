@@ -7,6 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { useProductCategories } from "@/hooks/useProductCategories";
 import { useUnitsOfMeasure } from "@/hooks/useUnitsOfMeasure";
+import { useCities } from "@/hooks/useBookings";
+import { useAdmin } from "@/hooks/useAdmin";
 
 function generateSKU(itemType: string) {
   const prefix = itemType === "service" ? "SVC" : "PRD";
