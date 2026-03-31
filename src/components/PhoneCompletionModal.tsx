@@ -51,6 +51,7 @@ export function PhoneCompletionModal({ open, userId, onComplete }: PhoneCompleti
       if (dbError) throw dbError;
 
       toast({ title: "Phone number saved", description: "Thank you!" });
+      queryClient.invalidateQueries({ queryKey: ["user_profile"] });
       onComplete();
     } catch (err: any) {
       toast({
