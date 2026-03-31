@@ -16,6 +16,7 @@ import { useAllCities } from "@/hooks/useBookings";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { useAdminCity } from "@/contexts/AdminCityContext";
+import { useProductCategories } from "@/hooks/useProductCategories";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, subYears, addMonths } from "date-fns";
 import { RevenueUserBreakdown } from "./RevenueUserBreakdown";
 
