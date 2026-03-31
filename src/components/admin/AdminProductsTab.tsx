@@ -45,11 +45,14 @@ export function AdminProductsTab() {
   const currency = useDefaultCurrency();
   const { isAdmin, isSiteAdmin, assignedCities } = useAdmin();
   const { data: allCities } = useCities();
+  const { selectedCity: globalCity } = useAdminCity();
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [cityFilter, setCityFilter] = useState<string>("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const effectiveCityFilter = globalCity || cityFilter;
 
   // Filter products by city for display
   const filteredProducts = useMemo(() => {
@@ -59,15 +62,15 @@ export function AdminProductsTab() {
       // Site-admin sees global + their cities
       list = list.filter((p: any) => !p.city || assignedCities.includes(p.city));
     }
-    if (cityFilter !== "all") {
-      if (cityFilter === "global") {
+    if (effectiveCityFilter !== "all" && effectiveCityFilter) {
+      if (effectiveCityFilter === "global") {
         list = list.filter((p: any) => !p.city);
       } else {
-        list = list.filter((p: any) => p.city === cityFilter);
+        list = list.filter((p: any) => p.city === effectiveCityFilter);
       }
     }
     return list;
-  }, [products, cityFilter, isAdmin, isSiteAdmin, assignedCities]);
+  }, [products, effectiveCityFilter, isAdmin, isSiteAdmin, assignedCities]);
 
   const handleSave = async (data: any) => {
     const { error } = editingProduct?.id
