@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAllBookings, useBays, useApproveBooking, useRejectBooking, useAdminCancelBooking, useAllCities } from "@/hooks/useBookings";
 import { useAdmin } from "@/hooks/useAdmin";
 import { format } from "date-fns";
+import { useAdminCity } from "@/contexts/AdminCityContext";
 
 export function AdminBookingLogsTab() {
   const { data: bookings, isLoading } = useAllBookings();
@@ -18,6 +19,7 @@ export function AdminBookingLogsTab() {
   const rejectBooking = useRejectBooking();
   const adminCancelBooking = useAdminCancelBooking();
   const { toast } = useToast();
+  const { selectedCity: globalCity } = useAdminCity();
   const [cityFilter, setCityFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [rejectMessages, setRejectMessages] = useState<Record<string, string>>({});
