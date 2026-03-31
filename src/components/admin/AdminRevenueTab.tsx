@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import {
   Download, Loader2, Search, TrendingUp, TrendingDown,
-  CreditCard, Users, ArrowUpDown, ShoppingBag,
+  CreditCard, ArrowUpDown,
 } from "lucide-react";
 import { useRevenueTransactions, useRevenueSummary, useActiveFinancialYear } from "@/hooks/useRevenue";
 import { useAllCities } from "@/hooks/useBookings";
