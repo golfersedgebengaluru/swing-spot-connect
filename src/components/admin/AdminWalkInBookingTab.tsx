@@ -53,6 +53,7 @@ export function AdminWalkInBookingTab() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const { data: cities = [] } = useCities();
+  const { selectedCity: globalCity } = useAdminCity();
 
   const cityBays = useMemo(() => {
     return (bays ?? []).filter((b: any) => b.city === selectedCity && b.is_active);
