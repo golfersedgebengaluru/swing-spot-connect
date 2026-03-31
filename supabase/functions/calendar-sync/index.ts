@@ -151,6 +151,169 @@ function createAdminClient() {
   );
 }
 
+// ─── Revenue reversal + Invoice cancellation + Credit note ───
+// Called when a confirmed booking with paid revenue (amount > 0) is cancelled.
+async function reverseRevenueAndInvoice(adminClient: any, bookingId: string) {
+  try {
+    // 1. Find the original revenue transaction with actual payment (amount > 0)
+    const { data: revTx } = await adminClient
+      .from("revenue_transactions")
+      .select("*")
+      .eq("booking_id", bookingId)
+      .gt("amount", 0)
+      .eq("status", "confirmed")
+      .neq("transaction_type", "refund")
+      .maybeSingle();
+
+    if (!revTx) return; // No paid revenue to reverse (hour-based booking)
+
+    // 2. Create a refund revenue transaction (reversal)
+    await adminClient.from("revenue_transactions").insert({
+      transaction_type: "refund",
+      amount: revTx.amount,
+      currency: revTx.currency,
+      user_id: revTx.user_id || null,
+      booking_id: bookingId,
+      original_transaction_id: revTx.id,
+      guest_name: revTx.guest_name,
+      guest_email: revTx.guest_email,
+      guest_phone: revTx.guest_phone,
+      gateway_name: revTx.gateway_name,
+      description: `Refund - ${revTx.description || "Booking cancelled"}`,
+      status: "confirmed",
+      city: revTx.city,
+    });
+
+    // 3. Find the linked invoice
+    const { data: invoice } = await adminClient
+      .from("invoices")
+      .select("*")
+      .eq("revenue_transaction_id", revTx.id)
+      .eq("invoice_type", "invoice")
+      .neq("status", "cancelled")
+      .maybeSingle();
+
+    if (!invoice) {
+      // Try finding by booking_id match via revenue_transaction
+      // If no invoice found, nothing more to do
+      return;
+    }
+
+    // 4. Cancel the invoice
+    await adminClient
+      .from("invoices")
+      .update({ status: "cancelled" })
+      .eq("id", invoice.id);
+
+    // 5. Get active financial year for credit note numbering
+    const { data: fy } = await adminClient
+      .from("financial_years")
+      .select("*")
+      .eq("is_active", true)
+      .is("city", null)
+      .maybeSingle();
+
+    // Try city-specific FY first
+    let effectiveFy = fy;
+    if (invoice.city) {
+      const { data: cityFy } = await adminClient
+        .from("financial_years")
+        .select("*")
+        .eq("is_active", true)
+        .eq("city", invoice.city)
+        .maybeSingle();
+      if (cityFy) effectiveFy = cityFy;
+    }
+
+    if (!effectiveFy) {
+      console.error("No active financial year for credit note generation");
+      return;
+    }
+
+    // 6. Get next credit note number
+    const { data: cnNumber } = await adminClient.rpc("get_next_invoice_number", {
+      p_gstin: invoice.business_gstin,
+      p_fy_id: effectiveFy.id,
+      p_prefix: "CN",
+      p_start: 1,
+    });
+
+    if (!cnNumber) {
+      console.error("Failed to generate credit note number");
+      return;
+    }
+
+    // 7. Create credit note
+    const { data: creditNote, error: cnErr } = await adminClient
+      .from("invoices")
+      .insert({
+        invoice_number: cnNumber,
+        invoice_date: new Date().toISOString().split("T")[0],
+        financial_year_id: effectiveFy.id,
+        customer_user_id: invoice.customer_user_id,
+        customer_name: invoice.customer_name,
+        customer_email: invoice.customer_email,
+        customer_phone: invoice.customer_phone,
+        customer_gstin: invoice.customer_gstin,
+        customer_state: invoice.customer_state,
+        customer_state_code: invoice.customer_state_code,
+        business_name: invoice.business_name,
+        business_gstin: invoice.business_gstin,
+        business_address: invoice.business_address,
+        business_state: invoice.business_state,
+        business_state_code: invoice.business_state_code,
+        subtotal: invoice.subtotal,
+        cgst_total: invoice.cgst_total,
+        sgst_total: invoice.sgst_total,
+        igst_total: invoice.igst_total,
+        total: invoice.total,
+        status: "issued",
+        invoice_type: "credit_note",
+        credit_note_for: invoice.id,
+        payment_method: invoice.payment_method,
+        city: invoice.city,
+      })
+      .select()
+      .single();
+
+    if (cnErr) {
+      console.error("Failed to create credit note:", cnErr);
+      return;
+    }
+
+    // 8. Copy line items to credit note
+    const { data: lineItems } = await adminClient
+      .from("invoice_line_items")
+      .select("*")
+      .eq("invoice_id", invoice.id);
+
+    if (lineItems?.length && creditNote) {
+      await adminClient.from("invoice_line_items").insert(
+        lineItems.map((item: any) => ({
+          invoice_id: creditNote.id,
+          item_name: item.item_name,
+          item_type: item.item_type,
+          hsn_code: item.hsn_code,
+          sac_code: item.sac_code,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          gst_rate: item.gst_rate,
+          cgst_amount: item.cgst_amount,
+          sgst_amount: item.sgst_amount,
+          igst_amount: item.igst_amount,
+          line_total: item.line_total,
+          product_id: item.product_id,
+          sort_order: item.sort_order,
+        }))
+      );
+    }
+
+    console.log(`Revenue reversed and credit note ${cnNumber} generated for booking ${bookingId}`);
+  } catch (e) {
+    console.error("reverseRevenueAndInvoice failed (non-fatal):", e);
+  }
+}
+
 // Fetch the calendar's timezone from Google Calendar API
 async function getCalendarTimezone(accessToken: string, calendarId: string): Promise<string> {
   try {
@@ -319,6 +482,7 @@ Deno.serve(async (req) => {
           booking_id: booking.id,
           description: `Guest booking - ${bay_name || city} - ${guest_name}`,
           status: "confirmed",
+          city: city || null,
         });
       } catch (e) {
         console.error("Failed to create revenue transaction for guest:", e);
@@ -1000,6 +1164,9 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Reverse paid revenue and auto-generate credit note for guest/walk-in bookings
+      await reverseRevenueAndInvoice(adminClient, booking_id);
+
       // User notification
       await adminClient.from("notifications").insert({
         user_id: userId,
@@ -1145,6 +1312,9 @@ Deno.serve(async (req) => {
           console.error("Failed to create revenue refund transaction:", e);
         }
       }
+
+      // Reverse paid revenue and auto-generate credit note for guest/walk-in bookings
+      await reverseRevenueAndInvoice(adminClient, booking_id);
 
       // Notify booking owner
       await adminClient.from("notifications").insert({
