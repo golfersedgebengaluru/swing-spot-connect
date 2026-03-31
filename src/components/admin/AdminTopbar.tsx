@@ -240,7 +240,7 @@ export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbar
               <SelectValue placeholder="All Cities" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">All Cities (Global)</SelectItem>
+              {isAdmin && <SelectItem value="__all__">All Cities (Global)</SelectItem>}
               {availableCities.map((city) => (
                 <SelectItem key={city} value={city}>{city}</SelectItem>
               ))}
