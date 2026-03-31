@@ -343,9 +343,9 @@ export function AdminMembersTab() {
                             <span className="font-normal text-foreground">{member.display_name}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="py-3 text-right text-sm text-muted-foreground">{member.hours_purchased} hrs</TableCell>
-                        <TableCell className="py-3 text-right text-sm text-muted-foreground">{member.hours_used} hrs</TableCell>
-                        <TableCell className="py-3 text-right">
+                        <TableCell className="py-3 text-center text-sm text-muted-foreground">{member.hours_purchased} hrs</TableCell>
+                        <TableCell className="py-3 text-center text-sm text-muted-foreground">{member.hours_used} hrs</TableCell>
+                        <TableCell className="py-3 text-center">
                           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${pillClass}`}>
                             <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
                             {remaining} hrs
