@@ -171,30 +171,9 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
   };
 
   const handlePrint = () => {
-    if (!printRef.current) return;
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-    printWindow.document.write(`
-      <html><head><title>${invoice?.invoice_number ?? "Invoice"}</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; color: #111; padding: 24px; }
-        .header { display: flex; justify-content: space-between; margin-bottom: 24px; }
-        .header-left h1 { font-size: 20px; margin-bottom: 4px; }
-        .header-right { text-align: right; }
-        table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-        th { background: #f5f5f5; text-align: left; padding: 8px; font-size: 11px; font-weight: 600; border-bottom: 2px solid #ddd; }
-        td { padding: 8px; border-bottom: 1px solid #eee; font-size: 11px; }
-        .text-right { text-align: right; }
-        .totals { margin-top: 16px; margin-left: auto; width: 280px; }
-        .total-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; }
-        .total-row.grand { font-weight: 700; font-size: 14px; border-top: 2px solid #111; padding-top: 8px; margin-top: 4px; }
-      </style></head><body>
-      ${printRef.current.innerHTML}
-      <script>window.onload = function() { window.print(); }</script>
-      </body></html>
-    `);
-    printWindow.document.close();
+    if (!invoice || !invoiceSettings) return;
+    const html = renderInvoiceHtml(invoice, invoiceSettings, currency);
+    openPrintWindow(html, invoice.invoice_number ?? "Invoice");
   };
 
   if (!invoiceId) return null;
