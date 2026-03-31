@@ -31,7 +31,7 @@ export function AdminBookingLogsTab() {
     ? bookings
     : (bookings ?? []).filter((b: any) => assignedCities.includes(b.city));
 
-  const filtered = (bookings ?? []).filter((b: any) => {
+  const filtered = (scopedBookings ?? []).filter((b: any) => {
     if (cityFilter !== "all" && b.city !== cityFilter) return false;
     if (statusFilter !== "all" && b.status !== statusFilter) return false;
     return true;
