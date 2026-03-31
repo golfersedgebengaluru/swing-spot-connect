@@ -94,11 +94,11 @@ function buildFooter(settings: InvoiceSettings, inv: InvoiceData) {
   if (inv.payment_method) {
     html += `<p style="margin-top:16px;font-size:12px;color:#666;">Payment: ${inv.payment_method}</p>`;
   }
-  if (settings.invoice_terms) {
-    html += `<div style="margin-top:20px;padding-top:12px;border-top:1px solid #eee;"><p style="font-size:10px;font-weight:600;text-transform:uppercase;color:#888;margin-bottom:4px;">Terms & Conditions</p><p style="font-size:11px;color:#666;white-space:pre-line;">${settings.invoice_terms}</p></div>`;
+  if (settings.terms) {
+    html += `<div style="margin-top:20px;padding-top:12px;border-top:1px solid #eee;"><p style="font-size:10px;font-weight:600;text-transform:uppercase;color:#888;margin-bottom:4px;">Terms & Conditions</p><p style="font-size:11px;color:#666;white-space:pre-line;">${settings.terms}</p></div>`;
   }
-  if (settings.invoice_footer_note) {
-    html += `<p style="margin-top:20px;text-align:center;font-size:12px;color:#666;font-style:italic;">${settings.invoice_footer_note}</p>`;
+  if (settings.footer_note) {
+    html += `<p style="margin-top:20px;text-align:center;font-size:12px;color:#666;font-style:italic;">${settings.footer_note}</p>`;
   }
   return html;
 }
@@ -115,7 +115,7 @@ function classicTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: 
   return `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
       <div>
-        ${settings.invoice_logo_url ? `<div style="margin-bottom:8px;">${logoImg(settings.invoice_logo_url)}</div>` : ""}
+        ${settings.logo_url ? `<div style="margin-bottom:8px;">${logoImg(settings.logo_url)}</div>` : ""}
         <h1 style="font-size:18px;font-weight:700;margin:0;">${inv.business_name}</h1>
         <p style="font-size:12px;color:#666;margin:2px 0;">GSTIN: ${inv.business_gstin}</p>
         ${inv.business_address ? `<p style="font-size:12px;color:#666;margin:2px 0;">${inv.business_address}</p>` : ""}
@@ -156,7 +156,7 @@ function modernTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: F
     <div style="border-top:4px solid ${accent};padding-top:20px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
         <div style="display:flex;align-items:center;gap:12px;">
-          ${settings.invoice_logo_url ? logoImg(settings.invoice_logo_url, 48) : ""}
+          ${settings.logo_url ? logoImg(settings.logo_url, 48) : ""}
           <div>
             <h1 style="font-size:20px;font-weight:800;margin:0;color:#111;">${inv.business_name}</h1>
             <p style="font-size:11px;color:#888;margin:0;">${inv.business_gstin}</p>
@@ -223,7 +223,7 @@ function compactTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: 
     <div style="font-size:11px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #111;">
         <div style="display:flex;align-items:center;gap:8px;">
-          ${settings.invoice_logo_url ? logoImg(settings.invoice_logo_url, 36) : ""}
+          ${settings.logo_url ? logoImg(settings.logo_url, 36) : ""}
           <span style="font-size:16px;font-weight:700;">${inv.business_name}</span>
         </div>
         <div style="text-align:right;">
@@ -292,7 +292,7 @@ export function renderInvoiceHtml(
   settings: InvoiceSettings,
   currency: FormatCurrency,
 ): string {
-  switch (settings.invoice_template) {
+  switch (settings.template) {
     case "modern":
       return modernTemplate(invoice, settings, currency);
     case "compact":
