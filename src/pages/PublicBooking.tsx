@@ -636,7 +636,7 @@ export default function PublicBooking() {
                       <Label htmlFor="guestPhone" className="flex items-center gap-1.5 mb-1.5">
                         <Phone className="h-3.5 w-3.5" /> Phone *
                       </Label>
-                      <Input id="guestPhone" type="tel" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="+91 98765 43210" />
+                      <PhoneInput id="guestPhone" value={guestPhone} onChange={setGuestPhone} />
                       {!guestPhone.trim() && <p className="text-xs text-destructive mt-1">Phone is required</p>}
                     </div>
                   </CardContent>
