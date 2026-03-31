@@ -390,6 +390,7 @@ export function AdminSettingsTab() {
       <BrandingSettingsCard />
       <AdminRolesManager />
       <FinancialYearSettingsSection />
+      <InvoiceSettingsCard />
       <PageVisibilitySettings />
       <ProductCategoriesCard />
       <UnitOfMeasureCard />

@@ -42,7 +42,6 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
   const { data: catalogue } = useProductCatalogue();
   const { data: invoiceSettings } = useInvoiceSettings();
   const currency = useDefaultCurrency();
-  const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const updateInvoice = useUpdateInvoice();
   const [editing, setEditing] = useState(false);
