@@ -55,6 +55,7 @@ export function AdminPaymentsTab() {
 
   const { data: allCitiesData } = useAllCities();
   const { isAdmin, assignedCities } = useAdmin();
+  const { selectedCity: globalCity } = useAdminCity();
   const cities = isAdmin
     ? allCitiesData
     : (allCitiesData ?? []).filter((c) => assignedCities.includes(c));
