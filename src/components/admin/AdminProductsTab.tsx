@@ -191,24 +191,38 @@ export function AdminProductsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2 justify-end">
-        <Button variant="outline" onClick={handleExport} disabled={!products?.length}>
-          <Download className="mr-2 h-4 w-4" /> Export CSV
-        </Button>
-        <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
-          {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-          Import CSV
-        </Button>
-        <input ref={fileInputRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleImport} />
-        <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingProduct(null); }}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setEditingProduct({})}><Plus className="mr-2 h-4 w-4" />Add Item</Button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-            <DialogHeader><DialogTitle>{editingProduct?.id ? "Edit Item" : "New Item"}</DialogTitle></DialogHeader>
-            <ProductForm product={editingProduct} onSave={handleSave} onCancel={() => { setDialogOpen(false); setEditingProduct(null); }} />
-          </DialogContent>
-        </Dialog>
+      <div className="flex flex-wrap items-center gap-2 justify-between">
+        <div className="flex items-center gap-2">
+          <Select value={cityFilter} onValueChange={setCityFilter}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by location" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Locations</SelectItem>
+              <SelectItem value="global">Global Only</SelectItem>
+              {(isSiteAdmin && !isAdmin ? assignedCities : (allCities ?? [])).map((c: string) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={handleExport} disabled={!filteredProducts.length}>
+            <Download className="mr-2 h-4 w-4" /> Export CSV
+          </Button>
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+            {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+            Import CSV
+          </Button>
+          <input ref={fileInputRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleImport} />
+          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingProduct(null); }}>
+            <DialogTrigger asChild>
+              <Button onClick={() => setEditingProduct({})}><Plus className="mr-2 h-4 w-4" />Add Item</Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+              <DialogHeader><DialogTitle>{editingProduct?.id ? "Edit Item" : "New Item"}</DialogTitle></DialogHeader>
+              <ProductForm product={editingProduct} onSave={handleSave} onCancel={() => { setDialogOpen(false); setEditingProduct(null); }} />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
       <Alert className="border-muted bg-muted/30">
         <Info className="h-4 w-4" />
@@ -218,8 +232,8 @@ export function AdminProductsTab() {
       </Alert>
       {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
         <div className="space-y-3">
-          {(products ?? []).length === 0 && <p className="text-center text-muted-foreground py-8">No products or services yet.</p>}
-          {(products ?? []).map((product) => {
+          {filteredProducts.length === 0 && <p className="text-center text-muted-foreground py-8">No products or services yet.</p>}
+          {filteredProducts.map((product: any) => {
             const p = product as any;
             const isService = p.item_type === "service";
             return (
