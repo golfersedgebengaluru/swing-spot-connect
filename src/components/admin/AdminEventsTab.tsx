@@ -51,7 +51,7 @@ function EventForm({ event, onSave, onCancel }: { event?: any; onSave: (data: an
         <div><Label>End Time</Label><Input value={form.time_end} onChange={(e) => setForm({ ...form, time_end: e.target.value })} placeholder="4:00 PM" /></div>
       </div>
       <div><Label>Location</Label><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div><Label>Total Spots</Label><Input type="number" value={form.spots_total} onChange={(e) => setForm({ ...form, spots_total: Number(e.target.value) })} /></div>
         <div><Label>Spots Taken</Label><Input type="number" value={form.spots_taken} onChange={(e) => setForm({ ...form, spots_taken: Number(e.target.value) })} /></div>
       </div>
