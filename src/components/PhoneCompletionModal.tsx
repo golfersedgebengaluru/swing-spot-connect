@@ -22,6 +22,7 @@ interface PhoneCompletionModalProps {
 
 export function PhoneCompletionModal({ open, userId, onComplete }: PhoneCompletionModalProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
