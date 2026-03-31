@@ -104,12 +104,17 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const isProduct = form.item_type === "product";
 
   const handleSave = () => {
+    // Determine city value
+    const cityValue = isAdmin
+      ? (form.city === "" || form.city === "all" ? null : form.city)
+      : (form.city || (assignedCities.length === 1 ? assignedCities[0] : null));
+
     onSave({
       name: form.name,
       description: form.description || null,
       category: form.category,
       item_type: form.item_type,
-      type: isProduct ? "merchandise" : "beverage", // legacy field mapping
+      type: isProduct ? "merchandise" : "beverage",
       in_stock: form.in_stock,
       sku: form.sku || null,
       unit_of_measure: form.unit_of_measure,
@@ -123,7 +128,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
       reorder_quantity: isProduct ? (Number(form.reorder_quantity) || null) : null,
       duration_minutes: !isProduct ? (Number(form.duration_minutes) || null) : null,
       bookable: !isProduct ? form.bookable : false,
-      // Clear removed legacy fields
+      city: cityValue,
       badge: null,
       sizes: null,
       colors: null,
