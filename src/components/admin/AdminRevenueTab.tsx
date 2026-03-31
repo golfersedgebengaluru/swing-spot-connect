@@ -116,6 +116,7 @@ export function AdminRevenueTab() {
   const { data: activeFY } = useActiveFinancialYear();
   const { isAdmin, assignedCities } = useAdmin();
   const { data: allCities } = useAllCities();
+  const { symbol: currencySymbol } = useDefaultCurrency();
   const cities = isAdmin ? allCities : (allCities ?? []).filter((c) => assignedCities.includes(c));
   const [period, setPeriod] = useState<Period>("month");
   const [customStart, setCustomStart] = useState("");
