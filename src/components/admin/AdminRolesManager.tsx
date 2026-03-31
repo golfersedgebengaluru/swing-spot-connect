@@ -254,6 +254,7 @@ export function AdminRolesManager() {
         {userRolesMap.size === 0 ? (
           <p className="text-center text-muted-foreground py-6">No roles assigned yet.</p>
         ) : (
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -331,6 +332,7 @@ export function AdminRolesManager() {
               })}
             </TableBody>
           </Table>
+          </div>
         )}
       </CardContent>
     </Card>

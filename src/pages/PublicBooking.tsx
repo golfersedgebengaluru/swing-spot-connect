@@ -516,7 +516,7 @@ export default function PublicBooking() {
                     {!user ? (
                       <div className="text-center py-8">
                         <p className="text-muted-foreground mb-3">Sign in to see real-time availability, or pick a preferred time</p>
-                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
                           {generateTimeSlots(currentBay.open_time, currentBay.close_time, selectedDate).map((slot) => {
                             const isSelected = selectedSlot === slot;
                             return (
@@ -540,7 +540,7 @@ export default function PublicBooking() {
                     ) : !slots?.length ? (
                       <p className="text-center text-muted-foreground py-8">No slots available</p>
                     ) : (
-                      <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
                         {slots.map((slot) => {
                           const t = new Date(slot.time);
                           const isSelected = selectedSlot === slot.time;

@@ -29,7 +29,7 @@ export function Footer() {
           </div>
 
           {/* Copyright */}
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground text-center sm:text-right">
             {footerText}
           </p>
         </div>

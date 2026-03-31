@@ -192,7 +192,7 @@ export default function Dashboard() {
           </div>
 
           {/* Quick Actions */}
-          <div className="mb-8 flex flex-wrap gap-3">
+          <div className="mb-8 flex flex-wrap gap-2 sm:gap-3">
             <Link to="/bookings">
               <Button variant="default">
                 <Timer className="mr-2 h-4 w-4" />
