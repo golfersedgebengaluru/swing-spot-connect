@@ -301,7 +301,7 @@ export function AdminRevenueTab() {
           />
         </div>
         <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(0); }}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-full sm:w-[160px]">
             <SelectValue placeholder="All types" />
           </SelectTrigger>
           <SelectContent>
