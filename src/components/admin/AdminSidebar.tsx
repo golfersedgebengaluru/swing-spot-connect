@@ -182,9 +182,12 @@ export function AdminSidebar({
       {/* Header */}
       <div className="flex h-[52px] items-center justify-between px-3 border-b border-border/50">
         {!collapsed && (
-          <span className="text-sm font-medium text-foreground truncate">
-            Admin Panel
-          </span>
+          <div className="min-w-0 flex-1">
+            <span className="text-sm font-medium text-foreground truncate block">
+              Admin Panel
+            </span>
+            <p className="text-xs text-muted-foreground truncate">{user?.email ?? "Admin"}</p>
+          </div>
         )}
         <button
           onClick={onToggleCollapse}
