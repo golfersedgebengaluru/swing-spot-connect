@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { AppleProfileCompletionModal } from "@/components/AppleProfileCompletionModal";
@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: "",
   });
   const [phoneMissing, setPhoneMissing] = useState(false);
-  const phoneCheckedRef = { current: false };
+  const phoneCheckedRef = useRef(false);
 
   const runProfileChecks = async (u: User) => {
     const check = await checkAppleProfile(u);
