@@ -105,7 +105,7 @@ export function AdminProductsTab() {
     a.download = `products_${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast({ title: "Exported", description: `${products.length} items exported.` });
+    toast({ title: "Exported", description: `${filteredProducts.length} items exported.` });
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
