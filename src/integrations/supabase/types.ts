@@ -668,6 +668,39 @@ export type Database = {
           },
         ]
       }
+      invoice_settings: {
+        Row: {
+          city: string | null
+          created_at: string
+          footer_note: string
+          id: string
+          logo_url: string
+          template: string
+          terms: string
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          footer_note?: string
+          id?: string
+          logo_url?: string
+          template?: string
+          terms?: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          footer_note?: string
+          id?: string
+          logo_url?: string
+          template?: string
+          terms?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       invoices: {
         Row: {
           business_address: string | null
