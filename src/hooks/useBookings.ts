@@ -154,6 +154,9 @@ export function useCancelBooking() {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
       queryClient.invalidateQueries({ queryKey: ["hours_transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["revenue_transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["revenue_summary"] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
     },
   });
 }
