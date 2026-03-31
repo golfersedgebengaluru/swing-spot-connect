@@ -150,10 +150,10 @@ export function AdminPaymentsTab() {
 
   if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
 
-  // Group gateways by city
+  // Group gateways by city, filtered by global city if set
   const allCities = Array.from(
     new Set([...(cities ?? []), ...(gateways ?? []).map((g) => g.city)])
-  ).sort();
+  ).sort().filter((c) => !globalCity || c === globalCity);
 
   const gatewaysByCity: Record<string, Gateway[]> = {};
   for (const city of allCities) {
