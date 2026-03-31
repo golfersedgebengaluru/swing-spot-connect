@@ -55,6 +55,9 @@ export function AdminProductsTab() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this item?")) return;
+    // Unlink from bay_pricing first to avoid FK constraint errors
+    await supabase.from("bay_pricing").update({ service_product_id: null }).eq("service_product_id", id);
     const { error } = await supabase.from("products").delete().eq("id", id);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Deleted successfully" });
