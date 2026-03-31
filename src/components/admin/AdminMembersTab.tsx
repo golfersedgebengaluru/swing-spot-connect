@@ -9,8 +9,9 @@ import { Plus, Loader2, Clock, MinusCircle, PlusCircle, History, Trash2 } from "
 import { useToast } from "@/hooks/use-toast";
 import { useMemberHours, useHoursTransactions } from "@/hooks/useMemberHours";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
 
 function TransactionHistory({ userId }: { userId: string }) {
   const { data: transactions, isLoading } = useHoursTransactions(userId);
