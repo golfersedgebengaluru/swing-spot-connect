@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useUserProfile, useCities } from "@/hooks/useBookings";
+import { useAdmin } from "@/hooks/useAdmin";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -209,6 +210,7 @@ export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbar
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const { selectedCity, setSelectedCity, availableCities, isLoadingCities } = useAdminCity();
+  const { isAdmin } = useAdmin();
 
   const handleSignOut = async () => {
     await signOut();
@@ -238,7 +240,7 @@ export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbar
               <SelectValue placeholder="All Cities" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">All Cities (Global)</SelectItem>
+              {isAdmin && <SelectItem value="__all__">All Cities (Global)</SelectItem>}
               {availableCities.map((city) => (
                 <SelectItem key={city} value={city}>{city}</SelectItem>
               ))}
@@ -261,10 +263,12 @@ export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbar
 
         <AdminProfilePopover />
 
-        <Button variant="ghost" size="icon" className="hidden sm:inline-flex min-h-[44px] min-w-[44px]" onClick={onSettingsClick}>
-          <Settings className="h-4 w-4" />
-          <span className="sr-only">Settings</span>
-        </Button>
+        {isAdmin && (
+          <Button variant="ghost" size="icon" className="hidden sm:inline-flex min-h-[44px] min-w-[44px]" onClick={onSettingsClick}>
+            <Settings className="h-4 w-4" />
+            <span className="sr-only">Settings</span>
+          </Button>
+        )}
 
         <Button variant="ghost" size="icon" className="min-h-[36px] min-w-[36px] sm:min-h-[44px] sm:min-w-[44px] text-muted-foreground hover:text-destructive shrink-0" onClick={handleSignOut}>
           <LogOut className="h-4 w-4" />

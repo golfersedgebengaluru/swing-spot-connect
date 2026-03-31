@@ -14,6 +14,8 @@ import { useAllocatePoints, useRedeemPoints, usePointsTransactions } from "@/hoo
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdmin } from "@/hooks/useAdmin";
+import { useAdminCity } from "@/contexts/AdminCityContext";
 
 function PointsTransactionHistory({ userId }: { userId: string }) {
   const { data: transactions, isLoading } = usePointsTransactions(userId);
@@ -138,6 +140,8 @@ export function AdminAllUsersTab() {
   const [dialogOpen, setDialogOpen] = useState<string | null>(null);
   const [viewingPointsHistory, setViewingPointsHistory] = useState<string | null>(null);
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
+  const { isAdmin, assignedCities } = useAdmin();
+  const { selectedCity } = useAdminCity();
 
   const USER_TYPES = [
     { value: "member", label: "Member" },
@@ -148,15 +152,48 @@ export function AdminAllUsersTab() {
   ];
 
   const { data: allUsers, isLoading } = useQuery({
-    queryKey: ["admin_all_users"],
+    queryKey: ["admin_all_users", isAdmin, assignedCities, selectedCity],
     queryFn: async () => {
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, user_id, display_name, email, points, created_at, user_type")
+        .select("id, user_id, display_name, email, points, created_at, user_type, preferred_city")
         .order("created_at", { ascending: false });
       const { data: hours } = await supabase.from("member_hours").select("*");
       const hoursMap = new Map((hours ?? []).map((h: any) => [h.user_id, h]));
-      return (profiles ?? []).map((p: any) => ({
+
+      let filtered = profiles ?? [];
+
+      // For site_admins, scope by assigned cities
+      if (!isAdmin) {
+        const citiesToFilter = selectedCity ? [selectedCity] : assignedCities;
+        if (citiesToFilter.length > 0) {
+          // Also fetch bookings to find users who booked in these cities
+          const { data: cityBookings } = await supabase
+            .from("bookings")
+            .select("user_id, city")
+            .in("city", citiesToFilter);
+          const bookingUserIds = new Set((cityBookings ?? []).map((b: any) => b.user_id));
+
+          filtered = filtered.filter((p: any) =>
+            (p.preferred_city && citiesToFilter.includes(p.preferred_city)) ||
+            (p.user_id && bookingUserIds.has(p.user_id))
+          );
+        }
+      } else if (selectedCity) {
+        // Admin with city filter selected
+        const { data: cityBookings } = await supabase
+          .from("bookings")
+          .select("user_id, city")
+          .eq("city", selectedCity);
+        const bookingUserIds = new Set((cityBookings ?? []).map((b: any) => b.user_id));
+
+        filtered = filtered.filter((p: any) =>
+          p.preferred_city === selectedCity ||
+          (p.user_id && bookingUserIds.has(p.user_id))
+        );
+      }
+
+      return filtered.map((p: any) => ({
         ...p,
         hours_purchased: hoursMap.get(p.user_id)?.hours_purchased ?? 0,
         hours_used: hoursMap.get(p.user_id)?.hours_used ?? 0,

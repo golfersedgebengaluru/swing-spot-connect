@@ -58,7 +58,7 @@ const configItems = [
 
 const reportsItems = [
   { id: "revenue", label: "Revenue", icon: BarChart3 },
-  { id: "allusers", label: "All Users", icon: BarChart3, adminOnly: true },
+  { id: "allusers", label: "All Users", icon: BarChart3 },
   { id: "pages", label: "Pages", icon: BarChart3, adminOnly: true },
 ];
 
