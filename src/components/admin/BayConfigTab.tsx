@@ -138,7 +138,7 @@ export function BayConfigTab() {
             />
           </div>
           <Button onClick={handleAddCity} disabled={!newCity.trim()}>
-            <Plus className="mr-2 h-4 w-4" /> Add City
+            <Plus className="mr-2 h-4 w-4" /> Add Location
           </Button>
         </CardContent>
       </Card>
