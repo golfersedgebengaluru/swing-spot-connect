@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
 
 interface PhoneCompletionModalProps {
@@ -21,6 +22,7 @@ interface PhoneCompletionModalProps {
 
 export function PhoneCompletionModal({ open, userId, onComplete }: PhoneCompletionModalProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
@@ -49,6 +51,7 @@ export function PhoneCompletionModal({ open, userId, onComplete }: PhoneCompleti
       if (dbError) throw dbError;
 
       toast({ title: "Phone number saved", description: "Thank you!" });
+      queryClient.invalidateQueries({ queryKey: ["user_profile"] });
       onComplete();
     } catch (err: any) {
       toast({
