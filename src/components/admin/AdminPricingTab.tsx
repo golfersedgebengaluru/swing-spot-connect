@@ -48,7 +48,7 @@ function BayPricingSection() {
 
   const { data: cities = [] } = useAllCities();
 
-  const effectiveCity = selectedCity || cities[0] || "";
+  const effectiveCity = globalCity || selectedCity || cities[0] || "";
 
   const pricingMap = useMemo(() => {
     const map: Record<string, any> = {};
