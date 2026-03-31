@@ -263,10 +263,12 @@ export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbar
 
         <AdminProfilePopover />
 
-        <Button variant="ghost" size="icon" className="hidden sm:inline-flex min-h-[44px] min-w-[44px]" onClick={onSettingsClick}>
-          <Settings className="h-4 w-4" />
-          <span className="sr-only">Settings</span>
-        </Button>
+        {isAdmin && (
+          <Button variant="ghost" size="icon" className="hidden sm:inline-flex min-h-[44px] min-w-[44px]" onClick={onSettingsClick}>
+            <Settings className="h-4 w-4" />
+            <span className="sr-only">Settings</span>
+          </Button>
+        )}
 
         <Button variant="ghost" size="icon" className="min-h-[36px] min-w-[36px] sm:min-h-[44px] sm:min-w-[44px] text-muted-foreground hover:text-destructive shrink-0" onClick={handleSignOut}>
           <LogOut className="h-4 w-4" />
