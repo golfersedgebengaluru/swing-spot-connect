@@ -168,13 +168,6 @@ export function AdminProductsTab() {
           Import CSV
         </Button>
         <input ref={fileInputRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleImport} />
-      </div>
-      <Alert className="border-muted bg-muted/30">
-        <Info className="h-4 w-4" />
-        <AlertDescription className="text-xs text-muted-foreground">
-          <strong>CSV Import:</strong> Items with a matching SKU will be updated. Items without a SKU or with a new SKU will be added as new entries. Use <strong>Export CSV</strong> to get the correct format.
-        </AlertDescription>
-      </Alert>
         <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingProduct(null); }}>
           <DialogTrigger asChild>
             <Button onClick={() => setEditingProduct({})}><Plus className="mr-2 h-4 w-4" />Add Item</Button>
@@ -185,6 +178,12 @@ export function AdminProductsTab() {
           </DialogContent>
         </Dialog>
       </div>
+      <Alert className="border-muted bg-muted/30">
+        <Info className="h-4 w-4" />
+        <AlertDescription className="text-xs text-muted-foreground">
+          <strong>CSV Import:</strong> Items with a matching SKU will be updated. Items without a SKU or with a new SKU will be added as new entries. Use <strong>Export CSV</strong> to get the correct format.
+        </AlertDescription>
+      </Alert>
       {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
         <div className="space-y-3">
           {(products ?? []).length === 0 && <p className="text-center text-muted-foreground py-8">No products or services yet.</p>}
