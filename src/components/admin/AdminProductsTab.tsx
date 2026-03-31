@@ -42,10 +42,31 @@ export function AdminProductsTab() {
   const queryClient = useQueryClient();
   const { data: products, isLoading } = useAllProducts();
   const currency = useDefaultCurrency();
+  const { isAdmin, isSiteAdmin, assignedCities } = useAdmin();
+  const { data: allCities } = useCities();
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [cityFilter, setCityFilter] = useState<string>("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Filter products by city for display
+  const filteredProducts = useMemo(() => {
+    if (!products) return [];
+    let list = products as any[];
+    if (isSiteAdmin && !isAdmin) {
+      // Site-admin sees global + their cities
+      list = list.filter((p: any) => !p.city || assignedCities.includes(p.city));
+    }
+    if (cityFilter !== "all") {
+      if (cityFilter === "global") {
+        list = list.filter((p: any) => !p.city);
+      } else {
+        list = list.filter((p: any) => p.city === cityFilter);
+      }
+    }
+    return list;
+  }, [products, cityFilter, isAdmin, isSiteAdmin, assignedCities]);
 
   const handleSave = async (data: any) => {
     const { error } = editingProduct?.id
