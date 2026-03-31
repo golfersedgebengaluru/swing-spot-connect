@@ -238,7 +238,7 @@ export function AdminProductsTab() {
             const isService = p.item_type === "service";
             return (
               <Card key={product.id} className="shadow-elegant">
-                <CardContent className="flex items-center justify-between p-4">
+                <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-medium text-foreground">{product.name}</h3>

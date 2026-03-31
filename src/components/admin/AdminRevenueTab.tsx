@@ -313,7 +313,7 @@ export function AdminRevenueTab() {
           </SelectContent>
         </Select>
         <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); setPage(0); }}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-full sm:w-[160px]">
             <SelectValue placeholder="All cities" />
           </SelectTrigger>
           <SelectContent>

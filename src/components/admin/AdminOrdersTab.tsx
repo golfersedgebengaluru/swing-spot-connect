@@ -148,6 +148,7 @@ export function AdminOrdersTab() {
               ))}
             </TableBody>
           </Table>
+          </div>
         )}
       </CardContent>
     </Card>

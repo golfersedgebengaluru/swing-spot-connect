@@ -267,16 +267,16 @@ export function AdminMembersTab() {
             const remaining = member.hours_purchased - member.hours_used;
             return (
               <Card key={member.id} className="shadow-elegant">
-                <CardContent className="flex items-center justify-between p-4">
-                  <div>
+                <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4">
+                  <div className="min-w-0">
                     <h3 className="font-medium text-foreground">{member.display_name}</h3>
-                    <div className="flex gap-3 text-sm text-muted-foreground">
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {remaining} hrs remaining</span>
                       <span>Purchased: {member.hours_purchased} hrs</span>
                       <span>Used: {member.hours_used} hrs</span>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 shrink-0">
                     <Button variant="outline" size="sm" onClick={() => { setAdjustingMember(member); setDialogOpen("adjust"); }}>
                       <MinusCircle className="mr-1 h-4 w-4" />Adjust
                     </Button>
