@@ -76,49 +76,74 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: "",
   });
   const [phoneMissing, setPhoneMissing] = useState(false);
-  const phoneCheckedRef = useRef(false);
-
-  const runProfileChecks = async (u: User) => {
-    const check = await checkAppleProfile(u);
-    setProfileCheck(check);
-    if (!check.needed && !phoneCheckedRef.current) {
-      phoneCheckedRef.current = true;
-      const noPhone = await checkPhoneMissing(u);
-      setPhoneMissing(noPhone);
-    }
-  };
+  const phoneCheckedRef = useRef<string | null>(null);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      (_event, nextSession) => {
+        setSession(nextSession);
+        setUser(nextSession?.user ?? null);
         setLoading(false);
 
-        if (session?.user) {
-          await runProfileChecks(session.user);
-        } else {
+        if (!nextSession?.user) {
           setProfileCheck({ needed: false, displayName: "", email: "" });
           setPhoneMissing(false);
-          phoneCheckedRef.current = false;
+          phoneCheckedRef.current = null;
         }
       }
     );
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
       setLoading(false);
 
-      if (session?.user) {
-        await runProfileChecks(session.user);
+      if (!initialSession?.user) {
+        setProfileCheck({ needed: false, displayName: "", email: "" });
+        setPhoneMissing(false);
+        phoneCheckedRef.current = null;
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+
+    let cancelled = false;
+
+    const runProfileChecks = async () => {
+      const check = await checkAppleProfile(user);
+      if (cancelled) return;
+
+      setProfileCheck(check);
+
+      if (check.needed) {
+        setPhoneMissing(false);
+        return;
+      }
+
+      if (phoneCheckedRef.current === user.id) return;
+      phoneCheckedRef.current = user.id;
+
+      const noPhone = await checkPhoneMissing(user);
+      if (!cancelled) {
+        setPhoneMissing(noPhone);
+      }
+    };
+
+    void runProfileChecks();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   const signOut = async () => {
+    setProfileCheck({ needed: false, displayName: "", email: "" });
+    setPhoneMissing(false);
+    phoneCheckedRef.current = null;
     await supabase.auth.signOut();
   };
 
