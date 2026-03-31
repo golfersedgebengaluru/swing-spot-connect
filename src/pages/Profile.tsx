@@ -20,8 +20,8 @@ import { useToast } from "@/hooks/use-toast";
 
 
 export default function Profile() {
-  const { user } = useAuth();
-  const { data: profile, isLoading: profileLoading } = useUserProfile();
+  const { user, loading: authLoading } = useAuth();
+  const { data: profile, isLoading: profileLoading, isError } = useUserProfile();
   const { data: balance } = useUserHoursBalance();
   const { data: currentPoints = 0 } = useUserPoints();
   const { data: cities } = useCities();
