@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { AppleProfileCompletionModal } from "@/components/AppleProfileCompletionModal";
+import { PhoneCompletionModal } from "@/components/PhoneCompletionModal";
 
 interface AuthContextType {
   user: User | null;
@@ -32,7 +33,6 @@ function isRelayEmail(email: string | null | undefined): boolean {
 }
 
 async function checkAppleProfile(user: User): Promise<ProfileCheck> {
-  // Only check for Apple provider users
   const isApple = user.app_metadata?.provider === "apple" ||
     user.identities?.some((i) => i.provider === "apple");
 
@@ -56,6 +56,16 @@ async function checkAppleProfile(user: User): Promise<ProfileCheck> {
   };
 }
 
+async function checkPhoneMissing(user: User): Promise<boolean> {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("phone")
+    .eq("user_id", user.id)
+    .single();
+
+  return !profile?.phone || profile.phone.trim().length === 0;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -65,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     displayName: "",
     email: "",
   });
+  const [phoneMissing, setPhoneMissing] = useState(false);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -76,8 +87,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           const check = await checkAppleProfile(session.user);
           setProfileCheck(check);
+          if (!check.needed) {
+            const noPhone = await checkPhoneMissing(session.user);
+            setPhoneMissing(noPhone);
+          }
         } else {
           setProfileCheck({ needed: false, displayName: "", email: "" });
+          setPhoneMissing(false);
         }
       }
     );
@@ -90,6 +106,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         const check = await checkAppleProfile(session.user);
         setProfileCheck(check);
+        if (!check.needed) {
+          const noPhone = await checkPhoneMissing(session.user);
+          setPhoneMissing(noPhone);
+        }
       }
     });
 
@@ -100,17 +120,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  // Show Apple profile modal first, then phone modal
+  const showAppleModal = user && profileCheck.needed;
+  const showPhoneModal = user && !profileCheck.needed && phoneMissing;
+
   return (
     <AuthContext.Provider
-      value={{ user, session, loading, profileIncomplete: profileCheck.needed, signOut }}
+      value={{ user, session, loading, profileIncomplete: profileCheck.needed || phoneMissing, signOut }}
     >
       {children}
-      {user && profileCheck.needed && (
+      {showAppleModal && (
         <AppleProfileCompletionModal
           open={true}
           userId={user.id}
           currentName={profileCheck.displayName}
           currentEmail={profileCheck.email}
+        />
+      )}
+      {showPhoneModal && (
+        <PhoneCompletionModal
+          open={true}
+          userId={user.id}
         />
       )}
     </AuthContext.Provider>
