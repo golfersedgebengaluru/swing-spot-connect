@@ -19,6 +19,7 @@ import { AdminFinanceTab } from "@/components/admin/AdminFinanceTab";
 import { AdminSalesInvoicesTab } from "@/components/admin/AdminSalesInvoicesTab";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminTopbar, getTabTitle } from "@/components/admin/AdminTopbar";
+import { AdminCityProvider } from "@/contexts/AdminCityContext";
 
 const tabComponents: Record<string, React.ComponentType> = {
   dashboard: AdminDashboardTab,
@@ -49,27 +50,29 @@ export default function Admin() {
   const ActiveComponent = tabComponents[activeTab] ?? AdminDashboardTab;
 
   return (
-    <div className="flex min-h-screen bg-muted/40">
-      <AdminSidebar
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
-      />
-
-      <div className="flex flex-1 flex-col min-w-0">
-        <AdminTopbar
-          title={getTabTitle(activeTab)}
-          onMenuClick={() => setSidebarOpen(true)}
-          onSettingsClick={() => setActiveTab("settings")}
+    <AdminCityProvider>
+      <div className="flex min-h-screen bg-muted/40">
+        <AdminSidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
         />
 
-        <main className="flex-1 p-4 md:p-6">
-          <ActiveComponent />
-        </main>
+        <div className="flex flex-1 flex-col min-w-0">
+          <AdminTopbar
+            title={getTabTitle(activeTab)}
+            onMenuClick={() => setSidebarOpen(true)}
+            onSettingsClick={() => setActiveTab("settings")}
+          />
+
+          <main className="flex-1 p-4 md:p-6">
+            <ActiveComponent />
+          </main>
+        </div>
       </div>
-    </div>
+    </AdminCityProvider>
   );
 }

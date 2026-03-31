@@ -4,41 +4,51 @@ import { CalendarDays, Users, IndianRupee, Clock, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth } from "date-fns";
+import { useAdminCity } from "@/contexts/AdminCityContext";
 
-function useAdminDashboardStats() {
+function useAdminDashboardStats(cityFilter: string) {
   return useQuery({
-    queryKey: ["admin-dashboard-stats"],
+    queryKey: ["admin-dashboard-stats", cityFilter],
     queryFn: async () => {
       const now = new Date();
       const monthStart = startOfMonth(now).toISOString();
       const monthEnd = endOfMonth(now).toISOString();
 
+      let bookingsQuery = supabase
+        .from("bookings")
+        .select("id, status, start_time, end_time, bay_id, user_id, duration_minutes, session_type, city")
+        .in("status", ["confirmed", "pending"])
+        .gte("start_time", now.toISOString())
+        .order("start_time", { ascending: true })
+        .limit(5);
+      if (cityFilter) bookingsQuery = bookingsQuery.eq("city", cityFilter);
+
+      let hoursQuery = supabase
+        .from("hours_transactions")
+        .select("hours, type")
+        .gte("created_at", monthStart)
+        .lte("created_at", monthEnd);
+
       const [bookingsRes, membersRes, hoursRes] = await Promise.all([
-        supabase
-          .from("bookings")
-          .select("id, status, start_time, end_time, bay_id, user_id, duration_minutes, session_type")
-          .in("status", ["confirmed", "pending"])
-          .gte("start_time", now.toISOString())
-          .order("start_time", { ascending: true })
-          .limit(5),
-        supabase.from("profiles").select("id, display_name, email, points, tier, total_rounds, user_id"),
-        supabase
-          .from("hours_transactions")
-          .select("hours, type")
-          .gte("created_at", monthStart)
-          .lte("created_at", monthEnd),
+        bookingsQuery,
+        supabase.from("profiles").select("id, display_name, email, points, tier, total_rounds, user_id, preferred_city"),
+        hoursQuery,
       ]);
 
       // Active bookings count (all confirmed today+)
-      const { count: activeCount } = await supabase
+      let activeQuery = supabase
         .from("bookings")
         .select("id", { count: "exact", head: true })
         .in("status", ["confirmed", "pending"]);
+      if (cityFilter) activeQuery = activeQuery.eq("city", cityFilter);
+      const { count: activeCount } = await activeQuery;
 
-      // Members count
-      const { count: memberCount } = await supabase
+      // Members count - filter by preferred_city when a city is selected
+      let membersQuery = supabase
         .from("profiles")
         .select("id", { count: "exact", head: true });
+      if (cityFilter) membersQuery = membersQuery.eq("preferred_city", cityFilter);
+      const { count: memberCount } = await membersQuery;
 
       // Hours sold this month
       const hoursSold = (hoursRes.data ?? [])
@@ -66,8 +76,11 @@ function useAdminDashboardStats() {
         );
       }
 
-      // Top members by points
-      const topMembers = (membersRes.data ?? [])
+      // Top members by points (filter by city if selected)
+      const membersPool = cityFilter
+        ? (membersRes.data ?? []).filter((m: any) => m.preferred_city === cityFilter)
+        : (membersRes.data ?? []);
+      const topMembers = membersPool
         .sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
         .slice(0, 5);
 
@@ -102,7 +115,8 @@ function getBayShort(name: string) {
 }
 
 export function AdminDashboardTab() {
-  const { data, isLoading } = useAdminDashboardStats();
+  const { selectedCity } = useAdminCity();
+  const { data, isLoading } = useAdminDashboardStats(selectedCity);
 
   if (isLoading) {
     return (

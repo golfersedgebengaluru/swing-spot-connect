@@ -10,6 +10,7 @@ import { Loader2, Save, IndianRupee, Package, Link2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useBayPricing, useUpsertBayPricing, useHourPackages, useUpdateHourPackage } from "@/hooks/usePricing";
 import { useBays, useAllCities } from "@/hooks/useBookings";
+import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useAllProducts } from "@/hooks/useProducts";
 
 const SESSION_TYPES = [
@@ -32,6 +33,7 @@ function BayPricingSection() {
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [serviceEdits, setServiceEdits] = useState<Record<string, string | null>>({});
   const [selectedCity, setSelectedCity] = useState<string>("");
+  const { selectedCity: globalCity } = useAdminCity();
 
   const services = useMemo(() =>
     (allProducts ?? []).filter((p: any) => p.item_type === "service"),
@@ -46,7 +48,7 @@ function BayPricingSection() {
 
   const { data: cities = [] } = useAllCities();
 
-  const effectiveCity = selectedCity || cities[0] || "";
+  const effectiveCity = globalCity || selectedCity || cities[0] || "";
 
   const pricingMap = useMemo(() => {
     const map: Record<string, any> = {};

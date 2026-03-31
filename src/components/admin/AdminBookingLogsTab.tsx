@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAllBookings, useBays, useApproveBooking, useRejectBooking, useAdminCancelBooking, useAllCities } from "@/hooks/useBookings";
 import { useAdmin } from "@/hooks/useAdmin";
 import { format } from "date-fns";
+import { useAdminCity } from "@/contexts/AdminCityContext";
 
 export function AdminBookingLogsTab() {
   const { data: bookings, isLoading } = useAllBookings();
@@ -18,6 +19,7 @@ export function AdminBookingLogsTab() {
   const rejectBooking = useRejectBooking();
   const adminCancelBooking = useAdminCancelBooking();
   const { toast } = useToast();
+  const { selectedCity: globalCity } = useAdminCity();
   const [cityFilter, setCityFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [rejectMessages, setRejectMessages] = useState<Record<string, string>>({});
@@ -31,8 +33,10 @@ export function AdminBookingLogsTab() {
     ? bookings
     : (bookings ?? []).filter((b: any) => assignedCities.includes(b.city));
 
+  // Apply global city filter, then local filter
+  const effectiveCityFilter = globalCity || cityFilter;
   const filtered = (scopedBookings ?? []).filter((b: any) => {
-    if (cityFilter !== "all" && b.city !== cityFilter) return false;
+    if (effectiveCityFilter !== "all" && effectiveCityFilter && b.city !== effectiveCityFilter) return false;
     if (statusFilter !== "all" && b.status !== statusFilter) return false;
     return true;
   });

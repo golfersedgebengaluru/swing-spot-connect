@@ -15,6 +15,7 @@ import { useRevenueTransactions, useRevenueSummary, useActiveFinancialYear } fro
 import { useAllCities } from "@/hooks/useBookings";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
+import { useAdminCity } from "@/contexts/AdminCityContext";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, subYears, addMonths } from "date-fns";
 import { RevenueUserBreakdown } from "./RevenueUserBreakdown";
 
@@ -117,6 +118,7 @@ export function AdminRevenueTab() {
   const { isAdmin, assignedCities } = useAdmin();
   const { data: allCities } = useAllCities();
   const { symbol: currencySymbol } = useDefaultCurrency();
+  const { selectedCity: globalCity } = useAdminCity();
   const cities = isAdmin ? allCities : (allCities ?? []).filter((c) => assignedCities.includes(c));
   const [period, setPeriod] = useState<Period>("month");
   const [customStart, setCustomStart] = useState("");
@@ -124,6 +126,7 @@ export function AdminRevenueTab() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [cityFilter, setCityFilter] = useState<string>("all");
+  const effectiveCityFilter = globalCity || cityFilter;
   const [page, setPage] = useState(0);
 
   const dates = useMemo(() => {
@@ -133,7 +136,7 @@ export function AdminRevenueTab() {
     return getPeriodDates(period, activeFY?.start_date);
   }, [period, customStart, customEnd, activeFY]);
 
-  const selectedCity = cityFilter !== "all" ? cityFilter : undefined;
+  const selectedCity = effectiveCityFilter !== "all" && effectiveCityFilter ? effectiveCityFilter : undefined;
   const { data: summary, isLoading: loadingSummary } = useRevenueSummary(dates.start, dates.end, selectedCity);
   const { data: prevSummary } = useRevenueSummary(dates.prevStart || undefined, dates.prevEnd || undefined, selectedCity);
 

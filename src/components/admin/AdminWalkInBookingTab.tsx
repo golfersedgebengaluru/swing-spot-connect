@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import {
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useBays, useAvailableSlots, useCities } from "@/hooks/useBookings";
+import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useBayPricing } from "@/hooks/usePricing";
 import { useOfflinePaymentMethods } from "@/hooks/useOfflinePaymentMethods";
 import { useToast } from "@/hooks/use-toast";
@@ -52,6 +53,16 @@ export function AdminWalkInBookingTab() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const { data: cities = [] } = useCities();
+  const { selectedCity: globalCity } = useAdminCity();
+
+  // Auto-set city when global city is selected
+  useEffect(() => {
+    if (globalCity && globalCity !== selectedCity) {
+      setSelectedCity(globalCity);
+      setSelectedBayId("");
+      setSelectedSlot(null);
+    }
+  }, [globalCity]);
 
   const cityBays = useMemo(() => {
     return (bays ?? []).filter((b: any) => b.city === selectedCity && b.is_active);

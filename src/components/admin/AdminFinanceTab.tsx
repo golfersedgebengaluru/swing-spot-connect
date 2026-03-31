@@ -16,6 +16,7 @@ import { InvoiceSettingsCard } from "@/components/admin/InvoiceSettingsCard";
 import { CityPaymentsSection } from "@/components/admin/CityPaymentsSection";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAllCities } from "@/hooks/useBookings";
+import { useAdminCity } from "@/contexts/AdminCityContext";
 
 // Hook to get available cities scoped by role
 function useAvailableCities() {
@@ -175,17 +176,20 @@ export function AdminFinanceTab() {
   const { isAdmin, isSiteAdmin } = useAdmin();
   const { data: perCityFyEnabled } = usePerCityFyToggle();
   const { data: cities, isLoading: loadingCities } = useAvailableCities();
-  const [selectedCity, setSelectedCity] = useState<string>("");
+  const { selectedCity: globalCity } = useAdminCity();
+  const [localCity, setLocalCity] = useState<string>("");
 
   // Show per-city FY tab only when toggle is on AND user is site-admin (or admin)
   const showCityFY = !!perCityFyEnabled;
 
   // Auto-select first city
   useEffect(() => {
-    if (cities?.length && !selectedCity) {
-      setSelectedCity(cities[0]);
+    if (cities?.length && !localCity) {
+      setLocalCity(cities[0]);
     }
-  }, [cities, selectedCity]);
+  }, [cities, localCity]);
+
+  const selectedCity = globalCity || localCity;
 
   if (loadingCities) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
 
@@ -195,21 +199,23 @@ export function AdminFinanceTab() {
 
   return (
     <div className="space-y-4">
-      {/* City selector */}
-      <div className="flex items-center gap-3">
-        <MapPin className="h-4 w-4 text-muted-foreground" />
-        <Select value={selectedCity} onValueChange={setSelectedCity}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Select instance" />
-          </SelectTrigger>
-          <SelectContent>
-            {cities.map((c) => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Badge variant="outline" className="text-xs">{selectedCity}</Badge>
-      </div>
+      {/* City selector - only show when global is "All Cities" */}
+      {!globalCity && (
+        <div className="flex items-center gap-3">
+          <MapPin className="h-4 w-4 text-muted-foreground" />
+          <Select value={localCity} onValueChange={setLocalCity}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Select instance" />
+            </SelectTrigger>
+            <SelectContent>
+              {cities.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Badge variant="outline" className="text-xs">{localCity}</Badge>
+        </div>
+      )}
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList className="flex-wrap">

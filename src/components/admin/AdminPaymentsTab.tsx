@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAllCities } from "@/hooks/useBookings";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useAdminCity } from "@/contexts/AdminCityContext";
 import type { Json } from "@/integrations/supabase/types";
 
 interface Gateway {
@@ -54,6 +55,7 @@ export function AdminPaymentsTab() {
 
   const { data: allCitiesData } = useAllCities();
   const { isAdmin, assignedCities } = useAdmin();
+  const { selectedCity: globalCity } = useAdminCity();
   const cities = isAdmin
     ? allCitiesData
     : (allCitiesData ?? []).filter((c) => assignedCities.includes(c));
@@ -148,10 +150,10 @@ export function AdminPaymentsTab() {
 
   if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
 
-  // Group gateways by city
+  // Group gateways by city, filtered by global city if set
   const allCities = Array.from(
     new Set([...(cities ?? []), ...(gateways ?? []).map((g) => g.city)])
-  ).sort();
+  ).sort().filter((c) => !globalCity || c === globalCity);
 
   const gatewaysByCity: Record<string, Gateway[]> = {};
   for (const city of allCities) {
