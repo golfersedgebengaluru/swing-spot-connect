@@ -12,6 +12,7 @@ import { InvoiceViewDialog } from "@/components/admin/InvoiceViewDialog";
 import { format } from "date-fns";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAllCities } from "@/hooks/useBookings";
+import { useAdminCity } from "@/contexts/AdminCityContext";
 
 function useAvailableCities() {
   const { isAdmin, assignedCities } = useAdmin();

@@ -136,7 +136,7 @@ export function AdminRevenueTab() {
     return getPeriodDates(period, activeFY?.start_date);
   }, [period, customStart, customEnd, activeFY]);
 
-  const selectedCity = cityFilter !== "all" ? cityFilter : undefined;
+  const selectedCity = effectiveCityFilter !== "all" && effectiveCityFilter ? effectiveCityFilter : undefined;
   const { data: summary, isLoading: loadingSummary } = useRevenueSummary(dates.start, dates.end, selectedCity);
   const { data: prevSummary } = useRevenueSummary(dates.prevStart || undefined, dates.prevEnd || undefined, selectedCity);
 

@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ProductForm } from "@/components/admin/ProductForm";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useCities } from "@/hooks/useBookings";
+import { useAdminCity } from "@/contexts/AdminCityContext";
 
 const CSV_HEADERS = ["name", "description", "price", "cost_price", "category", "item_type", "sku", "unit_of_measure", "hsn_code", "sac_code", "gst_rate", "in_stock", "opening_stock", "reorder_level", "reorder_quantity", "duration_minutes", "bookable", "city"];
 

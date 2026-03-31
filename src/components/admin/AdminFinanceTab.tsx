@@ -16,6 +16,7 @@ import { InvoiceSettingsCard } from "@/components/admin/InvoiceSettingsCard";
 import { CityPaymentsSection } from "@/components/admin/CityPaymentsSection";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAllCities } from "@/hooks/useBookings";
+import { useAdminCity } from "@/contexts/AdminCityContext";
 
 // Hook to get available cities scoped by role
 function useAvailableCities() {
