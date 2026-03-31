@@ -53,13 +53,13 @@ const configItems = [
   { id: "pricing", label: "Pricing", icon: CreditCard },
   { id: "payments", label: "Payments", icon: CreditCard },
   { id: "emails", label: "Emails", icon: Mail },
-  { id: "settings", label: "Settings", icon: Award },
+  { id: "settings", label: "Settings", icon: Award, adminOnly: true },
 ];
 
 const reportsItems = [
   { id: "revenue", label: "Revenue", icon: BarChart3 },
-  { id: "allusers", label: "All Users", icon: BarChart3 },
-  { id: "pages", label: "Pages", icon: BarChart3 },
+  { id: "allusers", label: "All Users", icon: BarChart3, adminOnly: true },
+  { id: "pages", label: "Pages", icon: BarChart3, adminOnly: true },
 ];
 
 function NavItem({
