@@ -46,7 +46,7 @@ function EventForm({ event, onSave, onCancel }: { event?: any; onSave: (data: an
           </Select>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div><Label>Start Time</Label><Input value={form.time_start} onChange={(e) => setForm({ ...form, time_start: e.target.value })} placeholder="10:00 AM" /></div>
         <div><Label>End Time</Label><Input value={form.time_end} onChange={(e) => setForm({ ...form, time_end: e.target.value })} placeholder="4:00 PM" /></div>
       </div>
