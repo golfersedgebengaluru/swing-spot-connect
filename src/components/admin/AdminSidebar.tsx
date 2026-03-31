@@ -39,7 +39,7 @@ const coreItems = [
   { id: "walkin", label: "Walk-in Booking", icon: CalendarDays },
   { id: "bookinglogs", label: "Bookings", icon: CalendarDays },
   { id: "members", label: "Members", icon: Users },
-  { id: "bayconfig", label: "Bays", icon: MapPin },
+  { id: "bayconfig", label: "Locations", icon: MapPin },
   { id: "rewards", label: "Rewards", icon: Gift },
 ];
 
