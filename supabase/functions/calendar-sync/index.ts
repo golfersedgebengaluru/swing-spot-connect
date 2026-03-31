@@ -706,13 +706,41 @@ Deno.serve(async (req) => {
           type: "booking",
         });
 
-        if (remaining <= 2 && remaining > 0) {
-          await supabase.from("notifications").insert({
+        // Check low hours threshold from admin config
+        let lowHoursThreshold = 2;
+        try {
+          const { data: thresholdConfig } = await adminClient.from("admin_config").select("value").eq("key", "low_hours_threshold").single();
+          if (thresholdConfig?.value) lowHoursThreshold = parseFloat(thresholdConfig.value);
+        } catch (_) {}
+
+        if (remaining <= lowHoursThreshold && remaining >= 0) {
+          await adminClient.from("notifications").insert({
             user_id: userId,
             title: "⚠️ Low Hours Balance",
             message: `You have only ${remaining}h remaining. Consider purchasing more hours.`,
             type: "warning",
           });
+          // Send low hours alert email
+          try {
+            await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              },
+              body: JSON.stringify({
+                user_id: userId,
+                template: "low_hours_alert",
+                subject: "Low Hours Alert",
+                data: {
+                  hours_remaining: remaining,
+                  purchase_url: "https://swing-spot-connect.lovable.app/dashboard",
+                },
+              }),
+            });
+          } catch (e) {
+            console.error("Failed to send low hours alert email:", e);
+          }
         }
         // Send confirmed booking email
         try {

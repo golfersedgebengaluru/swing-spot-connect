@@ -46,6 +46,18 @@ const TEMPLATE_CONFIGS: TemplateConfig[] = [
     description: "Additional text for leaderboard update emails. Leave blank to use only the dynamic message.",
     placeholders: "No placeholders needed.",
   },
+  {
+    key: "email_tpl_low_hours_alert_subject",
+    label: "Low Hours Alert — Subject Line",
+    description: "Subject line for the low hours alert email.",
+    placeholders: "No placeholders needed.",
+  },
+  {
+    key: "email_tpl_low_hours_alert_body",
+    label: "Low Hours Alert — Body Message",
+    description: "Body text for the low hours alert email. Use {{hours_remaining}} for the remaining hours.",
+    placeholders: "{{hours_remaining}}",
+  },
 ];
 
 export function EmailTemplatesEditor() {

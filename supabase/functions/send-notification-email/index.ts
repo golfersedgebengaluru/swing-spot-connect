@@ -190,6 +190,27 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
         <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
       </div>
     </div>`,
+
+  low_hours_alert: (d) => `
+    <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff">
+      <div style="background:#e97316;padding:32px 24px;text-align:center">
+        <h1 style="color:#fff;margin:0;font-family:'Playfair Display',Georgia,serif;font-size:24px">⚠️ Low Hours Alert</h1>
+      </div>
+      <div style="padding:32px 24px">
+        <p style="color:#1a2332;font-size:16px;margin:0 0 16px">Hi ${d.display_name || "there"},</p>
+        <p style="color:#1a2332;font-size:16px;margin:0 0 24px">${d._custom_body ? d._custom_body.replace("{{hours_remaining}}", d.hours_remaining) : `You only have ${d.hours_remaining} hour(s) remaining. Please login to your account to purchase more hours.`}</p>
+        <div style="background:#fff7ed;border:2px solid #e97316;border-radius:12px;padding:24px;margin:0 0 24px;text-align:center">
+          <p style="color:#e97316;font-size:40px;font-weight:700;margin:0">${d.hours_remaining}</p>
+          <p style="color:#9a3412;font-size:14px;margin:4px 0 0">hour(s) remaining</p>
+        </div>
+        <div style="text-align:center;margin:0 0 24px">
+          <a href="${d.purchase_url || '#'}" style="display:inline-block;background:#e97316;color:#fff;font-size:16px;font-weight:600;padding:14px 32px;border-radius:8px;text-decoration:none">Purchase More Hours</a>
+        </div>
+      </div>
+      <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
+        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
+      </div>
+    </div>`,
 };
 
 // Template to preference field mapping
@@ -203,6 +224,7 @@ const TEMPLATE_PREF_MAP: Record<string, string> = {
   points_earned: "points_earned",
   points_redeemed: "points_redeemed",
   league_update: "league_updates",
+  low_hours_alert: "booking_confirmed",
 };
 
 Deno.serve(async (req) => {
@@ -289,6 +311,7 @@ Deno.serve(async (req) => {
         "coaching_pending",
         "coaching_approved",
         "coaching_rejected",
+        "low_hours_alert",
       ];
 
       if (!RATE_LIMIT_EXEMPT_TEMPLATES.includes(template)) {
@@ -361,10 +384,15 @@ Deno.serve(async (req) => {
       points_earned: "email_tpl_points_earned_body",
       points_redeemed: "email_tpl_points_redeemed_body",
       league_update: "email_tpl_league_update_body",
+      low_hours_alert: "email_tpl_low_hours_alert_body",
     };
 
     const contentKey = TEMPLATE_CONTENT_MAP[template];
     const customContent = contentKey ? tplMap[contentKey] : undefined;
+
+    // Override subject if custom subject is configured for this template
+    const customSubjectKey = tplMap["email_tpl_low_hours_alert_subject"];
+    const finalSubject = template === "low_hours_alert" && customSubjectKey ? customSubjectKey : subject;
 
     const templateData = {
       ...data,
@@ -387,7 +415,7 @@ Deno.serve(async (req) => {
       user_id,
       recipient_email: profile.email,
       template,
-      subject,
+      subject: finalSubject,
       status: "pending",
       metadata: { data },
     }).select("id").single();
@@ -402,7 +430,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: `Golfer's Edge <${senderEmail}>`,
         to: [profile.email],
-        subject,
+        subject: finalSubject,
         html,
       }),
     });
