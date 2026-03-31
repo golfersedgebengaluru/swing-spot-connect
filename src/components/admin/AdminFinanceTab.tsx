@@ -116,7 +116,7 @@ function GstSettingsSection({ city }: { city: string }) {
             <Label>Registered Address</Label>
             <Input value={getValue("address")} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} className="mt-1" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label>State</Label>
               <Select value={getValue("state")} onValueChange={(v) => {
