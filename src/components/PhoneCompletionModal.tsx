@@ -94,6 +94,16 @@ export function PhoneCompletionModal({ open, userId, onComplete }: PhoneCompleti
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? "Saving..." : "Continue"}
           </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="w-full text-muted-foreground"
+            onClick={() => supabase.auth.signOut()}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign out instead
+          </Button>
         </form>
       </DialogContent>
     </Dialog>
