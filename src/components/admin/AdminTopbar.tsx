@@ -210,6 +210,7 @@ export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbar
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const { selectedCity, setSelectedCity, availableCities, isLoadingCities } = useAdminCity();
+  const { isAdmin } = useAdmin();
 
   const handleSignOut = async () => {
     await signOut();
