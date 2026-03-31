@@ -224,6 +224,7 @@ const TEMPLATE_PREF_MAP: Record<string, string> = {
   points_earned: "points_earned",
   points_redeemed: "points_redeemed",
   league_update: "league_updates",
+  low_hours_alert: "booking_confirmed",
 };
 
 Deno.serve(async (req) => {
