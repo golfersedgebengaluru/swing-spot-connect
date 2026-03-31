@@ -14,27 +14,34 @@ function useAdminDashboardStats(cityFilter: string) {
       const monthStart = startOfMonth(now).toISOString();
       const monthEnd = endOfMonth(now).toISOString();
 
+      let bookingsQuery = supabase
+        .from("bookings")
+        .select("id, status, start_time, end_time, bay_id, user_id, duration_minutes, session_type, city")
+        .in("status", ["confirmed", "pending"])
+        .gte("start_time", now.toISOString())
+        .order("start_time", { ascending: true })
+        .limit(5);
+      if (cityFilter) bookingsQuery = bookingsQuery.eq("city", cityFilter);
+
+      let hoursQuery = supabase
+        .from("hours_transactions")
+        .select("hours, type")
+        .gte("created_at", monthStart)
+        .lte("created_at", monthEnd);
+
       const [bookingsRes, membersRes, hoursRes] = await Promise.all([
-        supabase
-          .from("bookings")
-          .select("id, status, start_time, end_time, bay_id, user_id, duration_minutes, session_type")
-          .in("status", ["confirmed", "pending"])
-          .gte("start_time", now.toISOString())
-          .order("start_time", { ascending: true })
-          .limit(5),
-        supabase.from("profiles").select("id, display_name, email, points, tier, total_rounds, user_id"),
-        supabase
-          .from("hours_transactions")
-          .select("hours, type")
-          .gte("created_at", monthStart)
-          .lte("created_at", monthEnd),
+        bookingsQuery,
+        supabase.from("profiles").select("id, display_name, email, points, tier, total_rounds, user_id, preferred_city"),
+        hoursQuery,
       ]);
 
       // Active bookings count (all confirmed today+)
-      const { count: activeCount } = await supabase
+      let activeQuery = supabase
         .from("bookings")
         .select("id", { count: "exact", head: true })
         .in("status", ["confirmed", "pending"]);
+      if (cityFilter) activeQuery = activeQuery.eq("city", cityFilter);
+      const { count: activeCount } = await activeQuery;
 
       // Members count
       const { count: memberCount } = await supabase
