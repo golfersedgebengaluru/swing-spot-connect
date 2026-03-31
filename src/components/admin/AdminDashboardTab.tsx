@@ -115,7 +115,8 @@ function getBayShort(name: string) {
 }
 
 export function AdminDashboardTab() {
-  const { data, isLoading } = useAdminDashboardStats();
+  const { selectedCity } = useAdminCity();
+  const { data, isLoading } = useAdminDashboardStats(selectedCity);
 
   if (isLoading) {
     return (
