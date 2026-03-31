@@ -14,6 +14,8 @@ import { useAllocatePoints, useRedeemPoints, usePointsTransactions } from "@/hoo
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdmin } from "@/hooks/useAdmin";
+import { useAdminCity } from "@/contexts/AdminCityContext";
 
 function PointsTransactionHistory({ userId }: { userId: string }) {
   const { data: transactions, isLoading } = usePointsTransactions(userId);
