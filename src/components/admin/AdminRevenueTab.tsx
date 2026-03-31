@@ -338,10 +338,13 @@ export function AdminRevenueTab() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="payment">Payment</SelectItem>
-            <SelectItem value="guest_booking">Guest Booking</SelectItem>
-            <SelectItem value="product_order">Shop Order</SelectItem>
-            <SelectItem value="refund">Refund</SelectItem>
+            {(categories ?? []).map((cat) => {
+              const key = cat.name.toLowerCase().replace(/\s+/g, "_");
+              return <SelectItem key={cat.id} value={key}>{cat.name}</SelectItem>;
+            })}
+            {Object.entries(SYSTEM_TYPES).map(([key, val]) => (
+              <SelectItem key={key} value={key}>{val.label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); setPage(0); }}>
