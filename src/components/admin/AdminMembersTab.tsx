@@ -97,6 +97,13 @@ export function AdminMembersTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: memberHours, isLoading } = useMemberHours();
+  const { data: lowHoursThreshold } = useQuery({
+    queryKey: ["admin_config", "low_hours_threshold"],
+    queryFn: async () => {
+      const { data } = await supabase.from("admin_config").select("value").eq("key", "low_hours_threshold").single();
+      return parseFloat(data?.value || "2");
+    },
+  });
   const [adjustingMember, setAdjustingMember] = useState<any>(null);
   const [viewingHistory, setViewingHistory] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState<string | null>(null);
