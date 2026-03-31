@@ -400,6 +400,7 @@ export function AdminFinanceTab() {
         <TabsList>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="settings">GST Settings</TabsTrigger>
+          <TabsTrigger value="invoice_settings">Invoice Template</TabsTrigger>
           {showCityFY && <TabsTrigger value="financial_year">Financial Year</TabsTrigger>}
         </TabsList>
         <TabsContent value="invoices">
@@ -407,6 +408,9 @@ export function AdminFinanceTab() {
         </TabsContent>
         <TabsContent value="settings">
           {selectedCity && <GstSettingsSection city={selectedCity} />}
+        </TabsContent>
+        <TabsContent value="invoice_settings">
+          {selectedCity && <InvoiceSettingsCard city={selectedCity} />}
         </TabsContent>
         {showCityFY && (
           <TabsContent value="financial_year">
