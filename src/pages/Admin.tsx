@@ -25,7 +25,7 @@ const tabComponents: Record<string, React.ComponentType> = {
   walkin: AdminWalkInBookingTab,
   events: AdminEventsTab,
   products: AdminProductsTab,
-  orders: AdminOrdersTab,
+  
   salesinvoices: AdminSalesInvoicesTab,
   rewards: AdminRewardsTab,
   members: AdminMembersTab,

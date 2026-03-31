@@ -377,7 +377,7 @@ export function AdminRevenueTab() {
                         </TableCell>
                         <TableCell className="text-right font-medium whitespace-nowrap">
                           {t.transaction_type === "refund" ? "-" : ""}
-                          {t.amount > 0 ? `₹${Number(t.amount).toLocaleString()}` : "₹0"}
+                          {t.amount > 0 ? `${currencySymbol}${Number(t.amount).toLocaleString()}` : `${currencySymbol}0`}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {t.gateway_name || "—"}

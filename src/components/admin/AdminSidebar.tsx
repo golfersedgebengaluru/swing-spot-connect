@@ -6,7 +6,7 @@ import {
   MapPin,
   Gift,
   ShoppingBag,
-  ClipboardList,
+  
   CreditCard,
   Mail,
   Award,

@@ -16,7 +16,7 @@ const tabTitles: Record<string, string> = {
   walkin: "Walk-in Booking",
   events: "Events",
   products: "Products",
-  orders: "Orders",
+  
   rewards: "Rewards",
   members: "Members",
   allusers: "All Users",
