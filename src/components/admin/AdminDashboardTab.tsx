@@ -4,6 +4,7 @@ import { CalendarDays, Users, IndianRupee, Clock, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth } from "date-fns";
+import { useAdminCity } from "@/contexts/AdminCityContext";
 
 function useAdminDashboardStats() {
   return useQuery({
