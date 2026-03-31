@@ -9,13 +9,14 @@ import {
 } from "@/components/ui/table";
 import {
   Download, Loader2, Search, TrendingUp, TrendingDown,
-  CreditCard, Users, ArrowUpDown, ShoppingBag,
+  CreditCard, ArrowUpDown,
 } from "lucide-react";
 import { useRevenueTransactions, useRevenueSummary, useActiveFinancialYear } from "@/hooks/useRevenue";
 import { useAllCities } from "@/hooks/useBookings";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { useAdminCity } from "@/contexts/AdminCityContext";
+import { useProductCategories } from "@/hooks/useProductCategories";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, subYears, addMonths } from "date-fns";
 import { RevenueUserBreakdown } from "./RevenueUserBreakdown";
 
@@ -99,19 +100,41 @@ function getPeriodDates(period: Period, fyStartDate?: string): { start: string; 
   };
 }
 
-const typeLabels: Record<string, string> = {
-  payment: "Payment",
-  guest_booking: "Guest Booking",
-  product_order: "Shop Order",
-  refund: "Refund",
+// System-level types that always exist regardless of categories
+const SYSTEM_TYPES: Record<string, { label: string; color: string }> = {
+  refund: { label: "Refund", color: "bg-red-100 text-red-800" },
 };
 
-const typeColors: Record<string, string> = {
-  payment: "bg-green-100 text-green-800",
-  guest_booking: "bg-amber-100 text-amber-800",
-  product_order: "bg-purple-100 text-purple-800",
-  refund: "bg-red-100 text-red-800",
-};
+// Color palette for dynamically generated category types
+const CATEGORY_COLORS = [
+  "bg-green-100 text-green-800",
+  "bg-amber-100 text-amber-800",
+  "bg-purple-100 text-purple-800",
+  "bg-blue-100 text-blue-800",
+  "bg-pink-100 text-pink-800",
+  "bg-teal-100 text-teal-800",
+  "bg-orange-100 text-orange-800",
+  "bg-indigo-100 text-indigo-800",
+];
+
+function buildTypeMap(categories: { id: string; name: string }[]) {
+  const labels: Record<string, string> = {};
+  const colors: Record<string, string> = {};
+
+  categories.forEach((cat, i) => {
+    const key = cat.name.toLowerCase().replace(/\s+/g, "_");
+    labels[key] = cat.name;
+    colors[key] = CATEGORY_COLORS[i % CATEGORY_COLORS.length];
+  });
+
+  // Add system types
+  for (const [key, val] of Object.entries(SYSTEM_TYPES)) {
+    labels[key] = val.label;
+    colors[key] = val.color;
+  }
+
+  return { labels, colors };
+}
 
 export function AdminRevenueTab() {
   const { data: activeFY } = useActiveFinancialYear();
@@ -119,7 +142,13 @@ export function AdminRevenueTab() {
   const { data: allCities } = useAllCities();
   const { symbol: currencySymbol } = useDefaultCurrency();
   const { selectedCity: globalCity } = useAdminCity();
+  const { data: categories } = useProductCategories();
   const cities = isAdmin ? allCities : (allCities ?? []).filter((c) => assignedCities.includes(c));
+
+  const { labels: typeLabels, colors: typeColors } = useMemo(
+    () => buildTypeMap(categories ?? []),
+    [categories]
+  );
   const [period, setPeriod] = useState<Period>("month");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -236,53 +265,29 @@ export function AdminRevenueTab() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Payments</p>
-                <p className="mt-1 font-display text-2xl font-bold text-foreground">
-                  {loadingSummary ? "…" : `${currencySymbol}${(summary?.byType?.payment ?? 0).toLocaleString()}`}
-                </p>
-              </div>
-              <div className="rounded-xl bg-green-100 p-3">
-                <CreditCard className="h-5 w-5 text-green-700" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Guest Bookings</p>
-                <p className="mt-1 font-display text-2xl font-bold text-foreground">
-                  {loadingSummary ? "…" : `${currencySymbol}${(summary?.byType?.guest_booking ?? 0).toLocaleString()}`}
-                </p>
-              </div>
-              <div className="rounded-xl bg-amber-100 p-3">
-                <Users className="h-5 w-5 text-amber-700" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Shop Orders</p>
-                <p className="mt-1 font-display text-2xl font-bold text-foreground">
-                  {loadingSummary ? "…" : `${currencySymbol}${(summary?.byType?.product_order ?? 0).toLocaleString()}`}
-                </p>
-              </div>
-              <div className="rounded-xl bg-purple-100 p-3">
-                <ShoppingBag className="h-5 w-5 text-purple-700" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {(categories ?? []).slice(0, 3).map((cat, i) => {
+          const key = cat.name.toLowerCase().replace(/\s+/g, "_");
+          const colorClass = CATEGORY_COLORS[i % CATEGORY_COLORS.length];
+          const iconColorClass = colorClass.split(" ")[0]; // bg-xxx-100
+          const textColorClass = colorClass.split(" ")[1]; // text-xxx-800
+          return (
+            <Card key={cat.id}>
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">{cat.name}</p>
+                    <p className="mt-1 font-display text-2xl font-bold text-foreground">
+                      {loadingSummary ? "…" : `${currencySymbol}${(summary?.byType?.[key] ?? 0).toLocaleString()}`}
+                    </p>
+                  </div>
+                  <div className={`rounded-xl ${iconColorClass} p-3`}>
+                    <CreditCard className={`h-5 w-5 ${textColorClass}`} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* User Spend Breakdown */}
@@ -309,10 +314,13 @@ export function AdminRevenueTab() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="payment">Payment</SelectItem>
-            <SelectItem value="guest_booking">Guest Booking</SelectItem>
-            <SelectItem value="product_order">Shop Order</SelectItem>
-            <SelectItem value="refund">Refund</SelectItem>
+            {(categories ?? []).map((cat) => {
+              const key = cat.name.toLowerCase().replace(/\s+/g, "_");
+              return <SelectItem key={cat.id} value={key}>{cat.name}</SelectItem>;
+            })}
+            {Object.entries(SYSTEM_TYPES).map(([key, val]) => (
+              <SelectItem key={key} value={key}>{val.label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); setPage(0); }}>
