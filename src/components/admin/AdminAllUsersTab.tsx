@@ -213,8 +213,27 @@ export function AdminAllUsersTab() {
   };
 
   const loadProfiles = async () => {
-    const { data } = await supabase.from("profiles").select("user_id, display_name, email, points");
-    setAllProfiles(data ?? []);
+    const { data } = await supabase.from("profiles").select("user_id, display_name, email, points, preferred_city");
+    let filtered = data ?? [];
+
+    // Scope profiles for site_admins
+    if (!isAdmin) {
+      const citiesToFilter = selectedCity ? [selectedCity] : assignedCities;
+      if (citiesToFilter.length > 0) {
+        const { data: cityBookings } = await supabase
+          .from("bookings")
+          .select("user_id, city")
+          .in("city", citiesToFilter);
+        const bookingUserIds = new Set((cityBookings ?? []).map((b: any) => b.user_id));
+
+        filtered = filtered.filter((p: any) =>
+          (p.preferred_city && citiesToFilter.includes(p.preferred_city)) ||
+          (p.user_id && bookingUserIds.has(p.user_id))
+        );
+      }
+    }
+
+    setAllProfiles(filtered);
   };
 
   const handleAllocatePoints = async (data: { user_id: string; points: number; description: string }) => {
