@@ -230,7 +230,10 @@ export function AdminBookingLogsTab() {
         </div>
 
         {/* Results count */}
-        <p className="text-xs text-muted-foreground mt-2">{sorted.length} booking{sorted.length !== 1 ? "s" : ""} found</p>
+        <p className="text-xs text-muted-foreground mt-2">
+          {sorted.length} booking{sorted.length !== 1 ? "s" : ""} found
+          <span className="ml-3 font-medium text-foreground">⏱ {confirmedHours.toFixed(1)} confirmed hour{confirmedHours !== 1 ? "s" : ""}</span>
+        </p>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
