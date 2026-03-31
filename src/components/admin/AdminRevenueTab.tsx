@@ -217,7 +217,7 @@ export function AdminRevenueTab() {
               <div>
                 <p className="text-sm text-muted-foreground">Total Revenue</p>
                 <p className="mt-1 font-display text-2xl font-bold text-foreground">
-                  {loadingSummary ? "…" : `₹${(summary?.totalRevenue ?? 0).toLocaleString()}`}
+                  {loadingSummary ? "…" : (summary?.totalRevenue ?? 0).toLocaleString()}
                 </p>
                 {revenueChange !== null && (
                   <p className={`mt-1 text-xs flex items-center gap-1 ${revenueChange >= 0 ? "text-green-600" : "text-red-600"}`}>
@@ -227,7 +227,7 @@ export function AdminRevenueTab() {
                 )}
               </div>
               <div className="rounded-xl bg-primary/10 p-3">
-                <DollarSign className="h-5 w-5 text-primary" />
+                <span className="text-lg font-semibold text-primary">{currencySymbol}</span>
               </div>
             </div>
           </CardContent>
