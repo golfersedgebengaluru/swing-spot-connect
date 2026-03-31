@@ -161,11 +161,14 @@ export function AdminSidebar({
   onToggleCollapse,
 }: AdminSidebarProps) {
   const { user } = useAuth();
-  const { role } = useAdmin();
+  const { role, isAdmin } = useAdmin();
   const initials = user?.email
     ? user.email.substring(0, 2).toUpperCase()
     : "AD";
   const roleLabel = role === "admin" ? "Administrator" : role === "site_admin" ? "Site-Admin" : "User";
+
+  const filterItems = (items: typeof coreItems) =>
+    isAdmin ? items : items.filter((i) => !(i as any).adminOnly);
 
   const handleNavClick = (tab: string) => {
     onTabChange(tab);
