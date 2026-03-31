@@ -38,6 +38,7 @@ const coreItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "walkin", label: "Walk-in Booking", icon: CalendarDays },
   { id: "bookinglogs", label: "Bookings", icon: CalendarDays },
+  { id: "salesinvoices", label: "Sales & Invoices", icon: Receipt },
   { id: "members", label: "Members", icon: Users },
   { id: "bayconfig", label: "Locations", icon: MapPin },
   { id: "rewards", label: "Rewards", icon: Gift },
