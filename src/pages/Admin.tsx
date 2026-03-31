@@ -8,7 +8,7 @@ import { AdminAllUsersTab } from "@/components/admin/AdminAllUsersTab";
 import { AdminPagesTab } from "@/components/admin/AdminPagesTab";
 import { AdminBookingLogsTab } from "@/components/admin/AdminBookingLogsTab";
 import { AdminSettingsTab } from "@/components/admin/AdminSettingsTab";
-import { AdminOrdersTab } from "@/components/admin/AdminOrdersTab";
+
 import { AdminEmailLogsTab } from "@/components/admin/AdminEmailLogsTab";
 import { BayConfigTab } from "@/components/admin/BayConfigTab";
 import { AdminPaymentsTab } from "@/components/admin/AdminPaymentsTab";
