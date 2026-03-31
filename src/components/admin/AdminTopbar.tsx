@@ -1,9 +1,11 @@
-import { Menu, Search, Settings, LogOut } from "lucide-react";
+import { Menu, Search, Settings, LogOut, MapPin } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useAdminCity } from "@/contexts/AdminCityContext";
 
 interface AdminTopbarProps {
   title: string;
@@ -39,6 +41,7 @@ export function getTabTitle(tab: string) {
 export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbarProps) {
   const { signOut } = useAuth();
   const navigate = useNavigate();
+  const { selectedCity, setSelectedCity, availableCities, isLoadingCities } = useAdminCity();
 
   const handleSignOut = async () => {
     await signOut();
@@ -58,6 +61,24 @@ export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbar
       <h1 className="text-sm font-medium text-foreground truncate max-w-[140px] sm:max-w-none">
         {title}
       </h1>
+
+      {/* City / Instance selector */}
+      {!isLoadingCities && availableCities.length > 0 && (
+        <div className="flex items-center gap-1.5 ml-2">
+          <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 hidden sm:block" />
+          <Select value={selectedCity || "__all__"} onValueChange={(v) => setSelectedCity(v === "__all__" ? "" : v)}>
+            <SelectTrigger className="h-8 w-[130px] sm:w-[160px] text-xs border-border/50 bg-muted/40">
+              <SelectValue placeholder="All Cities" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All Cities (Global)</SelectItem>
+              {availableCities.map((city) => (
+                <SelectItem key={city} value={city}>{city}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {/* Search bar */}
       <div className="ml-auto flex items-center gap-2">
