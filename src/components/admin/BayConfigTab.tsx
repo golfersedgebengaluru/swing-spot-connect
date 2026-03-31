@@ -129,7 +129,7 @@ export function BayConfigTab() {
       <Card className="shadow-elegant">
         <CardContent className="flex items-end gap-3 p-4">
           <div className="flex-1">
-            <Label>Add New City</Label>
+            <Label>Add New Location</Label>
             <Input
               value={newCity}
               onChange={(e) => setNewCity(e.target.value)}
