@@ -217,15 +217,11 @@ export function AdminFinanceTab() {
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList className="flex-wrap">
-          <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="settings">GST Settings</TabsTrigger>
           <TabsTrigger value="invoice_settings">Invoice Template</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
           {showCityFY && <TabsTrigger value="financial_year">Financial Year</TabsTrigger>}
         </TabsList>
-        <TabsContent value="invoices">
-          {selectedCity && <InvoiceListSection city={selectedCity} />}
-        </TabsContent>
         <TabsContent value="settings">
           {selectedCity && <GstSettingsSection city={selectedCity} />}
         </TabsContent>

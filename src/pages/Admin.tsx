@@ -26,6 +26,7 @@ const tabComponents: Record<string, React.ComponentType> = {
   events: AdminEventsTab,
   products: AdminProductsTab,
   orders: AdminOrdersTab,
+  salesinvoices: AdminSalesInvoicesTab,
   rewards: AdminRewardsTab,
   members: AdminMembersTab,
   allusers: AdminAllUsersTab,

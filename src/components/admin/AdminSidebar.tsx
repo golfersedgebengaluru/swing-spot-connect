@@ -47,7 +47,7 @@ const coreItems = [
 const operationsItems = [
   { id: "products", label: "Products", icon: ShoppingBag },
   { id: "orders", label: "Orders", icon: ClipboardList },
-  { id: "finance", label: "Finance", icon: Receipt },
+  { id: "finance", label: "Finance Settings", icon: Receipt },
 ];
 
 const configItems = [
