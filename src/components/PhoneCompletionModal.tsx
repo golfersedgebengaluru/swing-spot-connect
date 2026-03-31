@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { LogOut } from "lucide-react";
 
 interface PhoneCompletionModalProps {
   open: boolean;
