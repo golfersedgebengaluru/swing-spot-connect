@@ -101,6 +101,12 @@ export function AdminBookingLogsTab() {
     });
   }, [filtered]);
 
+  const confirmedHours = useMemo(() => {
+    return filtered
+      .filter((b: any) => b.status === "confirmed")
+      .reduce((sum: number, b: any) => sum + (b.duration_minutes ?? 0) / 60, 0);
+  }, [filtered]);
+
   const handleApprove = async (id: string) => {
     try {
       await approveBooking.mutateAsync(id);
