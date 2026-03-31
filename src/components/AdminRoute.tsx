@@ -30,13 +30,10 @@ export function AdminRoute({ children }: { children: React.ReactNode }) {
             <CardTitle className="font-display text-2xl">Access Denied</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-muted-foreground">You don't have admin privileges. If you should have access, use the admin setup page.</p>
+            <p className="text-muted-foreground">You don't have admin privileges. Please contact an administrator if you need access.</p>
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-              <Link to="/admin/setup">
-                <Button variant="default" className="w-full sm:w-auto">Admin Setup</Button>
-              </Link>
               <Link to="/dashboard">
-                <Button variant="outline" className="w-full sm:w-auto">Go to Dashboard</Button>
+                <Button variant="default" className="w-full sm:w-auto">Go to Dashboard</Button>
               </Link>
             </div>
           </CardContent>
