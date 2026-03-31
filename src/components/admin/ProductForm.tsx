@@ -24,6 +24,8 @@ interface ProductFormProps {
 export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const { data: categories } = useProductCategories();
   const { data: units } = useUnitsOfMeasure();
+  const { data: cities } = useCities();
+  const { isAdmin, isSiteAdmin, assignedCities } = useAdmin();
 
   const [form, setForm] = useState({
     name: product?.name ?? "",
@@ -34,17 +36,16 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     sku: product?.sku ?? "",
     unit_of_measure: product?.unit_of_measure ?? "Each",
     cost_price: product?.cost_price ?? 0,
-    price: product?.price ?? 0, // selling price (always stored GST-inclusive)
+    price: product?.price ?? 0,
     hsn_code: product?.hsn_code ?? "",
     sac_code: product?.sac_code ?? "",
     gst_rate: product?.gst_rate ?? 0,
-    // Product-only
     opening_stock: product?.opening_stock ?? "",
     reorder_level: product?.reorder_level ?? "",
     reorder_quantity: product?.reorder_quantity ?? "",
-    // Service-only
     duration_minutes: product?.duration_minutes ?? "",
     bookable: product?.bookable ?? false,
+    city: product?.city ?? (isSiteAdmin && assignedCities.length === 1 ? assignedCities[0] : ""),
   });
 
   // Price toggle: true = inclusive entry, false = exclusive entry
