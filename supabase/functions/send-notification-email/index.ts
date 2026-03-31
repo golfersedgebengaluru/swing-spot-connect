@@ -389,6 +389,10 @@ Deno.serve(async (req) => {
     const contentKey = TEMPLATE_CONTENT_MAP[template];
     const customContent = contentKey ? tplMap[contentKey] : undefined;
 
+    // Override subject if custom subject is configured for this template
+    const customSubjectKey = tplMap["email_tpl_low_hours_alert_subject"];
+    const finalSubject = template === "low_hours_alert" && customSubjectKey ? customSubjectKey : subject;
+
     const templateData = {
       ...data,
       display_name: data.display_name || profile.display_name,
