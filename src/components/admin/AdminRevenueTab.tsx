@@ -265,53 +265,29 @@ export function AdminRevenueTab() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Payments</p>
-                <p className="mt-1 font-display text-2xl font-bold text-foreground">
-                  {loadingSummary ? "…" : `${currencySymbol}${(summary?.byType?.payment ?? 0).toLocaleString()}`}
-                </p>
-              </div>
-              <div className="rounded-xl bg-green-100 p-3">
-                <CreditCard className="h-5 w-5 text-green-700" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Guest Bookings</p>
-                <p className="mt-1 font-display text-2xl font-bold text-foreground">
-                  {loadingSummary ? "…" : `${currencySymbol}${(summary?.byType?.guest_booking ?? 0).toLocaleString()}`}
-                </p>
-              </div>
-              <div className="rounded-xl bg-amber-100 p-3">
-                <Users className="h-5 w-5 text-amber-700" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Shop Orders</p>
-                <p className="mt-1 font-display text-2xl font-bold text-foreground">
-                  {loadingSummary ? "…" : `${currencySymbol}${(summary?.byType?.product_order ?? 0).toLocaleString()}`}
-                </p>
-              </div>
-              <div className="rounded-xl bg-purple-100 p-3">
-                <ShoppingBag className="h-5 w-5 text-purple-700" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {(categories ?? []).slice(0, 3).map((cat, i) => {
+          const key = cat.name.toLowerCase().replace(/\s+/g, "_");
+          const colorClass = CATEGORY_COLORS[i % CATEGORY_COLORS.length];
+          const iconColorClass = colorClass.split(" ")[0]; // bg-xxx-100
+          const textColorClass = colorClass.split(" ")[1]; // text-xxx-800
+          return (
+            <Card key={cat.id}>
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">{cat.name}</p>
+                    <p className="mt-1 font-display text-2xl font-bold text-foreground">
+                      {loadingSummary ? "…" : `${currencySymbol}${(summary?.byType?.[key] ?? 0).toLocaleString()}`}
+                    </p>
+                  </div>
+                  <div className={`rounded-xl ${iconColorClass} p-3`}>
+                    <CreditCard className={`h-5 w-5 ${textColorClass}`} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* User Spend Breakdown */}
