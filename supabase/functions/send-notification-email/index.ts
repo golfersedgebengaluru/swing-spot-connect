@@ -415,7 +415,7 @@ Deno.serve(async (req) => {
       user_id,
       recipient_email: profile.email,
       template,
-      subject,
+      subject: finalSubject,
       status: "pending",
       metadata: { data },
     }).select("id").single();
