@@ -14,6 +14,7 @@ import {
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useBays, useAvailableSlots, useCities } from "@/hooks/useBookings";
+import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useBayPricing } from "@/hooks/usePricing";
 import { useOfflinePaymentMethods } from "@/hooks/useOfflinePaymentMethods";
 import { useToast } from "@/hooks/use-toast";
