@@ -734,7 +734,7 @@ Deno.serve(async (req) => {
                 subject: "Low Hours Alert",
                 data: {
                   hours_remaining: remaining,
-                  purchase_url: "https://swing-spot-connect.lovable.app/dashboard",
+                  purchase_url: "https://golfersedge.golf-collective.com/dashboard",
                 },
               }),
             });
