@@ -1246,6 +1246,14 @@ Deno.serve(async (req) => {
         });
       }
 
+      // For site_admins, verify city access
+      const { data: hasCityAccess } = await supabase.rpc("has_city_access", { _user_id: userId, _city: booking.city });
+      if (!hasCityAccess) {
+        return new Response(JSON.stringify({ error: "You do not have access to this city" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       let calendarEmail: string | null = null;
       let bayName = booking.city;
       let coachingHours = 1;
