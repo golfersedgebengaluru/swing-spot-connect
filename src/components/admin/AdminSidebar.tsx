@@ -38,6 +38,7 @@ const coreItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "walkin", label: "Walk-in Booking", icon: CalendarDays },
   { id: "bookinglogs", label: "Bookings", icon: CalendarDays },
+  { id: "salesinvoices", label: "Sales & Invoices", icon: Receipt },
   { id: "members", label: "Members", icon: Users },
   { id: "bayconfig", label: "Locations", icon: MapPin },
   { id: "rewards", label: "Rewards", icon: Gift },
@@ -46,7 +47,7 @@ const coreItems = [
 const operationsItems = [
   { id: "products", label: "Products", icon: ShoppingBag },
   { id: "orders", label: "Orders", icon: ClipboardList },
-  { id: "finance", label: "Finance", icon: Receipt },
+  { id: "finance", label: "Finance Settings", icon: Receipt },
 ];
 
 const configItems = [
