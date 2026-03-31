@@ -98,7 +98,42 @@ export function AdminMembersTab() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { data: memberHours, isLoading } = useMemberHours();
+  const { isAdmin, assignedCities } = useAdmin();
+  const { selectedCity } = useAdminCity();
+  const { data: allMemberHours, isLoading } = useMemberHours();
+
+  // Filter members by city for site_admins
+  const { data: memberHours } = useQuery({
+    queryKey: ["member_hours_filtered", allMemberHours, isAdmin, assignedCities, selectedCity],
+    enabled: !!allMemberHours,
+    queryFn: async () => {
+      if (!allMemberHours) return [];
+      if (isAdmin && !selectedCity) return allMemberHours;
+
+      const citiesToFilter = isAdmin
+        ? (selectedCity ? [selectedCity] : [])
+        : (selectedCity ? [selectedCity] : assignedCities);
+
+      if (citiesToFilter.length === 0) return allMemberHours;
+
+      // Find users affiliated with these cities
+      const { data: cityBookings } = await supabase
+        .from("bookings")
+        .select("user_id, city")
+        .in("city", citiesToFilter);
+      const { data: cityProfiles } = await supabase
+        .from("profiles")
+        .select("user_id, preferred_city")
+        .in("preferred_city", citiesToFilter);
+
+      const validUserIds = new Set([
+        ...(cityBookings ?? []).map((b: any) => b.user_id),
+        ...(cityProfiles ?? []).filter((p: any) => p.user_id).map((p: any) => p.user_id),
+      ]);
+
+      return allMemberHours.filter((m) => validUserIds.has(m.user_id));
+    },
+  });
   const { data: lowHoursThreshold } = useQuery({
     queryKey: ["admin_config", "low_hours_threshold"],
     queryFn: async () => {
