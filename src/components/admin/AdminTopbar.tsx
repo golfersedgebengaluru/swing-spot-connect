@@ -248,7 +248,7 @@ export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbar
       )}
 
       {/* Right actions */}
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-1 sm:gap-2 shrink-0">
         <div className="relative hidden sm:block">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
@@ -256,20 +256,17 @@ export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbar
             className="h-9 w-40 md:w-56 pl-8 text-sm rounded-md border-border/50 bg-muted/40"
           />
         </div>
-        <Button variant="ghost" size="icon" className="sm:hidden min-h-[44px] min-w-[44px]">
-          <Search className="h-4 w-4" />
-        </Button>
 
         <NotificationBell />
 
         <AdminProfilePopover />
 
-        <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" onClick={onSettingsClick}>
+        <Button variant="ghost" size="icon" className="hidden sm:inline-flex min-h-[44px] min-w-[44px]" onClick={onSettingsClick}>
           <Settings className="h-4 w-4" />
           <span className="sr-only">Settings</span>
         </Button>
 
-        <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px] text-muted-foreground hover:text-destructive" onClick={handleSignOut}>
+        <Button variant="ghost" size="icon" className="min-h-[36px] min-w-[36px] sm:min-h-[44px] sm:min-w-[44px] text-muted-foreground hover:text-destructive shrink-0" onClick={handleSignOut}>
           <LogOut className="h-4 w-4" />
           <span className="sr-only">Sign Out</span>
         </Button>
