@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ClipboardList, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAllBookings, useBays, useApproveBooking, useRejectBooking, useAdminCancelBooking, useAllCities } from "@/hooks/useBookings";
+import { useAdmin } from "@/hooks/useAdmin";
 import { format } from "date-fns";
 
 export function AdminBookingLogsTab() {
@@ -21,9 +22,16 @@ export function AdminBookingLogsTab() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [rejectMessages, setRejectMessages] = useState<Record<string, string>>({});
 
-  const { data: cities = [] } = useAllCities();
+  const { isAdmin, assignedCities } = useAdmin();
+  const { data: allCities = [] } = useAllCities();
+  const cities = isAdmin ? allCities : allCities.filter((c) => assignedCities.includes(c));
 
-  const filtered = (bookings ?? []).filter((b: any) => {
+  // For site-admins, pre-filter bookings to their assigned cities
+  const scopedBookings = isAdmin
+    ? bookings
+    : (bookings ?? []).filter((b: any) => assignedCities.includes(b.city));
+
+  const filtered = (scopedBookings ?? []).filter((b: any) => {
     if (cityFilter !== "all" && b.city !== cityFilter) return false;
     if (statusFilter !== "all" && b.status !== statusFilter) return false;
     return true;

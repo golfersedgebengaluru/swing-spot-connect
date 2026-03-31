@@ -12,7 +12,8 @@ import {
   CreditCard, Users, ArrowUpDown, ShoppingBag,
 } from "lucide-react";
 import { useRevenueTransactions, useRevenueSummary, useActiveFinancialYear } from "@/hooks/useRevenue";
-import { useCities } from "@/hooks/useBookings";
+import { useAllCities } from "@/hooks/useBookings";
+import { useAdmin } from "@/hooks/useAdmin";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, subYears, addMonths } from "date-fns";
 import { RevenueUserBreakdown } from "./RevenueUserBreakdown";
 
@@ -112,7 +113,9 @@ const typeColors: Record<string, string> = {
 
 export function AdminRevenueTab() {
   const { data: activeFY } = useActiveFinancialYear();
-  const { data: cities } = useCities();
+  const { isAdmin, assignedCities } = useAdmin();
+  const { data: allCities } = useAllCities();
+  const cities = isAdmin ? allCities : (allCities ?? []).filter((c) => assignedCities.includes(c));
   const [period, setPeriod] = useState<Period>("month");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");

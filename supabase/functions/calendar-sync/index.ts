@@ -1226,9 +1226,9 @@ Deno.serve(async (req) => {
       const { booking_id } = params;
       const adminClient = createAdminClient();
 
-      // Verify caller is admin
-      const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-      if (!isAdmin) {
+      // Verify caller is admin or site_admin
+      const { data: isAdminOrSiteAdmin } = await supabase.rpc("is_admin_or_site_admin", { _user_id: userId });
+      if (!isAdminOrSiteAdmin) {
         return new Response(JSON.stringify({ error: "Admin access required" }), {
           status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -1243,6 +1243,14 @@ Deno.serve(async (req) => {
       if (!booking) {
         return new Response(JSON.stringify({ error: "Booking not found" }), {
           status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // For site_admins, verify city access
+      const { data: hasCityAccess } = await supabase.rpc("has_city_access", { _user_id: userId, _city: booking.city });
+      if (!hasCityAccess) {
+        return new Response(JSON.stringify({ error: "You do not have access to this city" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
