@@ -36,13 +36,22 @@ export function AdminCityProvider({ children }: { children: ReactNode }) {
     }
   });
 
-  // If the stored city is no longer valid, reset to "all"
+  // If the stored city is no longer valid, reset
+  // For site_admins (non-admins), auto-select first city if none selected
   useEffect(() => {
-    if (!isLoading && cities.length > 0 && selectedCity && !cities.includes(selectedCity)) {
-      setSelectedCityState("");
-      try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+    if (!isLoading && cities.length > 0) {
+      if (selectedCity && !cities.includes(selectedCity)) {
+        // Invalid selection — reset
+        const fallback = isAdmin ? "" : cities[0];
+        setSelectedCityState(fallback);
+        try { if (fallback) sessionStorage.setItem(STORAGE_KEY, fallback); else sessionStorage.removeItem(STORAGE_KEY); } catch {}
+      } else if (!isAdmin && !selectedCity) {
+        // Site admin with no city selected — auto-select first
+        setSelectedCityState(cities[0]);
+        try { sessionStorage.setItem(STORAGE_KEY, cities[0]); } catch {}
+      }
     }
-  }, [cities, isLoading, selectedCity]);
+  }, [cities, isLoading, selectedCity, isAdmin]);
 
   const setSelectedCity = (city: string) => {
     setSelectedCityState(city);
