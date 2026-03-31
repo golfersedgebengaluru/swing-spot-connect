@@ -207,7 +207,7 @@ export function AdminSidebar({
       <div className="flex-1 overflow-y-auto px-2 py-3 space-y-1">
         {/* Core items */}
         <div className="space-y-0.5">
-          {coreItems.map((item) => (
+          {filterItems(coreItems).map((item) => (
             <NavItem
               key={item.id}
               item={item}
@@ -223,25 +223,27 @@ export function AdminSidebar({
         {/* Accordion groups */}
         <AccordionGroup
           label="Operations"
-          items={operationsItems}
+          items={filterItems(operationsItems)}
           activeTab={activeTab}
           onTabChange={handleNavClick}
           collapsed={collapsed}
         />
         <AccordionGroup
           label="Config"
-          items={configItems}
+          items={filterItems(configItems)}
           activeTab={activeTab}
           onTabChange={handleNavClick}
           collapsed={collapsed}
         />
-        <AccordionGroup
-          label="Reports"
-          items={reportsItems}
-          activeTab={activeTab}
-          onTabChange={handleNavClick}
-          collapsed={collapsed}
-        />
+        {filterItems(reportsItems).length > 0 && (
+          <AccordionGroup
+            label="Reports"
+            items={filterItems(reportsItems)}
+            activeTab={activeTab}
+            onTabChange={handleNavClick}
+            collapsed={collapsed}
+          />
+        )}
       </div>
 
       {/* Footer */}
