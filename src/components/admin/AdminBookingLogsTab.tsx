@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ClipboardList, Download, Loader2 } from "lucide-react";
+import { ClipboardList, Download, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAllBookings, useBays, useApproveBooking, useRejectBooking, useAdminCancelBooking, useAllCities } from "@/hooks/useBookings";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -62,7 +62,10 @@ export function AdminBookingLogsTab() {
   const [period, setPeriod] = useState<Period>("all");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
+  const resetPage = () => setPage(0);
   const [rejectMessages, setRejectMessages] = useState<Record<string, string>>({});
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 50;
 
   const { isAdmin, assignedCities } = useAdmin();
   const { data: allCities = [] } = useAllCities();
@@ -183,7 +186,7 @@ export function AdminBookingLogsTab() {
         {/* Filters row */}
         <div className="flex flex-wrap gap-2 mt-3">
           {!globalCity && (
-            <Select value={cityFilter} onValueChange={setCityFilter}>
+            <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); resetPage(); }}>
               <SelectTrigger className="w-full sm:w-[140px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Cities</SelectItem>
@@ -191,7 +194,7 @@ export function AdminBookingLogsTab() {
               </SelectContent>
             </Select>
           )}
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); resetPage(); }}>
             <SelectTrigger className="w-full sm:w-[140px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
@@ -201,7 +204,7 @@ export function AdminBookingLogsTab() {
               <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); resetPage(); }}>
             <SelectTrigger className="w-full sm:w-[140px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
@@ -209,7 +212,7 @@ export function AdminBookingLogsTab() {
               <SelectItem value="coaching">Coaching</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
+          <Select value={period} onValueChange={(v) => { setPeriod(v as Period); resetPage(); }}>
             <SelectTrigger className="w-full sm:w-[140px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Time</SelectItem>
@@ -236,6 +239,12 @@ export function AdminBookingLogsTab() {
         </p>
       </CardHeader>
       <CardContent>
+        {(() => {
+          const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+          const safePage = Math.min(page, totalPages - 1);
+          const paginated = sorted.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+          return (
+            <>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -254,7 +263,7 @@ export function AdminBookingLogsTab() {
               {sorted.length === 0 && (
                 <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">No bookings found.</TableCell></TableRow>
               )}
-              {sorted.map((b: any) => (
+              {paginated.map((b: any) => (
                 <TableRow key={b.id} className={b.status === "pending" ? "bg-amber-500/5" : ""}>
                   <TableCell className="font-medium">
                     <div>{b.display_name}</div>
@@ -321,6 +330,25 @@ export function AdminBookingLogsTab() {
             </TableBody>
           </Table>
         </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-3 px-1">
+            <p className="text-xs text-muted-foreground">
+              {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, sorted.length)} of {sorted.length}
+            </p>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="icon" className="h-7 w-7" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-xs px-2">{safePage + 1} / {totalPages}</span>
+              <Button variant="outline" size="icon" className="h-7 w-7" disabled={safePage >= totalPages - 1} onClick={() => setPage(safePage + 1)}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+            </>
+          );
+        })()}
       </CardContent>
     </Card>
   );

@@ -103,45 +103,38 @@ export default function Dashboard() {
           order_id,
           handler: async (response: any) => {
             try {
-              // Credit hours to user
-              const { data: existing } = await supabase
-                .from("member_hours")
-                .select("id, hours_purchased")
-                .eq("user_id", user.id)
-                .maybeSingle();
+              // Atomically credit hours — no read-then-write race condition
+              const { error: hoursErr } = await supabase
+                .rpc("upsert_member_hours", { p_user_id: user.id, p_hours: pkg.hours });
+              if (hoursErr) throw hoursErr;
 
-              if (existing) {
-                await supabase.from("member_hours").update({
-                  hours_purchased: existing.hours_purchased + pkg.hours,
-                }).eq("id", existing.id);
-              } else {
-                await supabase.from("member_hours").insert({
+              // Log the hours transaction
+              const { data: htxn, error: htxnErr } = await supabase
+                .from("hours_transactions")
+                .insert({
                   user_id: user.id,
-                  hours_purchased: pkg.hours,
-                  hours_used: 0,
-                });
-              }
+                  type: "purchase",
+                  hours: pkg.hours,
+                  note: `Purchased ${pkg.hours}h package (₹${pkg.price})`,
+                })
+                .select("id")
+                .single();
+              if (htxnErr) throw htxnErr;
 
-              const { data: htxn } = await supabase.from("hours_transactions").insert({
-                user_id: user.id,
-                type: "purchase",
-                hours: pkg.hours,
-                note: `Purchased ${pkg.hours}h package (₹${pkg.price})`,
-              }).select("id").single();
-
-              // Create revenue transaction
-              await supabase.from("revenue_transactions").insert({
+              // Record the revenue transaction — must succeed or we throw
+              const { error: revErr } = await supabase.from("revenue_transactions").insert({
                 transaction_type: "payment" as any,
                 amount: pkg.price,
                 currency: pkg.currency || "INR",
                 user_id: user.id,
-                hours_transaction_id: htxn?.id || null,
+                hours_transaction_id: htxn.id,
                 gateway_name: "razorpay",
                 gateway_order_ref: response.razorpay_order_id,
                 gateway_payment_ref: response.razorpay_payment_id,
                 description: `Hour package purchase - ${pkg.hours}h (${pkg.label})`,
                 status: "confirmed",
               });
+              if (revErr) throw revErr;
 
               queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
               queryClient.invalidateQueries({ queryKey: ["member_hours"] });

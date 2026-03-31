@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Loader2, MinusCircle, PlusCircle, History, Star, Award, UserCheck } from "lucide-react";
+import { Plus, Loader2, MinusCircle, PlusCircle, History, Star, Award, UserCheck, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRewards } from "@/hooks/useRewards";
 import { useAllocatePoints, useRedeemPoints, usePointsTransactions } from "@/hooks/usePoints";
@@ -140,6 +140,8 @@ export function AdminAllUsersTab() {
   const [dialogOpen, setDialogOpen] = useState<string | null>(null);
   const [viewingPointsHistory, setViewingPointsHistory] = useState<string | null>(null);
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 50;
   const { isAdmin, assignedCities } = useAdmin();
   const { selectedCity } = useAdminCity();
 
@@ -311,7 +313,12 @@ export function AdminAllUsersTab() {
           <CardTitle className="flex items-center gap-2"><UserCheck className="h-5 w-5" />All Users</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
+          {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (() => {
+              const totalUsers = (allUsers ?? []).length;
+              const totalPages = Math.max(1, Math.ceil(totalUsers / PAGE_SIZE));
+              const safePage = Math.min(page, totalPages - 1);
+              const paginated = (allUsers ?? []).slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+              return (
             <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -326,10 +333,10 @@ export function AdminAllUsersTab() {
                  </TableRow>
                </TableHeader>
                <TableBody>
-                 {(allUsers ?? []).length === 0 && (
+                 {totalUsers === 0 && (
                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No users found.</TableCell></TableRow>
                  )}
-                 {(allUsers ?? []).map((u: any) => (
+                 {paginated.map((u: any) => (
                    <TableRow key={u.id || u.user_id}>
                      <TableCell className="font-medium">{u.display_name || "Unknown"}</TableCell>
                      <TableCell className="text-sm text-muted-foreground">{u.email || "—"}</TableCell>
@@ -369,8 +376,24 @@ export function AdminAllUsersTab() {
                  ))}
               </TableBody>
             </Table>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-3 px-1">
+                <p className="text-xs text-muted-foreground">
+                  {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, totalUsers)} of {totalUsers}
+                </p>
+                <div className="flex items-center gap-1">
+                  <Button variant="outline" size="icon" className="h-7 w-7" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs px-2">{safePage + 1} / {totalPages}</span>
+                  <Button variant="outline" size="icon" className="h-7 w-7" disabled={safePage >= totalPages - 1} onClick={() => setPage(safePage + 1)}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
             </div>
-          )}
+          );})()}
         </CardContent>
       </Card>
     </div>

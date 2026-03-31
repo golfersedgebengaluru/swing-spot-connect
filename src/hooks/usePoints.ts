@@ -52,19 +52,9 @@ export function useAllocatePoints() {
       description: string;
       adminId: string;
     }) => {
-      // Get current points
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("points")
-        .eq("user_id", userId)
-        .single();
-      const currentPoints = profile?.points ?? 0;
-
-      // Update points balance
-      const { error: updateErr } = await supabase
-        .from("profiles")
-        .update({ points: currentPoints + points })
-        .eq("user_id", userId);
+      // Atomically increment points — no read-then-write race condition
+      const { data: newTotal, error: updateErr } = await supabase
+        .rpc("increment_user_points", { p_user_id: userId, p_delta: points });
       if (updateErr) throw updateErr;
 
       // Log transaction
@@ -79,15 +69,15 @@ export function useAllocatePoints() {
         });
       if (txErr) throw txErr;
 
-      // Send notification
-      await supabase.from("notifications").insert({
+      // Send notification (non-critical — errors are logged but don't fail the mutation)
+      supabase.from("notifications").insert({
         user_id: userId,
         title: "🎉 Points Awarded",
         message: `You've been awarded ${points} reward points! ${description ? `Reason: ${description}` : ""}`,
         type: "reward",
-      });
+      }).then(({ error }) => { if (error) console.error("Notification insert failed:", error.message); });
 
-      // Send email notification
+      // Send email notification (non-critical)
       sendNotificationEmail({
         user_id: userId,
         template: "points_earned",
@@ -95,7 +85,7 @@ export function useAllocatePoints() {
         data: {
           points,
           description,
-          total_points: currentPoints + points,
+          total_points: newTotal ?? points,
         },
       });
     },
@@ -123,21 +113,10 @@ export function useRedeemPoints() {
       rewardName: string;
       adminId?: string;
     }) => {
-      // Get current points
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("points")
-        .eq("user_id", userId)
-        .single();
-      const currentPoints = profile?.points ?? 0;
-      if (currentPoints < points) throw new Error("Insufficient points");
-
-      // Update points balance
-      const { error: updateErr } = await supabase
-        .from("profiles")
-        .update({ points: currentPoints - points })
-        .eq("user_id", userId);
-      if (updateErr) throw updateErr;
+      // Atomically decrement points with balance check — DB raises exception if insufficient
+      const { data: newTotal, error: updateErr } = await supabase
+        .rpc("decrement_user_points_safe", { p_user_id: userId, p_delta: points });
+      if (updateErr) throw new Error(updateErr.message);
 
       // Log transaction
       const { error: txErr } = await supabase
@@ -152,15 +131,15 @@ export function useRedeemPoints() {
         });
       if (txErr) throw txErr;
 
-      // Send notification
-      await supabase.from("notifications").insert({
+      // Send notification (non-critical — errors are logged but don't fail the mutation)
+      supabase.from("notifications").insert({
         user_id: userId,
         title: "🎁 Reward Redeemed",
         message: `You redeemed ${points} points for: ${rewardName}`,
         type: "reward",
-      });
+      }).then(({ error }) => { if (error) console.error("Notification insert failed:", error.message); });
 
-      // Send email notification
+      // Send email notification (non-critical)
       sendNotificationEmail({
         user_id: userId,
         template: "points_redeemed",
@@ -168,7 +147,7 @@ export function useRedeemPoints() {
         data: {
           points,
           reward_name: rewardName,
-          total_points: currentPoints - points,
+          total_points: newTotal ?? 0,
         },
       });
     },
