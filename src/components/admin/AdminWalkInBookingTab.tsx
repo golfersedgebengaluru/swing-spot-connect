@@ -309,7 +309,9 @@ export function AdminWalkInBookingTab() {
                 </div>
                 <div>
                   <Label htmlFor="wp">Phone *</Label>
-                  <Input id="wp" type="tel" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="+91 98765 43210" className="mt-1" />
+                  <div className="mt-1">
+                    <PhoneInput id="wp" value={guestPhone} onChange={setGuestPhone} />
+                  </div>
                   {!guestPhone.trim() && <p className="text-xs text-destructive mt-1">Phone is required</p>}
                 </div>
               </div>
