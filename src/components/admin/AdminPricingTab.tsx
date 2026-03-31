@@ -33,6 +33,7 @@ function BayPricingSection() {
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [serviceEdits, setServiceEdits] = useState<Record<string, string | null>>({});
   const [selectedCity, setSelectedCity] = useState<string>("");
+  const { selectedCity: globalCity } = useAdminCity();
 
   const services = useMemo(() =>
     (allProducts ?? []).filter((p: any) => p.item_type === "service"),
