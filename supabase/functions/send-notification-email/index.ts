@@ -383,6 +383,7 @@ Deno.serve(async (req) => {
       points_earned: "email_tpl_points_earned_body",
       points_redeemed: "email_tpl_points_redeemed_body",
       league_update: "email_tpl_league_update_body",
+      low_hours_alert: "email_tpl_low_hours_alert_body",
     };
 
     const contentKey = TEMPLATE_CONTENT_MAP[template];
