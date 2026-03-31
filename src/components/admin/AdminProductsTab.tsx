@@ -90,8 +90,8 @@ export function AdminProductsTab() {
   };
 
   const handleExport = () => {
-    if (!products?.length) return;
-    const rows = products.map((p: any) => CSV_HEADERS.map((h) => {
+    if (!filteredProducts.length) return;
+    const rows = filteredProducts.map((p: any) => CSV_HEADERS.map((h) => {
       const val = p[h];
       if (val === null || val === undefined) return "";
       const str = String(val);
