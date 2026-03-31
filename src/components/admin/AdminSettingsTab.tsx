@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Mail, Clock, KeyRound, Settings, Save, Loader2, CalendarDays } from "lucide-react";
+import { Mail, Clock, KeyRound, Settings, Save, Loader2, CalendarDays, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { usePageVisibility, useUpdatePageVisibility } from "@/hooks/usePageVisibility";
 import { supabase } from "@/integrations/supabase/client";
