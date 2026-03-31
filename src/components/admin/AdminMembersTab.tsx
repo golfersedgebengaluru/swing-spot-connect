@@ -297,11 +297,11 @@ export function AdminMembersTab() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-b border-border">
-                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium w-[40%]">Member</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center w-[40%]">Member</TableHead>
                     <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Purchased</TableHead>
                     <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Used</TableHead>
                     <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Remaining</TableHead>
-                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-right">Actions</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -335,8 +335,8 @@ export function AdminMembersTab() {
 
                     return (
                       <TableRow key={member.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                        <TableCell className="py-3">
-                          <div className="flex items-center gap-3">
+                        <TableCell className="py-3 text-center">
+                          <div className="inline-flex items-center gap-3">
                             <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-medium shrink-0 ${avatarClass}`}>
                               {initials}
                             </div>
@@ -351,8 +351,8 @@ export function AdminMembersTab() {
                             {remaining} hrs
                           </span>
                         </TableCell>
-                        <TableCell className="py-3 text-right">
-                          <div className="flex items-center justify-end gap-1">
+                        <TableCell className="py-3 text-center">
+                          <div className="inline-flex items-center justify-center gap-1">
                             <Button variant="ghost" size="sm" className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground" onClick={() => { setAdjustingMember(member); setDialogOpen("adjust"); }}>
                               <Clock className="mr-1 h-3.5 w-3.5" />Adjust
                             </Button>
