@@ -76,8 +76,11 @@ function useAdminDashboardStats(cityFilter: string) {
         );
       }
 
-      // Top members by points
-      const topMembers = (membersRes.data ?? [])
+      // Top members by points (filter by city if selected)
+      const membersPool = cityFilter
+        ? (membersRes.data ?? []).filter((m: any) => m.preferred_city === cityFilter)
+        : (membersRes.data ?? []);
+      const topMembers = membersPool
         .sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
         .slice(0, 5);
 
