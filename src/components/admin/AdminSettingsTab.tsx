@@ -384,6 +384,82 @@ function FinancialYearSettingsSection() {
   );
 }
 
+function LowHoursThresholdCard() {
+  const { toast } = useToast();
+  const [threshold, setThreshold] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data: config, isLoading } = useQuery({
+    queryKey: ["admin_config", "low_hours_threshold"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("admin_config")
+        .select("value")
+        .eq("key", "low_hours_threshold")
+        .single();
+      return data?.value || "2";
+    },
+  });
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const val = parseFloat(threshold || config || "2");
+    if (isNaN(val) || val < 0) {
+      toast({ title: "Error", description: "Please enter a valid number (minimum 0)", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from("admin_config")
+        .update({ value: String(val) })
+        .eq("key", "low_hours_threshold");
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["admin_config", "low_hours_threshold"] });
+      toast({ title: "Saved", description: "Low hours threshold updated." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to update", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
+
+  return (
+    <Card className="max-w-md">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5" />Low Hours Alert Threshold</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSave} className="space-y-4">
+          <div>
+            <Label htmlFor="low-hours">Trigger alert when remaining hours drop below</Label>
+            <Input
+              id="low-hours"
+              type="number"
+              min={0}
+              step="0.5"
+              placeholder="2"
+              defaultValue={config || "2"}
+              onChange={(e) => setThreshold(e.target.value)}
+              className="mt-1"
+              required
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              An email notification will be sent to the member when their remaining hours fall below this number after any deduction.
+            </p>
+          </div>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : <><Save className="mr-2 h-4 w-4" />Save</>}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function AdminSettingsTab() {
   return (
     <div className="space-y-6">
@@ -396,6 +472,7 @@ export function AdminSettingsTab() {
       <UnitOfMeasureCard />
       <OfflinePaymentMethodsCard />
       <CancellationWindowCard />
+      <LowHoursThresholdCard />
       <SenderEmailCard />
       <EmailRateLimitCard />
       <EmailTemplatesEditor />
