@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAllCities } from "@/hooks/useBookings";
+import { useAdmin } from "@/hooks/useAdmin";
 import type { Json } from "@/integrations/supabase/types";
 
 interface Gateway {

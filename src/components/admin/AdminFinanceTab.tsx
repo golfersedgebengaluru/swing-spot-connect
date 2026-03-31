@@ -398,10 +398,11 @@ export function AdminFinanceTab() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="settings">GST Settings</TabsTrigger>
           <TabsTrigger value="invoice_settings">Invoice Template</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
           {showCityFY && <TabsTrigger value="financial_year">Financial Year</TabsTrigger>}
         </TabsList>
         <TabsContent value="invoices">
@@ -412,6 +413,9 @@ export function AdminFinanceTab() {
         </TabsContent>
         <TabsContent value="invoice_settings">
           {selectedCity && <InvoiceSettingsCard city={selectedCity} />}
+        </TabsContent>
+        <TabsContent value="payments">
+          {selectedCity && <CityPaymentsSection city={selectedCity} />}
         </TabsContent>
         {showCityFY && (
           <TabsContent value="financial_year">
