@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, Loader2, Download, Upload } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Plus, Pencil, Trash2, Loader2, Download, Upload, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAllProducts } from "@/hooks/useProducts";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
@@ -177,6 +178,12 @@ export function AdminProductsTab() {
           </DialogContent>
         </Dialog>
       </div>
+      <Alert className="border-muted bg-muted/30">
+        <Info className="h-4 w-4" />
+        <AlertDescription className="text-xs text-muted-foreground">
+          <strong>CSV Import:</strong> Items with a matching SKU will be updated. Items without a SKU or with a new SKU will be added as new entries. Use <strong>Export CSV</strong> to get the correct format.
+        </AlertDescription>
+      </Alert>
       {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
         <div className="space-y-3">
           {(products ?? []).length === 0 && <p className="text-center text-muted-foreground py-8">No products or services yet.</p>}
