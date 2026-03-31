@@ -30,6 +30,7 @@ export default function Profile() {
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [preferredCity, setPreferredCity] = useState("");
+  const [phone, setPhone] = useState("");
 
   const startEditing = () => {
     setDisplayName(profile?.display_name || "");
