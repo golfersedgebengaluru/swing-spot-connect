@@ -335,8 +335,8 @@ export function AdminMembersTab() {
 
                     return (
                       <TableRow key={member.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                        <TableCell className="py-3">
-                          <div className="flex items-center gap-3">
+                        <TableCell className="py-3 text-center">
+                          <div className="inline-flex items-center gap-3">
                             <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-medium shrink-0 ${avatarClass}`}>
                               {initials}
                             </div>
