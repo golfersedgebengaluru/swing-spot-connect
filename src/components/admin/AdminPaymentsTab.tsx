@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAllCities } from "@/hooks/useBookings";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useAdminCity } from "@/contexts/AdminCityContext";
 import type { Json } from "@/integrations/supabase/types";
 
 interface Gateway {
