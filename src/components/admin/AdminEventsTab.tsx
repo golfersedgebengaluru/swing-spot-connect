@@ -33,7 +33,7 @@ function EventForm({ event, onSave, onCancel }: { event?: any; onSave: (data: an
     <div className="space-y-4">
       <div><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
       <div><Label>Description</Label><RichTextEditor content={form.description} onChange={(html) => setForm({ ...form, description: html })} minHeight="120px" /></div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
         <div><Label>Type</Label>
           <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
