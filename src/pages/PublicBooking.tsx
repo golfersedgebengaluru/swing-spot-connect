@@ -620,21 +620,24 @@ export default function PublicBooking() {
                   <CardContent className="space-y-3">
                     <div>
                       <Label htmlFor="guestName" className="flex items-center gap-1.5 mb-1.5">
-                        <User className="h-3.5 w-3.5" /> Full Name
+                        <User className="h-3.5 w-3.5" /> Full Name *
                       </Label>
                       <Input id="guestName" value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="John Doe" />
+                      {!guestName.trim() && <p className="text-xs text-destructive mt-1">Name is required</p>}
                     </div>
                     <div>
                       <Label htmlFor="guestEmail" className="flex items-center gap-1.5 mb-1.5">
-                        <Mail className="h-3.5 w-3.5" /> Email
+                        <Mail className="h-3.5 w-3.5" /> Email *
                       </Label>
                       <Input id="guestEmail" type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="you@example.com" />
+                      {!guestEmail.trim() && <p className="text-xs text-destructive mt-1">Email is required</p>}
                     </div>
                     <div>
                       <Label htmlFor="guestPhone" className="flex items-center gap-1.5 mb-1.5">
-                        <Phone className="h-3.5 w-3.5" /> Phone
+                        <Phone className="h-3.5 w-3.5" /> Phone *
                       </Label>
                       <Input id="guestPhone" type="tel" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="+91 98765 43210" />
+                      {!guestPhone.trim() && <p className="text-xs text-destructive mt-1">Phone is required</p>}
                     </div>
                   </CardContent>
                 </Card>

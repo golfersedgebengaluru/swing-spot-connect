@@ -299,15 +299,18 @@ export function AdminWalkInBookingTab() {
               <div>
                 <Label htmlFor="wn">Full Name *</Label>
                 <Input id="wn" value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Walk-in guest name" className="mt-1" />
+                {!guestName.trim() && <p className="text-xs text-destructive mt-1">Name is required</p>}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="we">Email</Label>
-                  <Input id="we" type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Optional" className="mt-1" />
+                  <Label htmlFor="we">Email *</Label>
+                  <Input id="we" type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="guest@example.com" className="mt-1" />
+                  {!guestEmail.trim() && <p className="text-xs text-destructive mt-1">Email is required</p>}
                 </div>
                 <div>
-                  <Label htmlFor="wp">Phone</Label>
-                  <Input id="wp" type="tel" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="Optional" className="mt-1" />
+                  <Label htmlFor="wp">Phone *</Label>
+                  <Input id="wp" type="tel" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="+91 98765 43210" className="mt-1" />
+                  {!guestPhone.trim() && <p className="text-xs text-destructive mt-1">Phone is required</p>}
                 </div>
               </div>
             </CardContent>
@@ -462,7 +465,7 @@ export function AdminWalkInBookingTab() {
           <Button
             className="w-full"
             size="lg"
-            disabled={!canProceedToPayment || !guestName.trim()}
+            disabled={!canProceedToPayment || !guestName.trim() || !guestEmail.trim() || !guestPhone.trim()}
             onClick={() => setStep("payment")}
           >
             Continue to Payment

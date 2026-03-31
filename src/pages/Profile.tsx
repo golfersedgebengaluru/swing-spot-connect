@@ -30,10 +30,12 @@ export default function Profile() {
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [preferredCity, setPreferredCity] = useState("");
+  const [phone, setPhone] = useState("");
 
   const startEditing = () => {
     setDisplayName(profile?.display_name || "");
     setPreferredCity(profile?.preferred_city || "");
+    setPhone((profile as any)?.phone || "");
     setEditing(true);
   };
 
@@ -43,7 +45,7 @@ export default function Profile() {
     if (!user) return;
     const { error } = await supabase
       .from("profiles")
-      .update({ display_name: displayName, preferred_city: preferredCity })
+      .update({ display_name: displayName, preferred_city: preferredCity, phone: phone } as any)
       .eq("user_id", user.id);
 
     if (error) {
@@ -152,6 +154,20 @@ export default function Profile() {
                           <MapPin className="h-4 w-4 text-primary" />
                           {profile?.preferred_city || "Not set"}
                         </p>
+                      )}
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs uppercase tracking-wide">Phone</Label>
+                      {editing ? (
+                        <Input
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          className="mt-1"
+                          placeholder="+91 98765 43210"
+                        />
+                      ) : (
+                        <p className="font-medium text-foreground mt-1">{(profile as any)?.phone || "Not set"}</p>
                       )}
                     </div>
                     <div>

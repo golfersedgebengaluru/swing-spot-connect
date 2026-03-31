@@ -1175,6 +1175,7 @@ export type Database = {
           email: string | null
           handicap: number | null
           id: string
+          phone: string | null
           points: number | null
           preferred_city: string | null
           tier: string | null
@@ -1191,6 +1192,7 @@ export type Database = {
           email?: string | null
           handicap?: number | null
           id?: string
+          phone?: string | null
           points?: number | null
           preferred_city?: string | null
           tier?: string | null
@@ -1207,6 +1209,7 @@ export type Database = {
           email?: string | null
           handicap?: number | null
           id?: string
+          phone?: string | null
           points?: number | null
           preferred_city?: string | null
           tier?: string | null
