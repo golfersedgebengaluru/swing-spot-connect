@@ -202,18 +202,29 @@ export function AdminMembersTab() {
 
     if (data.type === "deduction") {
       const remaining = newPurchased - newUsed;
+      const threshold = lowHoursThreshold ?? 2;
       await supabase.from("notifications").insert({
         user_id: member.user_id,
         title: "Hours Deducted",
         message: `${data.hours} hour(s) have been deducted. You have ${remaining} hour(s) remaining.${data.note ? ` Note: ${data.note}` : ""}`,
         type: "usage",
       });
-      if (remaining <= 3 && remaining > 0) {
+      if (remaining <= threshold && remaining > 0) {
         await supabase.from("notifications").insert({
           user_id: member.user_id,
           title: "⚠️ Low Hours Alert",
           message: `You only have ${remaining} hour(s) remaining. Please purchase more hours to continue.`,
           type: "warning",
+        });
+        // Send low hours alert email
+        sendNotificationEmail({
+          user_id: member.user_id,
+          template: "low_hours_alert",
+          subject: "Low Hours Alert",
+          data: {
+            hours_remaining: remaining,
+            purchase_url: `${window.location.origin}/dashboard`,
+          },
         });
       } else if (remaining <= 0) {
         await supabase.from("notifications").insert({
@@ -221,6 +232,16 @@ export function AdminMembersTab() {
           title: "🚨 No Hours Remaining",
           message: "Your hours balance has been fully used. Please purchase more hours.",
           type: "critical",
+        });
+        // Send low hours alert email for zero balance too
+        sendNotificationEmail({
+          user_id: member.user_id,
+          template: "low_hours_alert",
+          subject: "Low Hours Alert",
+          data: {
+            hours_remaining: 0,
+            purchase_url: `${window.location.origin}/dashboard`,
+          },
         });
       }
     }
