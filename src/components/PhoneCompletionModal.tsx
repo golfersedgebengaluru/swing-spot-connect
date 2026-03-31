@@ -18,7 +18,7 @@ interface PhoneCompletionModalProps {
   onComplete: () => void;
 }
 
-export function PhoneCompletionModal({ open, userId }: PhoneCompletionModalProps) {
+export function PhoneCompletionModal({ open, userId, onComplete }: PhoneCompletionModalProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [phone, setPhone] = useState("");
