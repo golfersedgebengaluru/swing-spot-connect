@@ -35,6 +35,7 @@ export default function Profile() {
   const startEditing = () => {
     setDisplayName(profile?.display_name || "");
     setPreferredCity(profile?.preferred_city || "");
+    setPhone((profile as any)?.phone || "");
     setEditing(true);
   };
 
