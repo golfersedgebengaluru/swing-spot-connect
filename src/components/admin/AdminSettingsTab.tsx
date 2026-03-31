@@ -17,6 +17,7 @@ import { AdminFinancialYearsCard } from "@/components/admin/AdminFinancialYearsC
 import { usePerCityFyToggle, useUpdatePerCityFyToggle } from "@/hooks/useRevenue";
 import { ProductCategoriesCard } from "@/components/admin/ProductCategoriesCard";
 import { UnitOfMeasureCard } from "@/components/admin/UnitOfMeasureCard";
+import { InvoiceSettingsCard } from "@/components/admin/InvoiceSettingsCard";
 
 const pageVisibilityItems = [
   { key: "page_events_visible", label: "Events", description: "Show the Events tab in navigation" },
