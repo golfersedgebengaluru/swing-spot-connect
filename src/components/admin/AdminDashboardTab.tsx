@@ -43,10 +43,12 @@ function useAdminDashboardStats(cityFilter: string) {
       if (cityFilter) activeQuery = activeQuery.eq("city", cityFilter);
       const { count: activeCount } = await activeQuery;
 
-      // Members count
-      const { count: memberCount } = await supabase
+      // Members count - filter by preferred_city when a city is selected
+      let membersQuery = supabase
         .from("profiles")
         .select("id", { count: "exact", head: true });
+      if (cityFilter) membersQuery = membersQuery.eq("preferred_city", cityFilter);
+      const { count: memberCount } = await membersQuery;
 
       // Hours sold this month
       const hoursSold = (hoursRes.data ?? [])
