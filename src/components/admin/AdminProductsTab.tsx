@@ -263,8 +263,12 @@ export function AdminProductsTab() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {!product.in_stock && <Badge variant="secondary">Out of stock</Badge>}
-                    <Button variant="outline" size="icon" onClick={() => { setEditingProduct(product); setDialogOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="outline" size="icon" onClick={() => handleDelete(product.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    {(isAdmin || (isSiteAdmin && p.city)) && (
+                      <>
+                        <Button variant="outline" size="icon" onClick={() => { setEditingProduct(product); setDialogOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                        <Button variant="outline" size="icon" onClick={() => handleDelete(product.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      </>
+                    )}
                   </div>
                 </CardContent>
               </Card>
