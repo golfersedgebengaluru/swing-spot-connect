@@ -160,13 +160,12 @@ export default function Profile() {
                     <div>
                       <Label className="text-muted-foreground text-xs uppercase tracking-wide">Phone</Label>
                       {editing ? (
-                        <Input
-                          type="tel"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          className="mt-1"
-                          placeholder="+91 98765 43210"
-                        />
+                        <div className="mt-1">
+                          <PhoneInput
+                            value={phone}
+                            onChange={setPhone}
+                          />
+                        </div>
                       ) : (
                         <p className="font-medium text-foreground mt-1">{(profile as any)?.phone || "Not set"}</p>
                       )}
