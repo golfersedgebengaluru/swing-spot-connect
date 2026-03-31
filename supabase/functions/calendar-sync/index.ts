@@ -1226,9 +1226,9 @@ Deno.serve(async (req) => {
       const { booking_id } = params;
       const adminClient = createAdminClient();
 
-      // Verify caller is admin
-      const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-      if (!isAdmin) {
+      // Verify caller is admin or site_admin
+      const { data: isAdminOrSiteAdmin } = await supabase.rpc("is_admin_or_site_admin", { _user_id: userId });
+      if (!isAdminOrSiteAdmin) {
         return new Response(JSON.stringify({ error: "Admin access required" }), {
           status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

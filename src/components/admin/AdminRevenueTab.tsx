@@ -12,7 +12,8 @@ import {
   CreditCard, Users, ArrowUpDown, ShoppingBag,
 } from "lucide-react";
 import { useRevenueTransactions, useRevenueSummary, useActiveFinancialYear } from "@/hooks/useRevenue";
-import { useCities } from "@/hooks/useBookings";
+import { useAllCities } from "@/hooks/useBookings";
+import { useAdmin } from "@/hooks/useAdmin";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, subYears, addMonths } from "date-fns";
 import { RevenueUserBreakdown } from "./RevenueUserBreakdown";
 
