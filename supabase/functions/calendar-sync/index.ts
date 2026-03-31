@@ -482,6 +482,7 @@ Deno.serve(async (req) => {
           booking_id: booking.id,
           description: `Guest booking - ${bay_name || city} - ${guest_name}`,
           status: "confirmed",
+          city: city || null,
         });
       } catch (e) {
         console.error("Failed to create revenue transaction for guest:", e);
