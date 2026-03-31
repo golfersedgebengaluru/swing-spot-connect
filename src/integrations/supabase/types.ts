@@ -878,6 +878,7 @@ export type Database = {
       }
       offline_payment_methods: {
         Row: {
+          city: string | null
           created_at: string
           id: string
           is_active: boolean
@@ -886,6 +887,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          city?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -894,6 +896,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          city?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
