@@ -332,6 +332,7 @@ export function AdminRolesManager() {
               })}
             </TableBody>
           </Table>
+          </div>
         )}
       </CardContent>
     </Card>

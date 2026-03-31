@@ -313,6 +313,7 @@ export function AdminAllUsersTab() {
                  ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

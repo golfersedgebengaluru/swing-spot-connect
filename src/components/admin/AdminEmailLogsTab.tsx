@@ -194,6 +194,7 @@ export function AdminEmailLogsTab() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
