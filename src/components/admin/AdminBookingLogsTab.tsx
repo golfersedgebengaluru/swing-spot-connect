@@ -33,8 +33,10 @@ export function AdminBookingLogsTab() {
     ? bookings
     : (bookings ?? []).filter((b: any) => assignedCities.includes(b.city));
 
+  // Apply global city filter, then local filter
+  const effectiveCityFilter = globalCity || cityFilter;
   const filtered = (scopedBookings ?? []).filter((b: any) => {
-    if (cityFilter !== "all" && b.city !== cityFilter) return false;
+    if (effectiveCityFilter !== "all" && effectiveCityFilter && b.city !== effectiveCityFilter) return false;
     if (statusFilter !== "all" && b.status !== statusFilter) return false;
     return true;
   });

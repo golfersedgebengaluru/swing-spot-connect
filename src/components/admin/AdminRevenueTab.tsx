@@ -118,6 +118,7 @@ export function AdminRevenueTab() {
   const { isAdmin, assignedCities } = useAdmin();
   const { data: allCities } = useAllCities();
   const { symbol: currencySymbol } = useDefaultCurrency();
+  const { selectedCity: globalCity } = useAdminCity();
   const cities = isAdmin ? allCities : (allCities ?? []).filter((c) => assignedCities.includes(c));
   const [period, setPeriod] = useState<Period>("month");
   const [customStart, setCustomStart] = useState("");
@@ -125,6 +126,7 @@ export function AdminRevenueTab() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [cityFilter, setCityFilter] = useState<string>("all");
+  const effectiveCityFilter = globalCity || cityFilter;
   const [page, setPage] = useState(0);
 
   const dates = useMemo(() => {
