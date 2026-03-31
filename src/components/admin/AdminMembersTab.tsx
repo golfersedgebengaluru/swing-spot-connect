@@ -351,8 +351,8 @@ export function AdminMembersTab() {
                             {remaining} hrs
                           </span>
                         </TableCell>
-                        <TableCell className="py-3 text-right">
-                          <div className="flex items-center justify-end gap-1">
+                        <TableCell className="py-3 text-center">
+                          <div className="inline-flex items-center justify-center gap-1">
                             <Button variant="ghost" size="sm" className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground" onClick={() => { setAdjustingMember(member); setDialogOpen("adjust"); }}>
                               <Clock className="mr-1 h-3.5 w-3.5" />Adjust
                             </Button>
