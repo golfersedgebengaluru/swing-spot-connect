@@ -7,8 +7,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -24,11 +24,8 @@ export function PhoneCompletionModal({ open, userId }: PhoneCompletionModalProps
   const [error, setError] = useState("");
 
   const validate = () => {
-    if (!phone.trim()) {
-      setError("Phone number is required");
-      return false;
-    }
-    if (phone.trim().length < 7) {
+    const digits = phone.replace(/[^\d]/g, "");
+    if (digits.length < 7) {
       setError("Please enter a valid phone number");
       return false;
     }
@@ -80,14 +77,13 @@ export function PhoneCompletionModal({ open, userId }: PhoneCompletionModalProps
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div>
             <Label htmlFor="phone-input">Phone Number</Label>
-            <Input
-              id="phone-input"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+91 98765 43210"
-              className="mt-1"
-            />
+            <div className="mt-1">
+              <PhoneInput
+                id="phone-input"
+                value={phone}
+                onChange={setPhone}
+              />
+            </div>
             {error && (
               <p className="text-sm text-destructive mt-1">{error}</p>
             )}

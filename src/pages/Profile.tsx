@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { User, MapPin, Clock, Gift, Trophy, Target, Pencil, Check, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile, useUserHoursBalance, useCities } from "@/hooks/useBookings";
@@ -159,13 +160,12 @@ export default function Profile() {
                     <div>
                       <Label className="text-muted-foreground text-xs uppercase tracking-wide">Phone</Label>
                       {editing ? (
-                        <Input
-                          type="tel"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          className="mt-1"
-                          placeholder="+91 98765 43210"
-                        />
+                        <div className="mt-1">
+                          <PhoneInput
+                            value={phone}
+                            onChange={setPhone}
+                          />
+                        </div>
                       ) : (
                         <p className="font-medium text-foreground mt-1">{(profile as any)?.phone || "Not set"}</p>
                       )}

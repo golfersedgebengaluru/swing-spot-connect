@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
 import {
   CalendarIcon, Clock, MapPin, Loader2, LayoutGrid,
   ArrowLeft, ArrowRight, CreditCard, Timer,
@@ -636,7 +637,7 @@ export default function PublicBooking() {
                       <Label htmlFor="guestPhone" className="flex items-center gap-1.5 mb-1.5">
                         <Phone className="h-3.5 w-3.5" /> Phone *
                       </Label>
-                      <Input id="guestPhone" type="tel" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="+91 98765 43210" />
+                      <PhoneInput id="guestPhone" value={guestPhone} onChange={setGuestPhone} />
                       {!guestPhone.trim() && <p className="text-xs text-destructive mt-1">Phone is required</p>}
                     </div>
                   </CardContent>

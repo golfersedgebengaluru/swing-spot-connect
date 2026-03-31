@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
 import {
   CalendarIcon, Clock, MapPin, Loader2, LayoutGrid,
   ArrowLeft, ArrowRight, User, Mail, Phone, CheckCircle2, Users, Banknote,
@@ -309,7 +310,9 @@ export function AdminWalkInBookingTab() {
                 </div>
                 <div>
                   <Label htmlFor="wp">Phone *</Label>
-                  <Input id="wp" type="tel" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="+91 98765 43210" className="mt-1" />
+                  <div className="mt-1">
+                    <PhoneInput id="wp" value={guestPhone} onChange={setGuestPhone} />
+                  </div>
                   {!guestPhone.trim() && <p className="text-xs text-destructive mt-1">Phone is required</p>}
                 </div>
               </div>
