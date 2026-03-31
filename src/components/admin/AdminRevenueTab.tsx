@@ -8,12 +8,13 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  DollarSign, Download, Loader2, Search, TrendingUp, TrendingDown,
+  Download, Loader2, Search, TrendingUp, TrendingDown,
   CreditCard, Users, ArrowUpDown, ShoppingBag,
 } from "lucide-react";
 import { useRevenueTransactions, useRevenueSummary, useActiveFinancialYear } from "@/hooks/useRevenue";
 import { useAllCities } from "@/hooks/useBookings";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, subYears, addMonths } from "date-fns";
 import { RevenueUserBreakdown } from "./RevenueUserBreakdown";
 
@@ -115,6 +116,7 @@ export function AdminRevenueTab() {
   const { data: activeFY } = useActiveFinancialYear();
   const { isAdmin, assignedCities } = useAdmin();
   const { data: allCities } = useAllCities();
+  const { symbol: currencySymbol } = useDefaultCurrency();
   const cities = isAdmin ? allCities : (allCities ?? []).filter((c) => assignedCities.includes(c));
   const [period, setPeriod] = useState<Period>("month");
   const [customStart, setCustomStart] = useState("");
@@ -215,7 +217,7 @@ export function AdminRevenueTab() {
               <div>
                 <p className="text-sm text-muted-foreground">Total Revenue</p>
                 <p className="mt-1 font-display text-2xl font-bold text-foreground">
-                  {loadingSummary ? "…" : `₹${(summary?.totalRevenue ?? 0).toLocaleString()}`}
+                  {loadingSummary ? "…" : (summary?.totalRevenue ?? 0).toLocaleString()}
                 </p>
                 {revenueChange !== null && (
                   <p className={`mt-1 text-xs flex items-center gap-1 ${revenueChange >= 0 ? "text-green-600" : "text-red-600"}`}>
@@ -225,7 +227,7 @@ export function AdminRevenueTab() {
                 )}
               </div>
               <div className="rounded-xl bg-primary/10 p-3">
-                <DollarSign className="h-5 w-5 text-primary" />
+                <span className="text-lg font-semibold text-primary">{currencySymbol}</span>
               </div>
             </div>
           </CardContent>
@@ -237,7 +239,7 @@ export function AdminRevenueTab() {
               <div>
                 <p className="text-sm text-muted-foreground">Payments</p>
                 <p className="mt-1 font-display text-2xl font-bold text-foreground">
-                  {loadingSummary ? "…" : `₹${(summary?.byType?.payment ?? 0).toLocaleString()}`}
+                  {loadingSummary ? "…" : `${currencySymbol}${(summary?.byType?.payment ?? 0).toLocaleString()}`}
                 </p>
               </div>
               <div className="rounded-xl bg-green-100 p-3">
@@ -253,7 +255,7 @@ export function AdminRevenueTab() {
               <div>
                 <p className="text-sm text-muted-foreground">Guest Bookings</p>
                 <p className="mt-1 font-display text-2xl font-bold text-foreground">
-                  {loadingSummary ? "…" : `₹${(summary?.byType?.guest_booking ?? 0).toLocaleString()}`}
+                  {loadingSummary ? "…" : `${currencySymbol}${(summary?.byType?.guest_booking ?? 0).toLocaleString()}`}
                 </p>
               </div>
               <div className="rounded-xl bg-amber-100 p-3">
@@ -269,7 +271,7 @@ export function AdminRevenueTab() {
               <div>
                 <p className="text-sm text-muted-foreground">Shop Orders</p>
                 <p className="mt-1 font-display text-2xl font-bold text-foreground">
-                  {loadingSummary ? "…" : `₹${(summary?.byType?.product_order ?? 0).toLocaleString()}`}
+                  {loadingSummary ? "…" : `${currencySymbol}${(summary?.byType?.product_order ?? 0).toLocaleString()}`}
                 </p>
               </div>
               <div className="rounded-xl bg-purple-100 p-3">
@@ -375,7 +377,7 @@ export function AdminRevenueTab() {
                         </TableCell>
                         <TableCell className="text-right font-medium whitespace-nowrap">
                           {t.transaction_type === "refund" ? "-" : ""}
-                          {t.amount > 0 ? `₹${Number(t.amount).toLocaleString()}` : "₹0"}
+                          {t.amount > 0 ? `${currencySymbol}${Number(t.amount).toLocaleString()}` : `${currencySymbol}0`}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {t.gateway_name || "—"}
