@@ -76,6 +76,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: "",
   });
   const [phoneMissing, setPhoneMissing] = useState(false);
+  const phoneCheckedRef = { current: false };
+
+  const runProfileChecks = async (u: User) => {
+    const check = await checkAppleProfile(u);
+    setProfileCheck(check);
+    if (!check.needed && !phoneCheckedRef.current) {
+      phoneCheckedRef.current = true;
+      const noPhone = await checkPhoneMissing(u);
+      setPhoneMissing(noPhone);
+    }
+  };
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -85,15 +96,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
 
         if (session?.user) {
-          const check = await checkAppleProfile(session.user);
-          setProfileCheck(check);
-          if (!check.needed) {
-            const noPhone = await checkPhoneMissing(session.user);
-            setPhoneMissing(noPhone);
-          }
+          await runProfileChecks(session.user);
         } else {
           setProfileCheck({ needed: false, displayName: "", email: "" });
           setPhoneMissing(false);
+          phoneCheckedRef.current = false;
         }
       }
     );
@@ -104,12 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
 
       if (session?.user) {
-        const check = await checkAppleProfile(session.user);
-        setProfileCheck(check);
-        if (!check.needed) {
-          const noPhone = await checkPhoneMissing(session.user);
-          setPhoneMissing(noPhone);
-        }
+        await runProfileChecks(session.user);
       }
     });
 
@@ -118,6 +120,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+  };
+
+  const handlePhoneComplete = () => {
+    setPhoneMissing(false);
   };
 
   // Show Apple profile modal first, then phone modal
@@ -141,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         <PhoneCompletionModal
           open={true}
           userId={user.id}
+          onComplete={handlePhoneComplete}
         />
       )}
     </AuthContext.Provider>

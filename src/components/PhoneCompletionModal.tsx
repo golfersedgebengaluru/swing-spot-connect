@@ -15,9 +15,10 @@ import { useToast } from "@/hooks/use-toast";
 interface PhoneCompletionModalProps {
   open: boolean;
   userId: string;
+  onComplete: () => void;
 }
 
-export function PhoneCompletionModal({ open, userId }: PhoneCompletionModalProps) {
+export function PhoneCompletionModal({ open, userId, onComplete }: PhoneCompletionModalProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [phone, setPhone] = useState("");
@@ -47,7 +48,7 @@ export function PhoneCompletionModal({ open, userId }: PhoneCompletionModalProps
       if (dbError) throw dbError;
 
       toast({ title: "Phone number saved", description: "Thank you!" });
-      window.location.reload();
+      onComplete();
     } catch (err: any) {
       toast({
         title: "Error",
