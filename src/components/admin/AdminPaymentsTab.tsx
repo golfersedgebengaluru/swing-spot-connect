@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAllCities } from "@/hooks/useBookings";
+import { useAdmin } from "@/hooks/useAdmin";
 import type { Json } from "@/integrations/supabase/types";
 
 interface Gateway {
@@ -51,7 +52,11 @@ export function AdminPaymentsTab() {
     },
   });
 
-  const { data: cities } = useAllCities();
+  const { data: allCitiesData } = useAllCities();
+  const { isAdmin, assignedCities } = useAdmin();
+  const cities = isAdmin
+    ? allCitiesData
+    : (allCitiesData ?? []).filter((c) => assignedCities.includes(c));
 
   const updateGateway = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Gateway> }) => {
