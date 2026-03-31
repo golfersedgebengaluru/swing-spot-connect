@@ -271,7 +271,7 @@ export function AdminRevenueTab() {
               <div>
                 <p className="text-sm text-muted-foreground">Shop Orders</p>
                 <p className="mt-1 font-display text-2xl font-bold text-foreground">
-                  {loadingSummary ? "…" : `₹${(summary?.byType?.product_order ?? 0).toLocaleString()}`}
+                  {loadingSummary ? "…" : `${currencySymbol}${(summary?.byType?.product_order ?? 0).toLocaleString()}`}
                 </p>
               </div>
               <div className="rounded-xl bg-purple-100 p-3">
