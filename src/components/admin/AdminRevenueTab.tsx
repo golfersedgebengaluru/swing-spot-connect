@@ -142,7 +142,13 @@ export function AdminRevenueTab() {
   const { data: allCities } = useAllCities();
   const { symbol: currencySymbol } = useDefaultCurrency();
   const { selectedCity: globalCity } = useAdminCity();
+  const { data: categories } = useProductCategories();
   const cities = isAdmin ? allCities : (allCities ?? []).filter((c) => assignedCities.includes(c));
+
+  const { labels: typeLabels, colors: typeColors } = useMemo(
+    () => buildTypeMap(categories ?? []),
+    [categories]
+  );
   const [period, setPeriod] = useState<Period>("month");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
