@@ -1,59 +1,120 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-const INVOICE_CONFIG_KEYS = ["invoice_template", "invoice_logo_url", "invoice_footer_note", "invoice_terms"];
-
 export type InvoiceTemplate = "classic" | "modern" | "compact";
 
 export interface InvoiceSettings {
-  invoice_template: InvoiceTemplate;
-  invoice_logo_url: string;
-  invoice_footer_note: string;
-  invoice_terms: string;
+  id?: string;
+  city: string | null;
+  template: InvoiceTemplate;
+  logo_url: string;
+  footer_note: string;
+  terms: string;
 }
 
-export function useInvoiceSettings() {
+const DEFAULTS: Omit<InvoiceSettings, "city"> = {
+  template: "classic",
+  logo_url: "",
+  footer_note: "",
+  terms: "",
+};
+
+/** Fetch global invoice settings (city IS NULL) */
+export function useGlobalInvoiceSettings() {
   return useQuery({
-    queryKey: ["invoice_settings"],
+    queryKey: ["invoice_settings", "global"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("admin_config")
-        .select("key, value")
-        .in("key", INVOICE_CONFIG_KEYS);
-      const map: InvoiceSettings = {
-        invoice_template: "classic",
-        invoice_logo_url: "",
-        invoice_footer_note: "",
-        invoice_terms: "",
-      };
-      data?.forEach((row) => {
-        (map as any)[row.key] = row.value;
-      });
-      return map;
+      const { data, error } = await (supabase as any)
+        .from("invoice_settings")
+        .select("*")
+        .is("city", null)
+        .maybeSingle();
+      if (error) throw error;
+      return (data as InvoiceSettings | null) ?? { ...DEFAULTS, city: null };
     },
   });
 }
 
+/** Fetch per-city invoice settings row (may be null if no override) */
+export function useCityInvoiceSettings(city?: string) {
+  return useQuery({
+    queryKey: ["invoice_settings", "city", city],
+    enabled: !!city,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("invoice_settings")
+        .select("*")
+        .eq("city", city)
+        .maybeSingle();
+      if (error) throw error;
+      return data as InvoiceSettings | null;
+    },
+  });
+}
+
+/** 
+ * Resolve effective invoice settings for a city:
+ * per-city override if exists, otherwise global fallback.
+ */
+export function useEffectiveInvoiceSettings(city?: string) {
+  const { data: global, isLoading: gl } = useGlobalInvoiceSettings();
+  const { data: citySettings, isLoading: cl } = useCityInvoiceSettings(city);
+
+  const effective: InvoiceSettings = citySettings ?? global ?? { ...DEFAULTS, city: null };
+
+  return {
+    data: effective,
+    isLoading: gl || cl,
+    isOverridden: !!citySettings,
+  };
+}
+
+/** Save invoice settings for a specific city or global (city=null) */
 export function useSaveInvoiceSettings() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (settings: Partial<InvoiceSettings>) => {
-      for (const [key, value] of Object.entries(settings)) {
-        if (!INVOICE_CONFIG_KEYS.includes(key)) continue;
-        const { error } = await supabase
-          .from("admin_config")
-          .update({ value: value ?? "" })
-          .eq("key", key);
-        if (error) {
-          // Key might not exist yet, try upsert via insert
-          const { error: insertErr } = await supabase
-            .from("admin_config")
-            .insert({ key, value: value ?? "" });
-          if (insertErr) throw insertErr;
-        }
+    mutationFn: async (settings: Partial<InvoiceSettings> & { city: string | null }) => {
+      const payload = {
+        city: settings.city,
+        template: settings.template ?? "classic",
+        logo_url: settings.logo_url ?? "",
+        footer_note: settings.footer_note ?? "",
+        terms: settings.terms ?? "",
+      };
+
+      if (settings.id) {
+        const { error } = await (supabase as any)
+          .from("invoice_settings")
+          .update(payload)
+          .eq("id", settings.id);
+        if (error) throw error;
+      } else {
+        const { error } = await (supabase as any)
+          .from("invoice_settings")
+          .upsert(payload, { onConflict: "city" });
+        if (error) throw error;
       }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["invoice_settings"] }),
+    onSuccess: (_, settings) => {
+      qc.invalidateQueries({ queryKey: ["invoice_settings"] });
+    },
+  });
+}
+
+/** Delete per-city override (revert to global) */
+export function useDeleteCityInvoiceSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (city: string) => {
+      const { error } = await (supabase as any)
+        .from("invoice_settings")
+        .delete()
+        .eq("city", city);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoice_settings"] });
+    },
   });
 }
 

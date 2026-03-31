@@ -16,7 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { validateGSTIN, getGstType, calculateLineItems, type GstLineItem } from "@/lib/gst-utils";
 import { useGstProfile } from "@/hooks/useInvoices";
 import { format } from "date-fns";
-import { useInvoiceSettings } from "@/hooks/useInvoiceSettings";
+import { useEffectiveInvoiceSettings } from "@/hooks/useInvoiceSettings";
 import { renderInvoiceHtml, openPrintWindow } from "@/lib/invoice-templates";
 
 interface Props {
@@ -40,7 +40,7 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
   const { data: gstProfile } = useGstProfile(invoice?.city);
   const { data: paymentMethods } = useOfflinePaymentMethods();
   const { data: catalogue } = useProductCatalogue();
-  const { data: invoiceSettings } = useInvoiceSettings();
+  const { data: invoiceSettings } = useEffectiveInvoiceSettings(invoice?.city);
   const currency = useDefaultCurrency();
   const { toast } = useToast();
   const updateInvoice = useUpdateInvoice();
