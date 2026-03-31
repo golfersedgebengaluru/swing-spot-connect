@@ -40,7 +40,7 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
   const { data: gstProfile } = useGstProfile(invoice?.city);
   const { data: paymentMethods } = useOfflinePaymentMethods();
   const { data: catalogue } = useProductCatalogue();
-  const { data: invoiceSettings } = useInvoiceSettings();
+  const { data: invoiceSettings } = useEffectiveInvoiceSettings(invoice?.city);
   const currency = useDefaultCurrency();
   const { toast } = useToast();
   const updateInvoice = useUpdateInvoice();
