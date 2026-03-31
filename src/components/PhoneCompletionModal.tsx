@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 interface PhoneCompletionModalProps {
   open: boolean;
   userId: string;
+  onComplete: () => void;
 }
 
 export function PhoneCompletionModal({ open, userId }: PhoneCompletionModalProps) {
