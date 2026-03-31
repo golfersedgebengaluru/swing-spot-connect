@@ -192,6 +192,7 @@ export function AdminBookingLogsTab() {
             ))}
           </TableBody>
         </Table>
+        </div>
       </CardContent>
     </Card>
   );
