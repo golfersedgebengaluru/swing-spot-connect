@@ -50,7 +50,7 @@ export function Navbar() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden items-center gap-1 md:flex">
+          <div className="hidden items-center gap-1 md:flex overflow-x-auto scrollbar-hide">
             {isAuthenticated && navLinks.map((link) => (
               <Link
                 key={link.href}

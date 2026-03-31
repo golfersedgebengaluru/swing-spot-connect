@@ -108,6 +108,7 @@ export function AdminBookingLogsTab() {
         </div>
       </CardHeader>
       <CardContent>
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

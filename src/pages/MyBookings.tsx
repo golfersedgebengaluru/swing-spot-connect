@@ -231,9 +231,9 @@ export default function MyBookings() {
                   size="sm"
                   onClick={() => performCancel(booking)}
                   disabled={cancelBooking.isPending}
-                  className="shrink-0 text-xs"
+                  className="shrink-0 text-xs max-w-[180px]"
                 >
-                  {`⚠ ${getCancelInfo(booking).penalty}h penalty. Yes, Cancel`}
+                  <span className="truncate">{`⚠ ${getCancelInfo(booking).penalty}h penalty. Cancel`}</span>
                 </Button>
               ) : (
                 <Button

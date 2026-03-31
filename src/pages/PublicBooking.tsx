@@ -540,7 +540,7 @@ export default function PublicBooking() {
                     ) : !slots?.length ? (
                       <p className="text-center text-muted-foreground py-8">No slots available</p>
                     ) : (
-                      <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
                         {slots.map((slot) => {
                           const t = new Date(slot.time);
                           const isSelected = selectedSlot === slot.time;
