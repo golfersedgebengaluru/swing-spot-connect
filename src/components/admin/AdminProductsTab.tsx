@@ -251,6 +251,9 @@ export function AdminProductsTab() {
                       ) : (
                         <Badge variant="outline" className="text-[10px] text-muted-foreground">Global</Badge>
                       )}
+                    </div>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {currency.format(Number(product.price))} · {product.category}
                       {Number(p.gst_rate) > 0 && ` · GST ${p.gst_rate}%`}
                       {p.hsn_code && ` · HSN: ${p.hsn_code}`}
                       {p.sac_code && ` · SAC: ${p.sac_code}`}
