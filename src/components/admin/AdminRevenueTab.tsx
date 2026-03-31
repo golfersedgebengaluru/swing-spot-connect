@@ -100,19 +100,41 @@ function getPeriodDates(period: Period, fyStartDate?: string): { start: string; 
   };
 }
 
-const typeLabels: Record<string, string> = {
-  payment: "Payment",
-  guest_booking: "Guest Booking",
-  product_order: "Shop Order",
-  refund: "Refund",
+// System-level types that always exist regardless of categories
+const SYSTEM_TYPES: Record<string, { label: string; color: string }> = {
+  refund: { label: "Refund", color: "bg-red-100 text-red-800" },
 };
 
-const typeColors: Record<string, string> = {
-  payment: "bg-green-100 text-green-800",
-  guest_booking: "bg-amber-100 text-amber-800",
-  product_order: "bg-purple-100 text-purple-800",
-  refund: "bg-red-100 text-red-800",
-};
+// Color palette for dynamically generated category types
+const CATEGORY_COLORS = [
+  "bg-green-100 text-green-800",
+  "bg-amber-100 text-amber-800",
+  "bg-purple-100 text-purple-800",
+  "bg-blue-100 text-blue-800",
+  "bg-pink-100 text-pink-800",
+  "bg-teal-100 text-teal-800",
+  "bg-orange-100 text-orange-800",
+  "bg-indigo-100 text-indigo-800",
+];
+
+function buildTypeMap(categories: { id: string; name: string }[]) {
+  const labels: Record<string, string> = {};
+  const colors: Record<string, string> = {};
+
+  categories.forEach((cat, i) => {
+    const key = cat.name.toLowerCase().replace(/\s+/g, "_");
+    labels[key] = cat.name;
+    colors[key] = CATEGORY_COLORS[i % CATEGORY_COLORS.length];
+  });
+
+  // Add system types
+  for (const [key, val] of Object.entries(SYSTEM_TYPES)) {
+    labels[key] = val.label;
+    colors[key] = val.color;
+  }
+
+  return { labels, colors };
+}
 
 export function AdminRevenueTab() {
   const { data: activeFY } = useActiveFinancialYear();
