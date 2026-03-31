@@ -1312,6 +1312,9 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Reverse paid revenue and auto-generate credit note for guest/walk-in bookings
+      await reverseRevenueAndInvoice(adminClient, booking_id);
+
       // Notify booking owner
       await adminClient.from("notifications").insert({
         user_id: booking.user_id,
