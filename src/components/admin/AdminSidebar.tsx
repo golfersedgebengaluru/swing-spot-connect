@@ -53,13 +53,13 @@ const configItems = [
   { id: "pricing", label: "Pricing", icon: CreditCard },
   { id: "payments", label: "Payments", icon: CreditCard },
   { id: "emails", label: "Emails", icon: Mail },
-  { id: "settings", label: "Settings", icon: Award },
+  { id: "settings", label: "Settings", icon: Award, adminOnly: true },
 ];
 
 const reportsItems = [
   { id: "revenue", label: "Revenue", icon: BarChart3 },
-  { id: "allusers", label: "All Users", icon: BarChart3 },
-  { id: "pages", label: "Pages", icon: BarChart3 },
+  { id: "allusers", label: "All Users", icon: BarChart3, adminOnly: true },
+  { id: "pages", label: "Pages", icon: BarChart3, adminOnly: true },
 ];
 
 function NavItem({
@@ -161,11 +161,14 @@ export function AdminSidebar({
   onToggleCollapse,
 }: AdminSidebarProps) {
   const { user } = useAuth();
-  const { role } = useAdmin();
+  const { role, isAdmin } = useAdmin();
   const initials = user?.email
     ? user.email.substring(0, 2).toUpperCase()
     : "AD";
   const roleLabel = role === "admin" ? "Administrator" : role === "site_admin" ? "Site-Admin" : "User";
+
+  const filterItems = (items: typeof coreItems) =>
+    isAdmin ? items : items.filter((i) => !(i as any).adminOnly);
 
   const handleNavClick = (tab: string) => {
     onTabChange(tab);
@@ -204,7 +207,7 @@ export function AdminSidebar({
       <div className="flex-1 overflow-y-auto px-2 py-3 space-y-1">
         {/* Core items */}
         <div className="space-y-0.5">
-          {coreItems.map((item) => (
+          {filterItems(coreItems).map((item) => (
             <NavItem
               key={item.id}
               item={item}
@@ -220,25 +223,27 @@ export function AdminSidebar({
         {/* Accordion groups */}
         <AccordionGroup
           label="Operations"
-          items={operationsItems}
+          items={filterItems(operationsItems)}
           activeTab={activeTab}
           onTabChange={handleNavClick}
           collapsed={collapsed}
         />
         <AccordionGroup
           label="Config"
-          items={configItems}
+          items={filterItems(configItems)}
           activeTab={activeTab}
           onTabChange={handleNavClick}
           collapsed={collapsed}
         />
-        <AccordionGroup
-          label="Reports"
-          items={reportsItems}
-          activeTab={activeTab}
-          onTabChange={handleNavClick}
-          collapsed={collapsed}
-        />
+        {filterItems(reportsItems).length > 0 && (
+          <AccordionGroup
+            label="Reports"
+            items={filterItems(reportsItems)}
+            activeTab={activeTab}
+            onTabChange={handleNavClick}
+            collapsed={collapsed}
+          />
+        )}
       </div>
 
       {/* Footer */}
