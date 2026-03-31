@@ -45,15 +45,21 @@ const emptyForm: BayForm = {
 };
 
 export function BayConfigTab() {
-  const { data: bays, isLoading } = useBays();
+  const { data: allBays, isLoading } = useBays();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isAdmin, assignedCities } = useAdmin();
   const [editing, setEditing] = useState<BayForm | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [newCity, setNewCity] = useState("");
 
+  // Site admins only see their assigned cities
+  const bays = isAdmin
+    ? (allBays ?? [])
+    : (allBays ?? []).filter((b: any) => assignedCities.includes(b.city));
+
   // Group bays by city
-  const cities = Array.from(new Set((bays ?? []).map((b: any) => b.city))).sort();
+  const cities = Array.from(new Set(bays.map((b: any) => b.city))).sort();
 
   const handleSave = async () => {
     if (!editing) return;
