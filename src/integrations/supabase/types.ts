@@ -1081,6 +1081,7 @@ export type Database = {
           badge: string | null
           bookable: boolean
           category: string
+          city: string | null
           colors: string[] | null
           cost_price: number
           created_at: string
@@ -1109,6 +1110,7 @@ export type Database = {
           badge?: string | null
           bookable?: boolean
           category?: string
+          city?: string | null
           colors?: string[] | null
           cost_price?: number
           created_at?: string
@@ -1137,6 +1139,7 @@ export type Database = {
           badge?: string | null
           bookable?: boolean
           category?: string
+          city?: string | null
           colors?: string[] | null
           cost_price?: number
           created_at?: string

@@ -7,6 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { useProductCategories } from "@/hooks/useProductCategories";
 import { useUnitsOfMeasure } from "@/hooks/useUnitsOfMeasure";
+import { useCities } from "@/hooks/useBookings";
+import { useAdmin } from "@/hooks/useAdmin";
 
 function generateSKU(itemType: string) {
   const prefix = itemType === "service" ? "SVC" : "PRD";
@@ -22,6 +24,8 @@ interface ProductFormProps {
 export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const { data: categories } = useProductCategories();
   const { data: units } = useUnitsOfMeasure();
+  const { data: cities } = useCities();
+  const { isAdmin, isSiteAdmin, assignedCities } = useAdmin();
 
   const [form, setForm] = useState({
     name: product?.name ?? "",
@@ -32,17 +36,16 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     sku: product?.sku ?? "",
     unit_of_measure: product?.unit_of_measure ?? "Each",
     cost_price: product?.cost_price ?? 0,
-    price: product?.price ?? 0, // selling price (always stored GST-inclusive)
+    price: product?.price ?? 0,
     hsn_code: product?.hsn_code ?? "",
     sac_code: product?.sac_code ?? "",
     gst_rate: product?.gst_rate ?? 0,
-    // Product-only
     opening_stock: product?.opening_stock ?? "",
     reorder_level: product?.reorder_level ?? "",
     reorder_quantity: product?.reorder_quantity ?? "",
-    // Service-only
     duration_minutes: product?.duration_minutes ?? "",
     bookable: product?.bookable ?? false,
+    city: product?.city ?? (isSiteAdmin && assignedCities.length === 1 ? assignedCities[0] : ""),
   });
 
   // Price toggle: true = inclusive entry, false = exclusive entry
@@ -101,12 +104,17 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const isProduct = form.item_type === "product";
 
   const handleSave = () => {
+    // Determine city value
+    const cityValue = isAdmin
+      ? (form.city === "" || form.city === "all" ? null : form.city)
+      : (form.city || (assignedCities.length === 1 ? assignedCities[0] : null));
+
     onSave({
       name: form.name,
       description: form.description || null,
       category: form.category,
       item_type: form.item_type,
-      type: isProduct ? "merchandise" : "beverage", // legacy field mapping
+      type: isProduct ? "merchandise" : "beverage",
       in_stock: form.in_stock,
       sku: form.sku || null,
       unit_of_measure: form.unit_of_measure,
@@ -120,7 +128,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
       reorder_quantity: isProduct ? (Number(form.reorder_quantity) || null) : null,
       duration_minutes: !isProduct ? (Number(form.duration_minutes) || null) : null,
       bookable: !isProduct ? form.bookable : false,
-      // Clear removed legacy fields
+      city: cityValue,
       badge: null,
       sizes: null,
       colors: null,
@@ -130,6 +138,31 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
 
   return (
     <div className="space-y-4">
+      {/* Location / City */}
+      <div>
+        <Label>Location</Label>
+        {isSiteAdmin && !isAdmin ? (
+          <Select value={form.city} onValueChange={(v) => setForm({ ...form, city: v })}>
+            <SelectTrigger><SelectValue placeholder="Select location" /></SelectTrigger>
+            <SelectContent>
+              {assignedCities.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Select value={form.city || "all"} onValueChange={(v) => setForm({ ...form, city: v === "all" ? "" : v })}>
+            <SelectTrigger><SelectValue placeholder="All Locations" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Locations (Global)</SelectItem>
+              {(cities ?? []).map((c: string) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
       {/* Item Type Toggle */}
       <div>
         <Label>Item Type</Label>

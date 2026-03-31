@@ -1,9 +1,10 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Pencil, Trash2, Loader2, Download, Upload, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAllProducts } from "@/hooks/useProducts";
@@ -11,8 +12,10 @@ import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { ProductForm } from "@/components/admin/ProductForm";
+import { useAdmin } from "@/hooks/useAdmin";
+import { useCities } from "@/hooks/useBookings";
 
-const CSV_HEADERS = ["name", "description", "price", "cost_price", "category", "item_type", "sku", "unit_of_measure", "hsn_code", "sac_code", "gst_rate", "in_stock", "opening_stock", "reorder_level", "reorder_quantity", "duration_minutes", "bookable"];
+const CSV_HEADERS = ["name", "description", "price", "cost_price", "category", "item_type", "sku", "unit_of_measure", "hsn_code", "sac_code", "gst_rate", "in_stock", "opening_stock", "reorder_level", "reorder_quantity", "duration_minutes", "bookable", "city"];
 
 function parseCSVLine(line: string): string[] {
   const result: string[] = [];
@@ -39,10 +42,31 @@ export function AdminProductsTab() {
   const queryClient = useQueryClient();
   const { data: products, isLoading } = useAllProducts();
   const currency = useDefaultCurrency();
+  const { isAdmin, isSiteAdmin, assignedCities } = useAdmin();
+  const { data: allCities } = useCities();
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [cityFilter, setCityFilter] = useState<string>("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Filter products by city for display
+  const filteredProducts = useMemo(() => {
+    if (!products) return [];
+    let list = products as any[];
+    if (isSiteAdmin && !isAdmin) {
+      // Site-admin sees global + their cities
+      list = list.filter((p: any) => !p.city || assignedCities.includes(p.city));
+    }
+    if (cityFilter !== "all") {
+      if (cityFilter === "global") {
+        list = list.filter((p: any) => !p.city);
+      } else {
+        list = list.filter((p: any) => p.city === cityFilter);
+      }
+    }
+    return list;
+  }, [products, cityFilter, isAdmin, isSiteAdmin, assignedCities]);
 
   const handleSave = async (data: any) => {
     const { error } = editingProduct?.id
@@ -66,8 +90,8 @@ export function AdminProductsTab() {
   };
 
   const handleExport = () => {
-    if (!products?.length) return;
-    const rows = products.map((p: any) => CSV_HEADERS.map((h) => {
+    if (!filteredProducts.length) return;
+    const rows = filteredProducts.map((p: any) => CSV_HEADERS.map((h) => {
       const val = p[h];
       if (val === null || val === undefined) return "";
       const str = String(val);
@@ -81,7 +105,7 @@ export function AdminProductsTab() {
     a.download = `products_${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast({ title: "Exported", description: `${products.length} items exported.` });
+    toast({ title: "Exported", description: `${filteredProducts.length} items exported.` });
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,6 +144,14 @@ export function AdminProductsTab() {
         row.reorder_level = row.reorder_level ? Number(row.reorder_level) : null;
         row.reorder_quantity = row.reorder_quantity ? Number(row.reorder_quantity) : null;
         row.duration_minutes = row.duration_minutes ? Number(row.duration_minutes) : null;
+        // City: use CSV value, or auto-assign for site-admin
+        if (row.city && row.city.trim()) {
+          row.city = row.city.trim();
+        } else if (isSiteAdmin && !isAdmin && assignedCities.length === 1) {
+          row.city = assignedCities[0];
+        } else {
+          row.city = null;
+        }
         rows.push(row);
       }
       if (rows.length === 0) throw new Error("No valid data rows found.");
@@ -159,24 +191,38 @@ export function AdminProductsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2 justify-end">
-        <Button variant="outline" onClick={handleExport} disabled={!products?.length}>
-          <Download className="mr-2 h-4 w-4" /> Export CSV
-        </Button>
-        <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
-          {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-          Import CSV
-        </Button>
-        <input ref={fileInputRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleImport} />
-        <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingProduct(null); }}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setEditingProduct({})}><Plus className="mr-2 h-4 w-4" />Add Item</Button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-            <DialogHeader><DialogTitle>{editingProduct?.id ? "Edit Item" : "New Item"}</DialogTitle></DialogHeader>
-            <ProductForm product={editingProduct} onSave={handleSave} onCancel={() => { setDialogOpen(false); setEditingProduct(null); }} />
-          </DialogContent>
-        </Dialog>
+      <div className="flex flex-wrap items-center gap-2 justify-between">
+        <div className="flex items-center gap-2">
+          <Select value={cityFilter} onValueChange={setCityFilter}>
+            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by location" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Locations</SelectItem>
+              <SelectItem value="global">Global Only</SelectItem>
+              {(isSiteAdmin && !isAdmin ? assignedCities : (allCities ?? [])).map((c: string) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={handleExport} disabled={!filteredProducts.length}>
+            <Download className="mr-2 h-4 w-4" /> Export CSV
+          </Button>
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+            {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+            Import CSV
+          </Button>
+          <input ref={fileInputRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleImport} />
+          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingProduct(null); }}>
+            <DialogTrigger asChild>
+              <Button onClick={() => setEditingProduct({})}><Plus className="mr-2 h-4 w-4" />Add Item</Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+              <DialogHeader><DialogTitle>{editingProduct?.id ? "Edit Item" : "New Item"}</DialogTitle></DialogHeader>
+              <ProductForm product={editingProduct} onSave={handleSave} onCancel={() => { setDialogOpen(false); setEditingProduct(null); }} />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
       <Alert className="border-muted bg-muted/30">
         <Info className="h-4 w-4" />
@@ -186,8 +232,8 @@ export function AdminProductsTab() {
       </Alert>
       {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
         <div className="space-y-3">
-          {(products ?? []).length === 0 && <p className="text-center text-muted-foreground py-8">No products or services yet.</p>}
-          {(products ?? []).map((product) => {
+          {filteredProducts.length === 0 && <p className="text-center text-muted-foreground py-8">No products or services yet.</p>}
+          {filteredProducts.map((product: any) => {
             const p = product as any;
             const isService = p.item_type === "service";
             return (
@@ -200,6 +246,11 @@ export function AdminProductsTab() {
                         {isService ? "Service" : "Product"}
                       </Badge>
                       {p.sku && <span className="text-[10px] text-muted-foreground font-mono">{p.sku}</span>}
+                      {p.city ? (
+                        <Badge variant="secondary" className="text-[10px]">{p.city}</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground">Global</Badge>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground truncate">
                       {currency.format(Number(product.price))} · {product.category}
@@ -212,8 +263,12 @@ export function AdminProductsTab() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {!product.in_stock && <Badge variant="secondary">Out of stock</Badge>}
-                    <Button variant="outline" size="icon" onClick={() => { setEditingProduct(product); setDialogOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="outline" size="icon" onClick={() => handleDelete(product.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    {(isAdmin || (isSiteAdmin && p.city)) && (
+                      <>
+                        <Button variant="outline" size="icon" onClick={() => { setEditingProduct(product); setDialogOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                        <Button variant="outline" size="icon" onClick={() => handleDelete(product.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      </>
+                    )}
                   </div>
                 </CardContent>
               </Card>
