@@ -55,6 +55,15 @@ export function AdminWalkInBookingTab() {
   const { data: cities = [] } = useCities();
   const { selectedCity: globalCity } = useAdminCity();
 
+  // Auto-set city when global city is selected
+  useEffect(() => {
+    if (globalCity && globalCity !== selectedCity) {
+      setSelectedCity(globalCity);
+      setSelectedBayId("");
+      setSelectedSlot(null);
+    }
+  }, [globalCity]);
+
   const cityBays = useMemo(() => {
     return (bays ?? []).filter((b: any) => b.city === selectedCity && b.is_active);
   }, [bays, selectedCity]);
