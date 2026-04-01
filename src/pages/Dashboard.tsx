@@ -12,6 +12,7 @@ import { Link } from "react-router-dom";
 import { useUserPoints } from "@/hooks/usePoints";
 import { useUserHoursBalance, useUserProfile } from "@/hooks/useBookings";
 import { useHourPackages } from "@/hooks/usePricing";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { EmailPreferencesCard } from "@/components/EmailPreferencesCard";
