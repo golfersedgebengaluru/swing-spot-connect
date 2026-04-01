@@ -49,7 +49,7 @@ function useRevenueForPeriod(city: string, startDate?: string, endDate?: string)
       let revenue = 0;
       let refunds = 0;
       (data ?? []).forEach((t: any) => {
-        if (t.transaction_type === "Refund" || t.amount < 0) {
+        if (t.transaction_type === "refund" || t.amount < 0) {
           refunds += Math.abs(t.amount);
         } else {
           revenue += t.amount;
