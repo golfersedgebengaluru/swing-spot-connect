@@ -27,6 +27,14 @@ const pageVisibilityItems = [
   { key: "page_rewards_visible", label: "Rewards", description: "Show the Rewards tab in navigation" },
 ];
 
+const dashboardWidgetItems = [
+  { key: "dashboard_handicap_visible", label: "Current Handicap", description: "Show handicap stat on member dashboard" },
+  { key: "dashboard_hours_balance_visible", label: "Hours Balance", description: "Show hours balance stat on member dashboard" },
+  { key: "dashboard_leaderboard_rank_visible", label: "Leaderboard Rank", description: "Show leaderboard rank stat on member dashboard" },
+  { key: "dashboard_reward_points_visible", label: "Reward Points", description: "Show reward points stat on member dashboard" },
+  { key: "dashboard_recent_visits_visible", label: "Recent Visits", description: "Show recent visits section on member dashboard" },
+];
+
 function PageVisibilitySettings() {
   const { data: visibility, isLoading } = usePageVisibility();
   const updateVisibility = useUpdatePageVisibility();
