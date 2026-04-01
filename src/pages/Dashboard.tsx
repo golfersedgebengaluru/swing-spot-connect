@@ -157,12 +157,15 @@ export default function Dashboard() {
     }
   };
 
-  const stats = [
-    { label: "Current Handicap", value: "12.4", change: "-0.8", icon: Target, positive: true, tooltip: "" },
-    { label: "Hours Balance", value: `${balance?.remaining ?? 0}`, change: "", icon: Clock, positive: true, tooltip: "Used to book practice sessions. 1 hour = 1 booking slot." },
-    { label: "Leaderboard Rank", value: "#12", change: "+3", icon: Trophy, positive: true, tooltip: "" },
-    { label: "Reward Points", value: currentPoints.toLocaleString(), change: "", icon: Gift, positive: true, tooltip: "Earned through activity. Redeem for perks in the Rewards section." },
+  const allStats = [
+    { key: "dashboard_handicap_visible", label: "Current Handicap", value: "12.4", change: "-0.8", icon: Target, positive: true, tooltip: "" },
+    { key: "dashboard_hours_balance_visible", label: "Hours Balance", value: `${balance?.remaining ?? 0}`, change: "", icon: Clock, positive: true, tooltip: "Used to book practice sessions. 1 hour = 1 booking slot." },
+    { key: "dashboard_leaderboard_rank_visible", label: "Leaderboard Rank", value: "#12", change: "+3", icon: Trophy, positive: true, tooltip: "" },
+    { key: "dashboard_reward_points_visible", label: "Reward Points", value: currentPoints.toLocaleString(), change: "", icon: Gift, positive: true, tooltip: "Earned through activity. Redeem for perks in the Rewards section." },
   ];
+  const stats = allStats.filter((s) => visibility?.[s.key] !== false);
+  const showRecentVisits = visibility?.dashboard_recent_visits_visible !== false;
+  const showUpcomingEvents = visibility?.page_events_visible === true;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
