@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { TrendingUp, Trophy, Gift, Target, Clock, ArrowRight, HelpCircle, Package, Loader2, Timer, CreditCard } from "lucide-react";
+import { TrendingUp, Trophy, Gift, Target, Clock, ArrowRight, HelpCircle, Package, Loader2, Timer, CreditCard, GraduationCap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useUserPoints } from "@/hooks/usePoints";
 import { useUserHoursBalance, useUserProfile } from "@/hooks/useBookings";
 import { useHourPackages } from "@/hooks/usePricing";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { EmailPreferencesCard } from "@/components/EmailPreferencesCard";
@@ -43,6 +44,22 @@ export default function Dashboard() {
   const { data: profile } = useUserProfile();
   const [buyingPkgId, setBuyingPkgId] = useState<string | null>(null);
   const { data: visibility } = usePageVisibility();
+  const userCity = profile?.preferred_city;
+  const { data: coachingHoursPerSession } = useQuery({
+    queryKey: ["coaching_hours_city", userCity],
+    queryFn: async () => {
+      if (!userCity) return null;
+      const { data } = await supabase
+        .from("bays")
+        .select("coaching_hours")
+        .eq("city", userCity)
+        .eq("is_active", true)
+        .limit(1)
+        .single();
+      return data?.coaching_hours ?? null;
+    },
+    enabled: !!userCity,
+  });
   const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || "Golfer";
   const activePackages = (hourPackages ?? []).filter((p: any) => p.is_active && p.price > 0);
 
@@ -260,6 +277,12 @@ export default function Dashboard() {
                     <p className="font-medium text-foreground">Bay Hours</p>
                     <p className="font-display text-3xl font-bold text-primary">{balance?.remaining ?? 0}</p>
                     <p className="mt-1 text-xs text-muted-foreground">Used to book practice sessions. 1 hour = 1 booking slot.</p>
+                    {coachingHoursPerSession != null && (
+                      <p className="mt-0.5 text-xs text-muted-foreground flex items-center gap-1">
+                        <GraduationCap className="h-3 w-3" />
+                        Coaching: {coachingHoursPerSession}h per session
+                      </p>
+                    )}
                     <Link to="/bookings">
                       <Button variant="link" size="sm" className="mt-1 h-auto p-0 text-xs">Book a bay <ArrowRight className="ml-1 h-3 w-3" /></Button>
                     </Link>
