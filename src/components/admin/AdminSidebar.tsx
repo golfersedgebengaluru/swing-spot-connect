@@ -45,6 +45,8 @@ const coreItems = [
 ];
 
 const operationsItems = [
+  { id: "salesinvoices", label: "Sales & Invoices", icon: Receipt },
+  { id: "expenses", label: "Expenses", icon: Receipt },
   { id: "products", label: "Products", icon: ShoppingBag },
   { id: "finance", label: "Finance Settings", icon: Receipt },
 ];
