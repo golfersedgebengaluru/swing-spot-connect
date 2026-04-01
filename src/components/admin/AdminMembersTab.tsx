@@ -181,7 +181,7 @@ export function AdminMembersTab() {
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
 
   const loadProfiles = async () => {
-    const { data } = await supabase.from("profiles").select("user_id, display_name, email, preferred_city");
+    const { data } = await supabase.from("profiles").select("id, user_id, display_name, email, preferred_city");
     let filtered = data ?? [];
     if (!isAdmin) {
       const citiesToFilter = selectedCity ? [selectedCity] : assignedCities;
