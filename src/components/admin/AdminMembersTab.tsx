@@ -42,6 +42,8 @@ function TransactionHistory({ userId }: { userId: string }) {
 
 function MemberHoursForm({ onSave, onCancel, profiles }: { onSave: (data: any) => void; onCancel: () => void; profiles: any[] }) {
   const [form, setForm] = useState({ user_id: "", hours_purchased: 0 });
+  // Use user_id if available, otherwise fall back to profile id
+  const selectableProfiles = profiles.filter((p: any) => p.user_id || p.id);
   return (
     <div className="space-y-4">
       <div>
@@ -49,16 +51,19 @@ function MemberHoursForm({ onSave, onCancel, profiles }: { onSave: (data: any) =
         <Select value={form.user_id} onValueChange={(v) => setForm({ ...form, user_id: v })}>
           <SelectTrigger><SelectValue placeholder="Select a member" /></SelectTrigger>
           <SelectContent>
-            {profiles.map((p: any) => (
-              <SelectItem key={p.user_id} value={p.user_id}>{p.display_name || p.user_id}</SelectItem>
-            ))}
+            {selectableProfiles.map((p: any) => {
+              const val = p.user_id || p.id;
+              return (
+                <SelectItem key={val} value={val}>{p.display_name || p.email || val}</SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
       </div>
       <div><Label>Hours Purchased</Label><Input type="number" step="0.5" value={form.hours_purchased} onChange={(e) => setForm({ ...form, hours_purchased: Number(e.target.value) })} /></div>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button onClick={() => onSave(form)} disabled={!form.user_id || form.hours_purchased <= 0}>Add Member</Button>
+        <Button onClick={() => onSave(form)} disabled={!form.user_id || form.hours_purchased <= 0}>Add Hours</Button>
       </div>
     </div>
   );
