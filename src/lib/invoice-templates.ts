@@ -118,7 +118,7 @@ function classicTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: 
       <div>
         ${settings.logo_url ? `<div style="margin-bottom:8px;">${logoImg(settings.logo_url)}</div>` : ""}
         <h1 style="font-size:18px;font-weight:700;margin:0;">${inv.business_name}</h1>
-        <p style="font-size:12px;color:#666;margin:2px 0;">GSTIN: ${inv.business_gstin}</p>
+        ${isGstRegistered(inv.business_gstin) ? `<p style="font-size:12px;color:#666;margin:2px 0;">GSTIN: ${inv.business_gstin}</p>` : ""}
         ${inv.business_address ? `<p style="font-size:12px;color:#666;margin:2px 0;">${inv.business_address}</p>` : ""}
         ${inv.business_state ? `<p style="font-size:12px;color:#666;margin:2px 0;">${inv.business_state} (${inv.business_state_code})</p>` : ""}
       </div>
