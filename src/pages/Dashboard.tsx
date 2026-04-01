@@ -7,27 +7,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { TrendingUp, Trophy, Calendar, Gift, Target, Clock, ArrowRight, HelpCircle, Package, Loader2, Timer, CreditCard } from "lucide-react";
+import { TrendingUp, Trophy, Gift, Target, Clock, ArrowRight, HelpCircle, Package, Loader2, Timer, CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useUserPoints } from "@/hooks/usePoints";
 import { useUserHoursBalance, useUserProfile } from "@/hooks/useBookings";
 import { useHourPackages } from "@/hooks/usePricing";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { EmailPreferencesCard } from "@/components/EmailPreferencesCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
-const recentRounds = [
-  { date: "Nov 28", course: "Bay 3", score: 78, par: 72 },
-  { date: "Nov 25", course: "Bay 1", score: 82, par: 72 },
-  { date: "Nov 22", course: "Bay 5", score: 76, par: 72 },
-];
-
-const upcomingEvents = [
-  { name: "Weekend Tournament", date: "Dec 7", spots: "4 spots left" },
-  { name: "Beginners Clinic", date: "Dec 10", spots: "Open" },
-  { name: "Holiday Cup", date: "Dec 21", spots: "Registration open" },
+const recentVisits = [
+  { date: "Nov 28", bay: "Bay 3", points: 150 },
+  { date: "Nov 25", bay: "Bay 1", points: 100 },
+  { date: "Nov 22", bay: "Bay 5", points: 200 },
 ];
 
 export default function Dashboard() {
@@ -47,6 +42,7 @@ export default function Dashboard() {
   const { data: hourPackages, isLoading: loadingPackages } = useHourPackages();
   const { data: profile } = useUserProfile();
   const [buyingPkgId, setBuyingPkgId] = useState<string | null>(null);
+  const { data: visibility } = usePageVisibility();
   const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || "Golfer";
   const activePackages = (hourPackages ?? []).filter((p: any) => p.is_active && p.price > 0);
 
@@ -161,12 +157,15 @@ export default function Dashboard() {
     }
   };
 
-  const stats = [
-    { label: "Current Handicap", value: "12.4", change: "-0.8", icon: Target, positive: true, tooltip: "" },
-    { label: "Hours Balance", value: `${balance?.remaining ?? 0}`, change: "", icon: Clock, positive: true, tooltip: "Used to book practice sessions. 1 hour = 1 booking slot." },
-    { label: "Leaderboard Rank", value: "#12", change: "+3", icon: Trophy, positive: true, tooltip: "" },
-    { label: "Reward Points", value: currentPoints.toLocaleString(), change: "", icon: Gift, positive: true, tooltip: "Earned through activity. Redeem for perks in the Rewards section." },
+  const allStats = [
+    { key: "dashboard_handicap_visible", label: "Current Handicap", value: "12.4", change: "-0.8", icon: Target, positive: true, tooltip: "" },
+    { key: "dashboard_hours_balance_visible", label: "Hours Balance", value: `${balance?.remaining ?? 0}`, change: "", icon: Clock, positive: true, tooltip: "Used to book practice sessions. 1 hour = 1 booking slot." },
+    { key: "dashboard_leaderboard_rank_visible", label: "Leaderboard Rank", value: "#12", change: "+3", icon: Trophy, positive: true, tooltip: "" },
+    { key: "dashboard_reward_points_visible", label: "Reward Points", value: currentPoints.toLocaleString(), change: "", icon: Gift, positive: true, tooltip: "Earned through activity. Redeem for perks in the Rewards section." },
   ];
+  const stats = allStats.filter((s) => visibility?.[s.key] !== false);
+  const showRecentVisits = visibility?.dashboard_recent_visits_visible !== false;
+  const showUpcomingEvents = visibility?.page_events_visible === true;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -285,71 +284,53 @@ export default function Dashboard() {
 
           {/* Content Grid */}
           <div className="grid gap-6 lg:grid-cols-2">
-            {/* Recent Rounds */}
-            <Card className="shadow-elegant">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="font-display text-xl">Recent Rounds</CardTitle>
-                <Link to="/history">
-                  <Button variant="ghost" size="sm">View All</Button>
-                </Link>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {recentRounds.map((round, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
-                    >
-                      <div>
-                        <p className="font-medium text-foreground">{round.course}</p>
-                        <p className="text-sm text-muted-foreground">{round.date}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-display text-2xl font-bold text-foreground">
-                          {round.score}
-                        </p>
-                        <p className={`text-sm ${round.score <= round.par ? "text-primary" : "text-muted-foreground"}`}>
-                          {round.score - round.par > 0 ? "+" : ""}{round.score - round.par} par
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Upcoming Events */}
-            <Card className="shadow-elegant">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="font-display text-xl">Upcoming Events</CardTitle>
-                <Link to="/events">
-                  <Button variant="ghost" size="sm">View All</Button>
-                </Link>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {upcomingEvents.map((event, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                          <Calendar className="h-5 w-5 text-primary" />
-                        </div>
+            {/* Recent Visits */}
+            {showRecentVisits && (
+              <Card className="shadow-elegant">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="font-display text-xl">Recent Visits</CardTitle>
+                  <Link to="/my-bookings">
+                    <Button variant="ghost" size="sm">View All</Button>
+                  </Link>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {recentVisits.map((visit, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
+                      >
                         <div>
-                          <p className="font-medium text-foreground">{event.name}</p>
-                          <p className="text-sm text-muted-foreground">{event.date}</p>
+                          <p className="font-medium text-foreground">{visit.bay}</p>
+                          <p className="text-sm text-muted-foreground">{visit.date}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-display text-2xl font-bold text-primary">
+                            +{visit.points}
+                          </p>
+                          <p className="text-sm text-muted-foreground">points earned</p>
                         </div>
                       </div>
-                      <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
-                        {event.spots}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Upcoming Events — only shown when events page is enabled */}
+            {showUpcomingEvents && (
+              <Card className="shadow-elegant">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="font-display text-xl">Upcoming Events</CardTitle>
+                  <Link to="/events">
+                    <Button variant="ghost" size="sm">View All</Button>
+                  </Link>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground text-sm">Check the Events page for upcoming tournaments and clinics.</p>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Buy Hours */}

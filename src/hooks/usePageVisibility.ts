@@ -7,6 +7,11 @@ const PAGE_KEYS = [
   "page_shop_visible",
   "page_rewards_visible",
   "page_events_visible",
+  "dashboard_handicap_visible",
+  "dashboard_hours_balance_visible",
+  "dashboard_leaderboard_rank_visible",
+  "dashboard_reward_points_visible",
+  "dashboard_recent_visits_visible",
 ] as const;
 
 export type PageVisibility = Record<string, boolean>;
