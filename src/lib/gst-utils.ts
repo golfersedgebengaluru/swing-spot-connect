@@ -1,3 +1,12 @@
+// Check if a GSTIN represents a registered entity (not empty or all zeros)
+export function isGstRegistered(gstin?: string | null): boolean {
+  if (!gstin) return false;
+  const trimmed = gstin.trim();
+  if (trimmed.length === 0) return false;
+  if (/^0+$/.test(trimmed)) return false;
+  return true;
+}
+
 // Indian States with GST state codes
 export const INDIAN_STATES = [
   { code: "01", name: "Jammu and Kashmir" },
