@@ -168,6 +168,7 @@ export function AdminAllUsersTab() {
     { value: "non-registered", label: "Guest" },
     { value: "birdie", label: "Birdie Member" },
     { value: "coaching", label: "Coaching Member" },
+    { value: "guest", label: "Pre-registered" },
   ];
 
   const { data: allUsers, isLoading } = useQuery({
@@ -317,9 +318,10 @@ export function AdminAllUsersTab() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Pre-Register New User</DialogTitle></DialogHeader>
             <PreRegisterUserForm onSave={async (data) => {
-              const insertData: Record<string, string> = {
+               const insertData: Record<string, string> = {
                 display_name: data.display_name,
                 email: data.email,
+                user_type: 'guest',
               };
               if (selectedCity) insertData.preferred_city = selectedCity;
               const { error } = await supabase.from("profiles").insert(insertData);
@@ -394,10 +396,10 @@ export function AdminAllUsersTab() {
                      <TableCell className="font-medium">{u.display_name || "Unknown"}</TableCell>
                      <TableCell className="text-sm text-muted-foreground">{u.email || "—"}</TableCell>
                      <TableCell>
-                       <Badge variant={u.user_id ? "secondary" : "outline"}>
-                         {u.user_id ? "Active" : "Pending"}
-                       </Badge>
-                     </TableCell>
+                        <Badge variant={!u.user_id && u.user_type === 'guest' ? "outline" : "secondary"}>
+                          {!u.user_id && u.user_type === 'guest' ? "Pending" : "Active"}
+                        </Badge>
+                      </TableCell>
                      <TableCell>
                        <Select value={u.user_type || "registered"} onValueChange={(v) => handleChangeUserType(u.id, v)}>
                          <SelectTrigger className="w-[150px] h-8 text-xs">
