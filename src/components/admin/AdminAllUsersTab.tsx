@@ -198,7 +198,8 @@ export function AdminAllUsersTab() {
           );
         }
       } else if (selectedCity) {
-        // Admin with city filter selected
+        // Admin with city filter selected — include users with matching preferred_city,
+        // bookings in that city, OR no preferred_city (newly registered/unassigned)
         const { data: cityBookings } = await supabase
           .from("bookings")
           .select("user_id, city")
@@ -207,6 +208,7 @@ export function AdminAllUsersTab() {
 
         filtered = filtered.filter((p: any) =>
           p.preferred_city === selectedCity ||
+          !p.preferred_city ||
           (p.user_id && bookingUserIds.has(p.user_id))
         );
       }
@@ -304,10 +306,12 @@ export function AdminAllUsersTab() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Pre-Register New User</DialogTitle></DialogHeader>
             <PreRegisterUserForm onSave={async (data) => {
-              const { error } = await supabase.from("profiles").insert({
+              const insertData: Record<string, string> = {
                 display_name: data.display_name,
                 email: data.email,
-              });
+              };
+              if (selectedCity) insertData.preferred_city = selectedCity;
+              const { error } = await supabase.from("profiles").insert(insertData);
               if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
               toast({ title: "User pre-registered", description: `${data.display_name} will be linked when they sign in with ${data.email}.` });
               queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
@@ -328,6 +332,7 @@ export function AdminAllUsersTab() {
               };
               if (data.email.trim()) insertData.email = data.email.trim();
               if (data.phone.trim()) insertData.phone = data.phone.trim();
+              if (selectedCity) insertData.preferred_city = selectedCity;
               const { error } = await supabase.from("profiles").insert(insertData);
               if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
               toast({ title: "User registered", description: `${data.display_name} has been registered.` });
