@@ -198,7 +198,8 @@ export function AdminAllUsersTab() {
           );
         }
       } else if (selectedCity) {
-        // Admin with city filter selected
+        // Admin with city filter selected — include users with matching preferred_city,
+        // bookings in that city, OR no preferred_city (newly registered/unassigned)
         const { data: cityBookings } = await supabase
           .from("bookings")
           .select("user_id, city")
@@ -207,6 +208,7 @@ export function AdminAllUsersTab() {
 
         filtered = filtered.filter((p: any) =>
           p.preferred_city === selectedCity ||
+          !p.preferred_city ||
           (p.user_id && bookingUserIds.has(p.user_id))
         );
       }
