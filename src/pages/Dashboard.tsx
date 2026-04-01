@@ -20,12 +20,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
-const recentVisits = [
-  { date: "Nov 28", bay: "Bay 3", points: 150 },
-  { date: "Nov 25", bay: "Bay 1", points: 100 },
-  { date: "Nov 22", bay: "Bay 5", points: 200 },
-];
-
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
