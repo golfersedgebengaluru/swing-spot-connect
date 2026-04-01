@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,24 +9,32 @@ import { Loader2, Search, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useVendors, useCreateVendor } from "@/hooks/useVendors";
 import { useExpenseCategories } from "@/hooks/useExpenseCategories";
-import { useCreateExpense } from "@/hooks/useExpenses";
+import { useCreateExpense, useUpdateExpense, type Expense } from "@/hooks/useExpenses";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   city: string;
+  /** When set, dialog enters edit mode */
+  editExpense?: Expense | null;
+  /** When set, dialog pre-fills for duplication (no id) */
+  duplicateExpense?: Expense | null;
 }
 
 const PAYMENT_METHODS = ["Cash", "Card", "UPI", "Bank Transfer"];
 
-export function AddExpenseDialog({ open, onOpenChange, city }: Props) {
+export function AddExpenseDialog({ open, onOpenChange, city, editExpense, duplicateExpense }: Props) {
   const { toast } = useToast();
   const currency = useDefaultCurrency();
   const { data: vendors } = useVendors(city);
   const { data: categories } = useExpenseCategories();
   const createExpense = useCreateExpense();
+  const updateExpense = useUpdateExpense();
   const createVendor = useCreateVendor();
+
+  const prefill = editExpense || duplicateExpense;
+  const isEdit = !!editExpense;
 
   const [vendorId, setVendorId] = useState<string | null>(null);
   const [vendorSearch, setVendorSearch] = useState("");
@@ -41,6 +49,22 @@ export function AddExpenseDialog({ open, onOpenChange, city }: Props) {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [paymentRef, setPaymentRef] = useState("");
   const [notes, setNotes] = useState("");
+
+  // Pre-fill when editing or duplicating
+  useEffect(() => {
+    if (open && prefill) {
+      setVendorId(prefill.vendor_id || null);
+      setExpenseDate(prefill.expense_date);
+      setCategoryId(prefill.category_id || "");
+      setBaseAmount(String(prefill.subtotal));
+      const gstTotal = prefill.cgst_total + prefill.sgst_total + prefill.igst_total;
+      const computedRate = prefill.subtotal > 0 ? Math.round(gstTotal / prefill.subtotal * 100) : 0;
+      setGstRate(String(computedRate));
+      setPaymentMethod(prefill.payment_method || "");
+      setPaymentRef(prefill.payment_reference || "");
+      setNotes(prefill.notes || "");
+    }
+  }, [open, prefill]);
 
   const filteredVendors = useMemo(() => {
     if (!vendors || !vendorSearch) return [];
@@ -89,22 +113,29 @@ export function AddExpenseDialog({ open, onOpenChange, city }: Props) {
       toast({ title: "Select payment method", variant: "destructive" }); return;
     }
 
+    const payload = {
+      vendor_id: vendorId || null,
+      expense_date: expenseDate,
+      category_id: categoryId || null,
+      subtotal: base,
+      cgst_total: rate > 0 ? Math.round(gstAmount / 2 * 100) / 100 : 0,
+      sgst_total: rate > 0 ? Math.round(gstAmount / 2 * 100) / 100 : 0,
+      igst_total: 0,
+      total,
+      payment_method: paymentMethod,
+      payment_reference: paymentRef || undefined,
+      city,
+      notes: notes || undefined,
+    };
+
     try {
-      await createExpense.mutateAsync({
-        vendor_id: vendorId || null,
-        expense_date: expenseDate,
-        category_id: categoryId || null,
-        subtotal: base,
-        cgst_total: rate > 0 ? Math.round(gstAmount / 2 * 100) / 100 : 0,
-        sgst_total: rate > 0 ? Math.round(gstAmount / 2 * 100) / 100 : 0,
-        igst_total: 0,
-        total,
-        payment_method: paymentMethod,
-        payment_reference: paymentRef || undefined,
-        city,
-        notes: notes || undefined,
-      });
-      toast({ title: "Expense added" });
+      if (isEdit && editExpense) {
+        await updateExpense.mutateAsync({ id: editExpense.id, ...payload });
+        toast({ title: "Expense updated" });
+      } else {
+        await createExpense.mutateAsync(payload);
+        toast({ title: "Expense added" });
+      }
       onOpenChange(false);
       resetForm();
     } catch (err: any) {
@@ -115,13 +146,17 @@ export function AddExpenseDialog({ open, onOpenChange, city }: Props) {
   const resetForm = () => {
     setVendorId(null); setVendorSearch(""); setExpenseDate(new Date().toISOString().split("T")[0]);
     setCategoryId(""); setBaseAmount(""); setGstRate("0"); setPaymentMethod("");
-    setPaymentRef(""); setNotes("");
+    setPaymentRef(""); setNotes(""); setShowQuickAdd(false);
   };
+
+  const isSaving = createExpense.isPending || updateExpense.isPending;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) resetForm(); }}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader><DialogTitle>Add Expense</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Edit Expense" : duplicateExpense ? "Duplicate Expense" : "Add Expense"}</DialogTitle>
+        </DialogHeader>
         <div className="space-y-4">
           {/* Vendor */}
           <div className="space-y-2">
@@ -236,9 +271,9 @@ export function AddExpenseDialog({ open, onOpenChange, city }: Props) {
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => { onOpenChange(false); resetForm(); }}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={createExpense.isPending}>
-              {createExpense.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add Expense
+            <Button onClick={handleSubmit} disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isEdit ? "Update Expense" : "Add Expense"}
             </Button>
           </div>
         </div>
