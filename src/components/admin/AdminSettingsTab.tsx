@@ -502,6 +502,8 @@ export function AdminSettingsTab() {
       <PageVisibilitySettings />
       <ProductCategoriesCard />
       <UnitOfMeasureCard />
+      <VendorsCard />
+      <ExpenseCategoriesCard />
       <OfflinePaymentMethodsCard />
       <CancellationWindowCard />
       <LowHoursThresholdCard />
