@@ -284,71 +284,53 @@ export default function Dashboard() {
 
           {/* Content Grid */}
           <div className="grid gap-6 lg:grid-cols-2">
-            {/* Recent Rounds */}
-            <Card className="shadow-elegant">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="font-display text-xl">Recent Rounds</CardTitle>
-                <Link to="/history">
-                  <Button variant="ghost" size="sm">View All</Button>
-                </Link>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {recentRounds.map((round, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
-                    >
-                      <div>
-                        <p className="font-medium text-foreground">{round.course}</p>
-                        <p className="text-sm text-muted-foreground">{round.date}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-display text-2xl font-bold text-foreground">
-                          {round.score}
-                        </p>
-                        <p className={`text-sm ${round.score <= round.par ? "text-primary" : "text-muted-foreground"}`}>
-                          {round.score - round.par > 0 ? "+" : ""}{round.score - round.par} par
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Upcoming Events */}
-            <Card className="shadow-elegant">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="font-display text-xl">Upcoming Events</CardTitle>
-                <Link to="/events">
-                  <Button variant="ghost" size="sm">View All</Button>
-                </Link>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {upcomingEvents.map((event, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                          <Calendar className="h-5 w-5 text-primary" />
-                        </div>
+            {/* Recent Visits */}
+            {showRecentVisits && (
+              <Card className="shadow-elegant">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="font-display text-xl">Recent Visits</CardTitle>
+                  <Link to="/my-bookings">
+                    <Button variant="ghost" size="sm">View All</Button>
+                  </Link>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {recentVisits.map((visit, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
+                      >
                         <div>
-                          <p className="font-medium text-foreground">{event.name}</p>
-                          <p className="text-sm text-muted-foreground">{event.date}</p>
+                          <p className="font-medium text-foreground">{visit.bay}</p>
+                          <p className="text-sm text-muted-foreground">{visit.date}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-display text-2xl font-bold text-primary">
+                            +{visit.points}
+                          </p>
+                          <p className="text-sm text-muted-foreground">points earned</p>
                         </div>
                       </div>
-                      <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
-                        {event.spots}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Upcoming Events — only shown when events page is enabled */}
+            {showUpcomingEvents && (
+              <Card className="shadow-elegant">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="font-display text-xl">Upcoming Events</CardTitle>
+                  <Link to="/events">
+                    <Button variant="ghost" size="sm">View All</Button>
+                  </Link>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground text-sm">Check the Events page for upcoming tournaments and clinics.</p>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Buy Hours */}
