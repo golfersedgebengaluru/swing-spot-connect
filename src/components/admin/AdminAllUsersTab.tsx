@@ -290,12 +290,15 @@ export function AdminAllUsersTab() {
         );
       }
 
-      return filtered.map((p: any) => ({
-        ...p,
-        hours_purchased: hoursMap.get(p.user_id)?.hours_purchased ?? 0,
-        hours_used: hoursMap.get(p.user_id)?.hours_used ?? 0,
-        hours_remaining: (hoursMap.get(p.user_id)?.hours_purchased ?? 0) - (hoursMap.get(p.user_id)?.hours_used ?? 0),
-      }));
+      return filtered.map((p: any) => {
+        const uid = p.user_id || p.id;
+        return {
+          ...p,
+          hours_purchased: hoursMap.get(uid)?.hours_purchased ?? 0,
+          hours_used: hoursMap.get(uid)?.hours_used ?? 0,
+          hours_remaining: (hoursMap.get(uid)?.hours_purchased ?? 0) - (hoursMap.get(uid)?.hours_used ?? 0),
+        };
+      });
     },
   });
 
