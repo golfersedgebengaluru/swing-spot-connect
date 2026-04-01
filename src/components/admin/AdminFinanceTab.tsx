@@ -242,6 +242,12 @@ export function AdminFinanceTab() {
         <TabsContent value="expenses">
           {selectedCity && <ExpensesList city={selectedCity} />}
         </TabsContent>
+        <TabsContent value="expense_reports">
+          {selectedCity && <ExpenseReports city={selectedCity} />}
+        </TabsContent>
+        <TabsContent value="pnl">
+          {selectedCity && <ProfitLossView city={selectedCity} />}
+        </TabsContent>
         {showCityFY && (
           <TabsContent value="financial_year">
             {selectedCity && (
