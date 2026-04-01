@@ -115,16 +115,17 @@ function AdminRedeemForm({ profiles, rewards, onSave, onCancel }: { profiles: an
   );
 }
 
-function PreRegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_name: string; email: string }) => void; onCancel: () => void }) {
-  const [form, setForm] = useState({ display_name: "", email: "" });
+function RegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_name: string; email: string; phone: string }) => void; onCancel: () => void }) {
+  const [form, setForm] = useState({ display_name: "", email: "", phone: "" });
   return (
     <div className="space-y-4">
-      <div><Label>Display Name</Label><Input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder="John Smith" /></div>
+      <div><Label>Display Name <span className="text-destructive">*</span></Label><Input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder="John Smith" /></div>
       <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="john@example.com" /></div>
-      <p className="text-xs text-muted-foreground">This user will be automatically linked when they sign in with Google or Apple using this email.</p>
+      <div><Label>Phone</Label><Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+91 98765 43210" /></div>
+      <p className="text-xs text-muted-foreground">If an email is provided, the user will be automatically linked when they sign in with Google or Apple using that email.</p>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button onClick={() => onSave(form)} disabled={!form.display_name || !form.email}>Add User</Button>
+        <Button onClick={() => onSave(form)} disabled={!form.display_name.trim()}>Add User</Button>
       </div>
     </div>
   );
