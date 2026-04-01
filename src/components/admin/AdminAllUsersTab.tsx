@@ -330,6 +330,7 @@ export function AdminAllUsersTab() {
               };
               if (data.email.trim()) insertData.email = data.email.trim();
               if (data.phone.trim()) insertData.phone = data.phone.trim();
+              if (selectedCity) insertData.preferred_city = selectedCity;
               const { error } = await supabase.from("profiles").insert(insertData);
               if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
               toast({ title: "User registered", description: `${data.display_name} has been registered.` });
