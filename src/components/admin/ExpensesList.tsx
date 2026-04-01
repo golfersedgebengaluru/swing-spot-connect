@@ -78,11 +78,9 @@ export function ExpensesList({ city }: Props) {
             <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={!expenses.length}>
               <Download className="h-3.5 w-3.5 mr-1" />CSV
             </Button>
-            {onOpenScanner && (
-              <Button variant="outline" size="sm" onClick={onOpenScanner}>
-                <ScanLine className="h-3.5 w-3.5 mr-1" />Scan Bill
-              </Button>
-            )}
+            <Button variant="outline" size="sm" onClick={() => setScannerOpen(true)}>
+              <ScanLine className="h-3.5 w-3.5 mr-1" />Scan Bill
+            </Button>
             <Button size="sm" onClick={() => setAddOpen(true)}>
               <Plus className="h-3.5 w-3.5 mr-1" />Add Expense
             </Button>
