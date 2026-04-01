@@ -566,12 +566,26 @@ Deno.serve(async (req) => {
       const dayEnd = new Date(`${date}T${close_time}:00${offset}`).getTime();
       const slots: { time: string; available: boolean }[] = [];
 
+      // Calculate earliest bookable slot: next :00 or :30 strictly after now
+      const now = Date.now();
+      const nowDate = new Date(now);
+      const mins = nowDate.getMinutes();
+      let earliest: number;
+      if (mins < 30) {
+        // Round up to :30
+        earliest = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate(), nowDate.getHours(), 30, 0, 0).getTime();
+      } else {
+        // Round up to next :00
+        earliest = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate(), nowDate.getHours() + 1, 0, 0, 0).getTime();
+      }
+
       for (let t = dayStart; t < dayEnd; t += 30 * 60 * 1000) {
         const slotEnd = t + 30 * 60 * 1000;
         const isBusy = busy.some((b) => t < b.end && slotEnd > b.start);
+        const isPast = t < earliest;
         slots.push({
           time: new Date(t).toISOString(),
-          available: !isBusy,
+          available: !isBusy && !isPast,
         });
       }
 
