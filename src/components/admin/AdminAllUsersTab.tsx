@@ -395,8 +395,8 @@ export function AdminAllUsersTab() {
                      <TableCell className="font-medium">{u.display_name || "Unknown"}</TableCell>
                      <TableCell className="text-sm text-muted-foreground">{u.email || "—"}</TableCell>
                      <TableCell>
-                        <Badge variant={u.user_id || u.user_type === 'non-registered' || (!u.user_id && !u.email) ? "secondary" : "outline"}>
-                          {u.user_id ? "Active" : (u.email && u.user_type !== 'non-registered' ? "Pending" : "Active")}
+                        <Badge variant={!u.user_id && u.user_type === 'guest' ? "outline" : "secondary"}>
+                          {!u.user_id && u.user_type === 'guest' ? "Pending" : "Active"}
                         </Badge>
                       </TableCell>
                      <TableCell>
