@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Loader2, MinusCircle, PlusCircle, History, Star, Award, UserCheck, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { Plus, Loader2, MinusCircle, PlusCircle, History, Star, Award, UserCheck, ChevronLeft, ChevronRight, Trash2, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRewards } from "@/hooks/useRewards";
 import { useAllocatePoints, useRedeemPoints, usePointsTransactions } from "@/hooks/usePoints";
@@ -17,6 +17,8 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAdminCity } from "@/contexts/AdminCityContext";
+import { useHoursTransactions } from "@/hooks/useMemberHours";
+import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
 
 function PointsTransactionHistory({ userId }: { userId: string }) {
   const { data: transactions, isLoading } = usePointsTransactions(userId);
@@ -147,6 +149,77 @@ function RegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_name:
   );
 }
 
+function InlineAllocatePointsForm({ userId, displayName, onSave, onCancel }: { userId: string; displayName: string; onSave: (data: { points: number; description: string }) => void; onCancel: () => void }) {
+  const [form, setForm] = useState({ points: 0, description: "" });
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg bg-muted p-3">
+        <p className="text-sm text-muted-foreground">User: <span className="font-medium text-foreground">{displayName}</span></p>
+      </div>
+      <div><Label>Points</Label><Input type="number" min="1" value={form.points} onChange={(e) => setForm({ ...form, points: Number(e.target.value) })} /></div>
+      <div><Label>Reason</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="e.g. Welcome bonus" /></div>
+      <div className="flex gap-2 justify-end">
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button onClick={() => onSave(form)} disabled={form.points <= 0}>Allocate Points</Button>
+      </div>
+    </div>
+  );
+}
+
+function InlineAdjustHoursForm({ userId, displayName, hoursRemaining, onSave, onCancel }: { userId: string; displayName: string; hoursRemaining: number; onSave: (data: { type: string; hours: number; note: string }) => void; onCancel: () => void }) {
+  const [form, setForm] = useState({ type: "purchase", hours: 0, note: "" });
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg bg-muted p-3">
+        <p className="text-sm text-muted-foreground">User: <span className="font-medium text-foreground">{displayName}</span></p>
+        <p className="text-sm text-muted-foreground">Hours remaining: <span className="font-medium text-foreground">{hoursRemaining} hrs</span></p>
+      </div>
+      <div>
+        <Label>Action</Label>
+        <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="purchase">Add Hours</SelectItem>
+            <SelectItem value="deduction">Deduct Hours</SelectItem>
+            <SelectItem value="adjustment">Adjustment</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div><Label>Hours</Label><Input type="number" step="0.5" min="0" value={form.hours} onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })} /></div>
+      <div><Label>Note (optional)</Label><Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="e.g. Bay session 2hrs" /></div>
+      <div className="flex gap-2 justify-end">
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button onClick={() => onSave(form)} disabled={form.hours <= 0}>Confirm</Button>
+      </div>
+    </div>
+  );
+}
+
+function HoursTransactionHistory({ userId }: { userId: string }) {
+  const { data: transactions, isLoading } = useHoursTransactions(userId);
+  if (isLoading) return <Loader2 className="mx-auto h-6 w-6 animate-spin" />;
+  if (!transactions?.length) return <p className="text-sm text-muted-foreground">No hours transactions yet.</p>;
+  return (
+    <div className="space-y-2 max-h-60 overflow-y-auto">
+      {transactions.map((t) => (
+        <div key={t.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+          <div className="flex items-center gap-2">
+            {t.type === "deduction" ? <MinusCircle className="h-4 w-4 text-destructive" /> : <PlusCircle className="h-4 w-4 text-primary" />}
+            <span className="capitalize">{t.type}</span>
+            {t.note && <span className="text-muted-foreground">— {t.note}</span>}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={t.type === "deduction" ? "text-destructive" : "text-primary"}>
+              {t.type === "deduction" ? "-" : "+"}{t.hours} hrs
+            </span>
+            <span className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function AdminAllUsersTab() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -156,6 +229,8 @@ export function AdminAllUsersTab() {
   const redeemPoints = useRedeemPoints();
   const [dialogOpen, setDialogOpen] = useState<string | null>(null);
   const [viewingPointsHistory, setViewingPointsHistory] = useState<string | null>(null);
+  const [viewingHoursHistory, setViewingHoursHistory] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
@@ -278,6 +353,89 @@ export function AdminAllUsersTab() {
     }
   };
 
+  const handleInlineAllocatePoints = async (userId: string, data: { points: number; description: string }) => {
+    try {
+      await allocatePoints.mutateAsync({ userId, points: data.points, description: data.description, adminId: user?.id! });
+      toast({ title: "Points allocated", description: `${data.points} points awarded.` });
+      setDialogOpen(null);
+      setSelectedUser(null);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleInlineAdjustHours = async (userId: string, data: { type: string; hours: number; note: string }) => {
+    try {
+      // Check if member_hours record exists
+      const { data: existing } = await supabase
+        .from("member_hours")
+        .select("id, hours_purchased, hours_used")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (existing) {
+        const newPurchased = data.type === "purchase" || (data.type === "adjustment" && data.hours > 0)
+          ? existing.hours_purchased + data.hours : existing.hours_purchased;
+        const newUsed = data.type === "deduction" ? existing.hours_used + data.hours : existing.hours_used;
+
+        const { error } = await supabase.from("member_hours").update({
+          hours_purchased: newPurchased,
+          hours_used: newUsed,
+        }).eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        // Create new member_hours record
+        const hours_purchased = data.type === "purchase" || data.type === "adjustment" ? data.hours : 0;
+        const hours_used = data.type === "deduction" ? data.hours : 0;
+        const { error } = await supabase.from("member_hours").insert({
+          user_id: userId,
+          hours_purchased,
+          hours_used,
+        });
+        if (error) throw error;
+      }
+
+      // Log transaction
+      await supabase.from("hours_transactions").insert({
+        user_id: userId,
+        type: data.type,
+        hours: data.hours,
+        note: data.note || null,
+        created_by: user?.id,
+      });
+
+      // Notifications for deductions
+      if (data.type === "deduction") {
+        const remaining = existing
+          ? existing.hours_purchased - (existing.hours_used + data.hours)
+          : -data.hours;
+        await supabase.from("notifications").insert({
+          user_id: userId,
+          title: "Hours Deducted",
+          message: `${data.hours} hour(s) have been deducted. You have ${Math.max(0, remaining)} hour(s) remaining.${data.note ? ` Note: ${data.note}` : ""}`,
+          type: "usage",
+        });
+        if (remaining <= 2 && remaining > 0) {
+          sendNotificationEmail({
+            user_id: userId,
+            template: "low_hours_alert",
+            subject: "Low Hours Alert",
+            data: { hours_remaining: remaining, purchase_url: `${window.location.origin}/dashboard` },
+          });
+        }
+      }
+
+      toast({ title: "Hours updated" });
+      queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
+      queryClient.invalidateQueries({ queryKey: ["member_hours"] });
+      queryClient.invalidateQueries({ queryKey: ["hours_transactions", userId] });
+      setDialogOpen(null);
+      setSelectedUser(null);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
   const handleDeleteUser = async (profileId: string, displayName: string) => {
     const { error } = await supabase.from("profiles").delete().eq("id", profileId);
     if (error) {
@@ -363,6 +521,27 @@ export function AdminAllUsersTab() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={dialogOpen === "hourshistory"} onOpenChange={(open) => { setDialogOpen(open ? "hourshistory" : null); if (!open) setViewingHoursHistory(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>Hours History</DialogTitle></DialogHeader>
+          {viewingHoursHistory && <HoursTransactionHistory userId={viewingHoursHistory} />}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogOpen === "inlineallocate"} onOpenChange={(open) => { setDialogOpen(open ? "inlineallocate" : null); if (!open) setSelectedUser(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Allocate Points</DialogTitle></DialogHeader>
+          {selectedUser && <InlineAllocatePointsForm userId={selectedUser.user_id} displayName={selectedUser.display_name || "User"} onSave={(data) => handleInlineAllocatePoints(selectedUser.user_id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogOpen === "inlineadjusthours"} onOpenChange={(open) => { setDialogOpen(open ? "inlineadjusthours" : null); if (!open) setSelectedUser(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Adjust Hours</DialogTitle></DialogHeader>
+          {selectedUser && <InlineAdjustHoursForm userId={selectedUser.user_id} displayName={selectedUser.display_name || "User"} hoursRemaining={selectedUser.hours_remaining ?? 0} onSave={(data) => handleInlineAdjustHours(selectedUser.user_id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
+        </DialogContent>
+      </Dialog>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><UserCheck className="h-5 w-5" />All Users</CardTitle>
@@ -420,32 +599,45 @@ export function AdminAllUsersTab() {
                           {u.hours_remaining}
                         </Badge>
                      </TableCell>
-                      <TableCell className="text-right flex items-center justify-end gap-1">
-                        {u.user_id && (
-                          <Button variant="ghost" size="icon" onClick={() => { setViewingPointsHistory(u.user_id); setDialogOpen("pointshistory"); }}>
-                            <History className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete User</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete <strong>{u.display_name || "this user"}</strong>? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteUser(u.id, u.display_name || "User")} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </TableCell>
+                       <TableCell className="text-right">
+                         <div className="flex items-center justify-end gap-1">
+                           <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" title="Allocate Points" onClick={() => { setSelectedUser(u); setDialogOpen("inlineallocate"); }}>
+                             <Star className="mr-1 h-3.5 w-3.5" />Points
+                           </Button>
+                           <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" title="Adjust Hours" onClick={() => { setSelectedUser(u); setDialogOpen("inlineadjusthours"); }}>
+                             <Clock className="mr-1 h-3.5 w-3.5" />Hours
+                           </Button>
+                           {u.user_id && (
+                             <>
+                               <Button variant="ghost" size="icon" className="h-8 w-8" title="Points History" onClick={() => { setViewingPointsHistory(u.user_id); setDialogOpen("pointshistory"); }}>
+                                 <History className="h-4 w-4" />
+                               </Button>
+                               <Button variant="ghost" size="icon" className="h-8 w-8" title="Hours History" onClick={() => { setViewingHoursHistory(u.user_id); setDialogOpen("hourshistory"); }}>
+                                 <Clock className="h-4 w-4" />
+                               </Button>
+                             </>
+                           )}
+                           <AlertDialog>
+                             <AlertDialogTrigger asChild>
+                               <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                                 <Trash2 className="h-4 w-4" />
+                               </Button>
+                             </AlertDialogTrigger>
+                             <AlertDialogContent>
+                               <AlertDialogHeader>
+                                 <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                 <AlertDialogDescription>
+                                   Are you sure you want to delete <strong>{u.display_name || "this user"}</strong>? This action cannot be undone.
+                                 </AlertDialogDescription>
+                               </AlertDialogHeader>
+                               <AlertDialogFooter>
+                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                 <AlertDialogAction onClick={() => handleDeleteUser(u.id, u.display_name || "User")} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+                               </AlertDialogFooter>
+                             </AlertDialogContent>
+                           </AlertDialog>
+                         </div>
+                       </TableCell>
                    </TableRow>
                  ))}
               </TableBody>
