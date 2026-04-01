@@ -609,16 +609,12 @@ export function AdminAllUsersTab() {
                            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" title="Adjust Hours" onClick={() => { setSelectedUser(u); setDialogOpen("inlineadjusthours"); }}>
                              <Clock className="mr-1 h-3.5 w-3.5" />Hours
                            </Button>
-                           {u.user_id && (
-                             <>
-                               <Button variant="ghost" size="icon" className="h-8 w-8" title="Points History" onClick={() => { setViewingPointsHistory(u.user_id); setDialogOpen("pointshistory"); }}>
-                                 <History className="h-4 w-4" />
-                               </Button>
-                               <Button variant="ghost" size="icon" className="h-8 w-8" title="Hours History" onClick={() => { setViewingHoursHistory(u.user_id); setDialogOpen("hourshistory"); }}>
-                                 <Clock className="h-4 w-4" />
-                               </Button>
-                             </>
-                           )}
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Points History" onClick={() => { setViewingPointsHistory(u.user_id || u.id); setDialogOpen("pointshistory"); }}>
+                              <History className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Hours History" onClick={() => { setViewingHoursHistory(u.user_id || u.id); setDialogOpen("hourshistory"); }}>
+                              <Clock className="h-4 w-4" />
+                            </Button>
                            <AlertDialog>
                              <AlertDialogTrigger asChild>
                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
