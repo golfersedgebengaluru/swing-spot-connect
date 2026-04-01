@@ -90,8 +90,8 @@ export function BillScannerDialog({ open, onOpenChange, city }: Props) {
       const { error: uploadErr } = await supabase.storage.from("expense-bills").upload(path, file);
       if (uploadErr) throw uploadErr;
 
-      const { data: urlData } = supabase.storage.from("expense-bills").getPublicUrl(path);
-      setBillUrl(urlData?.publicUrl || null);
+      // Store the storage path (bucket is private, not public URL)
+      setBillUrl(path);
 
       // Send to edge function
       const formData = new FormData();
