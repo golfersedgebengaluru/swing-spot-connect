@@ -100,6 +100,7 @@ export default function PublicBooking() {
   const hasEnoughHours = (balance?.remaining ?? 0) >= hoursNeeded;
 
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const maxDate = addDays(today, 30);
 
   // Load Razorpay script

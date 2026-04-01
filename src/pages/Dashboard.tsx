@@ -104,7 +104,7 @@ export default function Dashboard() {
           handler: async (response: any) => {
             try {
               // Atomically credit hours — no read-then-write race condition
-              const { error: hoursErr } = await supabase
+              const { error: hoursErr } = await (supabase as any)
                 .rpc("upsert_member_hours", { p_user_id: user.id, p_hours: pkg.hours });
               if (hoursErr) throw hoursErr;
 

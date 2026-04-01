@@ -53,7 +53,7 @@ export function useAllocatePoints() {
       adminId: string;
     }) => {
       // Atomically increment points — no read-then-write race condition
-      const { data: newTotal, error: updateErr } = await supabase
+      const { data: newTotal, error: updateErr } = await (supabase as any)
         .rpc("increment_user_points", { p_user_id: userId, p_delta: points });
       if (updateErr) throw updateErr;
 
@@ -114,7 +114,7 @@ export function useRedeemPoints() {
       adminId?: string;
     }) => {
       // Atomically decrement points with balance check — DB raises exception if insufficient
-      const { data: newTotal, error: updateErr } = await supabase
+      const { data: newTotal, error: updateErr } = await (supabase as any)
         .rpc("decrement_user_points_safe", { p_user_id: userId, p_delta: points });
       if (updateErr) throw new Error(updateErr.message);
 

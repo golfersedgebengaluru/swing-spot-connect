@@ -100,6 +100,7 @@ export function AdminWalkInBookingTab() {
   const canProceedToPayment = selectedCity && currentBay && selectedDate && selectedSlot;
 
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const maxDate = addDays(today, 30);
 
   const handleConfirmBooking = async () => {
