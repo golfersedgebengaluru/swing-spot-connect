@@ -1,4 +1,5 @@
 import type { InvoiceTemplate, InvoiceSettings } from "@/hooks/useInvoiceSettings";
+import { isGstRegistered } from "@/lib/gst-utils";
 
 interface InvoiceData {
   invoice_number: string;
