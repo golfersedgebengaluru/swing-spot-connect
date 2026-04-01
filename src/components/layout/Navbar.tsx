@@ -95,7 +95,7 @@ export function Navbar() {
           </div>
 
           {/* Mobile actions */}
-          <div className="flex items-center gap-1 md:hidden">
+          <div className="flex items-center gap-1 md:hidden shrink-0">
             {isAuthenticated && <NotificationBell />}
             <button
               onClick={() => setIsOpen(!isOpen)}
