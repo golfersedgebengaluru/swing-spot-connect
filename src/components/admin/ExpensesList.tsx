@@ -176,6 +176,7 @@ export function ExpensesList({ city }: Props) {
       </Card>
 
       <AddExpenseDialog open={addOpen} onOpenChange={setAddOpen} city={city} />
+      <BillScannerDialog open={scannerOpen} onOpenChange={setScannerOpen} city={city} />
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
