@@ -1,0 +1,1 @@
+UPDATE public.expenses SET vendor_id = NULL WHERE vendor_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.vendors WHERE id = expenses.vendor_id);

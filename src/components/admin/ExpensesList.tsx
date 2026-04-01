@@ -5,10 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Download, Loader2, Trash2, Receipt, ScanLine, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Download, Loader2, Trash2, Receipt, ScanLine, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useExpenses, useDeleteExpense, type ExpenseFilters } from "@/hooks/useExpenses";
+import { useExpenses, useDeleteExpense, type ExpenseFilters, type Expense } from "@/hooks/useExpenses";
 import { useVendors } from "@/hooks/useVendors";
 import { useExpenseCategories } from "@/hooks/useExpenseCategories";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
@@ -33,6 +34,8 @@ export function ExpensesList({ city }: Props) {
   const [addOpen, setAddOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editExpense, setEditExpense] = useState<Expense | null>(null);
+  const [duplicateExpense, setDuplicateExpense] = useState<Expense | null>(null);
   const [page, setPage] = useState(0);
   const [filters, setFilters] = useState<ExpenseFilters>({ city });
 
@@ -51,6 +54,14 @@ export function ExpensesList({ city }: Props) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
     setDeleteId(null);
+  };
+
+  const handleEdit = (exp: Expense) => {
+    setEditExpense(exp);
+  };
+
+  const handleDuplicate = (exp: Expense) => {
+    setDuplicateExpense(exp);
   };
 
   const handleExportCsv = () => {
@@ -146,9 +157,24 @@ export function ExpensesList({ city }: Props) {
                         <TableCell className="text-right font-medium text-sm">{currency.format(exp.total)}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{exp.payment_method || "—"}</TableCell>
                         <TableCell>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteId(exp.id)}>
-                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <MoreHorizontal className="h-3.5 w-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEdit(exp)}>
+                                <Pencil className="h-3.5 w-3.5 mr-2" />Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDuplicate(exp)}>
+                                <Copy className="h-3.5 w-3.5 mr-2" />Duplicate
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive" onClick={() => setDeleteId(exp.id)}>
+                                <Trash2 className="h-3.5 w-3.5 mr-2" />Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -175,7 +201,25 @@ export function ExpensesList({ city }: Props) {
         </CardContent>
       </Card>
 
+      {/* Add new expense */}
       <AddExpenseDialog open={addOpen} onOpenChange={setAddOpen} city={city} />
+
+      {/* Edit expense */}
+      <AddExpenseDialog
+        open={!!editExpense}
+        onOpenChange={(v) => { if (!v) setEditExpense(null); }}
+        city={city}
+        editExpense={editExpense}
+      />
+
+      {/* Duplicate expense */}
+      <AddExpenseDialog
+        open={!!duplicateExpense}
+        onOpenChange={(v) => { if (!v) setDuplicateExpense(null); }}
+        city={city}
+        duplicateExpense={duplicateExpense}
+      />
+
       <BillScannerDialog open={scannerOpen} onOpenChange={setScannerOpen} city={city} />
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
