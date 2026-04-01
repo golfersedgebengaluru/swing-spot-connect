@@ -353,6 +353,89 @@ export function AdminAllUsersTab() {
     }
   };
 
+  const handleInlineAllocatePoints = async (userId: string, data: { points: number; description: string }) => {
+    try {
+      await allocatePoints.mutateAsync({ userId, points: data.points, description: data.description, adminId: user?.id! });
+      toast({ title: "Points allocated", description: `${data.points} points awarded.` });
+      setDialogOpen(null);
+      setSelectedUser(null);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleInlineAdjustHours = async (userId: string, data: { type: string; hours: number; note: string }) => {
+    try {
+      // Check if member_hours record exists
+      const { data: existing } = await supabase
+        .from("member_hours")
+        .select("id, hours_purchased, hours_used")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (existing) {
+        const newPurchased = data.type === "purchase" || (data.type === "adjustment" && data.hours > 0)
+          ? existing.hours_purchased + data.hours : existing.hours_purchased;
+        const newUsed = data.type === "deduction" ? existing.hours_used + data.hours : existing.hours_used;
+
+        const { error } = await supabase.from("member_hours").update({
+          hours_purchased: newPurchased,
+          hours_used: newUsed,
+        }).eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        // Create new member_hours record
+        const hours_purchased = data.type === "purchase" || data.type === "adjustment" ? data.hours : 0;
+        const hours_used = data.type === "deduction" ? data.hours : 0;
+        const { error } = await supabase.from("member_hours").insert({
+          user_id: userId,
+          hours_purchased,
+          hours_used,
+        });
+        if (error) throw error;
+      }
+
+      // Log transaction
+      await supabase.from("hours_transactions").insert({
+        user_id: userId,
+        type: data.type,
+        hours: data.hours,
+        note: data.note || null,
+        created_by: user?.id,
+      });
+
+      // Notifications for deductions
+      if (data.type === "deduction") {
+        const remaining = existing
+          ? existing.hours_purchased - (existing.hours_used + data.hours)
+          : -data.hours;
+        await supabase.from("notifications").insert({
+          user_id: userId,
+          title: "Hours Deducted",
+          message: `${data.hours} hour(s) have been deducted. You have ${Math.max(0, remaining)} hour(s) remaining.${data.note ? ` Note: ${data.note}` : ""}`,
+          type: "usage",
+        });
+        if (remaining <= 2 && remaining > 0) {
+          sendNotificationEmail({
+            user_id: userId,
+            template: "low_hours_alert",
+            subject: "Low Hours Alert",
+            data: { hours_remaining: remaining, purchase_url: `${window.location.origin}/dashboard` },
+          });
+        }
+      }
+
+      toast({ title: "Hours updated" });
+      queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
+      queryClient.invalidateQueries({ queryKey: ["member_hours"] });
+      queryClient.invalidateQueries({ queryKey: ["hours_transactions", userId] });
+      setDialogOpen(null);
+      setSelectedUser(null);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
   const handleDeleteUser = async (profileId: string, displayName: string) => {
     const { error } = await supabase.from("profiles").delete().eq("id", profileId);
     if (error) {
