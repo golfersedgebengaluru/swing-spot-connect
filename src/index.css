@@ -148,6 +148,13 @@
     @apply bg-background text-foreground font-sans antialiased;
   }
 
+  input::placeholder,
+  textarea::placeholder,
+  select::placeholder {
+    color: hsl(215 16% 65%);
+    opacity: 1;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-display;
   }
