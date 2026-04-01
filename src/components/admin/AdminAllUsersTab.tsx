@@ -501,10 +501,8 @@ export function AdminAllUsersTab() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Register New User</DialogTitle></DialogHeader>
             <RegisterUserForm onSave={async (data) => {
-              const generatedUserId = crypto.randomUUID();
               const insertData: Record<string, string> = {
                 display_name: data.display_name.trim(),
-                user_id: generatedUserId,
               };
               if (data.email.trim()) insertData.email = data.email.trim();
               if (data.phone.trim()) insertData.phone = data.phone.trim();
