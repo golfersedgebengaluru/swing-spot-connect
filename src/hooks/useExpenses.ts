@@ -127,6 +127,10 @@ export function useCreateExpense() {
     mutationFn: async (params: CreateExpenseParams) => {
       const { line_items, ...expenseData } = params;
 
+      // Ensure empty strings become null for FK columns
+      if (!expenseData.vendor_id) expenseData.vendor_id = null;
+      if (!expenseData.category_id) expenseData.category_id = null;
+
       const { data: user } = await supabase.auth.getUser();
       const { data: expense, error } = await (supabase as any)
         .from("expenses")
