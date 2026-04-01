@@ -299,7 +299,26 @@ export function AdminAllUsersTab() {
 
         <Dialog open={dialogOpen === "adduser"} onOpenChange={(open) => setDialogOpen(open ? "adduser" : null)}>
           <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" />Register User</Button>
+            <Button><Plus className="mr-2 h-4 w-4" />Pre-Register User</Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader><DialogTitle>Pre-Register New User</DialogTitle></DialogHeader>
+            <PreRegisterUserForm onSave={async (data) => {
+              const { error } = await supabase.from("profiles").insert({
+                display_name: data.display_name,
+                email: data.email,
+              });
+              if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+              toast({ title: "User pre-registered", description: `${data.display_name} will be linked when they sign in with ${data.email}.` });
+              queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
+              setDialogOpen(null);
+            }} onCancel={() => setDialogOpen(null)} />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={dialogOpen === "registeruser"} onOpenChange={(open) => setDialogOpen(open ? "registeruser" : null)}>
+          <DialogTrigger asChild>
+            <Button variant="outline"><UserCheck className="mr-2 h-4 w-4" />Register User</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Register New User</DialogTitle></DialogHeader>
@@ -311,10 +330,7 @@ export function AdminAllUsersTab() {
               if (data.phone.trim()) insertData.phone = data.phone.trim();
               const { error } = await supabase.from("profiles").insert(insertData);
               if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-              const desc = data.email.trim()
-                ? `${data.display_name} will be linked when they sign in with ${data.email}.`
-                : `${data.display_name} has been registered.`;
-              toast({ title: "User registered", description: desc });
+              toast({ title: "User registered", description: `${data.display_name} has been registered.` });
               queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
               setDialogOpen(null);
             }} onCancel={() => setDialogOpen(null)} />
