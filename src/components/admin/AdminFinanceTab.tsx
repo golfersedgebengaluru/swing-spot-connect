@@ -14,9 +14,6 @@ import { INDIAN_STATES, validateGSTIN } from "@/lib/gst-utils";
 import { AdminFinancialYearsCard } from "@/components/admin/AdminFinancialYearsCard";
 import { InvoiceSettingsCard } from "@/components/admin/InvoiceSettingsCard";
 import { CityPaymentsSection } from "@/components/admin/CityPaymentsSection";
-import { ExpensesList } from "@/components/admin/ExpensesList";
-import { ExpenseReports } from "@/components/admin/ExpenseReports";
-import { ProfitLossView } from "@/components/admin/ProfitLossView";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAllCities } from "@/hooks/useBookings";
 import { useAdminCity } from "@/contexts/AdminCityContext";
@@ -225,9 +222,6 @@ export function AdminFinanceTab() {
           <TabsTrigger value="settings">GST Settings</TabsTrigger>
           <TabsTrigger value="invoice_settings">Invoice Template</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="expenses">Expenses</TabsTrigger>
-          <TabsTrigger value="expense_reports">Expense Reports</TabsTrigger>
-          <TabsTrigger value="pnl">P&L</TabsTrigger>
           {showCityFY && <TabsTrigger value="financial_year">Financial Year</TabsTrigger>}
         </TabsList>
         <TabsContent value="settings">
@@ -238,15 +232,6 @@ export function AdminFinanceTab() {
         </TabsContent>
         <TabsContent value="payments">
           {selectedCity && <CityPaymentsSection city={selectedCity} />}
-        </TabsContent>
-        <TabsContent value="expenses">
-          {selectedCity && <ExpensesList city={selectedCity} />}
-        </TabsContent>
-        <TabsContent value="expense_reports">
-          {selectedCity && <ExpenseReports city={selectedCity} />}
-        </TabsContent>
-        <TabsContent value="pnl">
-          {selectedCity && <ProfitLossView city={selectedCity} />}
         </TabsContent>
         {showCityFY && (
           <TabsContent value="financial_year">

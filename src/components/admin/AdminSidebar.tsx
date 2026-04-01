@@ -38,13 +38,14 @@ const coreItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "walkin", label: "Walk-in Booking", icon: CalendarDays },
   { id: "bookinglogs", label: "Bookings", icon: CalendarDays },
-  { id: "salesinvoices", label: "Sales & Invoices", icon: Receipt },
   { id: "members", label: "Members", icon: Users },
   { id: "bayconfig", label: "Locations", icon: MapPin },
   { id: "rewards", label: "Rewards", icon: Gift },
 ];
 
 const operationsItems = [
+  { id: "salesinvoices", label: "Sales & Invoices", icon: Receipt },
+  { id: "expenses", label: "Expenses", icon: Receipt },
   { id: "products", label: "Products", icon: ShoppingBag },
   { id: "finance", label: "Finance Settings", icon: Receipt },
 ];

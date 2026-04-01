@@ -39,6 +39,7 @@ const tabTitles: Record<string, string> = {
   pricing: "Pricing",
   emails: "Emails",
   salesinvoices: "Sales & Invoices",
+  expenses: "Expenses",
   revenue: "Revenue & Reporting",
   finance: "Finance Settings",
   settings: "Settings",
