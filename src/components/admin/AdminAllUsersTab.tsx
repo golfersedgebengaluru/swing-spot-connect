@@ -277,6 +277,16 @@ export function AdminAllUsersTab() {
     }
   };
 
+  const handleDeleteUser = async (profileId: string, displayName: string) => {
+    const { error } = await supabase.from("profiles").delete().eq("id", profileId);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "User deleted", description: `${displayName} has been removed.` });
+      queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 justify-end">
