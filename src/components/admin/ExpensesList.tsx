@@ -31,6 +31,7 @@ export function ExpensesList({ city }: Props) {
   const deleteExpense = useDeleteExpense();
 
   const [addOpen, setAddOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [filters, setFilters] = useState<ExpenseFilters>({ city });
