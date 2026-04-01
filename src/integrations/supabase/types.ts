@@ -417,6 +417,177 @@ export type Database = {
         }
         Relationships: []
       }
+      expense_categories: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      expense_line_items: {
+        Row: {
+          cgst_amount: number
+          created_at: string
+          expense_id: string
+          gst_rate: number
+          hsn_code: string | null
+          id: string
+          igst_amount: number
+          item_name: string
+          line_total: number
+          product_id: string | null
+          quantity: number
+          sac_code: string | null
+          sgst_amount: number
+          sort_order: number
+          unit_price: number
+        }
+        Insert: {
+          cgst_amount?: number
+          created_at?: string
+          expense_id: string
+          gst_rate?: number
+          hsn_code?: string | null
+          id?: string
+          igst_amount?: number
+          item_name: string
+          line_total?: number
+          product_id?: string | null
+          quantity?: number
+          sac_code?: string | null
+          sgst_amount?: number
+          sort_order?: number
+          unit_price?: number
+        }
+        Update: {
+          cgst_amount?: number
+          created_at?: string
+          expense_id?: string
+          gst_rate?: number
+          hsn_code?: string | null
+          id?: string
+          igst_amount?: number
+          item_name?: string
+          line_total?: number
+          product_id?: string | null
+          quantity?: number
+          sac_code?: string | null
+          sgst_amount?: number
+          sort_order?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_line_items_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expense_line_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expenses: {
+        Row: {
+          bill_url: string | null
+          category_id: string | null
+          cgst_total: number
+          city: string
+          created_at: string
+          created_by: string | null
+          expense_date: string
+          id: string
+          igst_total: number
+          notes: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          sgst_total: number
+          subtotal: number
+          total: number
+          updated_at: string
+          vendor_id: string | null
+        }
+        Insert: {
+          bill_url?: string | null
+          category_id?: string | null
+          cgst_total?: number
+          city: string
+          created_at?: string
+          created_by?: string | null
+          expense_date?: string
+          id?: string
+          igst_total?: number
+          notes?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          sgst_total?: number
+          subtotal?: number
+          total?: number
+          updated_at?: string
+          vendor_id?: string | null
+        }
+        Update: {
+          bill_url?: string | null
+          category_id?: string | null
+          cgst_total?: number
+          city?: string
+          created_at?: string
+          created_by?: string | null
+          expense_date?: string
+          id?: string
+          igst_total?: number
+          notes?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          sgst_total?: number
+          subtotal?: number
+          total?: number
+          updated_at?: string
+          vendor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_years: {
         Row: {
           city: string | null
@@ -1442,6 +1613,51 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      vendors: {
+        Row: {
+          category: string | null
+          city: string
+          contact_name: string | null
+          created_at: string
+          email: string | null
+          gstin: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          city: string
+          contact_name?: string | null
+          created_at?: string
+          email?: string | null
+          gstin?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          city?: string
+          contact_name?: string | null
+          created_at?: string
+          email?: string | null
+          gstin?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
