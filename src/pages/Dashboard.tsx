@@ -280,7 +280,7 @@ export default function Dashboard() {
                     {coachingHoursPerSession != null && (
                       <p className="mt-0.5 text-xs text-muted-foreground flex items-center gap-1">
                         <GraduationCap className="h-3 w-3" />
-                        Coaching: {coachingHoursPerSession}h per session
+                        Coaching consumes {coachingHoursPerSession}h per session
                       </p>
                     )}
                     <Link to="/bookings">
