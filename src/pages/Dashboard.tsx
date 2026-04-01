@@ -351,25 +351,39 @@ export default function Dashboard() {
                   </Link>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {recentVisits.map((visit, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
-                      >
-                        <div>
-                          <p className="font-medium text-foreground">{visit.bay}</p>
-                          <p className="text-sm text-muted-foreground">{visit.date}</p>
+                  {loadingVisits ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : recentVisits.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border p-6 text-center">
+                      <Clock className="mx-auto h-8 w-8 text-muted-foreground/40" />
+                      <p className="mt-2 text-sm text-muted-foreground">No visits yet</p>
+                      <Link to="/bookings">
+                        <Button variant="link" size="sm" className="mt-1 text-xs">Book your first session <ArrowRight className="ml-1 h-3 w-3" /></Button>
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {recentVisits.map((visit, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
+                        >
+                          <div>
+                            <p className="font-medium text-foreground">{visit.bay}</p>
+                            <p className="text-sm text-muted-foreground">{visit.date}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-display text-2xl font-bold text-primary">
+                              +{visit.points}
+                            </p>
+                            <p className="text-sm text-muted-foreground">points earned</p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-display text-2xl font-bold text-primary">
-                            +{visit.points}
-                          </p>
-                          <p className="text-sm text-muted-foreground">points earned</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
