@@ -168,6 +168,7 @@ export function AdminAllUsersTab() {
     { value: "non-registered", label: "Guest" },
     { value: "birdie", label: "Birdie Member" },
     { value: "coaching", label: "Coaching Member" },
+    { value: "guest", label: "Pre-registered" },
   ];
 
   const { data: allUsers, isLoading } = useQuery({
