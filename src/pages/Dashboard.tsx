@@ -19,16 +19,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
-const recentRounds = [
-  { date: "Nov 28", course: "Bay 3", score: 78, par: 72 },
-  { date: "Nov 25", course: "Bay 1", score: 82, par: 72 },
-  { date: "Nov 22", course: "Bay 5", score: 76, par: 72 },
-];
-
-const upcomingEvents = [
-  { name: "Weekend Tournament", date: "Dec 7", spots: "4 spots left" },
-  { name: "Beginners Clinic", date: "Dec 10", spots: "Open" },
-  { name: "Holiday Cup", date: "Dec 21", spots: "Registration open" },
+const recentVisits = [
+  { date: "Nov 28", bay: "Bay 3", points: 150 },
+  { date: "Nov 25", bay: "Bay 1", points: 100 },
+  { date: "Nov 22", bay: "Bay 5", points: 200 },
 ];
 
 export default function Dashboard() {
