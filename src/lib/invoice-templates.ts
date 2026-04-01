@@ -160,7 +160,7 @@ function modernTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: F
           ${settings.logo_url ? logoImg(settings.logo_url, 48) : ""}
           <div>
             <h1 style="font-size:20px;font-weight:800;margin:0;color:#111;">${inv.business_name}</h1>
-            <p style="font-size:11px;color:#888;margin:0;">${inv.business_gstin}</p>
+            ${isGstRegistered(inv.business_gstin) ? `<p style="font-size:11px;color:#888;margin:0;">${inv.business_gstin}</p>` : ""}
           </div>
         </div>
         <div style="text-align:right;">
