@@ -226,6 +226,8 @@ export function AdminFinanceTab() {
           <TabsTrigger value="invoice_settings">Invoice Template</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
           <TabsTrigger value="expenses">Expenses</TabsTrigger>
+          <TabsTrigger value="expense_reports">Expense Reports</TabsTrigger>
+          <TabsTrigger value="pnl">P&L</TabsTrigger>
           {showCityFY && <TabsTrigger value="financial_year">Financial Year</TabsTrigger>}
         </TabsList>
         <TabsContent value="settings">
