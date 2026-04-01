@@ -13,6 +13,7 @@ import { useUserPoints } from "@/hooks/usePoints";
 import { useUserHoursBalance, useUserProfile } from "@/hooks/useBookings";
 import { useHourPackages } from "@/hooks/usePricing";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { EmailPreferencesCard } from "@/components/EmailPreferencesCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
