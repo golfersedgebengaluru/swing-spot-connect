@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { CalculatedLineItem } from "@/lib/gst-utils";
+import { isGstRegistered } from "@/lib/gst-utils";
 
 // ─── GST Profile (per-city) ─────────────────────────────
 export interface GstProfile {
@@ -168,7 +169,11 @@ export function useCreateInvoice() {
         .eq("city", params.city)
         .maybeSingle();
       if (gstErr) throw gstErr;
-      if (!gstProfile?.gstin) throw new Error(`GST profile not configured for ${params.city}. Please set up the GST profile in Finance → GST Settings.`);
+      if (!gstProfile) throw new Error(`GST profile not configured for ${params.city}. Please set up the GST profile in Finance → GST Settings.`);
+
+      const gstRegistered = isGstRegistered(gstProfile.gstin);
+      // Use GSTIN for sequencing if registered, otherwise use city as fallback identifier
+      const sequenceGstin = gstRegistered ? gstProfile.gstin : `NOGST-${params.city}`;
 
       // 2. Get active financial year
       const { data: fy } = await supabase
@@ -182,7 +187,7 @@ export function useCreateInvoice() {
       const { data: invoiceNumber, error: seqErr } = await supabase.rpc(
         "get_next_invoice_number" as any,
         {
-          p_gstin: gstProfile.gstin,
+          p_gstin: sequenceGstin,
           p_fy_id: fy.id,
           p_prefix: gstProfile.invoice_prefix || "INV",
           p_start: gstProfile.invoice_start_number || 1,
@@ -203,7 +208,7 @@ export function useCreateInvoice() {
         customer_state: params.customerState || null,
         customer_state_code: params.customerStateCode || null,
         business_name: gstProfile.legal_name,
-        business_gstin: gstProfile.gstin,
+        business_gstin: gstRegistered ? gstProfile.gstin : "",
         business_address: gstProfile.address || null,
         business_state: gstProfile.state || null,
         business_state_code: gstProfile.state_code || null,

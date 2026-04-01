@@ -1,4 +1,5 @@
 import type { InvoiceTemplate, InvoiceSettings } from "@/hooks/useInvoiceSettings";
+import { isGstRegistered } from "@/lib/gst-utils";
 
 interface InvoiceData {
   invoice_number: string;
@@ -117,7 +118,7 @@ function classicTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: 
       <div>
         ${settings.logo_url ? `<div style="margin-bottom:8px;">${logoImg(settings.logo_url)}</div>` : ""}
         <h1 style="font-size:18px;font-weight:700;margin:0;">${inv.business_name}</h1>
-        <p style="font-size:12px;color:#666;margin:2px 0;">GSTIN: ${inv.business_gstin}</p>
+        ${isGstRegistered(inv.business_gstin) ? `<p style="font-size:12px;color:#666;margin:2px 0;">GSTIN: ${inv.business_gstin}</p>` : ""}
         ${inv.business_address ? `<p style="font-size:12px;color:#666;margin:2px 0;">${inv.business_address}</p>` : ""}
         ${inv.business_state ? `<p style="font-size:12px;color:#666;margin:2px 0;">${inv.business_state} (${inv.business_state_code})</p>` : ""}
       </div>
@@ -159,7 +160,7 @@ function modernTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: F
           ${settings.logo_url ? logoImg(settings.logo_url, 48) : ""}
           <div>
             <h1 style="font-size:20px;font-weight:800;margin:0;color:#111;">${inv.business_name}</h1>
-            <p style="font-size:11px;color:#888;margin:0;">${inv.business_gstin}</p>
+            ${isGstRegistered(inv.business_gstin) ? `<p style="font-size:11px;color:#888;margin:0;">${inv.business_gstin}</p>` : ""}
           </div>
         </div>
         <div style="text-align:right;">
@@ -232,7 +233,7 @@ function compactTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: 
       </div>
       <div style="display:flex;gap:24px;margin-bottom:12px;font-size:11px;">
         <div style="flex:1;">
-          <span style="font-weight:600;">From:</span> ${inv.business_name} · GSTIN: ${inv.business_gstin}
+          <span style="font-weight:600;">From:</span> ${inv.business_name}${isGstRegistered(inv.business_gstin) ? ` · GSTIN: ${inv.business_gstin}` : ""}
           ${inv.business_address ? ` · ${inv.business_address}` : ""}
         </div>
         <div style="flex:1;">
