@@ -290,12 +290,15 @@ export function AdminAllUsersTab() {
         );
       }
 
-      return filtered.map((p: any) => ({
-        ...p,
-        hours_purchased: hoursMap.get(p.user_id)?.hours_purchased ?? 0,
-        hours_used: hoursMap.get(p.user_id)?.hours_used ?? 0,
-        hours_remaining: (hoursMap.get(p.user_id)?.hours_purchased ?? 0) - (hoursMap.get(p.user_id)?.hours_used ?? 0),
-      }));
+      return filtered.map((p: any) => {
+        const uid = p.user_id || p.id;
+        return {
+          ...p,
+          hours_purchased: hoursMap.get(uid)?.hours_purchased ?? 0,
+          hours_used: hoursMap.get(uid)?.hours_used ?? 0,
+          hours_remaining: (hoursMap.get(uid)?.hours_purchased ?? 0) - (hoursMap.get(uid)?.hours_used ?? 0),
+        };
+      });
     },
   });
 
@@ -531,14 +534,14 @@ export function AdminAllUsersTab() {
       <Dialog open={dialogOpen === "inlineallocate"} onOpenChange={(open) => { setDialogOpen(open ? "inlineallocate" : null); if (!open) setSelectedUser(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Allocate Points</DialogTitle></DialogHeader>
-          {selectedUser && <InlineAllocatePointsForm userId={selectedUser.user_id} displayName={selectedUser.display_name || "User"} onSave={(data) => handleInlineAllocatePoints(selectedUser.user_id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
+          {selectedUser && <InlineAllocatePointsForm userId={selectedUser.user_id || selectedUser.id} displayName={selectedUser.display_name || "User"} onSave={(data) => handleInlineAllocatePoints(selectedUser.user_id || selectedUser.id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
         </DialogContent>
       </Dialog>
 
       <Dialog open={dialogOpen === "inlineadjusthours"} onOpenChange={(open) => { setDialogOpen(open ? "inlineadjusthours" : null); if (!open) setSelectedUser(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Adjust Hours</DialogTitle></DialogHeader>
-          {selectedUser && <InlineAdjustHoursForm userId={selectedUser.user_id} displayName={selectedUser.display_name || "User"} hoursRemaining={selectedUser.hours_remaining ?? 0} onSave={(data) => handleInlineAdjustHours(selectedUser.user_id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
+          {selectedUser && <InlineAdjustHoursForm userId={selectedUser.user_id || selectedUser.id} displayName={selectedUser.display_name || "User"} hoursRemaining={selectedUser.hours_remaining ?? 0} onSave={(data) => handleInlineAdjustHours(selectedUser.user_id || selectedUser.id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
         </DialogContent>
       </Dialog>
 
@@ -607,16 +610,12 @@ export function AdminAllUsersTab() {
                            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" title="Adjust Hours" onClick={() => { setSelectedUser(u); setDialogOpen("inlineadjusthours"); }}>
                              <Clock className="mr-1 h-3.5 w-3.5" />Hours
                            </Button>
-                           {u.user_id && (
-                             <>
-                               <Button variant="ghost" size="icon" className="h-8 w-8" title="Points History" onClick={() => { setViewingPointsHistory(u.user_id); setDialogOpen("pointshistory"); }}>
-                                 <History className="h-4 w-4" />
-                               </Button>
-                               <Button variant="ghost" size="icon" className="h-8 w-8" title="Hours History" onClick={() => { setViewingHoursHistory(u.user_id); setDialogOpen("hourshistory"); }}>
-                                 <Clock className="h-4 w-4" />
-                               </Button>
-                             </>
-                           )}
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Points History" onClick={() => { setViewingPointsHistory(u.user_id || u.id); setDialogOpen("pointshistory"); }}>
+                              <History className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Hours History" onClick={() => { setViewingHoursHistory(u.user_id || u.id); setDialogOpen("hourshistory"); }}>
+                              <Clock className="h-4 w-4" />
+                            </Button>
                            <AlertDialog>
                              <AlertDialogTrigger asChild>
                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
