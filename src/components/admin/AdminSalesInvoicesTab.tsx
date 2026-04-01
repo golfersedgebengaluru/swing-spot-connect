@@ -101,12 +101,13 @@ function InvoiceListSection({ city }: { city: string }) {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto_1fr_1fr] gap-3 items-center">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input placeholder="Search invoices…" className="pl-8" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} />
         </div>
         <Input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setPage(0); }} />
+        <span className="text-muted-foreground text-sm self-center">to</span>
         <Input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setPage(0); }} />
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v === "all" ? "" : v); setPage(0); }}>
           <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
