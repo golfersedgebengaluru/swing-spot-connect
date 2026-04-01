@@ -171,6 +171,10 @@ export function useUpdateExpense() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, line_items, ...updates }: Partial<CreateExpenseParams> & { id: string; line_items?: ExpenseLineItem[] }) => {
+      // Ensure empty strings become null for FK columns
+      if ('vendor_id' in updates && !updates.vendor_id) updates.vendor_id = null;
+      if ('category_id' in updates && !updates.category_id) updates.category_id = null;
+
       const { error } = await (supabase as any)
         .from("expenses")
         .update(updates)
