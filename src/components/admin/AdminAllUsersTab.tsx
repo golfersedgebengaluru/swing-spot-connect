@@ -317,9 +317,10 @@ export function AdminAllUsersTab() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Pre-Register New User</DialogTitle></DialogHeader>
             <PreRegisterUserForm onSave={async (data) => {
-              const insertData: Record<string, string> = {
+               const insertData: Record<string, string> = {
                 display_name: data.display_name,
                 email: data.email,
+                user_type: 'guest',
               };
               if (selectedCity) insertData.preferred_city = selectedCity;
               const { error } = await supabase.from("profiles").insert(insertData);
