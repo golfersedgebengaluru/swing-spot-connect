@@ -57,6 +57,46 @@ export default function Dashboard() {
   const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || "Golfer";
   const activePackages = (hourPackages ?? []).filter((p: any) => p.is_active && p.price > 0);
 
+  // Fetch recent completed bookings with points earned
+  const { data: recentVisits = [], isLoading: loadingVisits } = useQuery({
+    queryKey: ["recent_visits", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data: bookings } = await supabase
+        .from("bookings")
+        .select("id, start_time, bay_id, bays(name)")
+        .eq("user_id", user.id)
+        .eq("status", "confirmed")
+        .order("start_time", { ascending: false })
+        .limit(5);
+      if (!bookings?.length) return [];
+
+      // Get points earned around those booking times
+      const { data: points } = await supabase
+        .from("points_transactions")
+        .select("points, created_at")
+        .eq("user_id", user.id)
+        .eq("type", "earn")
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      return bookings.map((b: any) => {
+        const bookingDate = new Date(b.start_time);
+        // Match points earned within 24h of booking
+        const matched = points?.find((p: any) => {
+          const diff = Math.abs(new Date(p.created_at).getTime() - bookingDate.getTime());
+          return diff < 24 * 60 * 60 * 1000;
+        });
+        return {
+          date: bookingDate.toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
+          bay: b.bays?.name || "Bay",
+          points: matched?.points ?? 0,
+        };
+      });
+    },
+    enabled: !!user,
+  });
+
   const loadRazorpayScript = (): Promise<boolean> => {
     return new Promise((resolve) => {
       if (document.getElementById("razorpay-script")) { resolve(true); return; }
