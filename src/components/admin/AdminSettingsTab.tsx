@@ -50,25 +50,47 @@ function PageVisibilitySettings() {
   if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
 
   return (
-    <Card className="max-w-md">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5" />Page Visibility</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {pageVisibilityItems.map((item) => (
-          <div key={item.key} className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-foreground">{item.label}</p>
-              <p className="text-xs text-muted-foreground">{item.description}</p>
+    <div className="space-y-6">
+      <Card className="max-w-md">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5" />Page Visibility</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {pageVisibilityItems.map((item) => (
+            <div key={item.key} className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-foreground">{item.label}</p>
+                <p className="text-xs text-muted-foreground">{item.description}</p>
+              </div>
+              <Switch
+                checked={visibility?.[item.key] ?? false}
+                onCheckedChange={(checked) => handleToggle(item.key, checked)}
+              />
             </div>
-            <Switch
-              checked={visibility?.[item.key] ?? false}
-              onCheckedChange={(checked) => handleToggle(item.key, checked)}
-            />
-          </div>
-        ))}
-      </CardContent>
-    </Card>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card className="max-w-md">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5" />Dashboard Widgets</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {dashboardWidgetItems.map((item) => (
+            <div key={item.key} className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-foreground">{item.label}</p>
+                <p className="text-xs text-muted-foreground">{item.description}</p>
+              </div>
+              <Switch
+                checked={visibility?.[item.key] ?? true}
+                onCheckedChange={(checked) => handleToggle(item.key, checked)}
+              />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
