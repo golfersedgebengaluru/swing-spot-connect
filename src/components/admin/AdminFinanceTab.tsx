@@ -14,6 +14,7 @@ import { INDIAN_STATES, validateGSTIN } from "@/lib/gst-utils";
 import { AdminFinancialYearsCard } from "@/components/admin/AdminFinancialYearsCard";
 import { InvoiceSettingsCard } from "@/components/admin/InvoiceSettingsCard";
 import { CityPaymentsSection } from "@/components/admin/CityPaymentsSection";
+import { ExpensesList } from "@/components/admin/ExpensesList";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAllCities } from "@/hooks/useBookings";
 import { useAdminCity } from "@/contexts/AdminCityContext";
