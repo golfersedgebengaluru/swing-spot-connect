@@ -521,6 +521,27 @@ export function AdminAllUsersTab() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={dialogOpen === "hourshistory"} onOpenChange={(open) => { setDialogOpen(open ? "hourshistory" : null); if (!open) setViewingHoursHistory(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>Hours History</DialogTitle></DialogHeader>
+          {viewingHoursHistory && <HoursTransactionHistory userId={viewingHoursHistory} />}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogOpen === "inlineallocate"} onOpenChange={(open) => { setDialogOpen(open ? "inlineallocate" : null); if (!open) setSelectedUser(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Allocate Points</DialogTitle></DialogHeader>
+          {selectedUser && <InlineAllocatePointsForm userId={selectedUser.user_id} displayName={selectedUser.display_name || "User"} onSave={(data) => handleInlineAllocatePoints(selectedUser.user_id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogOpen === "inlineadjusthours"} onOpenChange={(open) => { setDialogOpen(open ? "inlineadjusthours" : null); if (!open) setSelectedUser(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Adjust Hours</DialogTitle></DialogHeader>
+          {selectedUser && <InlineAdjustHoursForm userId={selectedUser.user_id} displayName={selectedUser.display_name || "User"} hoursRemaining={selectedUser.hours_remaining ?? 0} onSave={(data) => handleInlineAdjustHours(selectedUser.user_id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
+        </DialogContent>
+      </Dialog>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><UserCheck className="h-5 w-5" />All Users</CardTitle>
