@@ -13,6 +13,7 @@ import { useVendors } from "@/hooks/useVendors";
 import { useExpenseCategories } from "@/hooks/useExpenseCategories";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { AddExpenseDialog } from "./AddExpenseDialog";
+import { BillScannerDialog } from "./BillScannerDialog";
 import { format } from "date-fns";
 
 interface Props {
