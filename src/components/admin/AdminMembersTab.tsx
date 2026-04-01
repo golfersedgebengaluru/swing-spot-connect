@@ -372,7 +372,7 @@ export function AdminMembersTab() {
 
       {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
         <>
-          {(memberHours ?? []).length === 0 && <p className="text-center text-muted-foreground py-8">No members with hours packages yet.</p>}
+          {(memberHours ?? []).length === 0 && <p className="text-center text-muted-foreground py-8">No members found.</p>}
           {(memberHours ?? []).length > 0 && (
             <div className="rounded-lg border bg-card overflow-hidden">
               <Table>
