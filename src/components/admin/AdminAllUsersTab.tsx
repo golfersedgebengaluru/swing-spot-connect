@@ -533,14 +533,14 @@ export function AdminAllUsersTab() {
       <Dialog open={dialogOpen === "inlineallocate"} onOpenChange={(open) => { setDialogOpen(open ? "inlineallocate" : null); if (!open) setSelectedUser(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Allocate Points</DialogTitle></DialogHeader>
-          {selectedUser && <InlineAllocatePointsForm userId={selectedUser.user_id} displayName={selectedUser.display_name || "User"} onSave={(data) => handleInlineAllocatePoints(selectedUser.user_id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
+          {selectedUser && <InlineAllocatePointsForm userId={selectedUser.user_id || selectedUser.id} displayName={selectedUser.display_name || "User"} onSave={(data) => handleInlineAllocatePoints(selectedUser.user_id || selectedUser.id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
         </DialogContent>
       </Dialog>
 
       <Dialog open={dialogOpen === "inlineadjusthours"} onOpenChange={(open) => { setDialogOpen(open ? "inlineadjusthours" : null); if (!open) setSelectedUser(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Adjust Hours</DialogTitle></DialogHeader>
-          {selectedUser && <InlineAdjustHoursForm userId={selectedUser.user_id} displayName={selectedUser.display_name || "User"} hoursRemaining={selectedUser.hours_remaining ?? 0} onSave={(data) => handleInlineAdjustHours(selectedUser.user_id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
+          {selectedUser && <InlineAdjustHoursForm userId={selectedUser.user_id || selectedUser.id} displayName={selectedUser.display_name || "User"} hoursRemaining={selectedUser.hours_remaining ?? 0} onSave={(data) => handleInlineAdjustHours(selectedUser.user_id || selectedUser.id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
         </DialogContent>
       </Dialog>
 
