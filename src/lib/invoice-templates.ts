@@ -233,7 +233,7 @@ function compactTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: 
       </div>
       <div style="display:flex;gap:24px;margin-bottom:12px;font-size:11px;">
         <div style="flex:1;">
-          <span style="font-weight:600;">From:</span> ${inv.business_name} · GSTIN: ${inv.business_gstin}
+          <span style="font-weight:600;">From:</span> ${inv.business_name}${isGstRegistered(inv.business_gstin) ? ` · GSTIN: ${inv.business_gstin}` : ""}
           ${inv.business_address ? ` · ${inv.business_address}` : ""}
         </div>
         <div style="flex:1;">
