@@ -18,13 +18,12 @@ import { format } from "date-fns";
 
 interface Props {
   city: string;
-  onOpenScanner?: () => void;
 }
 
 const PAYMENT_METHODS = ["Cash", "Card", "UPI", "Bank Transfer"];
 const PAGE_SIZE = 25;
 
-export function ExpensesList({ city, onOpenScanner }: Props) {
+export function ExpensesList({ city }: Props) {
   const { toast } = useToast();
   const currency = useDefaultCurrency();
   const { data: vendors } = useVendors(city);
