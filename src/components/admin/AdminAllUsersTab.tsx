@@ -599,32 +599,45 @@ export function AdminAllUsersTab() {
                           {u.hours_remaining}
                         </Badge>
                      </TableCell>
-                      <TableCell className="text-right flex items-center justify-end gap-1">
-                        {u.user_id && (
-                          <Button variant="ghost" size="icon" onClick={() => { setViewingPointsHistory(u.user_id); setDialogOpen("pointshistory"); }}>
-                            <History className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete User</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete <strong>{u.display_name || "this user"}</strong>? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteUser(u.id, u.display_name || "User")} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </TableCell>
+                       <TableCell className="text-right">
+                         <div className="flex items-center justify-end gap-1">
+                           <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" title="Allocate Points" onClick={() => { setSelectedUser(u); setDialogOpen("inlineallocate"); }}>
+                             <Star className="mr-1 h-3.5 w-3.5" />Points
+                           </Button>
+                           <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" title="Adjust Hours" onClick={() => { setSelectedUser(u); setDialogOpen("inlineadjusthours"); }}>
+                             <Clock className="mr-1 h-3.5 w-3.5" />Hours
+                           </Button>
+                           {u.user_id && (
+                             <>
+                               <Button variant="ghost" size="icon" className="h-8 w-8" title="Points History" onClick={() => { setViewingPointsHistory(u.user_id); setDialogOpen("pointshistory"); }}>
+                                 <History className="h-4 w-4" />
+                               </Button>
+                               <Button variant="ghost" size="icon" className="h-8 w-8" title="Hours History" onClick={() => { setViewingHoursHistory(u.user_id); setDialogOpen("hourshistory"); }}>
+                                 <Clock className="h-4 w-4" />
+                               </Button>
+                             </>
+                           )}
+                           <AlertDialog>
+                             <AlertDialogTrigger asChild>
+                               <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                                 <Trash2 className="h-4 w-4" />
+                               </Button>
+                             </AlertDialogTrigger>
+                             <AlertDialogContent>
+                               <AlertDialogHeader>
+                                 <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                 <AlertDialogDescription>
+                                   Are you sure you want to delete <strong>{u.display_name || "this user"}</strong>? This action cannot be undone.
+                                 </AlertDialogDescription>
+                               </AlertDialogHeader>
+                               <AlertDialogFooter>
+                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                 <AlertDialogAction onClick={() => handleDeleteUser(u.id, u.display_name || "User")} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+                               </AlertDialogFooter>
+                             </AlertDialogContent>
+                           </AlertDialog>
+                         </div>
+                       </TableCell>
                    </TableRow>
                  ))}
               </TableBody>
