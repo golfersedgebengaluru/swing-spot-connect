@@ -20,12 +20,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
-const recentVisits = [
-  { date: "Nov 28", bay: "Bay 3", points: 150 },
-  { date: "Nov 25", bay: "Bay 1", points: 100 },
-  { date: "Nov 22", bay: "Bay 5", points: 200 },
-];
-
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -62,6 +56,46 @@ export default function Dashboard() {
   });
   const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || "Golfer";
   const activePackages = (hourPackages ?? []).filter((p: any) => p.is_active && p.price > 0);
+
+  // Fetch recent completed bookings with points earned
+  const { data: recentVisits = [], isLoading: loadingVisits } = useQuery({
+    queryKey: ["recent_visits", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data: bookings } = await supabase
+        .from("bookings")
+        .select("id, start_time, bay_id, bays(name)")
+        .eq("user_id", user.id)
+        .eq("status", "confirmed")
+        .order("start_time", { ascending: false })
+        .limit(5);
+      if (!bookings?.length) return [];
+
+      // Get points earned around those booking times
+      const { data: points } = await supabase
+        .from("points_transactions")
+        .select("points, created_at")
+        .eq("user_id", user.id)
+        .eq("type", "earn")
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      return bookings.map((b: any) => {
+        const bookingDate = new Date(b.start_time);
+        // Match points earned within 24h of booking
+        const matched = points?.find((p: any) => {
+          const diff = Math.abs(new Date(p.created_at).getTime() - bookingDate.getTime());
+          return diff < 24 * 60 * 60 * 1000;
+        });
+        return {
+          date: bookingDate.toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
+          bay: b.bays?.name || "Bay",
+          points: matched?.points ?? 0,
+        };
+      });
+    },
+    enabled: !!user,
+  });
 
   const loadRazorpayScript = (): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -317,25 +351,39 @@ export default function Dashboard() {
                   </Link>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {recentVisits.map((visit, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
-                      >
-                        <div>
-                          <p className="font-medium text-foreground">{visit.bay}</p>
-                          <p className="text-sm text-muted-foreground">{visit.date}</p>
+                  {loadingVisits ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : recentVisits.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border p-6 text-center">
+                      <Clock className="mx-auto h-8 w-8 text-muted-foreground/40" />
+                      <p className="mt-2 text-sm text-muted-foreground">No visits yet</p>
+                      <Link to="/bookings">
+                        <Button variant="link" size="sm" className="mt-1 text-xs">Book your first session <ArrowRight className="ml-1 h-3 w-3" /></Button>
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {recentVisits.map((visit, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
+                        >
+                          <div>
+                            <p className="font-medium text-foreground">{visit.bay}</p>
+                            <p className="text-sm text-muted-foreground">{visit.date}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-display text-2xl font-bold text-primary">
+                              +{visit.points}
+                            </p>
+                            <p className="text-sm text-muted-foreground">points earned</p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-display text-2xl font-bold text-primary">
-                            +{visit.points}
-                          </p>
-                          <p className="text-sm text-muted-foreground">points earned</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
