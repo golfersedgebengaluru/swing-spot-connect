@@ -306,10 +306,12 @@ export function AdminAllUsersTab() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Pre-Register New User</DialogTitle></DialogHeader>
             <PreRegisterUserForm onSave={async (data) => {
-              const { error } = await supabase.from("profiles").insert({
+              const insertData: Record<string, string> = {
                 display_name: data.display_name,
                 email: data.email,
-              });
+              };
+              if (selectedCity) insertData.preferred_city = selectedCity;
+              const { error } = await supabase.from("profiles").insert(insertData);
               if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
               toast({ title: "User pre-registered", description: `${data.display_name} will be linked when they sign in with ${data.email}.` });
               queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
