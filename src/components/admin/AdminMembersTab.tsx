@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Loader2, Clock, MinusCircle, PlusCircle, History, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useMemberHours, useHoursTransactions } from "@/hooks/useMemberHours";
+import { useMemberHours, useHoursTransactions, MemberHoursRow } from "@/hooks/useMemberHours";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
