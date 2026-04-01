@@ -208,7 +208,7 @@ export function useCreateInvoice() {
         customer_state: params.customerState || null,
         customer_state_code: params.customerStateCode || null,
         business_name: gstProfile.legal_name,
-        business_gstin: gstProfile.gstin,
+        business_gstin: gstRegistered ? gstProfile.gstin : "",
         business_address: gstProfile.address || null,
         business_state: gstProfile.state || null,
         business_state_code: gstProfile.state_code || null,
