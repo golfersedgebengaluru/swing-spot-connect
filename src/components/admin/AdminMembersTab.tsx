@@ -126,10 +126,11 @@ export function AdminMembersTab() {
       const memberProfileUserIds = new Set((memberProfiles ?? []).filter((p: any) => p.user_id).map((p: any) => p.user_id));
       
       let combined: MemberHoursRow[] = (memberProfiles ?? []).map((p: any) => {
-        const hours = p.user_id ? hoursMap.get(p.user_id) : null;
+        const uid = p.user_id || p.id;
+        const hours = hoursMap.get(uid) || (p.user_id ? null : hoursMap.get(p.id));
         return {
           id: hours?.id ?? p.id,
-          user_id: p.user_id ?? p.id,
+          user_id: uid,
           hours_purchased: hours?.hours_purchased ?? 0,
           hours_used: hours?.hours_used ?? 0,
           created_at: hours?.created_at ?? p.id,
