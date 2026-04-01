@@ -115,16 +115,17 @@ function AdminRedeemForm({ profiles, rewards, onSave, onCancel }: { profiles: an
   );
 }
 
-function PreRegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_name: string; email: string }) => void; onCancel: () => void }) {
-  const [form, setForm] = useState({ display_name: "", email: "" });
+function RegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_name: string; email: string; phone: string }) => void; onCancel: () => void }) {
+  const [form, setForm] = useState({ display_name: "", email: "", phone: "" });
   return (
     <div className="space-y-4">
-      <div><Label>Display Name</Label><Input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder="John Smith" /></div>
+      <div><Label>Display Name <span className="text-destructive">*</span></Label><Input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder="John Smith" /></div>
       <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="john@example.com" /></div>
-      <p className="text-xs text-muted-foreground">This user will be automatically linked when they sign in with Google or Apple using this email.</p>
+      <div><Label>Phone</Label><Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+91 98765 43210" /></div>
+      <p className="text-xs text-muted-foreground">If an email is provided, the user will be automatically linked when they sign in with Google or Apple using that email.</p>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button onClick={() => onSave(form)} disabled={!form.display_name || !form.email}>Add User</Button>
+        <Button onClick={() => onSave(form)} disabled={!form.display_name.trim()}>Add User</Button>
       </div>
     </div>
   );
@@ -283,17 +284,22 @@ export function AdminAllUsersTab() {
 
         <Dialog open={dialogOpen === "adduser"} onOpenChange={(open) => setDialogOpen(open ? "adduser" : null)}>
           <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" />Pre-Register User</Button>
+            <Button><Plus className="mr-2 h-4 w-4" />Register User</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
-            <DialogHeader><DialogTitle>Pre-Register New User</DialogTitle></DialogHeader>
-            <PreRegisterUserForm onSave={async (data) => {
-              const { error } = await supabase.from("profiles").insert({
-                display_name: data.display_name,
-                email: data.email,
-              });
+            <DialogHeader><DialogTitle>Register New User</DialogTitle></DialogHeader>
+            <RegisterUserForm onSave={async (data) => {
+              const insertData: Record<string, string> = {
+                display_name: data.display_name.trim(),
+              };
+              if (data.email.trim()) insertData.email = data.email.trim();
+              if (data.phone.trim()) insertData.phone = data.phone.trim();
+              const { error } = await supabase.from("profiles").insert(insertData);
               if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-              toast({ title: "User pre-registered", description: `${data.display_name} will be linked when they sign in with ${data.email}.` });
+              const desc = data.email.trim()
+                ? `${data.display_name} will be linked when they sign in with ${data.email}.`
+                : `${data.display_name} has been registered.`;
+              toast({ title: "User registered", description: desc });
               queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
               setDialogOpen(null);
             }} onCancel={() => setDialogOpen(null)} />
