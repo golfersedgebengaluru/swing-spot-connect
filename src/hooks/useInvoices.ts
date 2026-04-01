@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { CalculatedLineItem } from "@/lib/gst-utils";
+import { isGstRegistered } from "@/lib/gst-utils";
 
 // ─── GST Profile (per-city) ─────────────────────────────
 export interface GstProfile {
