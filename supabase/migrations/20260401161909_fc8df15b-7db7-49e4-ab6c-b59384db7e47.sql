@@ -1,0 +1,2 @@
+ALTER TABLE public.member_hours DROP CONSTRAINT member_hours_user_id_fkey;
+ALTER TABLE public.hours_transactions DROP CONSTRAINT hours_transactions_user_id_fkey;
