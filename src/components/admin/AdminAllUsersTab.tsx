@@ -149,6 +149,77 @@ function RegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_name:
   );
 }
 
+function InlineAllocatePointsForm({ userId, displayName, onSave, onCancel }: { userId: string; displayName: string; onSave: (data: { points: number; description: string }) => void; onCancel: () => void }) {
+  const [form, setForm] = useState({ points: 0, description: "" });
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg bg-muted p-3">
+        <p className="text-sm text-muted-foreground">User: <span className="font-medium text-foreground">{displayName}</span></p>
+      </div>
+      <div><Label>Points</Label><Input type="number" min="1" value={form.points} onChange={(e) => setForm({ ...form, points: Number(e.target.value) })} /></div>
+      <div><Label>Reason</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="e.g. Welcome bonus" /></div>
+      <div className="flex gap-2 justify-end">
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button onClick={() => onSave(form)} disabled={form.points <= 0}>Allocate Points</Button>
+      </div>
+    </div>
+  );
+}
+
+function InlineAdjustHoursForm({ userId, displayName, hoursRemaining, onSave, onCancel }: { userId: string; displayName: string; hoursRemaining: number; onSave: (data: { type: string; hours: number; note: string }) => void; onCancel: () => void }) {
+  const [form, setForm] = useState({ type: "purchase", hours: 0, note: "" });
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg bg-muted p-3">
+        <p className="text-sm text-muted-foreground">User: <span className="font-medium text-foreground">{displayName}</span></p>
+        <p className="text-sm text-muted-foreground">Hours remaining: <span className="font-medium text-foreground">{hoursRemaining} hrs</span></p>
+      </div>
+      <div>
+        <Label>Action</Label>
+        <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="purchase">Add Hours</SelectItem>
+            <SelectItem value="deduction">Deduct Hours</SelectItem>
+            <SelectItem value="adjustment">Adjustment</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div><Label>Hours</Label><Input type="number" step="0.5" min="0" value={form.hours} onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })} /></div>
+      <div><Label>Note (optional)</Label><Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="e.g. Bay session 2hrs" /></div>
+      <div className="flex gap-2 justify-end">
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button onClick={() => onSave(form)} disabled={form.hours <= 0}>Confirm</Button>
+      </div>
+    </div>
+  );
+}
+
+function HoursTransactionHistory({ userId }: { userId: string }) {
+  const { data: transactions, isLoading } = useHoursTransactions(userId);
+  if (isLoading) return <Loader2 className="mx-auto h-6 w-6 animate-spin" />;
+  if (!transactions?.length) return <p className="text-sm text-muted-foreground">No hours transactions yet.</p>;
+  return (
+    <div className="space-y-2 max-h-60 overflow-y-auto">
+      {transactions.map((t) => (
+        <div key={t.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+          <div className="flex items-center gap-2">
+            {t.type === "deduction" ? <MinusCircle className="h-4 w-4 text-destructive" /> : <PlusCircle className="h-4 w-4 text-primary" />}
+            <span className="capitalize">{t.type}</span>
+            {t.note && <span className="text-muted-foreground">— {t.note}</span>}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={t.type === "deduction" ? "text-destructive" : "text-primary"}>
+              {t.type === "deduction" ? "-" : "+"}{t.hours} hrs
+            </span>
+            <span className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function AdminAllUsersTab() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -158,6 +229,8 @@ export function AdminAllUsersTab() {
   const redeemPoints = useRedeemPoints();
   const [dialogOpen, setDialogOpen] = useState<string | null>(null);
   const [viewingPointsHistory, setViewingPointsHistory] = useState<string | null>(null);
+  const [viewingHoursHistory, setViewingHoursHistory] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
