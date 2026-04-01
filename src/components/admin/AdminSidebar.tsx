@@ -80,7 +80,7 @@ function NavItem({
         "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-normal transition-colors min-h-[44px]",
         active
           ? "bg-muted text-foreground font-medium"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          : "text-foreground/70 hover:bg-muted hover:text-foreground"
       )}
       title={collapsed ? item.label : undefined}
     >
