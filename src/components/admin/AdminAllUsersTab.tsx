@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Loader2, MinusCircle, PlusCircle, History, Star, Award, UserCheck, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { Plus, Loader2, MinusCircle, PlusCircle, History, Star, Award, UserCheck, ChevronLeft, ChevronRight, Trash2, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRewards } from "@/hooks/useRewards";
 import { useAllocatePoints, useRedeemPoints, usePointsTransactions } from "@/hooks/usePoints";
@@ -17,6 +17,8 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAdminCity } from "@/contexts/AdminCityContext";
+import { useHoursTransactions } from "@/hooks/useMemberHours";
+import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
 
 function PointsTransactionHistory({ userId }: { userId: string }) {
   const { data: transactions, isLoading } = usePointsTransactions(userId);

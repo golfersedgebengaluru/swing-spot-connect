@@ -94,44 +94,73 @@ function AdjustHoursForm({ member, onSave, onCancel }: { member: any; onSave: (d
   );
 }
 
+const MEMBER_USER_TYPES = ["member", "birdie", "coaching"];
+
 export function AdminMembersTab() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isAdmin, assignedCities } = useAdmin();
   const { selectedCity } = useAdminCity();
-  const { data: allMemberHours, isLoading } = useMemberHours();
+  const { data: allMemberHours, isLoading: hoursLoading } = useMemberHours();
 
-  // Filter members by city for site_admins
-  const { data: memberHours } = useQuery({
-    queryKey: ["member_hours_filtered", allMemberHours, isAdmin, assignedCities, selectedCity],
-    enabled: !!allMemberHours,
+  // Fetch all profiles that are member types
+  const { data: memberHours, isLoading } = useQuery({
+    queryKey: ["members_combined", allMemberHours, isAdmin, assignedCities, selectedCity],
+    enabled: allMemberHours !== undefined,
     queryFn: async () => {
-      if (!allMemberHours) return [];
-      if (isAdmin && !selectedCity) return allMemberHours;
+      // Get all profiles with member-type user_types
+      const { data: memberProfiles } = await supabase
+        .from("profiles")
+        .select("id, user_id, display_name, email, user_type, preferred_city")
+        .in("user_type", MEMBER_USER_TYPES);
 
+      const hoursMap = new Map((allMemberHours ?? []).map((h) => [h.user_id, h]));
+
+      // Build combined list: all member-type profiles + any member_hours users not already included
+      const memberProfileUserIds = new Set((memberProfiles ?? []).filter((p: any) => p.user_id).map((p: any) => p.user_id));
+      
+      let combined: MemberHoursRow[] = (memberProfiles ?? []).map((p: any) => {
+        const hours = p.user_id ? hoursMap.get(p.user_id) : null;
+        return {
+          id: hours?.id ?? p.id,
+          user_id: p.user_id ?? p.id,
+          hours_purchased: hours?.hours_purchased ?? 0,
+          hours_used: hours?.hours_used ?? 0,
+          created_at: hours?.created_at ?? p.id,
+          updated_at: hours?.updated_at ?? p.id,
+          display_name: p.display_name || "Unknown",
+          email: p.email,
+          preferred_city: p.preferred_city,
+          user_type: p.user_type,
+        } as MemberHoursRow & { preferred_city?: string; user_type?: string };
+      });
+
+      // Add member_hours users who aren't already member-type profiles
+      for (const h of (allMemberHours ?? [])) {
+        if (!memberProfileUserIds.has(h.user_id)) {
+          combined.push(h as any);
+        }
+      }
+
+      // City filtering
+      if (isAdmin && !selectedCity) return combined;
       const citiesToFilter = isAdmin
         ? (selectedCity ? [selectedCity] : [])
         : (selectedCity ? [selectedCity] : assignedCities);
+      if (citiesToFilter.length === 0) return combined;
 
-      if (citiesToFilter.length === 0) return allMemberHours;
-
-      // Find users affiliated with these cities
       const { data: cityBookings } = await supabase
         .from("bookings")
         .select("user_id, city")
         .in("city", citiesToFilter);
-      const { data: cityProfiles } = await supabase
-        .from("profiles")
-        .select("user_id, preferred_city")
-        .in("preferred_city", citiesToFilter);
 
       const validUserIds = new Set([
         ...(cityBookings ?? []).map((b: any) => b.user_id),
-        ...(cityProfiles ?? []).filter((p: any) => p.user_id).map((p: any) => p.user_id),
+        ...combined.filter((m: any) => m.preferred_city && citiesToFilter.includes(m.preferred_city)).map((m) => m.user_id),
       ]);
 
-      return allMemberHours.filter((m) => validUserIds.has(m.user_id));
+      return combined.filter((m) => validUserIds.has(m.user_id) || (m as any).preferred_city && citiesToFilter.includes((m as any).preferred_city));
     },
   });
   const { data: lowHoursThreshold } = useQuery({
