@@ -42,6 +42,7 @@ export default function Dashboard() {
   const { data: hourPackages, isLoading: loadingPackages } = useHourPackages();
   const { data: profile } = useUserProfile();
   const [buyingPkgId, setBuyingPkgId] = useState<string | null>(null);
+  const { data: visibility } = usePageVisibility();
   const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || "Golfer";
   const activePackages = (hourPackages ?? []).filter((p: any) => p.is_active && p.price > 0);
 
