@@ -44,6 +44,22 @@ export default function Dashboard() {
   const { data: profile } = useUserProfile();
   const [buyingPkgId, setBuyingPkgId] = useState<string | null>(null);
   const { data: visibility } = usePageVisibility();
+  const userCity = profile?.preferred_city;
+  const { data: coachingHoursPerSession } = useQuery({
+    queryKey: ["coaching_hours_city", userCity],
+    queryFn: async () => {
+      if (!userCity) return null;
+      const { data } = await supabase
+        .from("bays")
+        .select("coaching_hours")
+        .eq("city", userCity)
+        .eq("is_active", true)
+        .limit(1)
+        .single();
+      return data?.coaching_hours ?? null;
+    },
+    enabled: !!userCity,
+  });
   const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || "Golfer";
   const activePackages = (hourPackages ?? []).filter((p: any) => p.is_active && p.price > 0);
 
