@@ -394,10 +394,10 @@ export function AdminAllUsersTab() {
                      <TableCell className="font-medium">{u.display_name || "Unknown"}</TableCell>
                      <TableCell className="text-sm text-muted-foreground">{u.email || "—"}</TableCell>
                      <TableCell>
-                       <Badge variant={u.user_id ? "secondary" : "outline"}>
-                         {u.user_id ? "Active" : "Pending"}
-                       </Badge>
-                     </TableCell>
+                        <Badge variant={u.user_id || u.user_type === 'non-registered' || (!u.user_id && !u.email) ? "secondary" : "outline"}>
+                          {u.user_id ? "Active" : (u.email && u.user_type !== 'non-registered' ? "Pending" : "Active")}
+                        </Badge>
+                      </TableCell>
                      <TableCell>
                        <Select value={u.user_type || "registered"} onValueChange={(v) => handleChangeUserType(u.id, v)}>
                          <SelectTrigger className="w-[150px] h-8 text-xs">
