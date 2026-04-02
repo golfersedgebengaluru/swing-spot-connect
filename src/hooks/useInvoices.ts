@@ -257,6 +257,8 @@ export function useCreateInvoice() {
         due_date: params.dueDate || new Date().toISOString().split("T")[0],
         invoice_category: params.invoiceCategory || "purchase",
         payment_reference: params.paymentReference || null,
+        amount_paid: params.amountPaid ?? params.total,
+        payment_status: params.paymentStatus || "paid",
       };
 
       const { data: invoice, error: invErr } = await (supabase as any)
