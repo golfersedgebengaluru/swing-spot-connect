@@ -346,6 +346,9 @@ export interface UpdateInvoiceParams {
   sgstTotal?: number;
   igstTotal?: number;
   total?: number;
+  notes?: string;
+  dueDate?: string;
+  invoiceCategory?: string;
 }
 
 export function useUpdateInvoice() {
