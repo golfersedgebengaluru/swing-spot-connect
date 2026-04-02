@@ -405,6 +405,25 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
                 {gstType === "igst" ? "IGST (Inter-state)" : "CGST + SGST (Intra-state)"}
               </Badge>
             )}
+            {/* Auto-add to user list */}
+            {!customerUserId && !customerProfileId && customerName && (
+              invoiceCategory === "booking" ? (
+                <p className="text-xs text-muted-foreground">
+                  ✓ New customer will be automatically added to the user list.
+                </p>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="addToUserList"
+                    checked={addToUserList}
+                    onCheckedChange={(v) => setAddToUserList(v === true)}
+                  />
+                  <Label htmlFor="addToUserList" className="text-sm font-normal cursor-pointer">
+                    Add this customer to the user list
+                  </Label>
+                </div>
+              )
+            )}
           </div>
 
           <Separator />
