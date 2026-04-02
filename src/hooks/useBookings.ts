@@ -273,11 +273,15 @@ export function useAllBookings() {
 
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("user_id, display_name, email, user_type");
+        .select("id, user_id, display_name, email, user_type");
 
-      const profileMap = new Map(
-        (profiles ?? []).map((p) => [p.user_id, p])
-      );
+      // Dual-key map: index by both user_id (auth ID) and profile id (primary key)
+      // so admin-registered / guest users without auth accounts are found too
+      const profileMap = new Map<string, any>();
+      for (const p of profiles ?? []) {
+        if (p.user_id) profileMap.set(p.user_id, p);
+        profileMap.set(p.id, p);
+      }
 
       // Get bay names
       const bayIds = [...new Set((bookings ?? []).map((b: any) => b.bay_id).filter(Boolean))];
