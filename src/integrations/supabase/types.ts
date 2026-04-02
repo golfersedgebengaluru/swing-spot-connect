@@ -1008,6 +1008,222 @@ export type Database = {
           },
         ]
       }
+      loyalty_bonuses: {
+        Row: {
+          bonus_type: string
+          bonus_value: number
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+          trigger_conditions: Json
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          bonus_type?: string
+          bonus_value?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+          trigger_conditions?: Json
+          trigger_type: string
+          updated_at?: string
+        }
+        Update: {
+          bonus_type?: string
+          bonus_value?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+          trigger_conditions?: Json
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      loyalty_config: {
+        Row: {
+          description: string | null
+          id: string
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
+      loyalty_earning_rules: {
+        Row: {
+          base_rate: number
+          conditions: Json
+          created_at: string
+          event_type: string
+          id: string
+          is_active: boolean
+          label: string
+          rate_unit: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          base_rate?: number
+          conditions?: Json
+          created_at?: string
+          event_type: string
+          id?: string
+          is_active?: boolean
+          label: string
+          rate_unit?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          base_rate?: number
+          conditions?: Json
+          created_at?: string
+          event_type?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          rate_unit?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      loyalty_milestones: {
+        Row: {
+          bonus_points: number
+          created_at: string
+          id: string
+          is_active: boolean
+          milestone_type: string
+          name: string
+          sort_order: number
+          threshold_hours: number
+          updated_at: string
+        }
+        Insert: {
+          bonus_points: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          milestone_type: string
+          name: string
+          sort_order?: number
+          threshold_hours: number
+          updated_at?: string
+        }
+        Update: {
+          bonus_points?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          milestone_type?: string
+          name?: string
+          sort_order?: number
+          threshold_hours?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      loyalty_multipliers: {
+        Row: {
+          condition_type: string
+          condition_value: Json
+          created_at: string
+          id: string
+          is_active: boolean
+          is_stackable: boolean
+          multiplier: number
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          condition_type: string
+          condition_value?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_stackable?: boolean
+          multiplier?: number
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          condition_type?: string
+          condition_value?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_stackable?: boolean
+          multiplier?: number
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      loyalty_user_progress: {
+        Row: {
+          created_at: string
+          hours_logged: number
+          id: string
+          milestones_achieved: Json
+          period_end: string
+          period_start: string
+          period_type: string
+          updated_at: string
+          user_id: string
+          visit_count: number
+        }
+        Insert: {
+          created_at?: string
+          hours_logged?: number
+          id?: string
+          milestones_achieved?: Json
+          period_end: string
+          period_start: string
+          period_type: string
+          updated_at?: string
+          user_id: string
+          visit_count?: number
+        }
+        Update: {
+          created_at?: string
+          hours_logged?: number
+          id?: string
+          milestones_achieved?: Json
+          period_end?: string
+          period_start?: string
+          period_type?: string
+          updated_at?: string
+          user_id?: string
+          visit_count?: number
+        }
+        Relationships: []
+      }
       member_hours: {
         Row: {
           created_at: string
@@ -1202,32 +1418,50 @@ export type Database = {
       }
       points_transactions: {
         Row: {
+          base_points: number | null
           created_at: string
           created_by: string | null
           description: string | null
+          event_metadata: Json | null
+          event_type: string | null
           id: string
+          multipliers_applied: Json | null
           points: number
+          reason: string | null
           reward_id: string | null
+          rule_id: string | null
           type: string
           user_id: string
         }
         Insert: {
+          base_points?: number | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          event_metadata?: Json | null
+          event_type?: string | null
           id?: string
+          multipliers_applied?: Json | null
           points: number
+          reason?: string | null
           reward_id?: string | null
+          rule_id?: string | null
           type: string
           user_id: string
         }
         Update: {
+          base_points?: number | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          event_metadata?: Json | null
+          event_type?: string | null
           id?: string
+          multipliers_applied?: Json | null
           points?: number
+          reason?: string | null
           reward_id?: string | null
+          rule_id?: string | null
           type?: string
           user_id?: string
         }
@@ -1237,6 +1471,13 @@ export type Database = {
             columns: ["reward_id"]
             isOneToOne: false
             referencedRelation: "rewards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "points_transactions_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "loyalty_earning_rules"
             referencedColumns: ["id"]
           },
         ]
@@ -1546,8 +1787,12 @@ export type Database = {
           is_available: boolean | null
           name: string
           points_cost: number
+          redemption_cap_per_day: number | null
+          reward_type: string | null
+          reward_value: number | null
           sort_order: number | null
           updated_at: string
+          usage_gate_percentage: number | null
         }
         Insert: {
           created_at?: string
@@ -1556,8 +1801,12 @@ export type Database = {
           is_available?: boolean | null
           name: string
           points_cost?: number
+          redemption_cap_per_day?: number | null
+          reward_type?: string | null
+          reward_value?: number | null
           sort_order?: number | null
           updated_at?: string
+          usage_gate_percentage?: number | null
         }
         Update: {
           created_at?: string
@@ -1566,8 +1815,12 @@ export type Database = {
           is_available?: boolean | null
           name?: string
           points_cost?: number
+          redemption_cap_per_day?: number | null
+          reward_type?: string | null
+          reward_value?: number | null
           sort_order?: number | null
           updated_at?: string
+          usage_gate_percentage?: number | null
         }
         Relationships: []
       }
