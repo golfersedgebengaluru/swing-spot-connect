@@ -153,6 +153,16 @@ export interface CreateInvoiceParams {
   city?: string;
   invoiceType?: string;
   creditNoteFor?: string;
+  notes?: string;
+  dueDate?: string;
+  invoiceCategory?: string;
+  // Booking-specific
+  bookingDate?: string;
+  bookingStartTime?: string;
+  bookingEndTime?: string;
+  bookingBayId?: string;
+  bookingSessionType?: string;
+  bookingUserId?: string;
 }
 
 export function useCreateInvoice() {
@@ -195,7 +205,23 @@ export function useCreateInvoice() {
       );
       if (seqErr) throw seqErr;
 
-      // 4. Insert invoice
+      // 4. Create revenue transaction first (so we can link it)
+      const { data: revTxn, error: revErr } = await (supabase as any)
+        .from("revenue_transactions")
+        .insert({
+          amount: params.total,
+          user_id: params.customerUserId || null,
+          transaction_type: params.invoiceCategory === "booking" ? "booking" : "purchase",
+          description: `Invoice for ${params.customerName}`,
+          status: "confirmed",
+          city: params.city,
+          gateway_name: params.paymentMethod || null,
+        })
+        .select()
+        .single();
+      if (revErr) throw revErr;
+
+      // 5. Insert invoice
       const invoicePayload = {
         invoice_number: invoiceNumber,
         invoice_date: new Date().toISOString().split("T")[0],
@@ -221,8 +247,11 @@ export function useCreateInvoice() {
         invoice_type: params.invoiceType || "invoice",
         credit_note_for: params.creditNoteFor || null,
         payment_method: params.paymentMethod || null,
-        revenue_transaction_id: params.revenueTransactionId || null,
+        revenue_transaction_id: revTxn.id,
         city: params.city,
+        notes: params.notes || null,
+        due_date: params.dueDate || new Date().toISOString().split("T")[0],
+        invoice_category: params.invoiceCategory || "purchase",
       };
 
       const { data: invoice, error: invErr } = await (supabase as any)
@@ -232,7 +261,7 @@ export function useCreateInvoice() {
         .single();
       if (invErr) throw invErr;
 
-      // 5. Insert line items
+      // 6. Insert line items
       const lineItemsPayload = params.lineItems.map((item, idx) => ({
         invoice_id: invoice.id,
         item_name: item.itemName,
@@ -255,10 +284,48 @@ export function useCreateInvoice() {
         .insert(lineItemsPayload);
       if (liErr) throw liErr;
 
+      // 7. If booking category, create a booking record
+      if (params.invoiceCategory === "booking" && params.bookingDate && params.bookingStartTime && params.bookingEndTime) {
+        const startDateTime = `${params.bookingDate}T${params.bookingStartTime}:00`;
+        const endDateTime = `${params.bookingDate}T${params.bookingEndTime}:00`;
+        const startD = new Date(startDateTime);
+        const endD = new Date(endDateTime);
+        const durationMinutes = Math.max(Math.round((endD.getTime() - startD.getTime()) / 60000), 0);
+
+        const bookingPayload: Record<string, any> = {
+          user_id: params.bookingUserId || params.customerUserId || null,
+          city: params.city,
+          start_time: startDateTime,
+          end_time: endDateTime,
+          duration_minutes: durationMinutes,
+          status: "confirmed",
+          session_type: params.bookingSessionType || "practice",
+          note: `Invoice ${invoiceNumber}`,
+        };
+        if (params.bookingBayId) {
+          bookingPayload.bay_id = params.bookingBayId;
+        }
+
+        const { data: booking, error: bookErr } = await (supabase as any)
+          .from("bookings")
+          .insert(bookingPayload)
+          .select()
+          .single();
+        if (bookErr) throw bookErr;
+
+        // Link booking to revenue transaction
+        await (supabase as any)
+          .from("revenue_transactions")
+          .update({ booking_id: booking.id })
+          .eq("id", revTxn.id);
+      }
+
       return invoice;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: ["revenue_transactions"] });
+      qc.invalidateQueries({ queryKey: ["bookings"] });
     },
   });
 }

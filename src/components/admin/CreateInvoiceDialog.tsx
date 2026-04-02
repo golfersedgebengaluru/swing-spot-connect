@@ -1,13 +1,17 @@
 import { useState, useMemo } from "react";
+import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, Loader2, Search, CheckCircle, XCircle } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Plus, Trash2, Loader2, Search, CheckCircle, XCircle, CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCreateInvoice, useGstProfile } from "@/hooks/useInvoices";
 import { useOfflinePaymentMethods } from "@/hooks/useOfflinePaymentMethods";
@@ -15,6 +19,7 @@ import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { validateGSTIN, getGstType, calculateLineItems, type GstLineItem } from "@/lib/gst-utils";
+import { cn } from "@/lib/utils";
 
 interface Props {
   open: boolean;
@@ -40,9 +45,26 @@ function useProfileSearch(search: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("user_id, display_name, email")
+        .select("id, user_id, display_name, email")
         .or(`display_name.ilike.%${search}%,email.ilike.%${search}%`)
         .limit(10);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+function useBaysForCity(city?: string) {
+  return useQuery({
+    queryKey: ["bays", city],
+    enabled: !!city,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bays")
+        .select("id, name, city")
+        .eq("city", city!)
+        .eq("is_active", true)
+        .order("sort_order");
       if (error) throw error;
       return data ?? [];
     },
@@ -55,11 +77,27 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
   const { data: profile } = useGstProfile(city);
   const { data: paymentMethods } = useOfflinePaymentMethods();
   const { data: catalogue } = useProductCatalogue();
+  const { data: bays } = useBaysForCity(city);
   const createInvoice = useCreateInvoice();
+
+  // Invoice category
+  const [invoiceCategory, setInvoiceCategory] = useState<"purchase" | "booking">("purchase");
+
+  // Booking fields
+  const [bookingDate, setBookingDate] = useState<Date | undefined>(undefined);
+  const [bookingStartTime, setBookingStartTime] = useState("10:00");
+  const [bookingEndTime, setBookingEndTime] = useState("11:00");
+  const [bookingBayId, setBookingBayId] = useState("");
+  const [sessionType, setSessionType] = useState("practice");
+
+  // Notes & due date
+  const [notes, setNotes] = useState("");
+  const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
 
   // Customer
   const [customerSearch, setCustomerSearch] = useState("");
   const [customerUserId, setCustomerUserId] = useState<string | null>(null);
+  const [customerProfileId, setCustomerProfileId] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -84,7 +122,8 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
   }, [catalogue, catalogueSearch]);
 
   const selectCustomer = (user: any) => {
-    setCustomerUserId(user.user_id);
+    setCustomerUserId(user.user_id || null);
+    setCustomerProfileId(user.id || null);
     setCustomerName(user.display_name || "");
     setCustomerEmail(user.email || "");
     setCustomerSearch("");
@@ -143,9 +182,13 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
       toast({ title: "Select a payment method", variant: "destructive" });
       return;
     }
+    if (invoiceCategory === "booking" && !bookingDate) {
+      toast({ title: "Select a booking date", variant: "destructive" });
+      return;
+    }
 
     try {
-      await createInvoice.mutateAsync({
+      const invoice = await createInvoice.mutateAsync({
         customerUserId: customerUserId || undefined,
         customerName,
         customerEmail: customerEmail || undefined,
@@ -159,6 +202,16 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
         total: calculated.total,
         paymentMethod,
         city,
+        notes: notes || undefined,
+        dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : undefined,
+        invoiceCategory,
+        // Booking-specific
+        bookingDate: bookingDate ? format(bookingDate, "yyyy-MM-dd") : undefined,
+        bookingStartTime: invoiceCategory === "booking" ? bookingStartTime : undefined,
+        bookingEndTime: invoiceCategory === "booking" ? bookingEndTime : undefined,
+        bookingBayId: invoiceCategory === "booking" && bookingBayId ? bookingBayId : undefined,
+        bookingSessionType: invoiceCategory === "booking" ? sessionType : undefined,
+        bookingUserId: customerUserId || customerProfileId || undefined,
       });
       toast({ title: "Invoice created" });
       onOpenChange(false);
@@ -169,7 +222,9 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
   };
 
   const resetForm = () => {
+    setInvoiceCategory("purchase");
     setCustomerUserId(null);
+    setCustomerProfileId(null);
     setCustomerName("");
     setCustomerEmail("");
     setCustomerPhone("");
@@ -178,6 +233,13 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
     setLineItems([]);
     setPaymentMethod("");
     setCustomerSearch("");
+    setNotes("");
+    setDueDate(undefined);
+    setBookingDate(undefined);
+    setBookingStartTime("10:00");
+    setBookingEndTime("11:00");
+    setBookingBayId("");
+    setSessionType("practice");
   };
 
   return (
@@ -188,6 +250,98 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* ── Invoice Category ── */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Invoice Category</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={invoiceCategory === "purchase" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setInvoiceCategory("purchase")}
+              >
+                Purchase
+              </Button>
+              <Button
+                type="button"
+                variant={invoiceCategory === "booking" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setInvoiceCategory("booking")}
+              >
+                Booking
+              </Button>
+            </div>
+          </div>
+
+          {/* ── Booking Details (only for booking) ── */}
+          {invoiceCategory === "booking" && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-foreground">Booking Details</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Booking Date *</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full mt-1 justify-start text-left font-normal",
+                            !bookingDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {bookingDate ? format(bookingDate, "PPP") : "Pick a date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={bookingDate}
+                          onSelect={setBookingDate}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Session Type</Label>
+                    <Select value={sessionType} onValueChange={setSessionType}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="practice">Practice</SelectItem>
+                        <SelectItem value="coaching">Coaching</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Start Time</Label>
+                    <Input type="time" value={bookingStartTime} onChange={(e) => setBookingStartTime(e.target.value)} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">End Time</Label>
+                    <Input type="time" value={bookingEndTime} onChange={(e) => setBookingEndTime(e.target.value)} className="mt-1" />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Bay (optional)</Label>
+                    <Select value={bookingBayId} onValueChange={setBookingBayId}>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Select bay" /></SelectTrigger>
+                      <SelectContent>
+                        {(bays ?? []).map((b: any) => (
+                          <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          <Separator />
+
           {/* ── Customer ── */}
           <div className="space-y-3">
             <h3 className="text-sm font-medium text-foreground">Customer</h3>
@@ -203,7 +357,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
                 <div className="absolute z-10 mt-1 w-full rounded-md border border-border bg-background shadow-lg max-h-48 overflow-y-auto">
                   {searchResults.map((u: any) => (
                     <button
-                      key={u.user_id}
+                      key={u.id}
                       className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
                       onClick={() => selectCustomer(u)}
                     >
@@ -365,17 +519,57 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
             </Card>
           )}
 
-          {/* ── Payment Method ── */}
+          {/* ── Payment Method & Due Date ── */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Payment Method</Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Select method" /></SelectTrigger>
+                <SelectContent>
+                  {(paymentMethods ?? []).filter((m: any) => m.is_active).map((m: any) => (
+                    <SelectItem key={m.id} value={m.label}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Due Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full mt-1 justify-start text-left font-normal",
+                      !dueDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dueDate ? format(dueDate, "PPP") : "Immediate (today)"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dueDate}
+                    onSelect={setDueDate}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          {/* ── Notes ── */}
           <div>
-            <Label>Payment Method</Label>
-            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-              <SelectTrigger className="mt-1"><SelectValue placeholder="Select method" /></SelectTrigger>
-              <SelectContent>
-                {(paymentMethods ?? []).filter((m: any) => m.is_active).map((m: any) => (
-                  <SelectItem key={m.id} value={m.label}>{m.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Notes / Comments</Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Any additional notes for this invoice…"
+              className="mt-1"
+              rows={2}
+            />
           </div>
 
           {/* ── Submit ── */}
