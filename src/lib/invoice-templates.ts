@@ -5,6 +5,7 @@ interface InvoiceData {
   invoice_number: string;
   invoice_date: string;
   invoice_type: string;
+  invoice_category?: string;
   credit_note_for?: string;
   business_name: string;
   business_gstin: string;
@@ -22,6 +23,12 @@ interface InvoiceData {
   total: number;
   payment_method?: string;
   line_items: any[];
+  booking?: {
+    start_time: string;
+    end_time: string;
+    bay_name?: string;
+    session_type?: string;
+  } | null;
 }
 
 interface FormatCurrency {
