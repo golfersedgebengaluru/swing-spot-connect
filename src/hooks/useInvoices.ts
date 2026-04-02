@@ -376,6 +376,7 @@ export function useUpdateInvoice() {
       if (invoiceFields.notes !== undefined) updatePayload.notes = invoiceFields.notes || null;
       if (invoiceFields.dueDate !== undefined) updatePayload.due_date = invoiceFields.dueDate || null;
       if (invoiceFields.invoiceCategory !== undefined) updatePayload.invoice_category = invoiceFields.invoiceCategory;
+      if (invoiceFields.paymentReference !== undefined) updatePayload.payment_reference = invoiceFields.paymentReference || null;
 
       if (Object.keys(updatePayload).length > 0) {
         const { error } = await (supabase as any).from("invoices").update(updatePayload).eq("id", invoiceId);
