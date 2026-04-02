@@ -142,6 +142,7 @@ function InvoiceListSection({ city }: { city: string }) {
                 <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Type</th>
                 <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">Amount</th>
                 <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Status</th>
+                <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Payment</th>
                 <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">Actions</th>
               </tr>
             </thead>
