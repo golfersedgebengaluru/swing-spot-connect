@@ -228,24 +228,22 @@ export function AdminWalkInBookingTab() {
           },
         }).catch((err) => console.error("Loyalty points (non-fatal):", err));
 
-        // Non-coaching walk-ins also trigger "practice" for coaching follow-through bonus
-        if (sessionType !== "coaching") {
-          supabase.functions.invoke("calculate-loyalty-points", {
-            body: {
-              user_id: res.data.booking.user_id,
-              event_type: "practice",
-              hours_used: duration / 60,
-              is_off_peak: isOffPeak,
-              staff_id: user?.id || "system",
-              reason: `Practice session: ${guestName} at ${currentBay.name}`,
-              metadata: {
-                booking_id: res.data.booking.id,
-                city: selectedCity,
-                session_type: sessionType,
-              },
+        // Walk-ins also trigger "practice" for coaching follow-through bonus
+        supabase.functions.invoke("calculate-loyalty-points", {
+          body: {
+            user_id: res.data.booking.user_id,
+            event_type: "practice",
+            hours_used: duration / 60,
+            is_off_peak: isOffPeak,
+            staff_id: user?.id || "system",
+            reason: `Practice session: ${guestName} at ${currentBay.name}`,
+            metadata: {
+              booking_id: res.data.booking.id,
+              city: selectedCity,
+              session_type: sessionType,
             },
-          }).catch((err) => console.error("Practice loyalty points (non-fatal):", err));
-        }
+          },
+        }).catch((err) => console.error("Practice loyalty points (non-fatal):", err));
       }
 
       queryClient.invalidateQueries({ queryKey: ["revenue_transactions"] });
