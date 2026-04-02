@@ -63,6 +63,7 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
   const [notes, setNotes] = useState("");
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [invoiceCategory, setInvoiceCategory] = useState<"purchase" | "booking">("purchase");
+  const [paymentReference, setPaymentReference] = useState("");
 
   useEffect(() => {
     if (invoice && editing) {
