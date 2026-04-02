@@ -219,6 +219,7 @@ function modernTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: F
           ${inv.credit_note_for ? `<p style="font-size:12px;margin:2px 0;">Against: ${inv.credit_note_for}</p>` : ""}
         </div>
       </div>
+      ${buildBookingInfo(inv)}
       <table style="width:100%;border-collapse:collapse;font-size:12px;">
         <thead>
           <tr style="background:${accent};color:#fff;">
