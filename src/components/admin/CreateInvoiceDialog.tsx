@@ -93,6 +93,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
   // Notes & due date
   const [notes, setNotes] = useState("");
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
+  const [paymentReference, setPaymentReference] = useState("");
 
   // Customer
   const [customerSearch, setCustomerSearch] = useState("");
@@ -205,6 +206,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
         notes: notes || undefined,
         dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : undefined,
         invoiceCategory,
+        paymentReference: paymentReference || undefined,
         // Booking-specific
         bookingDate: bookingDate ? format(bookingDate, "yyyy-MM-dd") : undefined,
         bookingStartTime: invoiceCategory === "booking" ? bookingStartTime : undefined,
@@ -235,6 +237,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
     setCustomerSearch("");
     setNotes("");
     setDueDate(undefined);
+    setPaymentReference("");
     setBookingDate(undefined);
     setBookingStartTime("10:00");
     setBookingEndTime("11:00");
@@ -532,6 +535,18 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label>Payment Reference</Label>
+              <Input
+                value={paymentReference}
+                onChange={(e) => setPaymentReference(e.target.value)}
+                placeholder="Transaction ID, cheque #, etc."
+                className="mt-1"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Due Date</Label>
               <Popover>

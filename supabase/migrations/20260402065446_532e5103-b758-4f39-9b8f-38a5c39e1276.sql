@@ -1,0 +1,1 @@
+ALTER TABLE public.invoices ADD COLUMN payment_reference text DEFAULT NULL;

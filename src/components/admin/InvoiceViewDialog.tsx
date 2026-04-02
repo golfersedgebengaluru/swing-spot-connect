@@ -63,6 +63,7 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
   const [notes, setNotes] = useState("");
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [invoiceCategory, setInvoiceCategory] = useState<"purchase" | "booking">("purchase");
+  const [paymentReference, setPaymentReference] = useState("");
 
   useEffect(() => {
     if (invoice && editing) {
@@ -72,6 +73,7 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
       setCustomerGstin(invoice.customer_gstin || "");
       setInvoiceDate(invoice.invoice_date || "");
       setPaymentMethod(invoice.payment_method || "");
+      setPaymentReference((invoice as any).payment_reference || "");
       setNotes(invoice.notes || "");
       setInvoiceCategory(invoice.invoice_category === "booking" ? "booking" : "purchase");
       setDueDate(invoice.due_date ? parseISO(invoice.due_date) : undefined);
@@ -174,6 +176,7 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
         notes,
         dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : undefined,
         invoiceCategory,
+        paymentReference,
       });
       toast({ title: "Invoice updated" });
       setEditing(false);
@@ -301,6 +304,15 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-xs">Payment Reference</Label>
+                  <Input
+                    value={paymentReference}
+                    onChange={(e) => setPaymentReference(e.target.value)}
+                    placeholder="Transaction ID, cheque #, etc."
+                    className="mt-1"
+                  />
                 </div>
               </div>
 
