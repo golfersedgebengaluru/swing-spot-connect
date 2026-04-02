@@ -95,6 +95,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
   const [notes, setNotes] = useState("");
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [paymentReference, setPaymentReference] = useState("");
+  const [addToUserList, setAddToUserList] = useState(false);
 
   // Customer
   const [customerSearch, setCustomerSearch] = useState("");
