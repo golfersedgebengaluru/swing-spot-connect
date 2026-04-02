@@ -225,6 +225,13 @@ export function AdminSidebar({
 
         {/* Accordion groups */}
         <AccordionGroup
+          label="Users"
+          items={filterItems(usersItems)}
+          activeTab={activeTab}
+          onTabChange={handleNavClick}
+          collapsed={collapsed}
+        />
+        <AccordionGroup
           label="Operations"
           items={filterItems(operationsItems)}
           activeTab={activeTab}
