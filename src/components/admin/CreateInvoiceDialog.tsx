@@ -241,6 +241,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
     setNotes("");
     setDueDate(undefined);
     setPaymentReference("");
+    setAddToUserList(false);
     setBookingDate(undefined);
     setBookingStartTime("10:00");
     setBookingEndTime("11:00");
