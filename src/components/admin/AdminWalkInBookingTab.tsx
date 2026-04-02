@@ -30,6 +30,7 @@ type Step = "select" | "payment" | "confirm";
 export function AdminWalkInBookingTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { data: bays, isLoading: loadingBays } = useBays();
   const { data: bayPricing } = useBayPricing();
   const { data: offlineMethods } = useOfflinePaymentMethods();
