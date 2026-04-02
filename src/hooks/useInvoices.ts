@@ -129,7 +129,36 @@ export function useInvoiceWithItems(invoiceId: string | null) {
         .order("sort_order");
       if (itemsError) throw itemsError;
 
-      return { ...invoice, line_items: items ?? [] };
+      // For booking invoices, fetch the linked booking via revenue_transaction
+      let booking: any = null;
+      if (invoice.invoice_category === "booking" && invoice.revenue_transaction_id) {
+        const { data: revTxn } = await (supabase as any)
+          .from("revenue_transactions")
+          .select("booking_id")
+          .eq("id", invoice.revenue_transaction_id)
+          .maybeSingle();
+        if (revTxn?.booking_id) {
+          const { data: bookingData } = await (supabase as any)
+            .from("bookings")
+            .select("id, start_time, end_time, bay_id, session_type")
+            .eq("id", revTxn.booking_id)
+            .maybeSingle();
+          if (bookingData) {
+            // Also fetch bay name
+            if (bookingData.bay_id) {
+              const { data: bay } = await (supabase as any)
+                .from("bays")
+                .select("name")
+                .eq("id", bookingData.bay_id)
+                .maybeSingle();
+              bookingData.bay_name = bay?.name || null;
+            }
+            booking = bookingData;
+          }
+        }
+      }
+
+      return { ...invoice, line_items: items ?? [], booking };
     },
   });
 }

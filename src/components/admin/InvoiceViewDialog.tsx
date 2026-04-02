@@ -71,6 +71,7 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
   const [showRecordPayment, setShowRecordPayment] = useState(false);
   const [recordAmount, setRecordAmount] = useState<number>(0);
   const [recordReference, setRecordReference] = useState("");
+  const [recordPaymentMethod, setRecordPaymentMethod] = useState("");
 
   useEffect(() => {
     if (invoice && editing) {
@@ -522,6 +523,7 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
                       <Button size="sm" onClick={() => {
                         setRecordAmount(Math.max(Number(invoice.total) - (Number((invoice as any).amount_paid) || 0), 0));
                         setRecordReference("");
+                        setRecordPaymentMethod("");
                         setShowRecordPayment(true);
                       }}>
                         Record Payment
@@ -530,11 +532,22 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
                   </div>
                   {showRecordPayment && (
                     <div className="space-y-3 pt-2 border-t border-border">
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-3 gap-3">
                         <div>
                           <Label className="text-xs">Amount Received</Label>
                           <Input type="number" min={0} step="0.01" value={recordAmount}
                             onChange={(e) => setRecordAmount(Number(e.target.value) || 0)} className="mt-1" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Mode of Payment</Label>
+                          <Select value={recordPaymentMethod} onValueChange={setRecordPaymentMethod}>
+                            <SelectTrigger className="mt-1"><SelectValue placeholder="Select mode" /></SelectTrigger>
+                            <SelectContent>
+                              {(paymentMethods ?? []).filter((m: any) => m.is_active).map((m: any) => (
+                                <SelectItem key={m.id} value={m.label}>{m.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div>
                           <Label className="text-xs">Payment Reference</Label>
@@ -552,12 +565,17 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
                           const newRef = recordReference
                             ? (existingRef ? `${existingRef}; ${recordReference}` : recordReference)
                             : existingRef;
+                          const existingMethod = (invoice as any).payment_method || "";
+                          const newMethod = recordPaymentMethod
+                            ? (existingMethod ? `${existingMethod}; ${recordPaymentMethod}` : recordPaymentMethod)
+                            : existingMethod;
                           try {
                             await updateInvoice.mutateAsync({
                               invoiceId: invoice.id,
                               amountPaid: Math.min(newPaid, total),
                               paymentStatus: newStatus,
                               paymentReference: newRef,
+                              paymentMethod: newMethod || undefined,
                             });
                             toast({ title: newStatus === "paid" ? "Marked as fully paid" : "Payment recorded" });
                             setShowRecordPayment(false);

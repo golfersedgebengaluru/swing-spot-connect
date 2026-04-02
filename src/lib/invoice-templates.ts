@@ -5,6 +5,7 @@ interface InvoiceData {
   invoice_number: string;
   invoice_date: string;
   invoice_type: string;
+  invoice_category?: string;
   credit_note_for?: string;
   business_name: string;
   business_gstin: string;
@@ -22,6 +23,12 @@ interface InvoiceData {
   total: number;
   payment_method?: string;
   line_items: any[];
+  booking?: {
+    start_time: string;
+    end_time: string;
+    bay_name?: string;
+    session_type?: string;
+  } | null;
 }
 
 interface FormatCurrency {
@@ -90,6 +97,28 @@ function buildTotals(inv: InvoiceData, currency: FormatCurrency) {
   return rows;
 }
 
+function buildBookingInfo(inv: InvoiceData) {
+  if (inv.invoice_category !== "booking" || !inv.booking) return "";
+  try {
+    const start = new Date(inv.booking.start_time);
+    const end = new Date(inv.booking.end_time);
+    const dateStr = start.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    const startTime = start.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+    const endTime = end.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+    let info = `<div style="margin-bottom:16px;padding:10px 14px;background:#f0f7ff;border-radius:6px;border:1px solid #d0e3f7;">
+      <p style="font-size:10px;font-weight:600;text-transform:uppercase;color:#4a7ab5;margin:0 0 4px;">Booking Details</p>
+      <p style="font-size:12px;margin:2px 0;"><strong>Date:</strong> ${dateStr}</p>
+      <p style="font-size:12px;margin:2px 0;"><strong>Time:</strong> ${startTime} – ${endTime}</p>`;
+    if (inv.booking.bay_name) {
+      info += `<p style="font-size:12px;margin:2px 0;"><strong>Location:</strong> ${inv.booking.bay_name}</p>`;
+    }
+    info += `</div>`;
+    return info;
+  } catch {
+    return "";
+  }
+}
+
 function buildFooter(settings: InvoiceSettings, inv: InvoiceData) {
   let html = "";
   if (inv.payment_method) {
@@ -137,6 +166,7 @@ function classicTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: 
       ${inv.customer_phone ? `<p style="font-size:12px;color:#666;margin:2px 0;">${inv.customer_phone}</p>` : ""}
       ${inv.customer_gstin ? `<p style="font-size:12px;color:#666;margin:2px 0;">GSTIN: ${inv.customer_gstin}</p>` : ""}
     </div>
+    ${buildBookingInfo(inv)}
     <table style="width:100%;border-collapse:collapse;font-size:12px;">
       <thead>${buildTableHeader(isIgst)}</thead>
       <tbody>${buildLineItemRows(inv.line_items || [], isIgst, currency)}</tbody>
@@ -189,6 +219,7 @@ function modernTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: F
           ${inv.credit_note_for ? `<p style="font-size:12px;margin:2px 0;">Against: ${inv.credit_note_for}</p>` : ""}
         </div>
       </div>
+      ${buildBookingInfo(inv)}
       <table style="width:100%;border-collapse:collapse;font-size:12px;">
         <thead>
           <tr style="background:${accent};color:#fff;">
@@ -242,6 +273,7 @@ function compactTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: 
           ${inv.customer_gstin ? ` · GSTIN: ${inv.customer_gstin}` : ""}
         </div>
       </div>
+      ${buildBookingInfo(inv)}
       <table style="width:100%;border-collapse:collapse;font-size:11px;">
         <thead>
           <tr style="background:#f0f0f0;border-bottom:1px solid #ccc;">
