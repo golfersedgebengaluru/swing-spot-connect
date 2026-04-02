@@ -536,6 +536,16 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
               </Select>
             </div>
             <div>
+              <Label>Payment Reference</Label>
+              <Input
+                value={paymentReference}
+                onChange={(e) => setPaymentReference(e.target.value)}
+                placeholder="Transaction ID, cheque #, etc."
+                className="mt-1"
+              />
+            </div>
+          </div>
+            <div>
               <Label>Due Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
