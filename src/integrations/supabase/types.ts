@@ -900,6 +900,7 @@ export type Database = {
           invoice_type: string
           notes: string | null
           payment_method: string | null
+          payment_reference: string | null
           revenue_transaction_id: string | null
           sgst_total: number
           status: string
@@ -934,6 +935,7 @@ export type Database = {
           invoice_type?: string
           notes?: string | null
           payment_method?: string | null
+          payment_reference?: string | null
           revenue_transaction_id?: string | null
           sgst_total?: number
           status?: string
@@ -968,6 +970,7 @@ export type Database = {
           invoice_type?: string
           notes?: string | null
           payment_method?: string | null
+          payment_reference?: string | null
           revenue_transaction_id?: string | null
           sgst_total?: number
           status?: string
