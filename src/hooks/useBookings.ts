@@ -273,7 +273,7 @@ export function useAllBookings() {
 
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("user_id, display_name, email, user_type");
+        .select("id, user_id, display_name, email, user_type");
 
       // Dual-key map: index by both user_id (auth ID) and profile id (primary key)
       // so admin-registered / guest users without auth accounts are found too
