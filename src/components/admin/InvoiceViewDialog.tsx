@@ -176,6 +176,7 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
         notes,
         dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : undefined,
         invoiceCategory,
+        paymentReference,
       });
       toast({ title: "Invoice updated" });
       setEditing(false);
