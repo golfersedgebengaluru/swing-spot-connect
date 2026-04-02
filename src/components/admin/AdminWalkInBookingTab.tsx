@@ -24,6 +24,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCreateInvoice } from "@/hooks/useInvoices";
 import { calculateLineItems, getGstType } from "@/lib/gst-utils";
 import { useProducts } from "@/hooks/useProducts";
+import { useAuth } from "@/contexts/AuthContext";
 type Step = "select" | "payment" | "confirm";
 
 export function AdminWalkInBookingTab() {
