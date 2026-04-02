@@ -305,6 +305,15 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="col-span-2">
+                  <Label className="text-xs">Payment Reference</Label>
+                  <Input
+                    value={paymentReference}
+                    onChange={(e) => setPaymentReference(e.target.value)}
+                    placeholder="Transaction ID, cheque #, etc."
+                    className="mt-1"
+                  />
+                </div>
               </div>
 
               {/* Due Date */}
