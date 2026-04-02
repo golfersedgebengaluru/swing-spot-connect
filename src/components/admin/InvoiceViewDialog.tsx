@@ -84,6 +84,8 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
       setNotes(invoice.notes || "");
       setInvoiceCategory(invoice.invoice_category === "booking" ? "booking" : "purchase");
       setDueDate(invoice.due_date ? parseISO(invoice.due_date) : undefined);
+      setPaymentStatus((invoice as any).payment_status || "paid");
+      setAmountPaid(Number((invoice as any).amount_paid) || 0);
       if (invoice.customer_gstin?.length === 15) {
         setGstinValidation(validateGSTIN(invoice.customer_gstin).valid);
       }
