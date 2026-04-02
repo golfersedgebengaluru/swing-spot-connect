@@ -318,7 +318,7 @@ export function useCreateInvoice() {
               email: params.customerEmail || null,
               phone: params.customerPhone || null,
               preferred_city: params.city || null,
-              user_type: "registered",
+              user_type: "guest",
             })
             .select()
             .single();
