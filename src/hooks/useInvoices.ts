@@ -404,6 +404,8 @@ export interface UpdateInvoiceParams {
   dueDate?: string;
   invoiceCategory?: string;
   paymentReference?: string;
+  amountPaid?: number;
+  paymentStatus?: string;
 }
 
 export function useUpdateInvoice() {
