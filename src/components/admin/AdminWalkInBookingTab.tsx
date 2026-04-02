@@ -204,11 +204,37 @@ export function AdminWalkInBookingTab() {
         // Don't fail the booking if invoice generation fails
       }
 
+      // Award EDGE Rewards loyalty points for walk-in spend (non-blocking)
+      if (res.data?.booking?.user_id && totalCost > 0) {
+        const isWeekend = selectedDate ? [0, 6].includes(selectedDate.getDay()) : false;
+        const slotHour = selectedSlot ? new Date(selectedSlot).getHours() : 12;
+        const isOffPeak = !isWeekend && (slotHour < 10 || slotHour >= 18);
+
+        supabase.functions.invoke("calculate-loyalty-points", {
+          body: {
+            user_id: res.data.booking.user_id,
+            event_type: "walkin",
+            amount_spent: totalCost,
+            hours_used: duration / 60,
+            is_off_peak: isOffPeak,
+            staff_id: user?.id || "system",
+            reason: `Walk-in: ${guestName} at ${currentBay.name}`,
+            metadata: {
+              booking_id: res.data.booking.id,
+              city: selectedCity,
+              session_type: sessionType,
+              payment_method: selectedPaymentMethod,
+            },
+          },
+        }).catch((err) => console.error("Loyalty points (non-fatal):", err));
+      }
+
       queryClient.invalidateQueries({ queryKey: ["revenue_transactions"] });
       queryClient.invalidateQueries({ queryKey: ["revenue_summary"] });
       queryClient.invalidateQueries({ queryKey: ["all_bookings"] });
       queryClient.invalidateQueries({ queryKey: ["available_slots"] });
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["points_transactions"] });
 
       setBookingComplete(true);
       toast({ title: "Walk-in Booking Created!", description: `Payment via ${selectedPaymentMethod} recorded. Invoice generated.` });
