@@ -30,6 +30,7 @@ const tabTitles: Record<string, string> = {
   events: "Events",
   products: "Products",
   rewards: "Rewards",
+  edgerewards: "EDGE Rewards",
   members: "Members",
   allusers: "All Users",
   pages: "Page Settings",
