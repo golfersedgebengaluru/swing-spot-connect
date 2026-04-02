@@ -35,6 +35,7 @@ const dashboardWidgetItems = [
   { key: "dashboard_leaderboard_rank_visible", label: "Leaderboard Rank", description: "Show leaderboard rank stat on member dashboard" },
   { key: "dashboard_reward_points_visible", label: "Reward Points", description: "Show reward points stat on member dashboard" },
   { key: "dashboard_recent_visits_visible", label: "Recent Visits", description: "Show recent visits section on member dashboard" },
+  { key: "dashboard_edge_rewards_visible", label: "EDGE Rewards Dashboard", description: "Show the full EDGE Rewards dashboard on the Rewards page" },
 ];
 
 function PageVisibilitySettings() {
