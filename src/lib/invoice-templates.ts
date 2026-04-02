@@ -97,6 +97,28 @@ function buildTotals(inv: InvoiceData, currency: FormatCurrency) {
   return rows;
 }
 
+function buildBookingInfo(inv: InvoiceData) {
+  if (inv.invoice_category !== "booking" || !inv.booking) return "";
+  try {
+    const start = new Date(inv.booking.start_time);
+    const end = new Date(inv.booking.end_time);
+    const dateStr = start.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    const startTime = start.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+    const endTime = end.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+    let info = `<div style="margin-bottom:16px;padding:10px 14px;background:#f0f7ff;border-radius:6px;border:1px solid #d0e3f7;">
+      <p style="font-size:10px;font-weight:600;text-transform:uppercase;color:#4a7ab5;margin:0 0 4px;">Booking Details</p>
+      <p style="font-size:12px;margin:2px 0;"><strong>Date:</strong> ${dateStr}</p>
+      <p style="font-size:12px;margin:2px 0;"><strong>Time:</strong> ${startTime} – ${endTime}</p>`;
+    if (inv.booking.bay_name) {
+      info += `<p style="font-size:12px;margin:2px 0;"><strong>Location:</strong> ${inv.booking.bay_name}</p>`;
+    }
+    info += `</div>`;
+    return info;
+  } catch {
+    return "";
+  }
+}
+
 function buildFooter(settings: InvoiceSettings, inv: InvoiceData) {
   let html = "";
   if (inv.payment_method) {
