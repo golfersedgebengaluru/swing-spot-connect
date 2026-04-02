@@ -551,7 +551,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
             </Card>
           )}
 
-          {/* ── Payment Method & Due Date ── */}
+          {/* ── Payment Method & Status ── */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Payment Method</Label>
@@ -573,6 +573,49 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
                 className="mt-1"
               />
             </div>
+          </div>
+
+          {/* ── Payment Status ── */}
+          <div className="space-y-3">
+            <Label>Payment Status</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={paymentStatus === "paid" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setPaymentStatus("paid")}
+              >
+                Fully Paid
+              </Button>
+              <Button
+                type="button"
+                variant={paymentStatus === "partial" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setPaymentStatus("partial")}
+              >
+                Amount Due
+              </Button>
+            </div>
+            {paymentStatus === "partial" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Amount Paid</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={amountPaid}
+                    onChange={(e) => setAmountPaid(Number(e.target.value) || 0)}
+                    className="mt-1"
+                  />
+                </div>
+                <div className="flex flex-col justify-end">
+                  <p className="text-sm font-medium text-destructive">
+                    Balance Due: {currency.format(Math.max(calculated.total - amountPaid, 0))}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
