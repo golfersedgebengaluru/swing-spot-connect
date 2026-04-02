@@ -167,6 +167,13 @@ async function reverseRevenueAndInvoice(adminClient: any, bookingId: string) {
 
     if (!revTx) return; // No paid revenue to reverse (hour-based booking)
 
+    // GUARD: Only auto-reverse for gateway-originated transactions (guest_booking, payment).
+    // Manual invoice transactions (booking, purchase) are managed by admins directly.
+    if (revTx.transaction_type === "booking" || revTx.transaction_type === "purchase") {
+      console.log(`Skipping auto-reversal for manual invoice transaction (type: ${revTx.transaction_type}) on booking ${bookingId}`);
+      return;
+    }
+
     // 2. Create a refund revenue transaction (reversal)
     await adminClient.from("revenue_transactions").insert({
       transaction_type: "refund",
