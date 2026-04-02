@@ -32,6 +32,7 @@ const tabComponents: Record<string, React.ComponentType> = {
   salesinvoices: AdminSalesInvoicesTab,
   expenses: AdminExpensesTab,
   rewards: AdminRewardsTab,
+  edgerewards: AdminEdgeRewardsTab,
   members: AdminMembersTab,
   allusers: AdminAllUsersTab,
   pages: AdminPagesTab,
