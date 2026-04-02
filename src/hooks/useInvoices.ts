@@ -153,6 +153,16 @@ export interface CreateInvoiceParams {
   city?: string;
   invoiceType?: string;
   creditNoteFor?: string;
+  notes?: string;
+  dueDate?: string;
+  invoiceCategory?: string;
+  // Booking-specific
+  bookingDate?: string;
+  bookingStartTime?: string;
+  bookingEndTime?: string;
+  bookingBayId?: string;
+  bookingSessionType?: string;
+  bookingUserId?: string;
 }
 
 export function useCreateInvoice() {
