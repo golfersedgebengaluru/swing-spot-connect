@@ -158,6 +158,8 @@ export interface CreateInvoiceParams {
   invoiceCategory?: string;
   paymentReference?: string;
   addToUserList?: boolean;
+  amountPaid?: number;
+  paymentStatus?: string;
   // Booking-specific
   bookingDate?: string;
   bookingStartTime?: string;
