@@ -5,8 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Printer, Loader2, Pencil, Save, X, Plus, Trash2, Search, CheckCircle, XCircle } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Printer, Loader2, Pencil, Save, X, Plus, Trash2, Search, CheckCircle, XCircle, CalendarIcon } from "lucide-react";
 import { useInvoiceWithItems, useUpdateInvoice } from "@/hooks/useInvoices";
 import { useOfflinePaymentMethods } from "@/hooks/useOfflinePaymentMethods";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
@@ -15,9 +18,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { validateGSTIN, getGstType, calculateLineItems, type GstLineItem } from "@/lib/gst-utils";
 import { useGstProfile } from "@/hooks/useInvoices";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { useEffectiveInvoiceSettings } from "@/hooks/useInvoiceSettings";
 import { renderInvoiceHtml, openPrintWindow } from "@/lib/invoice-templates";
+import { cn } from "@/lib/utils";
 
 interface Props {
   invoiceId: string | null;
@@ -56,6 +60,9 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [lineItems, setLineItems] = useState<GstLineItem[]>([]);
   const [catalogueSearch, setCatalogueSearch] = useState("");
+  const [notes, setNotes] = useState("");
+  const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
+  const [invoiceCategory, setInvoiceCategory] = useState<"purchase" | "booking">("purchase");
 
   useEffect(() => {
     if (invoice && editing) {
@@ -65,6 +72,9 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
       setCustomerGstin(invoice.customer_gstin || "");
       setInvoiceDate(invoice.invoice_date || "");
       setPaymentMethod(invoice.payment_method || "");
+      setNotes(invoice.notes || "");
+      setInvoiceCategory(invoice.invoice_category === "booking" ? "booking" : "purchase");
+      setDueDate(invoice.due_date ? parseISO(invoice.due_date) : undefined);
       if (invoice.customer_gstin?.length === 15) {
         setGstinValidation(validateGSTIN(invoice.customer_gstin).valid);
       }
@@ -161,6 +171,9 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
         sgstTotal: calculated.sgstTotal,
         igstTotal: calculated.igstTotal,
         total: calculated.total,
+        notes,
+        dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : undefined,
+        invoiceCategory,
       });
       toast({ title: "Invoice updated" });
       setEditing(false);
@@ -218,6 +231,31 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
           editing ? (
             /* ── EDIT MODE ── */
             <div className="space-y-5">
+              {/* Invoice Category */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Invoice Category</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={invoiceCategory === "purchase" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setInvoiceCategory("purchase")}
+                  >
+                    Purchase
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={invoiceCategory === "booking" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setInvoiceCategory("booking")}
+                  >
+                    Booking
+                  </Button>
+                </div>
+              </div>
+
+              <Separator />
+
               {/* Customer */}
               <div className="space-y-3">
                 <h3 className="text-sm font-medium text-foreground">Customer Details</h3>
@@ -264,6 +302,34 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              {/* Due Date */}
+              <div>
+                <Label className="text-xs">Due Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full mt-1 justify-start text-left font-normal",
+                        !dueDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dueDate ? format(dueDate, "PPP") : "No due date set"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dueDate}
+                      onSelect={setDueDate}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <Separator />
@@ -364,6 +430,18 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
                   <div className="flex justify-between font-semibold text-base"><span>Total</span><span>{currency.format(calculated.total)}</span></div>
                 </div>
               )}
+
+              {/* Notes */}
+              <div>
+                <Label className="text-xs">Notes / Comments</Label>
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Any additional notes…"
+                  className="mt-1"
+                  rows={2}
+                />
+              </div>
             </div>
           ) : (
             /* ── VIEW MODE ── */
