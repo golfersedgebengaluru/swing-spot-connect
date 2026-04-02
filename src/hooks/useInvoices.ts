@@ -341,7 +341,7 @@ export function useCreateInvoice() {
         const durationMinutes = Math.max(Math.round((endD.getTime() - startD.getTime()) / 60000), 0);
 
         const bookingPayload: Record<string, any> = {
-          user_id: params.bookingUserId || params.customerUserId || null,
+          user_id: params.bookingUserId || params.customerUserId || createdProfileId || null,
           city: params.city,
           start_time: startDateTime,
           end_time: endDateTime,
