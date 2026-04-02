@@ -146,6 +146,25 @@ export function useCreateBooking() {
             },
           },
         }).catch((err) => console.error("Loyalty points (non-fatal):", err));
+
+        // Non-coaching bookings also trigger a "practice" event for coaching follow-through bonus
+        if (params.session_type !== "coaching") {
+          supabase.functions.invoke("calculate-loyalty-points", {
+            body: {
+              user_id: user.id,
+              event_type: "practice",
+              hours_used: params.duration_minutes / 60,
+              is_off_peak: isOffPeak,
+              staff_id: user.id,
+              reason: `Practice session: ${params.bay_name || "Bay"}`,
+              metadata: {
+                booking_id: res.data?.booking?.id,
+                city: params.city,
+                session_type: params.session_type,
+              },
+            },
+          }).catch((err) => console.error("Practice loyalty points (non-fatal):", err));
+        }
       }
 
       return res.data;
