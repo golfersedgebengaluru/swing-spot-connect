@@ -346,6 +346,9 @@ export interface UpdateInvoiceParams {
   sgstTotal?: number;
   igstTotal?: number;
   total?: number;
+  notes?: string;
+  dueDate?: string;
+  invoiceCategory?: string;
 }
 
 export function useUpdateInvoice() {
@@ -367,6 +370,9 @@ export function useUpdateInvoice() {
       if (invoiceFields.sgstTotal !== undefined) updatePayload.sgst_total = invoiceFields.sgstTotal;
       if (invoiceFields.igstTotal !== undefined) updatePayload.igst_total = invoiceFields.igstTotal;
       if (invoiceFields.total !== undefined) updatePayload.total = invoiceFields.total;
+      if (invoiceFields.notes !== undefined) updatePayload.notes = invoiceFields.notes || null;
+      if (invoiceFields.dueDate !== undefined) updatePayload.due_date = invoiceFields.dueDate || null;
+      if (invoiceFields.invoiceCategory !== undefined) updatePayload.invoice_category = invoiceFields.invoiceCategory;
 
       if (Object.keys(updatePayload).length > 0) {
         const { error } = await (supabase as any).from("invoices").update(updatePayload).eq("id", invoiceId);
