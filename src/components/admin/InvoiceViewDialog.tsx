@@ -186,6 +186,8 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
         dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : undefined,
         invoiceCategory,
         paymentReference,
+        amountPaid: paymentStatus === "paid" ? calculated.total : amountPaid,
+        paymentStatus,
       });
       toast({ title: "Invoice updated" });
       setEditing(false);
