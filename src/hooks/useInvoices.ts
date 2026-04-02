@@ -287,6 +287,51 @@ export function useCreateInvoice() {
         .insert(lineItemsPayload);
       if (liErr) throw liErr;
 
+      // 6b. Auto-create profile for new customers if needed
+      const shouldCreateProfile =
+        !params.customerUserId &&
+        params.customerName &&
+        ((params.invoiceCategory === "booking") || (params.invoiceCategory === "purchase" && params.addToUserList));
+
+      let createdProfileId: string | null = null;
+      if (shouldCreateProfile) {
+        // Check if profile already exists by email
+        let existingProfile = null;
+        if (params.customerEmail) {
+          const { data } = await (supabase as any)
+            .from("profiles")
+            .select("id, user_id")
+            .eq("email", params.customerEmail)
+            .maybeSingle();
+          existingProfile = data;
+        }
+
+        if (!existingProfile) {
+          const { data: newProfile, error: profErr } = await (supabase as any)
+            .from("profiles")
+            .insert({
+              display_name: params.customerName,
+              email: params.customerEmail || null,
+              phone: params.customerPhone || null,
+              preferred_city: params.city || null,
+              user_type: "registered",
+            })
+            .select()
+            .single();
+          if (profErr) throw profErr;
+          createdProfileId = newProfile.id;
+
+          // Link invoice and revenue to the new profile
+          await (supabase as any).from("invoices").update({ customer_user_id: newProfile.id }).eq("id", invoice.id);
+          await (supabase as any).from("revenue_transactions").update({ user_id: newProfile.id }).eq("id", revTxn.id);
+        } else {
+          createdProfileId = existingProfile.id;
+          const linkId = existingProfile.user_id || existingProfile.id;
+          await (supabase as any).from("invoices").update({ customer_user_id: linkId }).eq("id", invoice.id);
+          await (supabase as any).from("revenue_transactions").update({ user_id: linkId }).eq("id", revTxn.id);
+        }
+      }
+
       // 7. If booking category, create a booking record
       if (params.invoiceCategory === "booking" && params.bookingDate && params.bookingStartTime && params.bookingEndTime) {
         const startDateTime = `${params.bookingDate}T${params.bookingStartTime}:00`;
