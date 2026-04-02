@@ -523,6 +523,7 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
                       <Button size="sm" onClick={() => {
                         setRecordAmount(Math.max(Number(invoice.total) - (Number((invoice as any).amount_paid) || 0), 0));
                         setRecordReference("");
+                        setRecordPaymentMethod("");
                         setShowRecordPayment(true);
                       }}>
                         Record Payment
