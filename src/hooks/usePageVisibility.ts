@@ -12,6 +12,7 @@ const PAGE_KEYS = [
   "dashboard_leaderboard_rank_visible",
   "dashboard_reward_points_visible",
   "dashboard_recent_visits_visible",
+  "dashboard_edge_rewards_visible",
 ] as const;
 
 export type PageVisibility = Record<string, boolean>;
