@@ -64,6 +64,13 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [invoiceCategory, setInvoiceCategory] = useState<"purchase" | "booking">("purchase");
   const [paymentReference, setPaymentReference] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState<string>("paid");
+  const [amountPaid, setAmountPaid] = useState<number>(0);
+
+  // Record payment state (for view mode)
+  const [showRecordPayment, setShowRecordPayment] = useState(false);
+  const [recordAmount, setRecordAmount] = useState<number>(0);
+  const [recordReference, setRecordReference] = useState("");
 
   useEffect(() => {
     if (invoice && editing) {
@@ -77,6 +84,8 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
       setNotes(invoice.notes || "");
       setInvoiceCategory(invoice.invoice_category === "booking" ? "booking" : "purchase");
       setDueDate(invoice.due_date ? parseISO(invoice.due_date) : undefined);
+      setPaymentStatus((invoice as any).payment_status || "paid");
+      setAmountPaid(Number((invoice as any).amount_paid) || 0);
       if (invoice.customer_gstin?.length === 15) {
         setGstinValidation(validateGSTIN(invoice.customer_gstin).valid);
       }
@@ -177,6 +186,8 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
         dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : undefined,
         invoiceCategory,
         paymentReference,
+        amountPaid: paymentStatus === "paid" ? calculated.total : amountPaid,
+        paymentStatus,
       });
       toast({ title: "Invoice updated" });
       setEditing(false);
@@ -443,6 +454,31 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
                 </div>
               )}
 
+              {/* Payment Status */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Payment Status</Label>
+                <div className="flex gap-2">
+                  <Button type="button" variant={paymentStatus === "paid" ? "default" : "outline"} size="sm"
+                    onClick={() => setPaymentStatus("paid")}>Fully Paid</Button>
+                  <Button type="button" variant={paymentStatus === "partial" ? "default" : "outline"} size="sm"
+                    onClick={() => setPaymentStatus("partial")}>Amount Due</Button>
+                </div>
+                {paymentStatus === "partial" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Amount Paid</Label>
+                      <Input type="number" min={0} step="0.01" value={amountPaid}
+                        onChange={(e) => setAmountPaid(Number(e.target.value) || 0)} className="mt-1" />
+                    </div>
+                    <div className="flex flex-col justify-end">
+                      <p className="text-sm font-medium text-destructive">
+                        Balance Due: {currency.format(Math.max(calculated.total - amountPaid, 0))}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Notes */}
               <div>
                 <Label className="text-xs">Notes / Comments</Label>
@@ -457,11 +493,85 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
             </div>
           ) : (
             /* ── VIEW MODE ── */
-            <div>
+            <div className="space-y-4">
               {invoiceSettings ? (
                 <div dangerouslySetInnerHTML={{ __html: renderInvoiceHtml(invoice, invoiceSettings, currency) }} />
               ) : (
                 <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+              )}
+
+              {/* Payment Status Banner */}
+              {invoice.status === "issued" && (
+                <div className={cn(
+                  "rounded-lg border p-4 space-y-3",
+                  (invoice as any).payment_status === "paid" ? "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950" : "border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950"
+                )}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">
+                        {(invoice as any).payment_status === "paid" ? "✓ Fully Paid" : "⏳ Payment Due"}
+                      </p>
+                      {(invoice as any).payment_status !== "paid" && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Paid: {currency.format(Number((invoice as any).amount_paid) || 0)} · 
+                          Due: {currency.format(Math.max(Number(invoice.total) - (Number((invoice as any).amount_paid) || 0), 0))}
+                        </p>
+                      )}
+                    </div>
+                    {(invoice as any).payment_status !== "paid" && !showRecordPayment && (
+                      <Button size="sm" onClick={() => {
+                        setRecordAmount(Math.max(Number(invoice.total) - (Number((invoice as any).amount_paid) || 0), 0));
+                        setRecordReference("");
+                        setShowRecordPayment(true);
+                      }}>
+                        Record Payment
+                      </Button>
+                    )}
+                  </div>
+                  {showRecordPayment && (
+                    <div className="space-y-3 pt-2 border-t border-border">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs">Amount Received</Label>
+                          <Input type="number" min={0} step="0.01" value={recordAmount}
+                            onChange={(e) => setRecordAmount(Number(e.target.value) || 0)} className="mt-1" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Payment Reference</Label>
+                          <Input value={recordReference} onChange={(e) => setRecordReference(e.target.value)}
+                            placeholder="Transaction ID, cheque #" className="mt-1" />
+                        </div>
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <Button variant="outline" size="sm" onClick={() => setShowRecordPayment(false)}>Cancel</Button>
+                        <Button size="sm" disabled={updateInvoice.isPending} onClick={async () => {
+                          const newPaid = (Number((invoice as any).amount_paid) || 0) + recordAmount;
+                          const total = Number(invoice.total);
+                          const newStatus = newPaid >= total ? "paid" : "partial";
+                          const existingRef = (invoice as any).payment_reference || "";
+                          const newRef = recordReference
+                            ? (existingRef ? `${existingRef}; ${recordReference}` : recordReference)
+                            : existingRef;
+                          try {
+                            await updateInvoice.mutateAsync({
+                              invoiceId: invoice.id,
+                              amountPaid: Math.min(newPaid, total),
+                              paymentStatus: newStatus,
+                              paymentReference: newRef,
+                            });
+                            toast({ title: newStatus === "paid" ? "Marked as fully paid" : "Payment recorded" });
+                            setShowRecordPayment(false);
+                          } catch (err: any) {
+                            toast({ title: "Error", description: err.message, variant: "destructive" });
+                          }
+                        }}>
+                          {updateInvoice.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                          {recordAmount >= Math.max(Number(invoice.total) - (Number((invoice as any).amount_paid) || 0), 0) ? "Mark as Paid" : "Record Partial Payment"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )

@@ -158,6 +158,8 @@ export interface CreateInvoiceParams {
   invoiceCategory?: string;
   paymentReference?: string;
   addToUserList?: boolean;
+  amountPaid?: number;
+  paymentStatus?: string;
   // Booking-specific
   bookingDate?: string;
   bookingStartTime?: string;
@@ -255,6 +257,8 @@ export function useCreateInvoice() {
         due_date: params.dueDate || new Date().toISOString().split("T")[0],
         invoice_category: params.invoiceCategory || "purchase",
         payment_reference: params.paymentReference || null,
+        amount_paid: params.amountPaid ?? params.total,
+        payment_status: params.paymentStatus || "paid",
       };
 
       const { data: invoice, error: invErr } = await (supabase as any)
@@ -400,6 +404,8 @@ export interface UpdateInvoiceParams {
   dueDate?: string;
   invoiceCategory?: string;
   paymentReference?: string;
+  amountPaid?: number;
+  paymentStatus?: string;
 }
 
 export function useUpdateInvoice() {
@@ -425,6 +431,8 @@ export function useUpdateInvoice() {
       if (invoiceFields.dueDate !== undefined) updatePayload.due_date = invoiceFields.dueDate || null;
       if (invoiceFields.invoiceCategory !== undefined) updatePayload.invoice_category = invoiceFields.invoiceCategory;
       if (invoiceFields.paymentReference !== undefined) updatePayload.payment_reference = invoiceFields.paymentReference || null;
+      if (invoiceFields.amountPaid !== undefined) updatePayload.amount_paid = invoiceFields.amountPaid;
+      if (invoiceFields.paymentStatus !== undefined) updatePayload.payment_status = invoiceFields.paymentStatus;
 
       if (Object.keys(updatePayload).length > 0) {
         const { error } = await (supabase as any).from("invoices").update(updatePayload).eq("id", invoiceId);

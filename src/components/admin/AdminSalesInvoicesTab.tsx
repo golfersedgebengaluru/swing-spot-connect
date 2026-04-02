@@ -142,6 +142,7 @@ function InvoiceListSection({ city }: { city: string }) {
                 <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Type</th>
                 <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">Amount</th>
                 <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Status</th>
+                <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Payment</th>
                 <th className="text-right py-2.5 px-3 font-medium text-muted-foreground">Actions</th>
               </tr>
             </thead>
@@ -162,6 +163,16 @@ function InvoiceListSection({ city }: { city: string }) {
                   <td className="py-2.5 px-3 text-right font-medium">{currency.format(Number(inv.total))}</td>
                   <td className="py-2.5 px-3">
                     <Badge variant={inv.status === "cancelled" ? "destructive" : "outline"} className="text-xs">{inv.status}</Badge>
+                  </td>
+                  <td className="py-2.5 px-3">
+                    {inv.status === "issued" && (
+                      <Badge
+                        variant={inv.payment_status === "paid" ? "default" : "secondary"}
+                        className={`text-xs ${inv.payment_status === "paid" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"}`}
+                      >
+                        {inv.payment_status === "paid" ? "Paid" : `Due ${currency.format(Math.max(Number(inv.total) - Number(inv.amount_paid || 0), 0))}`}
+                      </Badge>
+                    )}
                   </td>
                   <td className="py-2.5 px-3 text-right">
                     <div className="flex items-center justify-end gap-1">

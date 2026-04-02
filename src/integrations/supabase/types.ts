@@ -874,6 +874,7 @@ export type Database = {
       }
       invoices: {
         Row: {
+          amount_paid: number
           business_address: string | null
           business_gstin: string
           business_name: string
@@ -901,6 +902,7 @@ export type Database = {
           notes: string | null
           payment_method: string | null
           payment_reference: string | null
+          payment_status: string
           revenue_transaction_id: string | null
           sgst_total: number
           status: string
@@ -909,6 +911,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          amount_paid?: number
           business_address?: string | null
           business_gstin: string
           business_name: string
@@ -936,6 +939,7 @@ export type Database = {
           notes?: string | null
           payment_method?: string | null
           payment_reference?: string | null
+          payment_status?: string
           revenue_transaction_id?: string | null
           sgst_total?: number
           status?: string
@@ -944,6 +948,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          amount_paid?: number
           business_address?: string | null
           business_gstin?: string
           business_name?: string
@@ -971,6 +976,7 @@ export type Database = {
           notes?: string | null
           payment_method?: string | null
           payment_reference?: string | null
+          payment_status?: string
           revenue_transaction_id?: string | null
           sgst_total?: number
           status?: string

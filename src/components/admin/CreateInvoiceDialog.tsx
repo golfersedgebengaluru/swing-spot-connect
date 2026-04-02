@@ -96,6 +96,8 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [paymentReference, setPaymentReference] = useState("");
   const [addToUserList, setAddToUserList] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<"paid" | "partial">("paid");
+  const [amountPaid, setAmountPaid] = useState<number>(0);
 
   // Customer
   const [customerSearch, setCustomerSearch] = useState("");
@@ -209,6 +211,8 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
         dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : undefined,
         invoiceCategory,
         paymentReference: paymentReference || undefined,
+        amountPaid: paymentStatus === "paid" ? calculated.total : amountPaid,
+        paymentStatus,
         addToUserList: invoiceCategory === "booking" ? true : addToUserList,
         // Booking-specific
         bookingDate: bookingDate ? format(bookingDate, "yyyy-MM-dd") : undefined,
@@ -242,6 +246,8 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
     setDueDate(undefined);
     setPaymentReference("");
     setAddToUserList(false);
+    setPaymentStatus("paid");
+    setAmountPaid(0);
     setBookingDate(undefined);
     setBookingStartTime("10:00");
     setBookingEndTime("11:00");
@@ -545,7 +551,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
             </Card>
           )}
 
-          {/* ── Payment Method & Due Date ── */}
+          {/* ── Payment Method & Status ── */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Payment Method</Label>
@@ -567,6 +573,49 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
                 className="mt-1"
               />
             </div>
+          </div>
+
+          {/* ── Payment Status ── */}
+          <div className="space-y-3">
+            <Label>Payment Status</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={paymentStatus === "paid" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setPaymentStatus("paid")}
+              >
+                Fully Paid
+              </Button>
+              <Button
+                type="button"
+                variant={paymentStatus === "partial" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setPaymentStatus("partial")}
+              >
+                Amount Due
+              </Button>
+            </div>
+            {paymentStatus === "partial" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Amount Paid</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={amountPaid}
+                    onChange={(e) => setAmountPaid(Number(e.target.value) || 0)}
+                    className="mt-1"
+                  />
+                </div>
+                <div className="flex flex-col justify-end">
+                  <p className="text-sm font-medium text-destructive">
+                    Balance Due: {currency.format(Math.max(calculated.total - amountPaid, 0))}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
