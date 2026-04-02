@@ -338,8 +338,19 @@ export function useCreateInvoice() {
 
       // 7. If booking category, create a booking record
       if (params.invoiceCategory === "booking" && params.bookingDate && params.bookingStartTime && params.bookingEndTime) {
-        const startDateTime = `${params.bookingDate}T${params.bookingStartTime}:00`;
-        const endDateTime = `${params.bookingDate}T${params.bookingEndTime}:00`;
+        // Build timezone-aware ISO strings so Postgres stores the correct instant.
+        // We derive the local UTC offset from the browser so the time the admin typed
+        // is treated as local time, not UTC.
+        const tzOffset = (() => {
+          const d = new Date(`${params.bookingDate}T${params.bookingStartTime}:00`);
+          const off = -d.getTimezoneOffset(); // minutes east of UTC
+          const sign = off >= 0 ? "+" : "-";
+          const hh = String(Math.floor(Math.abs(off) / 60)).padStart(2, "0");
+          const mm = String(Math.abs(off) % 60).padStart(2, "0");
+          return `${sign}${hh}:${mm}`;
+        })();
+        const startDateTime = `${params.bookingDate}T${params.bookingStartTime}:00${tzOffset}`;
+        const endDateTime = `${params.bookingDate}T${params.bookingEndTime}:00${tzOffset}`;
         const startD = new Date(startDateTime);
         const endD = new Date(endDateTime);
         const durationMinutes = Math.max(Math.round((endD.getTime() - startD.getTime()) / 60000), 0);
