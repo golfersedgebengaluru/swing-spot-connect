@@ -38,16 +38,17 @@ const coreItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "walkin", label: "Walk-in Booking", icon: CalendarDays },
   { id: "bookinglogs", label: "Bookings", icon: CalendarDays },
+];
+
+const usersItems = [
+  { id: "allusers", label: "All Users", icon: Users },
   { id: "members", label: "Members", icon: Users },
-  { id: "bayconfig", label: "Locations", icon: MapPin },
-  { id: "rewards", label: "Rewards", icon: Gift },
 ];
 
 const operationsItems = [
   { id: "salesinvoices", label: "Sales & Invoices", icon: Receipt },
   { id: "expenses", label: "Expenses", icon: Receipt },
   { id: "products", label: "Products", icon: ShoppingBag },
-  { id: "finance", label: "Finance Settings", icon: Receipt },
 ];
 
 const configItems = [
@@ -55,12 +56,13 @@ const configItems = [
   { id: "payments", label: "Payments", icon: CreditCard },
   { id: "emails", label: "Emails", icon: Mail },
   { id: "settings", label: "Settings", icon: Award, adminOnly: true },
+  { id: "finance", label: "Finance Settings", icon: Receipt },
+  { id: "bayconfig", label: "Locations", icon: MapPin },
+  { id: "pages", label: "Page Settings", icon: BarChart3, adminOnly: true },
 ];
 
 const reportsItems = [
   { id: "revenue", label: "Revenue", icon: BarChart3 },
-  { id: "allusers", label: "All Users", icon: BarChart3 },
-  { id: "pages", label: "Pages", icon: BarChart3, adminOnly: true },
 ];
 
 function NavItem({
