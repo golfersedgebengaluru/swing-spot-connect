@@ -273,6 +273,7 @@ function compactTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: 
           ${inv.customer_gstin ? ` · GSTIN: ${inv.customer_gstin}` : ""}
         </div>
       </div>
+      ${buildBookingInfo(inv)}
       <table style="width:100%;border-collapse:collapse;font-size:11px;">
         <thead>
           <tr style="background:#f0f0f0;border-bottom:1px solid #ccc;">
