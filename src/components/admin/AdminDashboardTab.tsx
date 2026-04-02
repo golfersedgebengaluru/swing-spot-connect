@@ -63,16 +63,21 @@ function useAdminDashboardStats(cityFilter: string) {
         baysMap = Object.fromEntries((bays ?? []).map((b) => [b.id, b.name]));
       }
 
-      // Get user names for bookings
+      // Get user names for bookings — dual-key lookup (auth user_id + profile id)
       const userIds = [...new Set((bookingsRes.data ?? []).map((b) => b.user_id).filter(Boolean))];
       let usersMap: Record<string, string> = {};
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("user_id, display_name, email")
-          .in("user_id", userIds);
+          .select("id, user_id, display_name, email");
+        const dualMap = new Map<string, string>();
+        for (const p of profiles ?? []) {
+          const name = p.display_name || p.email || "Unknown";
+          if (p.user_id) dualMap.set(p.user_id, name);
+          dualMap.set(p.id, name);
+        }
         usersMap = Object.fromEntries(
-          (profiles ?? []).map((p) => [p.user_id!, p.display_name || p.email || "Unknown"])
+          userIds.map((uid) => [uid, dualMap.get(uid) || "Unknown"])
         );
       }
 

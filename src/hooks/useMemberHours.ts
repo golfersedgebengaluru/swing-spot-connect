@@ -35,11 +35,14 @@ export function useMemberHours() {
       // Get profiles to map display names
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("user_id, display_name");
+        .select("id, user_id, display_name");
 
-      const profileMap = new Map(
-        (profiles ?? []).map((p) => [p.user_id, p.display_name])
-      );
+      // Dual-key map: index by both user_id (auth ID) and profile id
+      const profileMap = new Map<string, string>();
+      for (const p of profiles ?? []) {
+        if (p.user_id) profileMap.set(p.user_id, p.display_name ?? "Unknown");
+        profileMap.set(p.id, p.display_name ?? "Unknown");
+      }
 
       return (hours ?? []).map((h: any) => ({
         ...h,
