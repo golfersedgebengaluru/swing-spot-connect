@@ -351,6 +351,7 @@ export interface UpdateInvoiceParams {
   notes?: string;
   dueDate?: string;
   invoiceCategory?: string;
+  paymentReference?: string;
 }
 
 export function useUpdateInvoice() {
