@@ -565,12 +565,17 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
                           const newRef = recordReference
                             ? (existingRef ? `${existingRef}; ${recordReference}` : recordReference)
                             : existingRef;
+                          const existingMethod = (invoice as any).payment_method || "";
+                          const newMethod = recordPaymentMethod
+                            ? (existingMethod ? `${existingMethod}; ${recordPaymentMethod}` : recordPaymentMethod)
+                            : existingMethod;
                           try {
                             await updateInvoice.mutateAsync({
                               invoiceId: invoice.id,
                               amountPaid: Math.min(newPaid, total),
                               paymentStatus: newStatus,
                               paymentReference: newRef,
+                              paymentMethod: newMethod || undefined,
                             });
                             toast({ title: newStatus === "paid" ? "Marked as fully paid" : "Payment recorded" });
                             setShowRecordPayment(false);
