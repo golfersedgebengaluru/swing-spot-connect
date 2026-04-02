@@ -73,6 +73,7 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
       setCustomerGstin(invoice.customer_gstin || "");
       setInvoiceDate(invoice.invoice_date || "");
       setPaymentMethod(invoice.payment_method || "");
+      setPaymentReference((invoice as any).payment_reference || "");
       setNotes(invoice.notes || "");
       setInvoiceCategory(invoice.invoice_category === "booking" ? "booking" : "purchase");
       setDueDate(invoice.due_date ? parseISO(invoice.due_date) : undefined);
