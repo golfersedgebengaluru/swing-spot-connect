@@ -39,6 +39,7 @@ const coreItems = [
   { id: "walkin", label: "Walk-in Booking", icon: CalendarDays },
   { id: "bookinglogs", label: "Bookings", icon: CalendarDays },
   { id: "rewards", label: "Rewards", icon: Gift },
+  { id: "edgerewards", label: "EDGE Rewards", icon: Award },
 ];
 
 const usersItems = [
