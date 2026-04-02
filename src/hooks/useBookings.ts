@@ -277,7 +277,7 @@ export function useAllBookings() {
 
       // Dual-key map: index by both user_id (auth ID) and profile id (primary key)
       // so admin-registered / guest users without auth accounts are found too
-      const profileMap = new Map<string, (typeof profiles extends (infer U)[] | null ? U : never)>();
+      const profileMap = new Map<string, any>();
       for (const p of profiles ?? []) {
         if (p.user_id) profileMap.set(p.user_id, p);
         profileMap.set(p.id, p);
