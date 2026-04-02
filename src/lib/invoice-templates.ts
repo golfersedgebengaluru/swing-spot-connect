@@ -166,6 +166,7 @@ function classicTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: 
       ${inv.customer_phone ? `<p style="font-size:12px;color:#666;margin:2px 0;">${inv.customer_phone}</p>` : ""}
       ${inv.customer_gstin ? `<p style="font-size:12px;color:#666;margin:2px 0;">GSTIN: ${inv.customer_gstin}</p>` : ""}
     </div>
+    ${buildBookingInfo(inv)}
     <table style="width:100%;border-collapse:collapse;font-size:12px;">
       <thead>${buildTableHeader(isIgst)}</thead>
       <tbody>${buildLineItemRows(inv.line_items || [], isIgst, currency)}</tbody>
