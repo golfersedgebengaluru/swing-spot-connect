@@ -206,6 +206,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
         notes: notes || undefined,
         dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : undefined,
         invoiceCategory,
+        paymentReference: paymentReference || undefined,
         // Booking-specific
         bookingDate: bookingDate ? format(bookingDate, "yyyy-MM-dd") : undefined,
         bookingStartTime: invoiceCategory === "booking" ? bookingStartTime : undefined,
