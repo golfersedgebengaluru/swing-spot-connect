@@ -192,6 +192,7 @@ export function useCancelBooking() {
 
 export function useApproveBooking() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (bookingId: string) => {
@@ -200,6 +201,38 @@ export function useApproveBooking() {
       });
       if (res.error) throw new Error(res.error.message || "Approval failed");
       if (res.data?.error) throw new Error(res.data.error);
+
+      // Award coaching loyalty points on approval (non-blocking)
+      // Fetch booking details to determine hours and user
+      const { data: booking } = await supabase
+        .from("bookings")
+        .select("user_id, duration_minutes, session_type, start_time, city, bay_id")
+        .eq("id", bookingId)
+        .single();
+
+      if (booking && booking.session_type === "coaching" && booking.user_id) {
+        const startHour = new Date(booking.start_time).getHours();
+        const startDay = new Date(booking.start_time).getDay();
+        const isWeekend = startDay === 0 || startDay === 6;
+        const isOffPeak = !isWeekend && (startHour < 10 || startHour >= 18);
+
+        supabase.functions.invoke("calculate-loyalty-points", {
+          body: {
+            user_id: booking.user_id,
+            event_type: "coaching",
+            hours_used: (booking.duration_minutes || 60) / 60,
+            is_off_peak: isOffPeak,
+            is_coaching: true,
+            staff_id: user?.id || "system",
+            reason: `Coaching session approved`,
+            metadata: {
+              booking_id: bookingId,
+              city: booking.city,
+            },
+          },
+        }).catch((err) => console.error("Loyalty points (non-fatal):", err));
+      }
+
       return res.data;
     },
     onSuccess: () => {
@@ -208,6 +241,7 @@ export function useApproveBooking() {
       queryClient.invalidateQueries({ queryKey: ["available_slots"] });
       queryClient.invalidateQueries({ queryKey: ["member_hours"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["points_transactions"] });
     },
   });
 }
