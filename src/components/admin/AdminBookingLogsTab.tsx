@@ -279,6 +279,9 @@ export function AdminBookingLogsTab() {
                     <Badge variant="outline" className={b.session_type === "coaching" ? "text-primary" : ""}>
                       {b.session_type === "coaching" ? "🎓 Coaching" : "Practice"}
                     </Badge>
+                    <Badge variant="outline" className={`text-[10px] mt-0.5 block w-fit ${b.note?.startsWith("Invoice") ? "text-blue-600 border-blue-300" : "text-emerald-600 border-emerald-300"}`}>
+                      {b.note?.startsWith("Invoice") ? "📄 Invoice" : "🌐 Online"}
+                    </Badge>
                   </TableCell>
                   <TableCell>{format(new Date(b.start_time), "PP")}</TableCell>
                   <TableCell>{format(new Date(b.start_time), "h:mm a")} – {format(new Date(b.end_time), "h:mm a")}</TableCell>
