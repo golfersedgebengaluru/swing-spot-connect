@@ -1,0 +1,2 @@
+ALTER TABLE public.revenue_transactions DROP CONSTRAINT revenue_transactions_transaction_type_check;
+ALTER TABLE public.revenue_transactions ADD CONSTRAINT revenue_transactions_transaction_type_check CHECK (transaction_type = ANY (ARRAY['payment'::text, 'hours_deduction'::text, 'guest_booking'::text, 'refund'::text, 'booking'::text, 'purchase'::text]));
