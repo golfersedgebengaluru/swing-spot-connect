@@ -80,10 +80,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, nextSession) => {
+      (event, nextSession) => {
         setSession(nextSession);
         setUser(nextSession?.user ?? null);
         setLoading(false);
+
+        // Trigger auto-gifts on first sign-up
+        if (event === "SIGNED_IN" && nextSession?.user) {
+          supabase.functions.invoke("process-auto-gifts", {
+            body: { user_id: nextSession.user.id, trigger_event: "signup" },
+          }).catch((err) => console.error("Auto-gift error:", err));
+        }
 
         if (!nextSession?.user) {
           setProfileCheck({ needed: false, displayName: "", email: "" });

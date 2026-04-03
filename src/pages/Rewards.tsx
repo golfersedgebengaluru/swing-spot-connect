@@ -9,6 +9,7 @@ import { ProgressCard } from "@/components/rewards/ProgressCard";
 import { RewardsCatalogue } from "@/components/rewards/RewardsCatalogue";
 import { PointsHistory } from "@/components/rewards/PointsHistory";
 import { EarnMethodsCard } from "@/components/rewards/EarnMethodsCard";
+import { GiftedRewardsCard } from "@/components/rewards/GiftedRewardsCard";
 
 export default function Rewards() {
   const { user } = useAuth();
@@ -60,6 +61,7 @@ export default function Rewards() {
           <div className="mt-8 grid gap-6 lg:grid-cols-3">
             {/* Left column: Catalogue + Earning rules */}
             <div className="lg:col-span-2 space-y-6">
+              <GiftedRewardsCard />
               <RewardsCatalogue currentPoints={currentPoints} />
               <EarnMethodsCard />
             </div>

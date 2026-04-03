@@ -7,6 +7,7 @@ import { LoyaltyBonusesTab } from "./loyalty/LoyaltyBonusesTab";
 import { LoyaltyCatalogueTab } from "./loyalty/LoyaltyCatalogueTab";
 import { LoyaltyConfigTab } from "./loyalty/LoyaltyConfigTab";
 import { LoyaltyTransactionsTab } from "./loyalty/LoyaltyTransactionsTab";
+import { GiftsTab } from "./loyalty/GiftsTab";
 
 export function AdminEdgeRewardsTab() {
   const [tab, setTab] = useState("rules");
@@ -20,6 +21,7 @@ export function AdminEdgeRewardsTab() {
           <TabsTrigger value="milestones">Milestones</TabsTrigger>
           <TabsTrigger value="bonuses">Bonuses</TabsTrigger>
           <TabsTrigger value="catalogue">Catalogue</TabsTrigger>
+          <TabsTrigger value="gifts">Gifts</TabsTrigger>
           <TabsTrigger value="config">Config</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
         </TabsList>
@@ -29,6 +31,7 @@ export function AdminEdgeRewardsTab() {
         <TabsContent value="milestones"><LoyaltyMilestonesTab /></TabsContent>
         <TabsContent value="bonuses"><LoyaltyBonusesTab /></TabsContent>
         <TabsContent value="catalogue"><LoyaltyCatalogueTab /></TabsContent>
+        <TabsContent value="gifts"><GiftsTab /></TabsContent>
         <TabsContent value="config"><LoyaltyConfigTab /></TabsContent>
         <TabsContent value="transactions"><LoyaltyTransactionsTab /></TabsContent>
       </Tabs>
