@@ -2045,6 +2045,10 @@ export type Database = {
         Args: { p_max_per_hour?: number; p_user_id: string }
         Returns: boolean
       }
+      decrement_user_points_safe: {
+        Args: { p_delta: number; p_user_id: string }
+        Returns: number
+      }
       get_hours_balance: { Args: { p_user_id: string }; Returns: number }
       get_next_invoice_number: {
         Args: {
@@ -2065,6 +2069,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_user_points: {
+        Args: { p_delta: number; p_user_id: string }
+        Returns: number
       }
       is_admin_or_site_admin: { Args: { _user_id: string }; Returns: boolean }
     }
