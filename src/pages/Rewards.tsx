@@ -61,6 +61,7 @@ export default function Rewards() {
           <div className="mt-8 grid gap-6 lg:grid-cols-3">
             {/* Left column: Catalogue + Earning rules */}
             <div className="lg:col-span-2 space-y-6">
+              <GiftedRewardsCard />
               <RewardsCatalogue currentPoints={currentPoints} />
               <EarnMethodsCard />
             </div>
