@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
 
       switch (m.condition_type) {
         case "off_peak":
-          applies = !!event.is_off_peak;
+          applies = !!(isOffPeak ?? event.is_off_peak);
           break;
         case "coaching":
           applies = !!event.is_coaching || event.event_type === "coaching";
