@@ -10,10 +10,12 @@ interface LoyaltyEvent {
   event_type: string; // walkin, birdie_usage, eagle_usage, coaching, practice, renewal
   amount_spent?: number; // for walkin (₹)
   hours_used?: number; // for hour-based events
-  is_off_peak?: boolean;
+  is_off_peak?: boolean; // optional manual override; auto-detected from bay config if omitted
   is_coaching?: boolean;
   staff_id: string;
   reason?: string;
+  city?: string; // used for auto off-peak detection
+  booking_start_time?: string; // ISO string, used for auto off-peak detection
   metadata?: Record<string, any>;
 }
 
@@ -33,6 +35,24 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Missing required fields: user_id, event_type, staff_id" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // 0. Auto-detect off-peak if not explicitly provided
+    let isOffPeak = event.is_off_peak;
+    if (isOffPeak === undefined && event.city && event.booking_start_time) {
+      const { data: bayConfig } = await supabase
+        .from("bays")
+        .select("peak_start, peak_end")
+        .eq("city", event.city)
+        .eq("is_active", true)
+        .limit(1)
+        .single();
+
+      if (bayConfig?.peak_start && bayConfig?.peak_end) {
+        const bookingTime = new Date(event.booking_start_time);
+        const timeStr = bookingTime.toTimeString().slice(0, 5); // "HH:MM"
+        isOffPeak = timeStr < bayConfig.peak_start || timeStr >= bayConfig.peak_end;
+      }
     }
 
     // 1. Fetch active earning rules for this event type
@@ -100,7 +120,7 @@ Deno.serve(async (req) => {
 
       switch (m.condition_type) {
         case "off_peak":
-          applies = !!event.is_off_peak;
+          applies = !!(isOffPeak ?? event.is_off_peak);
           break;
         case "coaching":
           applies = !!event.is_coaching || event.event_type === "coaching";

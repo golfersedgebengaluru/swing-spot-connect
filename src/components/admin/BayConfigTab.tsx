@@ -22,6 +22,8 @@ interface BayForm {
   calendar_email: string;
   open_time: string;
   close_time: string;
+  peak_start: string;
+  peak_end: string;
   is_active: boolean;
   sort_order: number;
   coaching_mode: string;
@@ -36,6 +38,8 @@ const emptyForm: BayForm = {
   calendar_email: "",
   open_time: "09:00",
   close_time: "22:00",
+  peak_start: "17:00",
+  peak_end: "21:00",
   is_active: true,
   sort_order: 0,
   coaching_mode: "instant",
@@ -74,6 +78,8 @@ export function BayConfigTab() {
       calendar_email: editing.calendar_email || null,
       open_time: editing.open_time,
       close_time: editing.close_time,
+      peak_start: editing.peak_start,
+      peak_end: editing.peak_end,
       is_active: editing.is_active,
       sort_order: editing.sort_order,
       coaching_mode: editing.coaching_mode,
@@ -188,7 +194,7 @@ export function BayConfigTab() {
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {bay.open_time} – {bay.close_time} · {bay.calendar_email || "No calendar"} · Coaching: {bay.coaching_hours}h
+                        {bay.open_time} – {bay.close_time} · Peak: {bay.peak_start || "17:00"}–{bay.peak_end || "21:00"} · {bay.calendar_email || "No calendar"} · Coaching: {bay.coaching_hours}h
                       </p>
                     </div>
                   </div>
@@ -233,6 +239,17 @@ export function BayConfigTab() {
                   <Input type="time" value={editing.close_time} onChange={(e) => setEditing({ ...editing, close_time: e.target.value })} />
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Peak Hours Start</Label>
+                  <Input type="time" value={editing.peak_start} onChange={(e) => setEditing({ ...editing, peak_start: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Peak Hours End</Label>
+                  <Input type="time" value={editing.peak_end} onChange={(e) => setEditing({ ...editing, peak_end: e.target.value })} />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground -mt-2">Bookings outside peak hours earn off-peak loyalty multipliers.</p>
               <div>
                 <Label>Coaching Mode</Label>
                 <Select value={editing.coaching_mode} onValueChange={(v) => setEditing({ ...editing, coaching_mode: v })}>

@@ -188,6 +188,8 @@ export type Database = {
           is_active: boolean
           name: string
           open_time: string
+          peak_end: string | null
+          peak_start: string | null
           sort_order: number
           updated_at: string
         }
@@ -204,6 +206,8 @@ export type Database = {
           is_active?: boolean
           name: string
           open_time?: string
+          peak_end?: string | null
+          peak_start?: string | null
           sort_order?: number
           updated_at?: string
         }
@@ -220,6 +224,8 @@ export type Database = {
           is_active?: boolean
           name?: string
           open_time?: string
+          peak_end?: string | null
+          peak_start?: string | null
           sort_order?: number
           updated_at?: string
         }
