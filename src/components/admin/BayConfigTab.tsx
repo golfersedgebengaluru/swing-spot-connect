@@ -22,6 +22,8 @@ interface BayForm {
   calendar_email: string;
   open_time: string;
   close_time: string;
+  peak_start: string;
+  peak_end: string;
   is_active: boolean;
   sort_order: number;
   coaching_mode: string;
