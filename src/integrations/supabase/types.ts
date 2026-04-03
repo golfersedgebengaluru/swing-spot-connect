@@ -46,7 +46,10 @@ export type Database = {
           reward_description: string | null
           reward_name: string
           sort_order: number
+          trigger_date: string | null
           trigger_event: string
+          trigger_event_id: string | null
+          trigger_type: string
           updated_at: string
         }
         Insert: {
@@ -59,7 +62,10 @@ export type Database = {
           reward_description?: string | null
           reward_name: string
           sort_order?: number
+          trigger_date?: string | null
           trigger_event?: string
+          trigger_event_id?: string | null
+          trigger_type?: string
           updated_at?: string
         }
         Update: {
@@ -72,10 +78,21 @@ export type Database = {
           reward_description?: string | null
           reward_name?: string
           sort_order?: number
+          trigger_date?: string | null
           trigger_event?: string
+          trigger_event_id?: string | null
+          trigger_type?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "auto_gift_rules_trigger_event_id_fkey"
+            columns: ["trigger_event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bay_config: {
         Row: {
