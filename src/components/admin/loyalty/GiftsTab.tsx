@@ -72,29 +72,102 @@ function AutoRuleForm({ rule, onSave, onCancel }: { rule?: any; onSave: (d: any)
     reward_name: rule?.reward_name ?? "",
     reward_description: rule?.reward_description ?? "",
     description: rule?.description ?? "",
+    trigger_type: rule?.trigger_type ?? "system_event",
     trigger_event: rule?.trigger_event ?? "signup",
+    trigger_date: rule?.trigger_date ?? "",
+    trigger_event_id: rule?.trigger_event_id ?? "",
     is_active: rule?.is_active ?? true,
     max_per_user: rule?.max_per_user ?? 1,
     sort_order: rule?.sort_order ?? 0,
   });
+
+  const { data: events } = useQuery({
+    queryKey: ["events_for_gifts"],
+    queryFn: async () => {
+      const { data } = await supabase.from("events").select("id, title, date").eq("is_active", true).order("date", { ascending: false });
+      return data ?? [];
+    },
+    enabled: form.trigger_type === "configured_event",
+  });
+
+  const handleTriggerTypeChange = (type: string) => {
+    const updates: any = { trigger_type: type };
+    if (type === "system_event") {
+      updates.trigger_event = "signup";
+      updates.trigger_date = "";
+      updates.trigger_event_id = "";
+    } else if (type === "specific_date") {
+      updates.trigger_event = "specific_date";
+      updates.trigger_event_id = "";
+    } else if (type === "configured_event") {
+      updates.trigger_date = "";
+    }
+    setForm({ ...form, ...updates });
+  };
 
   return (
     <div className="space-y-4">
       <div><Label>Rule Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
       <div><Label>Reward Name (what user sees)</Label><Input value={form.reward_name} onChange={(e) => setForm({ ...form, reward_name: e.target.value })} placeholder="e.g. Welcome Drink" /></div>
       <div><Label>Reward Description</Label><Textarea value={form.reward_description} onChange={(e) => setForm({ ...form, reward_description: e.target.value })} /></div>
+
+      {/* Trigger Type */}
       <div>
-        <Label>Trigger Event</Label>
-        <Select value={form.trigger_event} onValueChange={(v) => setForm({ ...form, trigger_event: v })}>
+        <Label>Trigger Type</Label>
+        <Select value={form.trigger_type} onValueChange={handleTriggerTypeChange}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="signup">First Signup</SelectItem>
-            <SelectItem value="first_booking">First Booking</SelectItem>
-            <SelectItem value="first_purchase">First Purchase</SelectItem>
-            <SelectItem value="birthday">Birthday</SelectItem>
+            <SelectItem value="system_event">System Event</SelectItem>
+            <SelectItem value="specific_date">Specific Date</SelectItem>
+            <SelectItem value="configured_event">Configured Event</SelectItem>
           </SelectContent>
         </Select>
       </div>
+
+      {/* System Event selector */}
+      {form.trigger_type === "system_event" && (
+        <div>
+          <Label>System Event</Label>
+          <Select value={form.trigger_event} onValueChange={(v) => setForm({ ...form, trigger_event: v })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="signup">First Signup</SelectItem>
+              <SelectItem value="first_booking">First Booking</SelectItem>
+              <SelectItem value="first_purchase">First Purchase</SelectItem>
+              <SelectItem value="birthday">Birthday</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Specific Date picker */}
+      {form.trigger_type === "specific_date" && (
+        <div>
+          <Label>Date</Label>
+          <Input type="date" value={form.trigger_date} onChange={(e) => setForm({ ...form, trigger_date: e.target.value, trigger_event: "specific_date" })} />
+          <p className="text-xs text-muted-foreground mt-1">Gift will be auto-granted to all members on this date</p>
+        </div>
+      )}
+
+      {/* Configured Event selector */}
+      {form.trigger_type === "configured_event" && (
+        <div>
+          <Label>Select Event</Label>
+          <Select value={form.trigger_event_id} onValueChange={(v) => {
+            const ev = events?.find((e: any) => e.id === v);
+            setForm({ ...form, trigger_event_id: v, trigger_event: `event:${v}` });
+          }}>
+            <SelectTrigger><SelectValue placeholder="Pick an event" /></SelectTrigger>
+            <SelectContent>
+              {(events ?? []).map((e: any) => (
+                <SelectItem key={e.id} value={e.id}>{e.title} ({e.date})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground mt-1">Gift will be granted to attendees of this event</p>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-4">
         <div><Label>Max Per User</Label><Input type="number" value={form.max_per_user} onChange={(e) => setForm({ ...form, max_per_user: Number(e.target.value) })} /></div>
         <div><Label>Sort Order</Label><Input type="number" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })} /></div>
