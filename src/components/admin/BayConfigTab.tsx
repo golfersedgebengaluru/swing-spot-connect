@@ -194,7 +194,7 @@ export function BayConfigTab() {
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {bay.open_time} – {bay.close_time} · {bay.calendar_email || "No calendar"} · Coaching: {bay.coaching_hours}h
+                        {bay.open_time} – {bay.close_time} · Peak: {bay.peak_start || "17:00"}–{bay.peak_end || "21:00"} · {bay.calendar_email || "No calendar"} · Coaching: {bay.coaching_hours}h
                       </p>
                     </div>
                   </div>
