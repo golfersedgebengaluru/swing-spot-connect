@@ -37,6 +37,24 @@ Deno.serve(async (req) => {
       });
     }
 
+    // 0. Auto-detect off-peak if not explicitly provided
+    let isOffPeak = event.is_off_peak;
+    if (isOffPeak === undefined && event.city && event.booking_start_time) {
+      const { data: bayConfig } = await supabase
+        .from("bays")
+        .select("peak_start, peak_end")
+        .eq("city", event.city)
+        .eq("is_active", true)
+        .limit(1)
+        .single();
+
+      if (bayConfig?.peak_start && bayConfig?.peak_end) {
+        const bookingTime = new Date(event.booking_start_time);
+        const timeStr = bookingTime.toTimeString().slice(0, 5); // "HH:MM"
+        isOffPeak = timeStr < bayConfig.peak_start || timeStr >= bayConfig.peak_end;
+      }
+    }
+
     // 1. Fetch active earning rules for this event type
     const { data: rules } = await supabase
       .from("loyalty_earning_rules")
