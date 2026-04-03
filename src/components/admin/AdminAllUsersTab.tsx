@@ -587,135 +587,161 @@ export function AdminAllUsersTab() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Main card */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2"><UserCheck className="h-5 w-5" />All Users</CardTitle>
-            <div className="relative w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search name or email…" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }} className="pl-9 h-9" />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
-            <>
+      {/* Search bar */}
+      <div className="relative w-64">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input placeholder="Search name or email…" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }} className="pl-9 h-9" />
+      </div>
+
+      {/* Main table */}
+      {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
+        <>
+          {totalUsers === 0 && <p className="text-center text-muted-foreground py-8">No users found.</p>}
+          {totalUsers > 0 && (
+            <div className="rounded-lg border bg-card overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="text-center">Points / Hours</TableHead>
-                    <TableHead className="w-10"></TableHead>
+                  <TableRow className="hover:bg-transparent border-b border-border">
+                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium w-[35%]"><span className="pl-[44px]">User</span></TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Type</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Points</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Hours</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {totalUsers === 0 && (
-                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No users found.</TableCell></TableRow>
-                  )}
-                  {paginated.map((u: any) => (
-                    <TableRow key={u.id || u.user_id}>
-                      {/* Name + Email */}
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="bg-muted text-muted-foreground text-xs">{getInitials(u.display_name)}</AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <div className="font-medium text-sm truncate">{u.display_name || "Unknown"}</div>
-                            <div className="text-xs text-muted-foreground truncate">{u.email || "—"}</div>
+                  {paginated.map((u: any, idx: number) => {
+                    const avatarColors = [
+                      "bg-blue-500/15 text-blue-400",
+                      "bg-emerald-500/15 text-emerald-400",
+                      "bg-amber-500/15 text-amber-400",
+                      "bg-purple-500/15 text-purple-400",
+                      "bg-rose-500/15 text-rose-400",
+                      "bg-cyan-500/15 text-cyan-400",
+                    ];
+                    const avatarClass = avatarColors[idx % avatarColors.length];
+
+                    const hoursRemaining = u.hours_remaining ?? 0;
+                    let hoursPillClass = "bg-green-500/15 text-green-400";
+                    let hoursDotClass = "bg-green-400";
+                    if (hoursRemaining <= 1) {
+                      hoursPillClass = "bg-red-500/15 text-red-400";
+                      hoursDotClass = "bg-red-400";
+                    } else if (hoursRemaining <= 3) {
+                      hoursPillClass = "bg-amber-500/15 text-amber-400";
+                      hoursDotClass = "bg-amber-400";
+                    }
+
+                    const points = u.points ?? 0;
+
+                    return (
+                      <TableRow key={u.id || u.user_id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                        {/* User */}
+                        <TableCell className="py-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-medium shrink-0 ${avatarClass}`}>
+                              {getInitials(u.display_name)}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-normal text-foreground truncate">{u.display_name || "Unknown"}</span>
+                                {!u.user_id && u.user_type === "guest" && (
+                                  <span className="inline-flex items-center rounded-full bg-amber-500/15 text-amber-400 border border-amber-400/30 px-1.5 py-0 text-[10px] font-medium shrink-0">Pending</span>
+                                )}
+                              </div>
+                              <div className="text-xs text-muted-foreground truncate">{u.email || "—"}</div>
+                            </div>
                           </div>
-                          {!u.user_id && u.user_type === "guest" && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">Pending</Badge>
-                          )}
-                        </div>
-                      </TableCell>
+                        </TableCell>
 
-                      {/* Membership type */}
-                      <TableCell>
-                        <Select value={u.user_type || "registered"} onValueChange={(v) => handleChangeUserType(u.id, v)}>
-                          <SelectTrigger className="w-[130px] h-7 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {USER_TYPES.map((t) => (
-                              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
+                        {/* Type */}
+                        <TableCell className="py-3">
+                          <Select value={u.user_type || "registered"} onValueChange={(v) => handleChangeUserType(u.id, v)}>
+                            <SelectTrigger className="w-[130px] h-7 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {USER_TYPES.map((t) => (
+                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
 
-                      {/* Points / Hours */}
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <Badge variant="secondary" className="text-xs gap-1">
-                            <Star className="h-3 w-3" />{u.points ?? 0}
-                          </Badge>
-                          <Badge variant={u.hours_remaining <= 3 ? "destructive" : "secondary"} className="text-xs gap-1">
-                            <Clock className="h-3 w-3" />{u.hours_remaining}h
-                          </Badge>
-                        </div>
-                      </TableCell>
+                        {/* Points */}
+                        <TableCell className="py-3 text-center">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/15 text-purple-400 px-2.5 py-0.5 text-xs font-medium">
+                            <Star className="h-3 w-3" />{points}
+                          </span>
+                        </TableCell>
 
-                      {/* 3-dot menu */}
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("editprofile"); }}>
-                              <Pencil className="mr-2 h-4 w-4" />Edit Profile
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("inlineallocate"); }}>
-                              <Star className="mr-2 h-4 w-4" />Allocate Points
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("inlineadjusthours"); }}>
-                              <Clock className="mr-2 h-4 w-4" />Adjust Hours
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => { setViewingPointsHistory(u.user_id || u.id); setDialogOpen("pointshistory"); }}>
-                              <History className="mr-2 h-4 w-4" />Points History
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => { setViewingHoursHistory(u.user_id || u.id); setDialogOpen("hourshistory"); }}>
-                              <History className="mr-2 h-4 w-4" />Hours History
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteConfirm(u)}>
-                              <Trash2 className="mr-2 h-4 w-4" />Delete User
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        {/* Hours */}
+                        <TableCell className="py-3 text-center">
+                          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${hoursPillClass}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${hoursDotClass}`} />
+                            {hoursRemaining} hrs
+                          </span>
+                        </TableCell>
+
+                        {/* Actions */}
+                        <TableCell className="py-3 text-center">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("editprofile"); }}>
+                                <Pencil className="mr-2 h-4 w-4" />Edit Profile
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("inlineallocate"); }}>
+                                <Star className="mr-2 h-4 w-4" />Allocate Points
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("inlineadjusthours"); }}>
+                                <Clock className="mr-2 h-4 w-4" />Adjust Hours
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => { setViewingPointsHistory(u.user_id || u.id); setDialogOpen("pointshistory"); }}>
+                                <History className="mr-2 h-4 w-4" />Points History
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { setViewingHoursHistory(u.user_id || u.id); setDialogOpen("hourshistory"); }}>
+                                <History className="mr-2 h-4 w-4" />Hours History
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteConfirm(u)}>
+                                <Trash2 className="mr-2 h-4 w-4" />Delete User
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
-
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-3 px-1">
-                  <p className="text-xs text-muted-foreground">
-                    {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, totalUsers)} of {totalUsers}
-                  </p>
-                  <div className="flex items-center gap-1">
-                    <Button variant="outline" size="icon" className="h-7 w-7" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <span className="text-xs px-2">{safePage + 1} / {totalPages}</span>
-                    <Button variant="outline" size="icon" className="h-7 w-7" disabled={safePage >= totalPages - 1} onClick={() => setPage(safePage + 1)}>
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
+            </div>
           )}
-        </CardContent>
-      </Card>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-3 px-1">
+              <p className="text-xs text-muted-foreground">
+                {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, totalUsers)} of {totalUsers}
+              </p>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-xs px-2">{safePage + 1} / {totalPages}</span>
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={safePage >= totalPages - 1} onClick={() => setPage(safePage + 1)}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
