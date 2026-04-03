@@ -1,14 +1,16 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Loader2, MinusCircle, PlusCircle, History, Star, Award, UserCheck, ChevronLeft, ChevronRight, Trash2, Clock } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Plus, Loader2, MinusCircle, PlusCircle, Star, Award, UserCheck, ChevronLeft, ChevronRight, Clock, MoreHorizontal, Pencil, History, Trash2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRewards } from "@/hooks/useRewards";
 import { useAllocatePoints, useRedeemPoints, usePointsTransactions } from "@/hooks/usePoints";
@@ -19,6 +21,8 @@ import { useAdmin } from "@/hooks/useAdmin";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useHoursTransactions } from "@/hooks/useMemberHours";
 import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
+
+// ─── Sub-components ──────────────────────────────────────────────
 
 function PointsTransactionHistory({ userId }: { userId: string }) {
   const { data: transactions, isLoading } = usePointsTransactions(userId);
@@ -36,6 +40,31 @@ function PointsTransactionHistory({ userId }: { userId: string }) {
           <div className="flex items-center gap-3">
             <span className={t.type === "redemption" ? "text-destructive" : "text-primary"}>
               {t.type === "redemption" ? "-" : "+"}{t.points} pts
+            </span>
+            <span className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function HoursTransactionHistory({ userId }: { userId: string }) {
+  const { data: transactions, isLoading } = useHoursTransactions(userId);
+  if (isLoading) return <Loader2 className="mx-auto h-6 w-6 animate-spin" />;
+  if (!transactions?.length) return <p className="text-sm text-muted-foreground">No hours transactions yet.</p>;
+  return (
+    <div className="space-y-2 max-h-60 overflow-y-auto">
+      {transactions.map((t) => (
+        <div key={t.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+          <div className="flex items-center gap-2">
+            {t.type === "deduction" ? <MinusCircle className="h-4 w-4 text-destructive" /> : <PlusCircle className="h-4 w-4 text-primary" />}
+            <span className="capitalize">{t.type}</span>
+            {t.note && <span className="text-muted-foreground">— {t.note}</span>}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={t.type === "deduction" ? "text-destructive" : "text-primary"}>
+              {t.type === "deduction" ? "-" : "+"}{t.hours} hrs
             </span>
             <span className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</span>
           </div>
@@ -78,7 +107,6 @@ function AdminRedeemForm({ profiles, rewards, onSave, onCancel }: { profiles: an
   const selectedReward = (rewards ?? []).find((r: any) => r.id === rewardId);
   const selectedProfile = activeProfiles.find((p: any) => p.user_id === userId);
   const userPoints = selectedProfile?.points ?? 0;
-
   return (
     <div className="space-y-4">
       <div>
@@ -149,7 +177,7 @@ function RegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_name:
   );
 }
 
-function InlineAllocatePointsForm({ userId, displayName, onSave, onCancel }: { userId: string; displayName: string; onSave: (data: { points: number; description: string }) => void; onCancel: () => void }) {
+function InlineAllocatePointsForm({ displayName, onSave, onCancel }: { displayName: string; onSave: (data: { points: number; description: string }) => void; onCancel: () => void }) {
   const [form, setForm] = useState({ points: 0, description: "" });
   return (
     <div className="space-y-4">
@@ -166,7 +194,7 @@ function InlineAllocatePointsForm({ userId, displayName, onSave, onCancel }: { u
   );
 }
 
-function InlineAdjustHoursForm({ userId, displayName, hoursRemaining, onSave, onCancel }: { userId: string; displayName: string; hoursRemaining: number; onSave: (data: { type: string; hours: number; note: string }) => void; onCancel: () => void }) {
+function InlineAdjustHoursForm({ displayName, hoursRemaining, onSave, onCancel }: { displayName: string; hoursRemaining: number; onSave: (data: { type: string; hours: number; note: string }) => void; onCancel: () => void }) {
   const [form, setForm] = useState({ type: "purchase", hours: 0, note: "" });
   return (
     <div className="space-y-4">
@@ -195,30 +223,44 @@ function InlineAdjustHoursForm({ userId, displayName, hoursRemaining, onSave, on
   );
 }
 
-function HoursTransactionHistory({ userId }: { userId: string }) {
-  const { data: transactions, isLoading } = useHoursTransactions(userId);
-  if (isLoading) return <Loader2 className="mx-auto h-6 w-6 animate-spin" />;
-  if (!transactions?.length) return <p className="text-sm text-muted-foreground">No hours transactions yet.</p>;
+function EditProfileForm({ profile, onSave, onCancel }: { profile: any; onSave: (data: { display_name: string; email: string; phone: string; preferred_city: string }) => void; onCancel: () => void }) {
+  const [form, setForm] = useState({
+    display_name: profile.display_name || "",
+    email: profile.email || "",
+    phone: profile.phone || "",
+    preferred_city: profile.preferred_city || "",
+  });
   return (
-    <div className="space-y-2 max-h-60 overflow-y-auto">
-      {transactions.map((t) => (
-        <div key={t.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
-          <div className="flex items-center gap-2">
-            {t.type === "deduction" ? <MinusCircle className="h-4 w-4 text-destructive" /> : <PlusCircle className="h-4 w-4 text-primary" />}
-            <span className="capitalize">{t.type}</span>
-            {t.note && <span className="text-muted-foreground">— {t.note}</span>}
-          </div>
-          <div className="flex items-center gap-3">
-            <span className={t.type === "deduction" ? "text-destructive" : "text-primary"}>
-              {t.type === "deduction" ? "-" : "+"}{t.hours} hrs
-            </span>
-            <span className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</span>
-          </div>
-        </div>
-      ))}
+    <div className="space-y-4">
+      <div><Label>Display Name</Label><Input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} /></div>
+      <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+      <div><Label>Phone</Label><Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+      <div><Label>Preferred City</Label><Input value={form.preferred_city} onChange={(e) => setForm({ ...form, preferred_city: e.target.value })} /></div>
+      <div className="flex gap-2 justify-end">
+        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button onClick={() => onSave(form)} disabled={!form.display_name.trim()}>Save</Button>
+      </div>
     </div>
   );
 }
+
+// ─── Helpers ─────────────────────────────────────────────────────
+
+function getInitials(name?: string | null) {
+  if (!name) return "?";
+  return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+}
+
+const USER_TYPES = [
+  { value: "member", label: "Member" },
+  { value: "registered", label: "Registered" },
+  { value: "non-registered", label: "Guest" },
+  { value: "birdie", label: "Birdie Member" },
+  { value: "coaching", label: "Coaching Member" },
+  { value: "guest", label: "Pre-registered" },
+];
+
+// ─── Main Component ──────────────────────────────────────────────
 
 export function AdminAllUsersTab() {
   const { user } = useAuth();
@@ -232,57 +274,44 @@ export function AdminAllUsersTab() {
   const [viewingHoursHistory, setViewingHoursHistory] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
+  const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
   const { isAdmin, assignedCities } = useAdmin();
   const { selectedCity } = useAdminCity();
-
-  const USER_TYPES = [
-    { value: "member", label: "Member" },
-    { value: "registered", label: "Registered" },
-    { value: "non-registered", label: "Guest" },
-    { value: "birdie", label: "Birdie Member" },
-    { value: "coaching", label: "Coaching Member" },
-    { value: "guest", label: "Pre-registered" },
-  ];
 
   const { data: allUsers, isLoading } = useQuery({
     queryKey: ["admin_all_users", isAdmin, assignedCities, selectedCity],
     queryFn: async () => {
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, user_id, display_name, email, points, created_at, user_type, preferred_city")
+        .select("id, user_id, display_name, email, phone, points, created_at, user_type, preferred_city")
         .order("created_at", { ascending: false });
       const { data: hours } = await supabase.from("member_hours").select("*");
       const hoursMap = new Map((hours ?? []).map((h: any) => [h.user_id, h]));
 
       let filtered = profiles ?? [];
 
-      // For site_admins, scope by assigned cities
       if (!isAdmin) {
         const citiesToFilter = selectedCity ? [selectedCity] : assignedCities;
         if (citiesToFilter.length > 0) {
-          // Also fetch bookings to find users who booked in these cities
           const { data: cityBookings } = await supabase
             .from("bookings")
             .select("user_id, city")
             .in("city", citiesToFilter);
           const bookingUserIds = new Set((cityBookings ?? []).map((b: any) => b.user_id));
-
           filtered = filtered.filter((p: any) =>
             (p.preferred_city && citiesToFilter.includes(p.preferred_city)) ||
             (p.user_id && bookingUserIds.has(p.user_id))
           );
         }
       } else if (selectedCity) {
-        // Admin with city filter selected — include users with matching preferred_city,
-        // bookings in that city, OR no preferred_city (newly registered/unassigned)
         const { data: cityBookings } = await supabase
           .from("bookings")
           .select("user_id, city")
           .eq("city", selectedCity);
         const bookingUserIds = new Set((cityBookings ?? []).map((b: any) => b.user_id));
-
         filtered = filtered.filter((p: any) =>
           p.preferred_city === selectedCity ||
           !p.preferred_city ||
@@ -302,6 +331,21 @@ export function AdminAllUsersTab() {
     },
   });
 
+  // ─── Filtered + paginated data ─────────────────────────────────
+
+  const filteredUsers = (allUsers ?? []).filter((u: any) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (u.display_name?.toLowerCase().includes(q)) || (u.email?.toLowerCase().includes(q));
+  });
+
+  const totalUsers = filteredUsers.length;
+  const totalPages = Math.max(1, Math.ceil(totalUsers / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const paginated = filteredUsers.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+
+  // ─── Handlers ──────────────────────────────────────────────────
+
   const handleChangeUserType = async (profileId: string, newType: string) => {
     const { error } = await supabase.from("profiles").update({ user_type: newType }).eq("id", profileId);
     if (error) {
@@ -315,24 +359,16 @@ export function AdminAllUsersTab() {
   const loadProfiles = async () => {
     const { data } = await supabase.from("profiles").select("user_id, display_name, email, points, preferred_city");
     let filtered = data ?? [];
-
-    // Scope profiles for site_admins
     if (!isAdmin) {
       const citiesToFilter = selectedCity ? [selectedCity] : assignedCities;
       if (citiesToFilter.length > 0) {
-        const { data: cityBookings } = await supabase
-          .from("bookings")
-          .select("user_id, city")
-          .in("city", citiesToFilter);
+        const { data: cityBookings } = await supabase.from("bookings").select("user_id, city").in("city", citiesToFilter);
         const bookingUserIds = new Set((cityBookings ?? []).map((b: any) => b.user_id));
-
         filtered = filtered.filter((p: any) =>
-          (p.preferred_city && citiesToFilter.includes(p.preferred_city)) ||
-          (p.user_id && bookingUserIds.has(p.user_id))
+          (p.preferred_city && citiesToFilter.includes(p.preferred_city)) || (p.user_id && bookingUserIds.has(p.user_id))
         );
       }
     }
-
     setAllProfiles(filtered);
   };
 
@@ -369,7 +405,6 @@ export function AdminAllUsersTab() {
 
   const handleInlineAdjustHours = async (userId: string, data: { type: string; hours: number; note: string }) => {
     try {
-      // Check if member_hours record exists
       const { data: existing } = await supabase
         .from("member_hours")
         .select("id, hours_purchased, hours_used")
@@ -380,51 +415,28 @@ export function AdminAllUsersTab() {
         const newPurchased = data.type === "purchase" || (data.type === "adjustment" && data.hours > 0)
           ? existing.hours_purchased + data.hours : existing.hours_purchased;
         const newUsed = data.type === "deduction" ? existing.hours_used + data.hours : existing.hours_used;
-
-        const { error } = await supabase.from("member_hours").update({
-          hours_purchased: newPurchased,
-          hours_used: newUsed,
-        }).eq("id", existing.id);
+        const { error } = await supabase.from("member_hours").update({ hours_purchased: newPurchased, hours_used: newUsed }).eq("id", existing.id);
         if (error) throw error;
       } else {
-        // Create new member_hours record
         const hours_purchased = data.type === "purchase" || data.type === "adjustment" ? data.hours : 0;
         const hours_used = data.type === "deduction" ? data.hours : 0;
-        const { error } = await supabase.from("member_hours").insert({
-          user_id: userId,
-          hours_purchased,
-          hours_used,
-        });
+        const { error } = await supabase.from("member_hours").insert({ user_id: userId, hours_purchased, hours_used });
         if (error) throw error;
       }
 
-      // Log transaction
       await supabase.from("hours_transactions").insert({
-        user_id: userId,
-        type: data.type,
-        hours: data.hours,
-        note: data.note || null,
-        created_by: user?.id,
+        user_id: userId, type: data.type, hours: data.hours, note: data.note || null, created_by: user?.id,
       });
 
-      // Notifications for deductions
       if (data.type === "deduction") {
-        const remaining = existing
-          ? existing.hours_purchased - (existing.hours_used + data.hours)
-          : -data.hours;
+        const remaining = existing ? existing.hours_purchased - (existing.hours_used + data.hours) : -data.hours;
         await supabase.from("notifications").insert({
-          user_id: userId,
-          title: "Hours Deducted",
+          user_id: userId, title: "Hours Deducted",
           message: `${data.hours} hour(s) have been deducted. You have ${Math.max(0, remaining)} hour(s) remaining.${data.note ? ` Note: ${data.note}` : ""}`,
           type: "usage",
         });
         if (remaining <= 2 && remaining > 0) {
-          sendNotificationEmail({
-            user_id: userId,
-            template: "low_hours_alert",
-            subject: "Low Hours Alert",
-            data: { hours_remaining: remaining, purchase_url: `${window.location.origin}/dashboard` },
-          });
+          sendNotificationEmail({ user_id: userId, template: "low_hours_alert", subject: "Low Hours Alert", data: { hours_remaining: remaining, purchase_url: `${window.location.origin}/dashboard` } });
         }
       }
 
@@ -439,6 +451,23 @@ export function AdminAllUsersTab() {
     }
   };
 
+  const handleEditProfile = async (profileId: string, data: { display_name: string; email: string; phone: string; preferred_city: string }) => {
+    const { error } = await supabase.from("profiles").update({
+      display_name: data.display_name.trim() || null,
+      email: data.email.trim() || null,
+      phone: data.phone.trim() || null,
+      preferred_city: data.preferred_city.trim() || null,
+    }).eq("id", profileId);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Profile updated" });
+      queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
+      setDialogOpen(null);
+      setSelectedUser(null);
+    }
+  };
+
   const handleDeleteUser = async (profileId: string, displayName: string) => {
     const { error } = await supabase.from("profiles").delete().eq("id", profileId);
     if (error) {
@@ -447,15 +476,17 @@ export function AdminAllUsersTab() {
       toast({ title: "User deleted", description: `${displayName} has been removed.` });
       queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
     }
+    setDeleteConfirm(null);
   };
+
+  // ─── Render ────────────────────────────────────────────────────
 
   return (
     <div className="space-y-4">
+      {/* Top action buttons */}
       <div className="flex flex-wrap gap-2 justify-end">
         <Dialog open={dialogOpen === "allocate"} onOpenChange={(open) => { setDialogOpen(open ? "allocate" : null); if (open) loadProfiles(); }}>
-          <DialogTrigger asChild>
-            <Button variant="outline"><Star className="mr-2 h-4 w-4" />Allocate Points</Button>
-          </DialogTrigger>
+          <DialogTrigger asChild><Button variant="outline" size="sm"><Star className="mr-2 h-4 w-4" />Allocate Points</Button></DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Allocate Reward Points</DialogTitle></DialogHeader>
             <AllocatePointsForm profiles={allProfiles} onSave={handleAllocatePoints} onCancel={() => setDialogOpen(null)} />
@@ -463,9 +494,7 @@ export function AdminAllUsersTab() {
         </Dialog>
 
         <Dialog open={dialogOpen === "adminredeem"} onOpenChange={(open) => { setDialogOpen(open ? "adminredeem" : null); if (open) loadProfiles(); }}>
-          <DialogTrigger asChild>
-            <Button variant="outline"><Award className="mr-2 h-4 w-4" />Redeem for User</Button>
-          </DialogTrigger>
+          <DialogTrigger asChild><Button variant="outline" size="sm"><Award className="mr-2 h-4 w-4" />Redeem for User</Button></DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Redeem Reward for User</DialogTitle></DialogHeader>
             <AdminRedeemForm profiles={allProfiles} rewards={rewards ?? []} onSave={handleAdminRedeem} onCancel={() => setDialogOpen(null)} />
@@ -473,17 +502,11 @@ export function AdminAllUsersTab() {
         </Dialog>
 
         <Dialog open={dialogOpen === "adduser"} onOpenChange={(open) => setDialogOpen(open ? "adduser" : null)}>
-          <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" />Pre-Register User</Button>
-          </DialogTrigger>
+          <DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4" />Pre-Register</Button></DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Pre-Register New User</DialogTitle></DialogHeader>
             <PreRegisterUserForm onSave={async (data) => {
-               const insertData: Record<string, string> = {
-                display_name: data.display_name,
-                email: data.email,
-                user_type: 'guest',
-              };
+              const insertData: Record<string, string> = { display_name: data.display_name, email: data.email, user_type: 'guest' };
               if (selectedCity) insertData.preferred_city = selectedCity;
               const { error } = await supabase.from("profiles").insert(insertData);
               if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
@@ -495,15 +518,11 @@ export function AdminAllUsersTab() {
         </Dialog>
 
         <Dialog open={dialogOpen === "registeruser"} onOpenChange={(open) => setDialogOpen(open ? "registeruser" : null)}>
-          <DialogTrigger asChild>
-            <Button variant="outline"><UserCheck className="mr-2 h-4 w-4" />Register User</Button>
-          </DialogTrigger>
+          <DialogTrigger asChild><Button variant="outline" size="sm"><UserCheck className="mr-2 h-4 w-4" />Register</Button></DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Register New User</DialogTitle></DialogHeader>
             <RegisterUserForm onSave={async (data) => {
-              const insertData: Record<string, string> = {
-                display_name: data.display_name.trim(),
-              };
+              const insertData: Record<string, string> = { display_name: data.display_name.trim() };
               if (data.email.trim()) insertData.email = data.email.trim();
               if (data.phone.trim()) insertData.phone = data.phone.trim();
               if (selectedCity) insertData.preferred_city = selectedCity;
@@ -517,6 +536,7 @@ export function AdminAllUsersTab() {
         </Dialog>
       </div>
 
+      {/* Dialogs for history, inline actions, edit */}
       <Dialog open={dialogOpen === "pointshistory"} onOpenChange={(open) => { setDialogOpen(open ? "pointshistory" : null); if (!open) setViewingPointsHistory(null); }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle>Points History</DialogTitle></DialogHeader>
@@ -534,131 +554,166 @@ export function AdminAllUsersTab() {
       <Dialog open={dialogOpen === "inlineallocate"} onOpenChange={(open) => { setDialogOpen(open ? "inlineallocate" : null); if (!open) setSelectedUser(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Allocate Points</DialogTitle></DialogHeader>
-          {selectedUser && <InlineAllocatePointsForm userId={selectedUser.user_id || selectedUser.id} displayName={selectedUser.display_name || "User"} onSave={(data) => handleInlineAllocatePoints(selectedUser.user_id || selectedUser.id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
+          {selectedUser && <InlineAllocatePointsForm displayName={selectedUser.display_name || "User"} onSave={(data) => handleInlineAllocatePoints(selectedUser.user_id || selectedUser.id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
         </DialogContent>
       </Dialog>
 
       <Dialog open={dialogOpen === "inlineadjusthours"} onOpenChange={(open) => { setDialogOpen(open ? "inlineadjusthours" : null); if (!open) setSelectedUser(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Adjust Hours</DialogTitle></DialogHeader>
-          {selectedUser && <InlineAdjustHoursForm userId={selectedUser.user_id || selectedUser.id} displayName={selectedUser.display_name || "User"} hoursRemaining={selectedUser.hours_remaining ?? 0} onSave={(data) => handleInlineAdjustHours(selectedUser.user_id || selectedUser.id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
+          {selectedUser && <InlineAdjustHoursForm displayName={selectedUser.display_name || "User"} hoursRemaining={selectedUser.hours_remaining ?? 0} onSave={(data) => handleInlineAdjustHours(selectedUser.user_id || selectedUser.id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
         </DialogContent>
       </Dialog>
 
+      <Dialog open={dialogOpen === "editprofile"} onOpenChange={(open) => { setDialogOpen(open ? "editprofile" : null); if (!open) setSelectedUser(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Edit Profile</DialogTitle></DialogHeader>
+          {selectedUser && <EditProfileForm profile={selectedUser} onSave={(data) => handleEditProfile(selectedUser.id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deleteConfirm?.display_name || "this user"}</strong>? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteConfirm && handleDeleteUser(deleteConfirm.id, deleteConfirm.display_name || "User")} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Main card */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><UserCheck className="h-5 w-5" />All Users</CardTitle>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2"><UserCheck className="h-5 w-5" />All Users</CardTitle>
+            <div className="relative w-64">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Search name or email…" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }} className="pl-9 h-9" />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (() => {
-              const totalUsers = (allUsers ?? []).length;
-              const totalPages = Math.max(1, Math.ceil(totalUsers / PAGE_SIZE));
-              const safePage = Math.min(page, totalPages - 1);
-              const paginated = (allUsers ?? []).slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
-              return (
-            <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                   <TableHead>Name</TableHead>
-                   <TableHead>Email</TableHead>
-                   <TableHead>Status</TableHead>
-                   <TableHead>Membership</TableHead>
-                   <TableHead className="text-right">Points</TableHead>
-                   <TableHead className="text-right">Hours Balance</TableHead>
-                   <TableHead className="text-right">Actions</TableHead>
-                 </TableRow>
-               </TableHeader>
-               <TableBody>
-                 {totalUsers === 0 && (
-                   <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No users found.</TableCell></TableRow>
-                 )}
-                 {paginated.map((u: any) => (
-                   <TableRow key={u.id || u.user_id}>
-                     <TableCell className="font-medium">{u.display_name || "Unknown"}</TableCell>
-                     <TableCell className="text-sm text-muted-foreground">{u.email || "—"}</TableCell>
-                     <TableCell>
-                        <Badge variant={!u.user_id && u.user_type === 'guest' ? "outline" : "secondary"}>
-                          {!u.user_id && u.user_type === 'guest' ? "Pending" : "Active"}
-                        </Badge>
+          {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="text-center">Points / Hours</TableHead>
+                    <TableHead className="w-10"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {totalUsers === 0 && (
+                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No users found.</TableCell></TableRow>
+                  )}
+                  {paginated.map((u: any) => (
+                    <TableRow key={u.id || u.user_id}>
+                      {/* Name + Email */}
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback className="bg-muted text-muted-foreground text-xs">{getInitials(u.display_name)}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <div className="font-medium text-sm truncate">{u.display_name || "Unknown"}</div>
+                            <div className="text-xs text-muted-foreground truncate">{u.email || "—"}</div>
+                          </div>
+                          {!u.user_id && u.user_type === "guest" && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">Pending</Badge>
+                          )}
+                        </div>
                       </TableCell>
-                     <TableCell>
-                       <Select value={u.user_type || "registered"} onValueChange={(v) => handleChangeUserType(u.id, v)}>
-                         <SelectTrigger className="w-[150px] h-8 text-xs">
-                           <SelectValue />
-                         </SelectTrigger>
-                         <SelectContent>
-                           {USER_TYPES.map((t) => (
-                             <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                           ))}
-                         </SelectContent>
-                       </Select>
-                     </TableCell>
-                     <TableCell className="text-right">
-                       <Badge variant="default">{u.points ?? 0}</Badge>
-                     </TableCell>
-                     <TableCell className="text-right">
-                        <Badge variant={u.hours_remaining <= 3 ? "destructive" : "secondary"}>
-                          {u.hours_remaining}
-                        </Badge>
-                     </TableCell>
-                       <TableCell className="text-right">
-                         <div className="flex items-center justify-end gap-1">
-                           <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" title="Allocate Points" onClick={() => { setSelectedUser(u); setDialogOpen("inlineallocate"); }}>
-                             <Star className="mr-1 h-3.5 w-3.5" />Points
-                           </Button>
-                           <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" title="Adjust Hours" onClick={() => { setSelectedUser(u); setDialogOpen("inlineadjusthours"); }}>
-                             <Clock className="mr-1 h-3.5 w-3.5" />Hours
-                           </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Points History" onClick={() => { setViewingPointsHistory(u.user_id || u.id); setDialogOpen("pointshistory"); }}>
-                              <History className="h-4 w-4" />
+
+                      {/* Membership type */}
+                      <TableCell>
+                        <Select value={u.user_type || "registered"} onValueChange={(v) => handleChangeUserType(u.id, v)}>
+                          <SelectTrigger className="w-[130px] h-7 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {USER_TYPES.map((t) => (
+                              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+
+                      {/* Points / Hours */}
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <Badge variant="secondary" className="text-xs gap-1">
+                            <Star className="h-3 w-3" />{u.points ?? 0}
+                          </Badge>
+                          <Badge variant={u.hours_remaining <= 3 ? "destructive" : "secondary"} className="text-xs gap-1">
+                            <Clock className="h-3 w-3" />{u.hours_remaining}h
+                          </Badge>
+                        </div>
+                      </TableCell>
+
+                      {/* 3-dot menu */}
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Hours History" onClick={() => { setViewingHoursHistory(u.user_id || u.id); setDialogOpen("hourshistory"); }}>
-                              <Clock className="h-4 w-4" />
-                            </Button>
-                           <AlertDialog>
-                             <AlertDialogTrigger asChild>
-                               <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                                 <Trash2 className="h-4 w-4" />
-                               </Button>
-                             </AlertDialogTrigger>
-                             <AlertDialogContent>
-                               <AlertDialogHeader>
-                                 <AlertDialogTitle>Delete User</AlertDialogTitle>
-                                 <AlertDialogDescription>
-                                   Are you sure you want to delete <strong>{u.display_name || "this user"}</strong>? This action cannot be undone.
-                                 </AlertDialogDescription>
-                               </AlertDialogHeader>
-                               <AlertDialogFooter>
-                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                 <AlertDialogAction onClick={() => handleDeleteUser(u.id, u.display_name || "User")} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
-                               </AlertDialogFooter>
-                             </AlertDialogContent>
-                           </AlertDialog>
-                         </div>
-                       </TableCell>
-                   </TableRow>
-                 ))}
-              </TableBody>
-            </Table>
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-3 px-1">
-                <p className="text-xs text-muted-foreground">
-                  {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, totalUsers)} of {totalUsers}
-                </p>
-                <div className="flex items-center gap-1">
-                  <Button variant="outline" size="icon" className="h-7 w-7" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <span className="text-xs px-2">{safePage + 1} / {totalPages}</span>
-                  <Button variant="outline" size="icon" className="h-7 w-7" disabled={safePage >= totalPages - 1} onClick={() => setPage(safePage + 1)}>
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("editprofile"); }}>
+                              <Pencil className="mr-2 h-4 w-4" />Edit Profile
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("inlineallocate"); }}>
+                              <Star className="mr-2 h-4 w-4" />Allocate Points
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("inlineadjusthours"); }}>
+                              <Clock className="mr-2 h-4 w-4" />Adjust Hours
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => { setViewingPointsHistory(u.user_id || u.id); setDialogOpen("pointshistory"); }}>
+                              <History className="mr-2 h-4 w-4" />Points History
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setViewingHoursHistory(u.user_id || u.id); setDialogOpen("hourshistory"); }}>
+                              <History className="mr-2 h-4 w-4" />Hours History
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteConfirm(u)}>
+                              <Trash2 className="mr-2 h-4 w-4" />Delete User
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-3 px-1">
+                  <p className="text-xs text-muted-foreground">
+                    {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, totalUsers)} of {totalUsers}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="icon" className="h-7 w-7" disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-xs px-2">{safePage + 1} / {totalPages}</span>
+                    <Button variant="outline" size="icon" className="h-7 w-7" disabled={safePage >= totalPages - 1} onClick={() => setPage(safePage + 1)}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
-            </div>
-          );})()}
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
