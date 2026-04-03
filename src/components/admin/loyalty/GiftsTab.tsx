@@ -246,7 +246,9 @@ export function GiftsTab() {
                       <Badge variant={r.is_active ? "default" : "secondary"}>{r.is_active ? "Active" : "Inactive"}</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground mt-0.5">
-                      Gives "{r.reward_name}" on <span className="font-medium">{r.trigger_event}</span> · Max {r.max_per_user}/user
+                      Gives "{r.reward_name}" on <span className="font-medium">
+                        {r.trigger_type === "specific_date" ? `Date: ${r.trigger_date}` : r.trigger_type === "configured_event" ? `Event trigger` : r.trigger_event}
+                      </span> · Max {r.max_per_user}/user
                     </p>
                   </div>
                   <div className="flex gap-1">
