@@ -239,6 +239,17 @@ export function BayConfigTab() {
                   <Input type="time" value={editing.close_time} onChange={(e) => setEditing({ ...editing, close_time: e.target.value })} />
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Peak Hours Start</Label>
+                  <Input type="time" value={editing.peak_start} onChange={(e) => setEditing({ ...editing, peak_start: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Peak Hours End</Label>
+                  <Input type="time" value={editing.peak_end} onChange={(e) => setEditing({ ...editing, peak_end: e.target.value })} />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground -mt-2">Bookings outside peak hours earn off-peak loyalty multipliers.</p>
               <div>
                 <Label>Coaching Mode</Label>
                 <Select value={editing.coaching_mode} onValueChange={(v) => setEditing({ ...editing, coaching_mode: v })}>
