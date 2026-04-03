@@ -78,6 +78,8 @@ export function BayConfigTab() {
       calendar_email: editing.calendar_email || null,
       open_time: editing.open_time,
       close_time: editing.close_time,
+      peak_start: editing.peak_start,
+      peak_end: editing.peak_end,
       is_active: editing.is_active,
       sort_order: editing.sort_order,
       coaching_mode: editing.coaching_mode,
