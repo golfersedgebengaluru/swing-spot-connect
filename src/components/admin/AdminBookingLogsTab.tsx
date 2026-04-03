@@ -313,16 +313,14 @@ export function AdminBookingLogsTab() {
                         />
                       </div>
                     )}
-                    {(b.status === "confirmed" || b.status === "pending") && (
-                      <Button
-                        size="sm"
-                        variant="outline"
+                    {(b.status === "confirmed" || b.status === "pending") && new Date(b.end_time) >= new Date() && (
+                      <Badge
                         onClick={() => handleAdminCancel(b.id)}
-                        disabled={adminCancelBooking.isPending}
-                        className="h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 mt-1"
+                        className="cursor-pointer mt-1 bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20 text-xs"
+                        variant="outline"
                       >
                         🚫 Cancel
-                      </Button>
+                      </Badge>
                     )}
                     {b.status === "rejected" && b.note && (
                       <span className="text-xs text-muted-foreground italic">"{b.note}"</span>
