@@ -10,10 +10,12 @@ interface LoyaltyEvent {
   event_type: string; // walkin, birdie_usage, eagle_usage, coaching, practice, renewal
   amount_spent?: number; // for walkin (₹)
   hours_used?: number; // for hour-based events
-  is_off_peak?: boolean;
+  is_off_peak?: boolean; // optional manual override; auto-detected from bay config if omitted
   is_coaching?: boolean;
   staff_id: string;
   reason?: string;
+  city?: string; // used for auto off-peak detection
+  booking_start_time?: string; // ISO string, used for auto off-peak detection
   metadata?: Record<string, any>;
 }
 
