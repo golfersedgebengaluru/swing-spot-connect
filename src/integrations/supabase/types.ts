@@ -35,6 +35,48 @@ export type Database = {
         }
         Relationships: []
       }
+      auto_gift_rules: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          max_per_user: number
+          name: string
+          reward_description: string | null
+          reward_name: string
+          sort_order: number
+          trigger_event: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          max_per_user?: number
+          name: string
+          reward_description?: string | null
+          reward_name: string
+          sort_order?: number
+          trigger_event?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          max_per_user?: number
+          name?: string
+          reward_description?: string | null
+          reward_name?: string
+          sort_order?: number
+          trigger_event?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bay_config: {
         Row: {
           calendar_email: string | null
@@ -618,6 +660,51 @@ export type Database = {
           label?: string
           start_date?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      gifted_rewards: {
+        Row: {
+          created_at: string
+          gift_type: string
+          gifted_by: string | null
+          id: string
+          notes: string | null
+          redeemed_at: string | null
+          reward_description: string | null
+          reward_name: string
+          status: string
+          trigger_event: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          gift_type?: string
+          gifted_by?: string | null
+          id?: string
+          notes?: string | null
+          redeemed_at?: string | null
+          reward_description?: string | null
+          reward_name: string
+          status?: string
+          trigger_event?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          gift_type?: string
+          gifted_by?: string | null
+          id?: string
+          notes?: string | null
+          redeemed_at?: string | null
+          reward_description?: string | null
+          reward_name?: string
+          status?: string
+          trigger_event?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
