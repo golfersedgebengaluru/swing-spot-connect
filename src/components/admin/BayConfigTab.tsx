@@ -38,6 +38,8 @@ const emptyForm: BayForm = {
   calendar_email: "",
   open_time: "09:00",
   close_time: "22:00",
+  peak_start: "17:00",
+  peak_end: "21:00",
   is_active: true,
   sort_order: 0,
   coaching_mode: "instant",
