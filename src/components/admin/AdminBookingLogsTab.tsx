@@ -350,7 +350,8 @@ export function AdminBookingLogsTab() {
                     )}
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </div>
