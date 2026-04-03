@@ -263,13 +263,36 @@ export function AdminBookingLogsTab() {
               {sorted.length === 0 && (
                 <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">No bookings found.</TableCell></TableRow>
               )}
-              {paginated.map((b: any) => (
+              {paginated.map((b: any, idx: number) => {
+                const avatarColors = [
+                  "bg-blue-500/15 text-blue-400",
+                  "bg-emerald-500/15 text-emerald-400",
+                  "bg-purple-500/15 text-purple-400",
+                  "bg-amber-500/15 text-amber-400",
+                  "bg-rose-500/15 text-rose-400",
+                  "bg-cyan-500/15 text-cyan-400",
+                ];
+                const avatarClass = avatarColors[idx % avatarColors.length];
+                const initials = (b.display_name || "?")
+                  .split(" ")
+                  .map((w: string) => w[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2);
+                return (
                 <TableRow key={b.id} className={b.status === "pending" ? "bg-amber-500/5" : ""}>
                   <TableCell className="font-medium">
-                    <div>{b.display_name}</div>
-                    <Badge variant="outline" className="text-[10px] mt-0.5">
-                      {b.user_type === "member" ? "👤 Member" : b.user_type === "non-registered" ? "🔗 Guest" : "📝 Registered"}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${avatarClass}`}>
+                        {initials}
+                      </div>
+                      <div>
+                        <div>{b.display_name}</div>
+                        <Badge variant="outline" className="text-[10px] mt-0.5">
+                          {b.user_type === "member" ? "👤 Member" : b.user_type === "non-registered" ? "🔗 Guest" : "📝 Registered"}
+                        </Badge>
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div>{b.city}</div>
