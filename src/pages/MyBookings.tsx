@@ -199,6 +199,8 @@ export default function MyBookings() {
   };
 
   const canCancelBooking = (booking: any) => {
+    // Cannot cancel bookings whose end time has already passed
+    if (new Date(booking.end_time) < now) return false;
     const hoursUntil = (new Date(booking.start_time).getTime() - now.getTime()) / (1000 * 60 * 60);
     return hoursUntil >= cancellationWindowHours && ["confirmed", "pending"].includes(booking.status);
   };
