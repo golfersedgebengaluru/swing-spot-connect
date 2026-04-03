@@ -100,10 +100,11 @@ function PageVisibilitySettings() {
 function SenderEmailCard() {
   const { toast } = useToast();
   const [senderEmail, setSenderEmail] = useState("");
+  const [senderName, setSenderName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: config, isLoading } = useQuery({
+  const { data: emailConfig, isLoading: loadingEmail } = useQuery({
     queryKey: ["admin_config", "sender_email"],
     queryFn: async () => {
       const { data } = await supabase
@@ -115,44 +116,81 @@ function SenderEmailCard() {
     },
   });
 
+  const { data: nameConfig, isLoading: loadingName } = useQuery({
+    queryKey: ["admin_config", "sender_name"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("admin_config")
+        .select("value")
+        .eq("key", "sender_name")
+        .single();
+      return data?.value || "";
+    },
+  });
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!senderEmail.includes("@")) {
+    const emailVal = senderEmail || emailConfig || "";
+    const nameVal = senderName || nameConfig || "";
+    if (!emailVal.includes("@")) {
       toast({ title: "Error", description: "Please enter a valid email address", variant: "destructive" });
+      return;
+    }
+    if (!nameVal.trim()) {
+      toast({ title: "Error", description: "Please enter a sender name", variant: "destructive" });
       return;
     }
     setIsSubmitting(true);
     try {
-      const { error } = await supabase
+      const { error: e1 } = await supabase
         .from("admin_config")
-        .update({ value: senderEmail })
+        .update({ value: emailVal })
         .eq("key", "sender_email");
-      if (error) throw error;
+      if (e1) throw e1;
+      const { error: e2 } = await supabase
+        .from("admin_config")
+        .update({ value: nameVal })
+        .eq("key", "sender_name");
+      if (e2) throw e2;
       queryClient.invalidateQueries({ queryKey: ["admin_config", "sender_email"] });
-      toast({ title: "Saved", description: "Sender email updated successfully." });
+      queryClient.invalidateQueries({ queryKey: ["admin_config", "sender_name"] });
+      toast({ title: "Saved", description: "Sender settings updated successfully." });
     } catch (err: any) {
-      toast({ title: "Error", description: err.message || "Failed to update sender email", variant: "destructive" });
+      toast({ title: "Error", description: err.message || "Failed to update sender settings", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
+  if (loadingEmail || loadingName) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
 
   return (
     <Card className="max-w-md">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5" />Notification Sender Email</CardTitle>
+        <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5" />Notification Sender Settings</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSave} className="space-y-4">
+          <div>
+            <Label htmlFor="sender-name">From Name</Label>
+            <Input
+              id="sender-name"
+              type="text"
+              placeholder="Golfer's Edge"
+              defaultValue={nameConfig || ""}
+              onChange={(e) => setSenderName(e.target.value)}
+              className="mt-1"
+              required
+            />
+            <p className="text-xs text-muted-foreground mt-1">The display name shown in the recipient's inbox (e.g. "Golfer's Edge").</p>
+          </div>
           <div>
             <Label htmlFor="sender-email">From Address</Label>
             <Input
               id="sender-email"
               type="email"
               placeholder="notify@golfersedge.in"
-              defaultValue={config || ""}
+              defaultValue={emailConfig || ""}
               onChange={(e) => setSenderEmail(e.target.value)}
               className="mt-1"
               required
