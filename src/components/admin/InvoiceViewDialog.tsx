@@ -468,8 +468,8 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label className="text-xs">Amount Paid</Label>
-                      <Input type="number" min={0} step="0.01" value={amountPaid}
-                        onChange={(e) => setAmountPaid(Number(e.target.value) || 0)} className="mt-1" />
+                      <Input type="number" min={0} step="0.01" value={amountPaid || ""}
+                        onChange={(e) => setAmountPaid(Number(e.target.value))} className="mt-1" />
                     </div>
                     <div className="flex flex-col justify-end">
                       <p className="text-sm font-medium text-destructive">
