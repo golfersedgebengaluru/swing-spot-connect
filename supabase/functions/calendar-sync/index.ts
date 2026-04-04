@@ -1328,22 +1328,23 @@ Deno.serve(async (req) => {
         type: "booking",
       });
 
-      // Admin notifications
-      const { data: adminRoles } = await adminClient.from("user_roles").select("user_id").eq("role", "admin");
+      // Admin + site-admin notifications (in-app + email)
       const { data: userProfile } = await adminClient.from("profiles").select("display_name").eq("user_id", userId).single();
       const displayName = userProfile?.display_name || "A member";
-      for (const admin of adminRoles ?? []) {
-        if (admin.user_id !== userId) {
-          await adminClient.from("notifications").insert({
-            user_id: admin.user_id,
-            title: "🚫 Booking Cancelled",
-            message: `${displayName} cancelled their ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${formatDateTime(booking.start_time, calTz)}.${hoursRefunded > 0 ? ` ${hoursRefunded}h refunded.` : ""}`,
-            type: "admin",
-          });
-        }
-      }
+      const notifyIds = await getAdminAndSiteAdminIds(adminClient, booking.city, userId);
+      await notifyAdminsInApp(adminClient, notifyIds, "🚫 Booking Cancelled", `${displayName} cancelled their ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${formatDateTime(booking.start_time, calTz)}.${hoursRefunded > 0 ? ` ${hoursRefunded}h refunded.` : ""}`);
+      await notifyAdmins(adminClient, notifyIds, "admin_booking_cancelled", "🚫 Booking Cancelled by Member", {
+        member_name: displayName,
+        city: booking.city,
+        bay: bayName,
+        date: formatDate(booking.start_time, calTz),
+        time: formatTime(booking.start_time, calTz),
+        session_type: booking.session_type,
+        hours_refunded: hoursRefunded,
+        cancelled_by: "member",
+      });
 
-      // Send cancellation email
+      // Send cancellation email to user
       try {
         await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
           method: "POST",
