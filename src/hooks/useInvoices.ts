@@ -335,7 +335,7 @@ export function useCreateInvoice() {
           const { data } = await (supabase as any)
             .from("profiles")
             .select("id, user_id")
-            .eq("email", params.customerEmail)
+            .eq("email", (params.customerEmail || "").trim().toLowerCase())
             .maybeSingle();
           existingProfile = data;
         }
