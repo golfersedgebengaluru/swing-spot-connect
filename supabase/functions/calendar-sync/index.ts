@@ -558,6 +558,25 @@ Deno.serve(async (req) => {
         console.error("Failed to create revenue transaction for guest:", e);
       }
 
+      // Notify admins + site-admins about the guest booking
+      try {
+        const notifyAdminIds = await getAdminAndSiteAdminIds(adminClient, city);
+        const calTzGuest = calendar_email ? await getCalendarTimezone(await getAccessToken(JSON.parse(Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY") || "{}")), calendar_email) : "UTC";
+        await notifyAdminsInApp(adminClient, notifyAdminIds, "📅 New Guest Booking", `Guest ${guest_name} booked ${bay_name || city} on ${formatDateTime(start_time, calTzGuest)}.`);
+        await notifyAdmins(adminClient, notifyAdminIds, "admin_new_booking", "📅 New Guest Booking", {
+          member_name: guest_name,
+          city,
+          bay: bay_name || city,
+          date: formatDate(start_time, calTzGuest),
+          time: formatTimeRange(start_time, end_time, calTzGuest),
+          duration: `${duration_minutes} min`,
+          session_type: "practice",
+          is_guest: true,
+        });
+      } catch (e) {
+        console.error("Failed to notify admins about guest booking:", e);
+      }
+
       return new Response(JSON.stringify({ booking }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
