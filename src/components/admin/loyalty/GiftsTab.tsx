@@ -169,8 +169,8 @@ function AutoRuleForm({ rule, onSave, onCancel }: { rule?: any; onSave: (d: any)
       )}
 
       <div className="grid grid-cols-2 gap-4">
-        <div><Label>Max Per User</Label><Input type="number" value={form.max_per_user} onChange={(e) => setForm({ ...form, max_per_user: Number(e.target.value) })} /></div>
-        <div><Label>Sort Order</Label><Input type="number" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })} /></div>
+        <div><Label>Max Per User</Label><Input type="number" value={form.max_per_user || ""} onChange={(e) => setForm({ ...form, max_per_user: Number(e.target.value) })} /></div>
+        <div><Label>Sort Order</Label><Input type="number" value={form.sort_order || ""} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })} /></div>
       </div>
       <div className="flex items-center gap-2"><Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} /><Label>Active</Label></div>
       <div className="flex gap-2 justify-end">

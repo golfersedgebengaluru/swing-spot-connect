@@ -299,7 +299,7 @@ export function BayConfigTab() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Sort Order</Label>
-                  <Input type="number" value={editing.sort_order} onChange={(e) => setEditing({ ...editing, sort_order: Number(e.target.value) })} />
+                  <Input type="number" value={editing.sort_order || ""} onChange={(e) => setEditing({ ...editing, sort_order: Number(e.target.value) })} />
                 </div>
                 <div className="flex items-center gap-2 pt-6">
                   <Switch checked={editing.is_active} onCheckedChange={(v) => setEditing({ ...editing, is_active: v })} />

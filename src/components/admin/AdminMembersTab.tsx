@@ -89,7 +89,7 @@ function AdjustHoursForm({ member, onSave, onCancel }: { member: any; onSave: (d
           </SelectContent>
         </Select>
       </div>
-      <div><Label>Hours</Label><Input type="number" step="0.5" min="0" value={form.hours} onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })} /></div>
+      <div><Label>Hours</Label><Input type="number" step="0.5" min="0" value={form.hours || ""} onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })} /></div>
       <div><Label>Note (optional)</Label><Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="e.g. Bay session 2hrs" /></div>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>

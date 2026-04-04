@@ -40,10 +40,10 @@ function MultiplierForm({ item, onSave, onCancel }: { item?: any; onSave: (d: an
             <SelectContent>{CONDITION_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        <div><Label>Multiplier (×)</Label><Input type="number" step="0.05" value={form.multiplier} onChange={(e) => setForm({ ...form, multiplier: Number(e.target.value) })} /></div>
+        <div><Label>Multiplier (×)</Label><Input type="number" step="0.05" value={form.multiplier || ""} onChange={(e) => setForm({ ...form, multiplier: Number(e.target.value) })} /></div>
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <div><Label>Sort Order</Label><Input type="number" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })} /></div>
+        <div><Label>Sort Order</Label><Input type="number" value={form.sort_order || ""} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })} /></div>
       </div>
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2"><Switch checked={form.is_stackable} onCheckedChange={(v) => setForm({ ...form, is_stackable: v })} /><Label>Stackable</Label></div>
