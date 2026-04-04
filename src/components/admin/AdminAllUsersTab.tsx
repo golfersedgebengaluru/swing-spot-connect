@@ -184,7 +184,7 @@ function InlineAllocatePointsForm({ displayName, onSave, onCancel }: { displayNa
       <div className="rounded-lg bg-muted p-3">
         <p className="text-sm text-muted-foreground">User: <span className="font-medium text-foreground">{displayName}</span></p>
       </div>
-      <div><Label>Points</Label><Input type="number" min="1" value={form.points} onChange={(e) => setForm({ ...form, points: Number(e.target.value) })} /></div>
+      <div><Label>Points</Label><Input type="number" min="1" value={form.points || ""} onChange={(e) => setForm({ ...form, points: Number(e.target.value) })} /></div>
       <div><Label>Reason</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="e.g. Welcome bonus" /></div>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
