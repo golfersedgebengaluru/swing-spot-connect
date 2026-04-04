@@ -289,7 +289,7 @@ export function BayConfigTab() {
                   step="0.5"
                   min="0"
                   max={editing.coaching_hours}
-                  value={editing.coaching_cancellation_refund_hours}
+                  value={editing.coaching_cancellation_refund_hours || ""}
                   onChange={(e) => setEditing({ ...editing, coaching_cancellation_refund_hours: Math.min(Number(e.target.value), editing.coaching_hours) })}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
