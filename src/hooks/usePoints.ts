@@ -128,17 +128,39 @@ export function useRedeemPoints() {
       rewardId,
       rewardName,
       adminId,
+      isProfileId,
     }: {
       userId: string;
       points: number;
       rewardId?: string;
       rewardName: string;
       adminId?: string;
+      isProfileId?: boolean;
     }) => {
-      // Atomically decrement points with balance check — DB raises exception if insufficient
-      const { data: newTotal, error: updateErr } = await (supabase as any)
-        .rpc("decrement_user_points_safe", { p_user_id: userId, p_delta: points });
-      if (updateErr) throw new Error(updateErr.message);
+      let newTotal: number | null = null;
+
+      if (isProfileId) {
+        // Admin-registered user — update by profile id directly with balance check
+        const { data: profile, error: fetchErr } = await supabase
+          .from("profiles")
+          .select("points")
+          .eq("id", userId)
+          .single();
+        if (fetchErr) throw fetchErr;
+        const currentPoints = profile?.points ?? 0;
+        if (currentPoints < points) throw new Error(`Insufficient points: have ${currentPoints}, need ${points}`);
+        newTotal = currentPoints - points;
+        const { error: updateErr } = await supabase
+          .from("profiles")
+          .update({ points: newTotal })
+          .eq("id", userId);
+        if (updateErr) throw updateErr;
+      } else {
+        const { data, error: updateErr } = await (supabase as any)
+          .rpc("decrement_user_points_safe", { p_user_id: userId, p_delta: points });
+        if (updateErr) throw new Error(updateErr.message);
+        newTotal = data;
+      }
 
       // Log transaction
       const { error: txErr } = await supabase
@@ -153,7 +175,7 @@ export function useRedeemPoints() {
         });
       if (txErr) throw txErr;
 
-      // Send notification (non-critical — errors are logged but don't fail the mutation)
+      // Send notification (non-critical)
       supabase.from("notifications").insert({
         user_id: userId,
         title: "🎁 Reward Redeemed",
