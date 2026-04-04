@@ -388,9 +388,9 @@ export function AdminAllUsersTab() {
     }
   };
 
-  const handleAdminRedeem = async (data: { user_id: string; reward_id: string; reward_name: string; points: number }) => {
+  const handleAdminRedeem = async (data: { user_id: string; reward_id: string; reward_name: string; points: number; isProfileId?: boolean }) => {
     try {
-      await redeemPoints.mutateAsync({ userId: data.user_id, points: data.points, rewardId: data.reward_id, rewardName: data.reward_name, adminId: user?.id! });
+      await redeemPoints.mutateAsync({ userId: data.user_id, points: data.points, rewardId: data.reward_id, rewardName: data.reward_name, adminId: user?.id!, isProfileId: data.isProfileId });
       toast({ title: "Reward redeemed", description: `${data.reward_name} redeemed successfully.` });
       setDialogOpen(null);
     } catch (err: any) {
