@@ -151,6 +151,58 @@ function createAdminClient() {
   );
 }
 
+// Get admin + city-scoped site-admin user IDs for notifications
+async function getAdminAndSiteAdminIds(adminClient: any, city: string, excludeUserId?: string): Promise<string[]> {
+  // Get all admins
+  const { data: adminRoles } = await adminClient.from("user_roles").select("user_id").eq("role", "admin");
+  // Get site_admins assigned to this city
+  const { data: siteAdminCities } = await adminClient.from("site_admin_cities").select("user_id").eq("city", city);
+  
+  const ids = new Set<string>();
+  for (const a of adminRoles ?? []) ids.add(a.user_id);
+  for (const s of siteAdminCities ?? []) ids.add(s.user_id);
+  
+  if (excludeUserId) ids.delete(excludeUserId);
+  return [...ids];
+}
+
+// Send admin email notification to all relevant admins/site-admins
+async function notifyAdmins(adminClient: any, adminIds: string[], template: string, subject: string, data: Record<string, any>) {
+  for (const adminId of adminIds) {
+    try {
+      // Get admin display name for personalization
+      const { data: adminProfile } = await adminClient.from("profiles").select("display_name").eq("user_id", adminId).single();
+      await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({
+          user_id: adminId,
+          template,
+          subject,
+          data: { ...data, admin_name: adminProfile?.display_name || "Admin" },
+        }),
+      });
+    } catch (e) {
+      console.error(`Failed to send admin email to ${adminId}:`, e);
+    }
+  }
+}
+
+// Send in-app notification to all relevant admins/site-admins
+async function notifyAdminsInApp(adminClient: any, adminIds: string[], title: string, message: string) {
+  for (const adminId of adminIds) {
+    await adminClient.from("notifications").insert({
+      user_id: adminId,
+      title,
+      message,
+      type: "admin",
+    });
+  }
+}
+
 // ─── Revenue reversal + Invoice cancellation + Credit note ───
 // Called when a confirmed booking with paid revenue (amount > 0) is cancelled.
 async function reverseRevenueAndInvoice(adminClient: any, bookingId: string) {
