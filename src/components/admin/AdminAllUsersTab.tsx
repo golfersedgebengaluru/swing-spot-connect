@@ -378,9 +378,9 @@ export function AdminAllUsersTab() {
     setAllProfiles(filtered);
   };
 
-  const handleAllocatePoints = async (data: { user_id: string; points: number; description: string }) => {
+  const handleAllocatePoints = async (data: { user_id: string; points: number; description: string; isProfileId?: boolean }) => {
     try {
-      await allocatePoints.mutateAsync({ userId: data.user_id, points: data.points, description: data.description, adminId: user?.id! });
+      await allocatePoints.mutateAsync({ userId: data.user_id, points: data.points, description: data.description, adminId: user?.id!, isProfileId: data.isProfileId });
       toast({ title: "Points allocated", description: `${data.points} points awarded.` });
       setDialogOpen(null);
     } catch (err: any) {
