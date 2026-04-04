@@ -389,6 +389,9 @@ Deno.serve(async (req) => {
         "coaching_approved",
         "coaching_rejected",
         "low_hours_alert",
+        "admin_new_booking",
+        "admin_coaching_request",
+        "admin_booking_cancelled",
       ];
 
       if (!RATE_LIMIT_EXEMPT_TEMPLATES.includes(template)) {
