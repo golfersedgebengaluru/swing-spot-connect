@@ -60,7 +60,7 @@ function MemberHoursForm({ onSave, onCancel, profiles }: { onSave: (data: any) =
           </SelectContent>
         </Select>
       </div>
-      <div><Label>Hours Purchased</Label><Input type="number" step="0.5" value={form.hours_purchased} onChange={(e) => setForm({ ...form, hours_purchased: Number(e.target.value) })} /></div>
+      <div><Label>Hours Purchased</Label><Input type="number" step="0.5" value={form.hours_purchased || ""} onChange={(e) => setForm({ ...form, hours_purchased: Number(e.target.value) })} /></div>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
         <Button onClick={() => onSave(form)} disabled={!form.user_id || form.hours_purchased <= 0}>Add Hours</Button>
