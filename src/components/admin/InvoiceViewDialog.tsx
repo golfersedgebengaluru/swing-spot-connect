@@ -535,8 +535,8 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
                       <div className="grid grid-cols-3 gap-3">
                         <div>
                           <Label className="text-xs">Amount Received</Label>
-                          <Input type="number" min={0} step="0.01" value={recordAmount}
-                            onChange={(e) => setRecordAmount(Number(e.target.value) || 0)} className="mt-1" />
+                          <Input type="number" min={0} step="0.01" value={recordAmount || ""}
+                            onChange={(e) => setRecordAmount(Number(e.target.value))} className="mt-1" />
                         </div>
                         <div>
                           <Label className="text-xs">Mode of Payment</Label>
