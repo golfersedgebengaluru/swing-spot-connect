@@ -103,12 +103,11 @@ function AllocatePointsForm({ profiles, onSave, onCancel }: { profiles: any[]; o
   );
 }
 
-function AdminRedeemForm({ profiles, rewards, onSave, onCancel }: { profiles: any[]; rewards: any[]; onSave: (data: { user_id: string; reward_id: string; reward_name: string; points: number }) => void; onCancel: () => void }) {
+function AdminRedeemForm({ profiles, rewards, onSave, onCancel }: { profiles: any[]; rewards: any[]; onSave: (data: { user_id: string; reward_id: string; reward_name: string; points: number; isProfileId?: boolean }) => void; onCancel: () => void }) {
   const [userId, setUserId] = useState("");
   const [rewardId, setRewardId] = useState("");
-  const activeProfiles = profiles.filter((p: any) => p.user_id);
   const selectedReward = (rewards ?? []).find((r: any) => r.id === rewardId);
-  const selectedProfile = activeProfiles.find((p: any) => p.user_id === userId);
+  const selectedProfile = profiles.find((p: any) => (p.user_id || p.id) === userId);
   const userPoints = selectedProfile?.points ?? 0;
   return (
     <div className="space-y-4">
@@ -117,9 +116,10 @@ function AdminRedeemForm({ profiles, rewards, onSave, onCancel }: { profiles: an
         <Select value={userId} onValueChange={setUserId}>
           <SelectTrigger><SelectValue placeholder="Select a member" /></SelectTrigger>
           <SelectContent>
-            {activeProfiles.map((p: any) => (
-              <SelectItem key={p.user_id} value={p.user_id}>{p.display_name || p.email} ({p.points ?? 0} pts)</SelectItem>
-            ))}
+            {profiles.map((p: any) => {
+              const uid = p.user_id || p.id;
+              return <SelectItem key={uid} value={uid}>{p.display_name || p.email} ({p.points ?? 0} pts){!p.user_id ? " (admin-registered)" : ""}</SelectItem>;
+            })}
           </SelectContent>
         </Select>
       </div>
@@ -143,7 +143,9 @@ function AdminRedeemForm({ profiles, rewards, onSave, onCancel }: { profiles: an
       )}
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button onClick={() => onSave({ user_id: userId, reward_id: rewardId, reward_name: selectedReward?.name ?? "", points: selectedReward?.points_cost ?? 0 })} disabled={!userId || !rewardId || userPoints < (selectedReward?.points_cost ?? 0)}>Redeem</Button>
+        <Button onClick={() => {
+          onSave({ user_id: userId, reward_id: rewardId, reward_name: selectedReward?.name ?? "", points: selectedReward?.points_cost ?? 0, isProfileId: !selectedProfile?.user_id });
+        }} disabled={!userId || !rewardId || userPoints < (selectedReward?.points_cost ?? 0)}>Redeem</Button>
       </div>
     </div>
   );
