@@ -244,6 +244,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
     setLineItems([]);
     setPaymentMethod("");
     setCustomerSearch("");
+    setInvoiceDate(new Date());
     setNotes("");
     setDueDate(undefined);
     setPaymentReference("");
