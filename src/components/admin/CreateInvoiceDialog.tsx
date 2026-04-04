@@ -91,7 +91,8 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
   const [bookingBayId, setBookingBayId] = useState("");
   const [sessionType, setSessionType] = useState("practice");
 
-  // Notes & due date
+  // Invoice date & due date
+  const [invoiceDate, setInvoiceDate] = useState<Date>(new Date());
   const [notes, setNotes] = useState("");
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [paymentReference, setPaymentReference] = useState("");
