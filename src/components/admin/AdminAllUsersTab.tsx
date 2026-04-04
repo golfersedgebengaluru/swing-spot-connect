@@ -308,7 +308,8 @@ export function AdminAllUsersTab() {
           const bookingUserIds = new Set((cityBookings ?? []).map((b: any) => b.user_id));
           filtered = filtered.filter((p: any) =>
             (p.preferred_city && citiesToFilter.includes(p.preferred_city)) ||
-            (p.user_id && bookingUserIds.has(p.user_id))
+            (p.user_id && bookingUserIds.has(p.user_id)) ||
+            bookingUserIds.has(p.id)
           );
         }
       } else if (selectedCity) {
