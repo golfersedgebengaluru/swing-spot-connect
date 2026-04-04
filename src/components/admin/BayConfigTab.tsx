@@ -215,12 +215,12 @@ export function BayConfigTab() {
 
       {/* Edit/Create dialog */}
       <Dialog open={!!editing} onOpenChange={(open) => { if (!open) { setEditing(null); setIsNew(false); } }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{isNew ? "Add Bay" : "Edit Bay"} — {editing?.city}</DialogTitle>
           </DialogHeader>
           {editing && (
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto pr-2 flex-1">
               <div>
                 <Label>Bay Name</Label>
                 <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} placeholder="Bay #1" />
