@@ -208,6 +208,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
         total: calculated.total,
         paymentMethod,
         city,
+        invoiceDate: format(invoiceDate, "yyyy-MM-dd"),
         notes: notes || undefined,
         dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : undefined,
         invoiceCategory,
