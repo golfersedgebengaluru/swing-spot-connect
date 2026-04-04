@@ -398,9 +398,9 @@ export function AdminAllUsersTab() {
     }
   };
 
-  const handleInlineAllocatePoints = async (userId: string, data: { points: number; description: string }) => {
+  const handleInlineAllocatePoints = async (userId: string, isProfileId: boolean, data: { points: number; description: string }) => {
     try {
-      await allocatePoints.mutateAsync({ userId, points: data.points, description: data.description, adminId: user?.id! });
+      await allocatePoints.mutateAsync({ userId, points: data.points, description: data.description, adminId: user?.id!, isProfileId });
       toast({ title: "Points allocated", description: `${data.points} points awarded.` });
       setDialogOpen(null);
       setSelectedUser(null);
