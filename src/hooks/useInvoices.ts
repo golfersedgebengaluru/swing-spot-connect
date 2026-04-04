@@ -329,14 +329,27 @@ export function useCreateInvoice() {
 
       let createdProfileId: string | null = null;
       if (shouldCreateProfile) {
-        // Check if profile already exists by email
+        // Check if profile already exists by email or by name+phone
         let existingProfile = null;
-        if (params.customerEmail) {
+        const normEmail = params.customerEmail ? params.customerEmail.trim().toLowerCase() : null;
+        if (normEmail) {
           const { data } = await (supabase as any)
             .from("profiles")
             .select("id, user_id")
-            .eq("email", (params.customerEmail || "").trim().toLowerCase())
+            .eq("email", normEmail)
             .maybeSingle();
+          existingProfile = data;
+        }
+        // Fallback: match by display_name + phone when no email provided
+        if (!existingProfile && !normEmail && params.customerName) {
+          const q = (supabase as any)
+            .from("profiles")
+            .select("id, user_id")
+            .eq("display_name", params.customerName);
+          if (params.customerPhone) {
+            q.eq("phone", params.customerPhone);
+          }
+          const { data } = await q.maybeSingle();
           existingProfile = data;
         }
 
