@@ -4,8 +4,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Loader2, Clock, MinusCircle, PlusCircle, History, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, Clock, MinusCircle, PlusCircle, History, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMemberHours, useHoursTransactions, MemberHoursRow } from "@/hooks/useMemberHours";
 import { supabase } from "@/integrations/supabase/client";
