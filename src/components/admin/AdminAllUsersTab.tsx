@@ -560,7 +560,7 @@ export function AdminAllUsersTab() {
       <Dialog open={dialogOpen === "inlineallocate"} onOpenChange={(open) => { setDialogOpen(open ? "inlineallocate" : null); if (!open) setSelectedUser(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Allocate Points</DialogTitle></DialogHeader>
-          {selectedUser && <InlineAllocatePointsForm displayName={selectedUser.display_name || "User"} onSave={(data) => handleInlineAllocatePoints(selectedUser.user_id || selectedUser.id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
+          {selectedUser && <InlineAllocatePointsForm displayName={selectedUser.display_name || "User"} onSave={(data) => handleInlineAllocatePoints(selectedUser.user_id || selectedUser.id, !selectedUser.user_id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
         </DialogContent>
       </Dialog>
 
