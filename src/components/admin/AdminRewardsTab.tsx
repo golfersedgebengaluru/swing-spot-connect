@@ -26,8 +26,8 @@ function RewardForm({ reward, onSave, onCancel }: { reward?: any; onSave: (data:
       <div><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
       <div><Label>Description</Label><RichTextEditor content={form.description} onChange={(html) => setForm({ ...form, description: html })} minHeight="120px" /></div>
       <div className="grid grid-cols-2 gap-4">
-        <div><Label>Points Cost</Label><Input type="number" value={form.points_cost} onChange={(e) => setForm({ ...form, points_cost: Number(e.target.value) })} /></div>
-        <div><Label>Sort Order</Label><Input type="number" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })} /></div>
+        <div><Label>Points Cost</Label><Input type="number" value={form.points_cost || ""} onChange={(e) => setForm({ ...form, points_cost: Number(e.target.value) })} /></div>
+        <div><Label>Sort Order</Label><Input type="number" value={form.sort_order || ""} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })} /></div>
       </div>
       <div className="flex items-center gap-2"><Switch checked={form.is_available} onCheckedChange={(v) => setForm({ ...form, is_available: v })} /><Label>Available</Label></div>
       <div className="flex gap-2 justify-end">

@@ -279,7 +279,7 @@ export function BayConfigTab() {
               </div>
               <div>
                 <Label>Coaching Hours per Session</Label>
-                <Input type="number" step="0.5" min="0.5" value={editing.coaching_hours} onChange={(e) => setEditing({ ...editing, coaching_hours: Number(e.target.value) })} />
+                <Input type="number" step="0.5" min="0.5" value={editing.coaching_hours || ""} onChange={(e) => setEditing({ ...editing, coaching_hours: Number(e.target.value) })} />
                 <p className="text-xs text-muted-foreground mt-1">Hours deducted for coaching sessions</p>
               </div>
               <div>
@@ -289,7 +289,7 @@ export function BayConfigTab() {
                   step="0.5"
                   min="0"
                   max={editing.coaching_hours}
-                  value={editing.coaching_cancellation_refund_hours}
+                  value={editing.coaching_cancellation_refund_hours || ""}
                   onChange={(e) => setEditing({ ...editing, coaching_cancellation_refund_hours: Math.min(Number(e.target.value), editing.coaching_hours) })}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
@@ -299,7 +299,7 @@ export function BayConfigTab() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Sort Order</Label>
-                  <Input type="number" value={editing.sort_order} onChange={(e) => setEditing({ ...editing, sort_order: Number(e.target.value) })} />
+                  <Input type="number" value={editing.sort_order || ""} onChange={(e) => setEditing({ ...editing, sort_order: Number(e.target.value) })} />
                 </div>
                 <div className="flex items-center gap-2 pt-6">
                   <Switch checked={editing.is_active} onCheckedChange={(v) => setEditing({ ...editing, is_active: v })} />

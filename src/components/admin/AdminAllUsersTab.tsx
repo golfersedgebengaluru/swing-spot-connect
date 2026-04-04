@@ -90,7 +90,7 @@ function AllocatePointsForm({ profiles, onSave, onCancel }: { profiles: any[]; o
           </SelectContent>
         </Select>
       </div>
-      <div><Label>Points</Label><Input type="number" min="1" value={form.points} onChange={(e) => setForm({ ...form, points: Number(e.target.value) })} /></div>
+      <div><Label>Points</Label><Input type="number" min="1" value={form.points || ""} onChange={(e) => setForm({ ...form, points: Number(e.target.value) })} /></div>
       <div><Label>Reason</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="e.g. Welcome bonus, event participation" /></div>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
@@ -184,7 +184,7 @@ function InlineAllocatePointsForm({ displayName, onSave, onCancel }: { displayNa
       <div className="rounded-lg bg-muted p-3">
         <p className="text-sm text-muted-foreground">User: <span className="font-medium text-foreground">{displayName}</span></p>
       </div>
-      <div><Label>Points</Label><Input type="number" min="1" value={form.points} onChange={(e) => setForm({ ...form, points: Number(e.target.value) })} /></div>
+      <div><Label>Points</Label><Input type="number" min="1" value={form.points || ""} onChange={(e) => setForm({ ...form, points: Number(e.target.value) })} /></div>
       <div><Label>Reason</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="e.g. Welcome bonus" /></div>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
@@ -213,7 +213,7 @@ function InlineAdjustHoursForm({ displayName, hoursRemaining, onSave, onCancel }
           </SelectContent>
         </Select>
       </div>
-      <div><Label>Hours</Label><Input type="number" step="0.5" min="0" value={form.hours} onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })} /></div>
+      <div><Label>Hours</Label><Input type="number" step="0.5" min="0" value={form.hours || ""} onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })} /></div>
       <div><Label>Note (optional)</Label><Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="e.g. Bay session 2hrs" /></div>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>

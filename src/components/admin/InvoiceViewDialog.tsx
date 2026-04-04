@@ -413,16 +413,16 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
                               {item.itemType === "service" ? item.sacCode : item.hsnCode}
                             </td>
                             <td className="py-2 px-2">
-                              <Input type="number" min={1} className="w-16 h-7 text-right text-xs" value={lineItems[idx].quantity}
+                              <Input type="number" min={1} className="w-16 h-7 text-right text-xs" value={lineItems[idx].quantity || ""}
                                 onChange={(e) => updateLineItem(idx, "quantity", Number(e.target.value) || 1)} />
                             </td>
                             <td className="py-2 px-2">
-                              <Input type="number" min={0} step="0.01" className="w-24 h-7 text-right text-xs" value={lineItems[idx].unitPrice}
-                                onChange={(e) => updateLineItem(idx, "unitPrice", Number(e.target.value) || 0)} />
+                              <Input type="number" min={0} step="0.01" className="w-24 h-7 text-right text-xs" value={lineItems[idx].unitPrice || ""}
+                                onChange={(e) => updateLineItem(idx, "unitPrice", Number(e.target.value))} />
                             </td>
                             <td className="py-2 px-2">
-                              <Input type="number" min={0} step="0.01" className="w-16 h-7 text-right text-xs" value={lineItems[idx].gstRate}
-                                onChange={(e) => updateLineItem(idx, "gstRate", Number(e.target.value) || 0)} />
+                              <Input type="number" min={0} step="0.01" className="w-16 h-7 text-right text-xs" value={lineItems[idx].gstRate || ""}
+                                onChange={(e) => updateLineItem(idx, "gstRate", Number(e.target.value))} />
                             </td>
                             <td className="py-2 px-2 text-right font-medium text-xs">{currency.format(item.lineTotal)}</td>
                             <td className="py-2 px-1">
@@ -468,8 +468,8 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label className="text-xs">Amount Paid</Label>
-                      <Input type="number" min={0} step="0.01" value={amountPaid}
-                        onChange={(e) => setAmountPaid(Number(e.target.value) || 0)} className="mt-1" />
+                      <Input type="number" min={0} step="0.01" value={amountPaid || ""}
+                        onChange={(e) => setAmountPaid(Number(e.target.value))} className="mt-1" />
                     </div>
                     <div className="flex flex-col justify-end">
                       <p className="text-sm font-medium text-destructive">
@@ -535,8 +535,8 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
                       <div className="grid grid-cols-3 gap-3">
                         <div>
                           <Label className="text-xs">Amount Received</Label>
-                          <Input type="number" min={0} step="0.01" value={recordAmount}
-                            onChange={(e) => setRecordAmount(Number(e.target.value) || 0)} className="mt-1" />
+                          <Input type="number" min={0} step="0.01" value={recordAmount || ""}
+                            onChange={(e) => setRecordAmount(Number(e.target.value))} className="mt-1" />
                         </div>
                         <div>
                           <Label className="text-xs">Mode of Payment</Label>
