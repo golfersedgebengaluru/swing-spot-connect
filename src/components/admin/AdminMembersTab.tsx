@@ -121,7 +121,7 @@ export function AdminMembersTab() {
 
       // Add member_hours users who aren't already member-type profiles
       for (const h of (allMemberHours ?? [])) {
-        if (!memberProfileUserIds.has(h.user_id)) {
+        if (!memberProfileUids.has(h.user_id)) {
           combined.push(h as any);
         }
       }
