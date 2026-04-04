@@ -311,6 +311,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
                 Booking
               </Button>
             </div>
+            </div>
           </div>
 
           {/* ── Booking Details (only for booking) ── */}
