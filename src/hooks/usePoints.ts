@@ -46,16 +46,38 @@ export function useAllocatePoints() {
       points,
       description,
       adminId,
+      isProfileId,
     }: {
       userId: string;
       points: number;
       description: string;
       adminId: string;
+      isProfileId?: boolean;
     }) => {
-      // Atomically increment points — no read-then-write race condition
-      const { data: newTotal, error: updateErr } = await (supabase as any)
-        .rpc("increment_user_points", { p_user_id: userId, p_delta: points });
-      if (updateErr) throw updateErr;
+      let newTotal: number | null = null;
+
+      if (isProfileId) {
+        // Admin-registered user (no auth user_id) — update by profile id directly
+        const { data: profile, error: fetchErr } = await supabase
+          .from("profiles")
+          .select("points")
+          .eq("id", userId)
+          .single();
+        if (fetchErr) throw fetchErr;
+        const currentPoints = profile?.points ?? 0;
+        newTotal = currentPoints + points;
+        const { error: updateErr } = await supabase
+          .from("profiles")
+          .update({ points: newTotal })
+          .eq("id", userId);
+        if (updateErr) throw updateErr;
+      } else {
+        // Normal user — use atomic RPC
+        const { data, error: updateErr } = await (supabase as any)
+          .rpc("increment_user_points", { p_user_id: userId, p_delta: points });
+        if (updateErr) throw updateErr;
+        newTotal = data;
+      }
 
       // Log transaction
       const { error: txErr } = await supabase
@@ -69,7 +91,7 @@ export function useAllocatePoints() {
         });
       if (txErr) throw txErr;
 
-      // Send notification (non-critical — errors are logged but don't fail the mutation)
+      // Send notification (non-critical)
       supabase.from("notifications").insert({
         user_id: userId,
         title: "🎉 Points Awarded",
