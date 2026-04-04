@@ -195,7 +195,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
 
     try {
       const invoice = await createInvoice.mutateAsync({
-        customerUserId: customerUserId || undefined,
+        customerUserId: customerUserId || customerProfileId || undefined,
         customerName,
         customerEmail: customerEmail || undefined,
         customerPhone: customerPhone || undefined,
