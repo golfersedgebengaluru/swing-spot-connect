@@ -184,6 +184,7 @@ export interface CreateInvoiceParams {
   creditNoteFor?: string;
   notes?: string;
   dueDate?: string;
+  invoiceDate?: string;
   invoiceCategory?: string;
   paymentReference?: string;
   addToUserList?: boolean;
@@ -257,7 +258,7 @@ export function useCreateInvoice() {
       // 5. Insert invoice
       const invoicePayload = {
         invoice_number: invoiceNumber,
-        invoice_date: new Date().toISOString().split("T")[0],
+        invoice_date: params.invoiceDate || new Date().toISOString().split("T")[0],
         financial_year_id: fy.id,
         customer_user_id: params.customerUserId || null,
         customer_name: params.customerName,

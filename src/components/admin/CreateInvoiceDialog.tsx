@@ -91,7 +91,8 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
   const [bookingBayId, setBookingBayId] = useState("");
   const [sessionType, setSessionType] = useState("practice");
 
-  // Notes & due date
+  // Invoice date & due date
+  const [invoiceDate, setInvoiceDate] = useState<Date>(new Date());
   const [notes, setNotes] = useState("");
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [paymentReference, setPaymentReference] = useState("");
@@ -207,6 +208,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
         total: calculated.total,
         paymentMethod,
         city,
+        invoiceDate: format(invoiceDate, "yyyy-MM-dd"),
         notes: notes || undefined,
         dueDate: dueDate ? format(dueDate, "yyyy-MM-dd") : undefined,
         invoiceCategory,
@@ -242,6 +244,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
     setLineItems([]);
     setPaymentMethod("");
     setCustomerSearch("");
+    setInvoiceDate(new Date());
     setNotes("");
     setDueDate(undefined);
     setPaymentReference("");
@@ -263,9 +266,33 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* ── Invoice Category ── */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Invoice Category</Label>
+          {/* ── Invoice Date & Category ── */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Invoice Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn("w-full justify-start text-left font-normal")}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(invoiceDate, "PPP")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={invoiceDate}
+                    onSelect={(d) => d && setInvoiceDate(d)}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Invoice Category</Label>
             <div className="flex gap-2">
               <Button
                 type="button"
@@ -283,6 +310,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
               >
                 Booking
               </Button>
+            </div>
             </div>
           </div>
 
