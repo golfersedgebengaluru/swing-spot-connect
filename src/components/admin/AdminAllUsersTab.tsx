@@ -529,7 +529,7 @@ export function AdminAllUsersTab() {
             <DialogHeader><DialogTitle>Register New User</DialogTitle></DialogHeader>
             <RegisterUserForm onSave={async (data) => {
               const insertData: Record<string, string> = { display_name: data.display_name.trim() };
-              if (data.email.trim()) insertData.email = data.email.trim();
+              if (data.email.trim()) insertData.email = data.email.trim().toLowerCase();
               if (data.phone.trim()) insertData.phone = data.phone.trim();
               if (selectedCity) insertData.preferred_city = selectedCity;
               const { error } = await supabase.from("profiles").insert(insertData);
