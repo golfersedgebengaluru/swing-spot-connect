@@ -95,8 +95,12 @@ export function AdminMembersTab() {
 
       const hoursMap = new Map((allMemberHours ?? []).map((h) => [h.user_id, h]));
 
-      // Build combined list: all member-type profiles + any member_hours users not already included
-      const memberProfileUserIds = new Set((memberProfiles ?? []).filter((p: any) => p.user_id).map((p: any) => p.user_id));
+      // Track ALL identifiers used by member-type profiles (both user_id and profile id)
+      const memberProfileUids = new Set<string>();
+      for (const p of memberProfiles ?? []) {
+        if ((p as any).user_id) memberProfileUids.add((p as any).user_id);
+        memberProfileUids.add((p as any).id);
+      }
       
       let combined: MemberHoursRow[] = (memberProfiles ?? []).map((p: any) => {
         const uid = p.user_id || p.id;
@@ -117,7 +121,7 @@ export function AdminMembersTab() {
 
       // Add member_hours users who aren't already member-type profiles
       for (const h of (allMemberHours ?? [])) {
-        if (!memberProfileUserIds.has(h.user_id)) {
+        if (!memberProfileUids.has(h.user_id)) {
           combined.push(h as any);
         }
       }
