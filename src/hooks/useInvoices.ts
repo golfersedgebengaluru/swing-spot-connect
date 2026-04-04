@@ -184,6 +184,7 @@ export interface CreateInvoiceParams {
   creditNoteFor?: string;
   notes?: string;
   dueDate?: string;
+  invoiceDate?: string;
   invoiceCategory?: string;
   paymentReference?: string;
   addToUserList?: boolean;
