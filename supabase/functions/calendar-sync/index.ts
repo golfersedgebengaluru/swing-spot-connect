@@ -870,6 +870,25 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.error("Failed to send booking confirmation email:", e);
         }
+
+        // Notify admins + site-admins about new confirmed booking
+        try {
+          const { data: userPrf } = await adminClient.from("profiles").select("display_name").eq("user_id", userId).single();
+          const memberName = userPrf?.display_name || display_name || "A member";
+          const notifyIds = await getAdminAndSiteAdminIds(adminClient, city, userId);
+          await notifyAdminsInApp(adminClient, notifyIds, "📅 New Booking", `${memberName} booked ${bayLabel}${isCoaching ? " (Coaching)" : ""} on ${formatDateTime(start_time, calTz)}.`);
+          await notifyAdmins(adminClient, notifyIds, "admin_new_booking", "📅 New Booking", {
+            member_name: memberName,
+            city,
+            bay: bayLabel,
+            date: formatDate(start_time, calTz),
+            time: formatTimeRange(start_time, end_time, calTz),
+            duration: `${hoursNeeded}h`,
+            session_type: isCoaching ? "coaching" : "practice",
+          });
+        } catch (e) {
+          console.error("Failed to notify admins about new booking:", e);
+        }
       } else {
         // Pending coaching notification
         await supabase.from("notifications").insert({
@@ -879,19 +898,12 @@ Deno.serve(async (req) => {
           type: "booking",
         });
 
-        // Notify admins
+        // Notify admins + site-admins
         const adminClient = createAdminClient();
-        const { data: adminRoles } = await adminClient.from("user_roles").select("user_id").eq("role", "admin");
-        for (const admin of adminRoles ?? []) {
-          await adminClient.from("notifications").insert({
-            user_id: admin.user_id,
-            title: "📋 New Coaching Request",
-            message: `${display_name || "A member"} has requested a coaching session at ${bayLabel} on ${formatDateTime(start_time, calTz)}. Please approve or reject.`,
-            type: "admin",
-          });
-        }
+        const notifyIds = await getAdminAndSiteAdminIds(adminClient, city);
+        await notifyAdminsInApp(adminClient, notifyIds, "📋 New Coaching Request", `${display_name || "A member"} has requested a coaching session at ${bayLabel} on ${formatDateTime(start_time, calTz)}. Please approve or reject.`);
 
-        // Send pending coaching email
+        // Send pending coaching email to user
         try {
           await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
             method: "POST",
@@ -915,6 +927,16 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.error("Failed to send pending coaching email:", e);
         }
+
+        // Send coaching request email to admins + site-admins
+        await notifyAdmins(adminClient, notifyIds, "admin_coaching_request", "🕐 Coaching Request — Action Required", {
+          member_name: display_name || "A member",
+          city,
+          bay: bayLabel,
+          date: formatDate(start_time, calTz),
+          time: formatTimeRange(start_time, end_time, calTz),
+          duration: `${duration_minutes / 60}h`,
+        });
       }
 
       return new Response(JSON.stringify({ booking }), {
