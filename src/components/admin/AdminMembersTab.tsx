@@ -4,8 +4,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Loader2, Clock, MinusCircle, PlusCircle, History, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, Clock, MinusCircle, PlusCircle, History, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMemberHours, useHoursTransactions, MemberHoursRow } from "@/hooks/useMemberHours";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,34 +40,7 @@ function TransactionHistory({ userId }: { userId: string }) {
   );
 }
 
-function MemberHoursForm({ onSave, onCancel, profiles }: { onSave: (data: any) => void; onCancel: () => void; profiles: any[] }) {
-  const [form, setForm] = useState({ user_id: "", hours_purchased: 0 });
-  // Use user_id if available, otherwise fall back to profile id
-  const selectableProfiles = profiles.filter((p: any) => p.user_id || p.id);
-  return (
-    <div className="space-y-4">
-      <div>
-        <Label>Member</Label>
-        <Select value={form.user_id} onValueChange={(v) => setForm({ ...form, user_id: v })}>
-          <SelectTrigger><SelectValue placeholder="Select a member" /></SelectTrigger>
-          <SelectContent>
-            {selectableProfiles.map((p: any) => {
-              const val = p.user_id || p.id;
-              return (
-                <SelectItem key={val} value={val}>{p.display_name || p.email || val}</SelectItem>
-              );
-            })}
-          </SelectContent>
-        </Select>
-      </div>
-      <div><Label>Hours Purchased</Label><Input type="number" step="0.5" value={form.hours_purchased || ""} onChange={(e) => setForm({ ...form, hours_purchased: Number(e.target.value) })} /></div>
-      <div className="flex gap-2 justify-end">
-        <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button onClick={() => onSave(form)} disabled={!form.user_id || form.hours_purchased <= 0}>Add Hours</Button>
-      </div>
-    </div>
-  );
-}
+// MemberHoursForm removed — hours are now managed via the Adjust button only
 
 function AdjustHoursForm({ member, onSave, onCancel }: { member: any; onSave: (data: any) => void; onCancel: () => void }) {
   const [form, setForm] = useState({ type: "deduction" as string, hours: 0, note: "" });
@@ -179,88 +152,39 @@ export function AdminMembersTab() {
   const [adjustingMember, setAdjustingMember] = useState<any>(null);
   const [viewingHistory, setViewingHistory] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState<string | null>(null);
-  const [allProfiles, setAllProfiles] = useState<any[]>([]);
-
-  const loadProfiles = async () => {
-    const { data } = await supabase.from("profiles").select("id, user_id, display_name, email, preferred_city");
-    let filtered = data ?? [];
-    if (!isAdmin) {
-      const citiesToFilter = selectedCity ? [selectedCity] : assignedCities;
-      if (citiesToFilter.length > 0) {
-        const { data: cityBookings } = await supabase
-          .from("bookings")
-          .select("user_id, city")
-          .in("city", citiesToFilter);
-        const bookingUserIds = new Set((cityBookings ?? []).map((b: any) => b.user_id));
-        filtered = filtered.filter((p: any) =>
-          (p.preferred_city && citiesToFilter.includes(p.preferred_city)) ||
-          (p.user_id && bookingUserIds.has(p.user_id))
-        );
-      }
-    }
-    setAllProfiles(filtered);
-  };
-
-  const handleAddMember = async (data: any) => {
-    const { data: existing } = await supabase
-      .from("member_hours")
-      .select("id, hours_purchased")
-      .eq("user_id", data.user_id)
-      .maybeSingle();
-
-    if (existing) {
-      const { error } = await supabase
-        .from("member_hours")
-        .update({ hours_purchased: existing.hours_purchased + data.hours_purchased })
-        .eq("id", existing.id);
-      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    } else {
-      const { error } = await supabase.from("member_hours").insert({
-        user_id: data.user_id,
-        hours_purchased: data.hours_purchased,
-        hours_used: 0,
-      });
-      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    }
-    const { data: htxn } = await supabase.from("hours_transactions").insert({
-      user_id: data.user_id,
-      type: "purchase",
-      hours: data.hours_purchased,
-      note: "Initial hours setup",
-      created_by: user?.id,
-    }).select("id").single();
-
-    // Create revenue transaction for prepaid hours purchase
-    try {
-      await supabase.from("revenue_transactions").insert({
-        transaction_type: "payment" as any,
-        amount: 0, // Admin-side entry; amount can be updated if price is known
-        currency: "INR",
-        user_id: data.user_id,
-        hours_transaction_id: htxn?.id || null,
-        description: `Prepaid hours purchase - ${data.hours_purchased}h`,
-        status: "confirmed",
-      });
-    } catch (e) {
-      console.error("Failed to create revenue transaction:", e);
-    }
-    toast({ title: "Member hours added" });
-    queryClient.invalidateQueries({ queryKey: ["member_hours"] });
-    setDialogOpen(null);
-  };
 
   const handleAdjustHours = async (data: any) => {
     const member = adjustingMember;
     if (!member) return;
-    const newPurchased = data.type === "purchase" || (data.type === "adjustment" && data.hours > 0)
-      ? member.hours_purchased + data.hours : member.hours_purchased;
-    const newUsed = data.type === "deduction" ? member.hours_used + data.hours : member.hours_used;
 
-    const { error } = await supabase.from("member_hours").update({
-      hours_purchased: newPurchased,
-      hours_used: newUsed,
-    }).eq("user_id", member.user_id);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    // Upsert: check if member_hours row exists, create if not
+    const { data: existing } = await supabase
+      .from("member_hours")
+      .select("id, hours_purchased, hours_used")
+      .eq("user_id", member.user_id)
+      .maybeSingle();
+
+    const curPurchased = existing?.hours_purchased ?? member.hours_purchased ?? 0;
+    const curUsed = existing?.hours_used ?? member.hours_used ?? 0;
+
+    const newPurchased = data.type === "purchase" || (data.type === "adjustment" && data.hours > 0)
+      ? curPurchased + data.hours : curPurchased;
+    const newUsed = data.type === "deduction" ? curUsed + data.hours : curUsed;
+
+    if (existing) {
+      const { error } = await supabase.from("member_hours").update({
+        hours_purchased: newPurchased,
+        hours_used: newUsed,
+      }).eq("id", existing.id);
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    } else {
+      const { error } = await supabase.from("member_hours").insert({
+        user_id: member.user_id,
+        hours_purchased: newPurchased,
+        hours_used: newUsed,
+      });
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    }
 
     const { data: htxn } = await supabase.from("hours_transactions").insert({
       user_id: member.user_id,
@@ -303,7 +227,6 @@ export function AdminMembersTab() {
           message: `You only have ${remaining} hour(s) remaining. Please purchase more hours to continue.`,
           type: "warning",
         });
-        // Send low hours alert email
         sendNotificationEmail({
           user_id: member.user_id,
           template: "low_hours_alert",
@@ -320,7 +243,6 @@ export function AdminMembersTab() {
           message: "Your hours balance has been fully used. Please purchase more hours.",
           type: "critical",
         });
-        // Send low hours alert email for zero balance too
         sendNotificationEmail({
           user_id: member.user_id,
           template: "low_hours_alert",
@@ -335,6 +257,8 @@ export function AdminMembersTab() {
 
     toast({ title: "Hours updated" });
     queryClient.invalidateQueries({ queryKey: ["member_hours"] });
+    queryClient.invalidateQueries({ queryKey: ["members_combined"] });
+    queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
     queryClient.invalidateQueries({ queryKey: ["hours_transactions", member.user_id] });
     setAdjustingMember(null);
     setDialogOpen(null);
@@ -346,22 +270,12 @@ export function AdminMembersTab() {
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Member removed" });
     queryClient.invalidateQueries({ queryKey: ["member_hours"] });
+    queryClient.invalidateQueries({ queryKey: ["members_combined"] });
+    queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Dialog open={dialogOpen === "member"} onOpenChange={(open) => { setDialogOpen(open ? "member" : null); }}>
-          <DialogTrigger asChild>
-            <Button onClick={() => loadProfiles()}><Plus className="mr-2 h-4 w-4" />Add Member Hours</Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader><DialogTitle>Add Member Hours</DialogTitle></DialogHeader>
-            <MemberHoursForm profiles={allProfiles} onSave={handleAddMember} onCancel={() => setDialogOpen(null)} />
-          </DialogContent>
-        </Dialog>
-      </div>
-
       <Dialog open={dialogOpen === "adjust"} onOpenChange={(open) => { setDialogOpen(open ? "adjust" : null); if (!open) setAdjustingMember(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Adjust Hours</DialogTitle></DialogHeader>
