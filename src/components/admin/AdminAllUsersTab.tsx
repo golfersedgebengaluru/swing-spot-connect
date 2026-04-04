@@ -74,9 +74,8 @@ function HoursTransactionHistory({ userId }: { userId: string }) {
   );
 }
 
-function AllocatePointsForm({ profiles, onSave, onCancel }: { profiles: any[]; onSave: (data: { user_id: string; points: number; description: string }) => void; onCancel: () => void }) {
+function AllocatePointsForm({ profiles, onSave, onCancel }: { profiles: any[]; onSave: (data: { user_id: string; points: number; description: string; isProfileId?: boolean }) => void; onCancel: () => void }) {
   const [form, setForm] = useState({ user_id: "", points: 0, description: "" });
-  const activeProfiles = profiles.filter((p: any) => p.user_id);
   return (
     <div className="space-y-4">
       <div>
@@ -84,9 +83,10 @@ function AllocatePointsForm({ profiles, onSave, onCancel }: { profiles: any[]; o
         <Select value={form.user_id} onValueChange={(v) => setForm({ ...form, user_id: v })}>
           <SelectTrigger><SelectValue placeholder="Select a member" /></SelectTrigger>
           <SelectContent>
-            {activeProfiles.map((p: any) => (
-              <SelectItem key={p.user_id} value={p.user_id}>{p.display_name || p.email}</SelectItem>
-            ))}
+            {profiles.map((p: any) => {
+              const uid = p.user_id || p.id;
+              return <SelectItem key={uid} value={uid}>{p.display_name || p.email}{!p.user_id ? " (admin-registered)" : ""}</SelectItem>;
+            })}
           </SelectContent>
         </Select>
       </div>
@@ -94,18 +94,20 @@ function AllocatePointsForm({ profiles, onSave, onCancel }: { profiles: any[]; o
       <div><Label>Reason</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="e.g. Welcome bonus, event participation" /></div>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button onClick={() => onSave(form)} disabled={!form.user_id || form.points <= 0}>Allocate Points</Button>
+        <Button onClick={() => {
+          const selected = profiles.find((p: any) => (p.user_id || p.id) === form.user_id);
+          onSave({ ...form, isProfileId: !selected?.user_id });
+        }} disabled={!form.user_id || form.points <= 0}>Allocate Points</Button>
       </div>
     </div>
   );
 }
 
-function AdminRedeemForm({ profiles, rewards, onSave, onCancel }: { profiles: any[]; rewards: any[]; onSave: (data: { user_id: string; reward_id: string; reward_name: string; points: number }) => void; onCancel: () => void }) {
+function AdminRedeemForm({ profiles, rewards, onSave, onCancel }: { profiles: any[]; rewards: any[]; onSave: (data: { user_id: string; reward_id: string; reward_name: string; points: number; isProfileId?: boolean }) => void; onCancel: () => void }) {
   const [userId, setUserId] = useState("");
   const [rewardId, setRewardId] = useState("");
-  const activeProfiles = profiles.filter((p: any) => p.user_id);
   const selectedReward = (rewards ?? []).find((r: any) => r.id === rewardId);
-  const selectedProfile = activeProfiles.find((p: any) => p.user_id === userId);
+  const selectedProfile = profiles.find((p: any) => (p.user_id || p.id) === userId);
   const userPoints = selectedProfile?.points ?? 0;
   return (
     <div className="space-y-4">
@@ -114,9 +116,10 @@ function AdminRedeemForm({ profiles, rewards, onSave, onCancel }: { profiles: an
         <Select value={userId} onValueChange={setUserId}>
           <SelectTrigger><SelectValue placeholder="Select a member" /></SelectTrigger>
           <SelectContent>
-            {activeProfiles.map((p: any) => (
-              <SelectItem key={p.user_id} value={p.user_id}>{p.display_name || p.email} ({p.points ?? 0} pts)</SelectItem>
-            ))}
+            {profiles.map((p: any) => {
+              const uid = p.user_id || p.id;
+              return <SelectItem key={uid} value={uid}>{p.display_name || p.email} ({p.points ?? 0} pts){!p.user_id ? " (admin-registered)" : ""}</SelectItem>;
+            })}
           </SelectContent>
         </Select>
       </div>
@@ -140,7 +143,9 @@ function AdminRedeemForm({ profiles, rewards, onSave, onCancel }: { profiles: an
       )}
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button onClick={() => onSave({ user_id: userId, reward_id: rewardId, reward_name: selectedReward?.name ?? "", points: selectedReward?.points_cost ?? 0 })} disabled={!userId || !rewardId || userPoints < (selectedReward?.points_cost ?? 0)}>Redeem</Button>
+        <Button onClick={() => {
+          onSave({ user_id: userId, reward_id: rewardId, reward_name: selectedReward?.name ?? "", points: selectedReward?.points_cost ?? 0, isProfileId: !selectedProfile?.user_id });
+        }} disabled={!userId || !rewardId || userPoints < (selectedReward?.points_cost ?? 0)}>Redeem</Button>
       </div>
     </div>
   );
@@ -303,7 +308,8 @@ export function AdminAllUsersTab() {
           const bookingUserIds = new Set((cityBookings ?? []).map((b: any) => b.user_id));
           filtered = filtered.filter((p: any) =>
             (p.preferred_city && citiesToFilter.includes(p.preferred_city)) ||
-            (p.user_id && bookingUserIds.has(p.user_id))
+            (p.user_id && bookingUserIds.has(p.user_id)) ||
+            bookingUserIds.has(p.id)
           );
         }
       } else if (selectedCity) {
@@ -372,9 +378,9 @@ export function AdminAllUsersTab() {
     setAllProfiles(filtered);
   };
 
-  const handleAllocatePoints = async (data: { user_id: string; points: number; description: string }) => {
+  const handleAllocatePoints = async (data: { user_id: string; points: number; description: string; isProfileId?: boolean }) => {
     try {
-      await allocatePoints.mutateAsync({ userId: data.user_id, points: data.points, description: data.description, adminId: user?.id! });
+      await allocatePoints.mutateAsync({ userId: data.user_id, points: data.points, description: data.description, adminId: user?.id!, isProfileId: data.isProfileId });
       toast({ title: "Points allocated", description: `${data.points} points awarded.` });
       setDialogOpen(null);
     } catch (err: any) {
@@ -382,9 +388,9 @@ export function AdminAllUsersTab() {
     }
   };
 
-  const handleAdminRedeem = async (data: { user_id: string; reward_id: string; reward_name: string; points: number }) => {
+  const handleAdminRedeem = async (data: { user_id: string; reward_id: string; reward_name: string; points: number; isProfileId?: boolean }) => {
     try {
-      await redeemPoints.mutateAsync({ userId: data.user_id, points: data.points, rewardId: data.reward_id, rewardName: data.reward_name, adminId: user?.id! });
+      await redeemPoints.mutateAsync({ userId: data.user_id, points: data.points, rewardId: data.reward_id, rewardName: data.reward_name, adminId: user?.id!, isProfileId: data.isProfileId });
       toast({ title: "Reward redeemed", description: `${data.reward_name} redeemed successfully.` });
       setDialogOpen(null);
     } catch (err: any) {
@@ -392,9 +398,9 @@ export function AdminAllUsersTab() {
     }
   };
 
-  const handleInlineAllocatePoints = async (userId: string, data: { points: number; description: string }) => {
+  const handleInlineAllocatePoints = async (userId: string, isProfileId: boolean, data: { points: number; description: string }) => {
     try {
-      await allocatePoints.mutateAsync({ userId, points: data.points, description: data.description, adminId: user?.id! });
+      await allocatePoints.mutateAsync({ userId, points: data.points, description: data.description, adminId: user?.id!, isProfileId });
       toast({ title: "Points allocated", description: `${data.points} points awarded.` });
       setDialogOpen(null);
       setSelectedUser(null);
@@ -554,7 +560,7 @@ export function AdminAllUsersTab() {
       <Dialog open={dialogOpen === "inlineallocate"} onOpenChange={(open) => { setDialogOpen(open ? "inlineallocate" : null); if (!open) setSelectedUser(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Allocate Points</DialogTitle></DialogHeader>
-          {selectedUser && <InlineAllocatePointsForm displayName={selectedUser.display_name || "User"} onSave={(data) => handleInlineAllocatePoints(selectedUser.user_id || selectedUser.id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
+          {selectedUser && <InlineAllocatePointsForm displayName={selectedUser.display_name || "User"} onSave={(data) => handleInlineAllocatePoints(selectedUser.user_id || selectedUser.id, !selectedUser.user_id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
         </DialogContent>
       </Dialog>
 
