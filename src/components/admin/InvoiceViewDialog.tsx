@@ -413,16 +413,16 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
                               {item.itemType === "service" ? item.sacCode : item.hsnCode}
                             </td>
                             <td className="py-2 px-2">
-                              <Input type="number" min={1} className="w-16 h-7 text-right text-xs" value={lineItems[idx].quantity}
+                              <Input type="number" min={1} className="w-16 h-7 text-right text-xs" value={lineItems[idx].quantity || ""}
                                 onChange={(e) => updateLineItem(idx, "quantity", Number(e.target.value) || 1)} />
                             </td>
                             <td className="py-2 px-2">
-                              <Input type="number" min={0} step="0.01" className="w-24 h-7 text-right text-xs" value={lineItems[idx].unitPrice}
-                                onChange={(e) => updateLineItem(idx, "unitPrice", Number(e.target.value) || 0)} />
+                              <Input type="number" min={0} step="0.01" className="w-24 h-7 text-right text-xs" value={lineItems[idx].unitPrice || ""}
+                                onChange={(e) => updateLineItem(idx, "unitPrice", Number(e.target.value))} />
                             </td>
                             <td className="py-2 px-2">
-                              <Input type="number" min={0} step="0.01" className="w-16 h-7 text-right text-xs" value={lineItems[idx].gstRate}
-                                onChange={(e) => updateLineItem(idx, "gstRate", Number(e.target.value) || 0)} />
+                              <Input type="number" min={0} step="0.01" className="w-16 h-7 text-right text-xs" value={lineItems[idx].gstRate || ""}
+                                onChange={(e) => updateLineItem(idx, "gstRate", Number(e.target.value))} />
                             </td>
                             <td className="py-2 px-2 text-right font-medium text-xs">{currency.format(item.lineTotal)}</td>
                             <td className="py-2 px-1">
