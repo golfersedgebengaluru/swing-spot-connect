@@ -279,7 +279,7 @@ export function BayConfigTab() {
               </div>
               <div>
                 <Label>Coaching Hours per Session</Label>
-                <Input type="number" step="0.5" min="0.5" value={editing.coaching_hours} onChange={(e) => setEditing({ ...editing, coaching_hours: Number(e.target.value) })} />
+                <Input type="number" step="0.5" min="0.5" value={editing.coaching_hours || ""} onChange={(e) => setEditing({ ...editing, coaching_hours: Number(e.target.value) })} />
                 <p className="text-xs text-muted-foreground mt-1">Hours deducted for coaching sessions</p>
               </div>
               <div>
