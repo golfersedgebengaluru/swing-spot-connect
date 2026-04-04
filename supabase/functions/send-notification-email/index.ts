@@ -211,6 +211,79 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
         <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
       </div>
     </div>`,
+
+  admin_new_booking: (d) => `
+    <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff">
+      <div style="background:#2b3544;padding:32px 24px;text-align:center">
+        <h1 style="color:#f5f0eb;margin:0;font-family:'Playfair Display',Georgia,serif;font-size:24px">📅 New Booking</h1>
+      </div>
+      <div style="padding:32px 24px">
+        <p style="color:#1a2332;font-size:16px;margin:0 0 16px">Hi ${d.admin_name || "Admin"},</p>
+        <p style="color:#1a2332;font-size:16px;margin:0 0 24px">A new ${d.session_type || "practice"} booking has been made${d.is_guest ? " by a guest" : ""}.</p>
+        <div style="background:#f0f3f7;border-radius:8px;padding:20px;margin:0 0 24px">
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Member</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.member_name || "Unknown"}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Location</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.city}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Bay</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.bay}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Date</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.date}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Time</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.time}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Duration</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.duration}</td></tr>
+          </table>
+        </div>
+      </div>
+      <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
+        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge — Admin Notification</p>
+      </div>
+    </div>`,
+
+  admin_coaching_request: (d) => `
+    <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff">
+      <div style="background:#e97316;padding:32px 24px;text-align:center">
+        <h1 style="color:#fff;margin:0;font-family:'Playfair Display',Georgia,serif;font-size:24px">🕐 Coaching Request — Action Required</h1>
+      </div>
+      <div style="padding:32px 24px">
+        <p style="color:#1a2332;font-size:16px;margin:0 0 16px">Hi ${d.admin_name || "Admin"},</p>
+        <p style="color:#1a2332;font-size:16px;margin:0 0 24px">A new coaching session request requires your approval.</p>
+        <div style="background:#f0f3f7;border-radius:8px;padding:20px;margin:0 0 24px">
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Member</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.member_name || "Unknown"}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Location</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.city}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Bay</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.bay}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Date</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.date}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Time</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.time}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Duration</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.duration}</td></tr>
+          </table>
+        </div>
+        <p style="color:#1a2332;font-size:14px;margin:0">Please log in to the admin panel to approve or decline this request.</p>
+      </div>
+      <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
+        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge — Admin Notification</p>
+      </div>
+    </div>`,
+
+  admin_booking_cancelled: (d) => `
+    <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff">
+      <div style="background:#dc2626;padding:32px 24px;text-align:center">
+        <h1 style="color:#fff;margin:0;font-family:'Playfair Display',Georgia,serif;font-size:24px">🚫 Booking Cancelled</h1>
+      </div>
+      <div style="padding:32px 24px">
+        <p style="color:#1a2332;font-size:16px;margin:0 0 16px">Hi ${d.admin_name || "Admin"},</p>
+        <p style="color:#1a2332;font-size:16px;margin:0 0 24px">${d.cancelled_by === "admin" ? "An admin has cancelled" : `${d.member_name || "A member"} has cancelled`} a ${d.session_type || "practice"} booking.</p>
+        <div style="background:#f0f3f7;border-radius:8px;padding:20px;margin:0 0 24px">
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Member</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.member_name || "Unknown"}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Location</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.city}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Bay</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.bay}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Date</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.date}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Time</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.time}</td></tr>
+            ${d.hours_refunded ? `<tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Hours Refunded</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.hours_refunded}h</td></tr>` : ""}
+          </table>
+        </div>
+      </div>
+      <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
+        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge — Admin Notification</p>
+      </div>
+    </div>`,
 };
 
 // Template to preference field mapping
@@ -225,6 +298,10 @@ const TEMPLATE_PREF_MAP: Record<string, string> = {
   points_redeemed: "points_redeemed",
   league_update: "league_updates",
   low_hours_alert: "booking_confirmed",
+  // Admin templates — no user preference check (always send)
+  admin_new_booking: "",
+  admin_coaching_request: "",
+  admin_booking_cancelled: "",
 };
 
 Deno.serve(async (req) => {
