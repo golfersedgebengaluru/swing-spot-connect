@@ -151,6 +151,58 @@ function createAdminClient() {
   );
 }
 
+// Get admin + city-scoped site-admin user IDs for notifications
+async function getAdminAndSiteAdminIds(adminClient: any, city: string, excludeUserId?: string): Promise<string[]> {
+  // Get all admins
+  const { data: adminRoles } = await adminClient.from("user_roles").select("user_id").eq("role", "admin");
+  // Get site_admins assigned to this city
+  const { data: siteAdminCities } = await adminClient.from("site_admin_cities").select("user_id").eq("city", city);
+  
+  const ids = new Set<string>();
+  for (const a of adminRoles ?? []) ids.add(a.user_id);
+  for (const s of siteAdminCities ?? []) ids.add(s.user_id);
+  
+  if (excludeUserId) ids.delete(excludeUserId);
+  return [...ids];
+}
+
+// Send admin email notification to all relevant admins/site-admins
+async function notifyAdmins(adminClient: any, adminIds: string[], template: string, subject: string, data: Record<string, any>) {
+  for (const adminId of adminIds) {
+    try {
+      // Get admin display name for personalization
+      const { data: adminProfile } = await adminClient.from("profiles").select("display_name").eq("user_id", adminId).single();
+      await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({
+          user_id: adminId,
+          template,
+          subject,
+          data: { ...data, admin_name: adminProfile?.display_name || "Admin" },
+        }),
+      });
+    } catch (e) {
+      console.error(`Failed to send admin email to ${adminId}:`, e);
+    }
+  }
+}
+
+// Send in-app notification to all relevant admins/site-admins
+async function notifyAdminsInApp(adminClient: any, adminIds: string[], title: string, message: string) {
+  for (const adminId of adminIds) {
+    await adminClient.from("notifications").insert({
+      user_id: adminId,
+      title,
+      message,
+      type: "admin",
+    });
+  }
+}
+
 // ─── Revenue reversal + Invoice cancellation + Credit note ───
 // Called when a confirmed booking with paid revenue (amount > 0) is cancelled.
 async function reverseRevenueAndInvoice(adminClient: any, bookingId: string) {
@@ -506,6 +558,25 @@ Deno.serve(async (req) => {
         console.error("Failed to create revenue transaction for guest:", e);
       }
 
+      // Notify admins + site-admins about the guest booking
+      try {
+        const notifyAdminIds = await getAdminAndSiteAdminIds(adminClient, city);
+        const calTzGuest = calendar_email ? await getCalendarTimezone(await getAccessToken(JSON.parse(Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY") || "{}")), calendar_email) : "UTC";
+        await notifyAdminsInApp(adminClient, notifyAdminIds, "📅 New Guest Booking", `Guest ${guest_name} booked ${bay_name || city} on ${formatDateTime(start_time, calTzGuest)}.`);
+        await notifyAdmins(adminClient, notifyAdminIds, "admin_new_booking", "📅 New Guest Booking", {
+          member_name: guest_name,
+          city,
+          bay: bay_name || city,
+          date: formatDate(start_time, calTzGuest),
+          time: formatTimeRange(start_time, end_time, calTzGuest),
+          duration: `${duration_minutes} min`,
+          session_type: "practice",
+          is_guest: true,
+        });
+      } catch (e) {
+        console.error("Failed to notify admins about guest booking:", e);
+      }
+
       return new Response(JSON.stringify({ booking }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -799,6 +870,25 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.error("Failed to send booking confirmation email:", e);
         }
+
+        // Notify admins + site-admins about new confirmed booking
+        try {
+          const { data: userPrf } = await adminClient.from("profiles").select("display_name").eq("user_id", userId).single();
+          const memberName = userPrf?.display_name || display_name || "A member";
+          const notifyIds = await getAdminAndSiteAdminIds(adminClient, city, userId);
+          await notifyAdminsInApp(adminClient, notifyIds, "📅 New Booking", `${memberName} booked ${bayLabel}${isCoaching ? " (Coaching)" : ""} on ${formatDateTime(start_time, calTz)}.`);
+          await notifyAdmins(adminClient, notifyIds, "admin_new_booking", "📅 New Booking", {
+            member_name: memberName,
+            city,
+            bay: bayLabel,
+            date: formatDate(start_time, calTz),
+            time: formatTimeRange(start_time, end_time, calTz),
+            duration: `${hoursNeeded}h`,
+            session_type: isCoaching ? "coaching" : "practice",
+          });
+        } catch (e) {
+          console.error("Failed to notify admins about new booking:", e);
+        }
       } else {
         // Pending coaching notification
         await supabase.from("notifications").insert({
@@ -808,19 +898,12 @@ Deno.serve(async (req) => {
           type: "booking",
         });
 
-        // Notify admins
+        // Notify admins + site-admins
         const adminClient = createAdminClient();
-        const { data: adminRoles } = await adminClient.from("user_roles").select("user_id").eq("role", "admin");
-        for (const admin of adminRoles ?? []) {
-          await adminClient.from("notifications").insert({
-            user_id: admin.user_id,
-            title: "📋 New Coaching Request",
-            message: `${display_name || "A member"} has requested a coaching session at ${bayLabel} on ${formatDateTime(start_time, calTz)}. Please approve or reject.`,
-            type: "admin",
-          });
-        }
+        const notifyIds = await getAdminAndSiteAdminIds(adminClient, city);
+        await notifyAdminsInApp(adminClient, notifyIds, "📋 New Coaching Request", `${display_name || "A member"} has requested a coaching session at ${bayLabel} on ${formatDateTime(start_time, calTz)}. Please approve or reject.`);
 
-        // Send pending coaching email
+        // Send pending coaching email to user
         try {
           await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
             method: "POST",
@@ -844,6 +927,16 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.error("Failed to send pending coaching email:", e);
         }
+
+        // Send coaching request email to admins + site-admins
+        await notifyAdmins(adminClient, notifyIds, "admin_coaching_request", "🕐 Coaching Request — Action Required", {
+          member_name: display_name || "A member",
+          city,
+          bay: bayLabel,
+          date: formatDate(start_time, calTz),
+          time: formatTimeRange(start_time, end_time, calTz),
+          duration: `${duration_minutes / 60}h`,
+        });
       }
 
       return new Response(JSON.stringify({ booking }), {
@@ -1235,22 +1328,23 @@ Deno.serve(async (req) => {
         type: "booking",
       });
 
-      // Admin notifications
-      const { data: adminRoles } = await adminClient.from("user_roles").select("user_id").eq("role", "admin");
+      // Admin + site-admin notifications (in-app + email)
       const { data: userProfile } = await adminClient.from("profiles").select("display_name").eq("user_id", userId).single();
       const displayName = userProfile?.display_name || "A member";
-      for (const admin of adminRoles ?? []) {
-        if (admin.user_id !== userId) {
-          await adminClient.from("notifications").insert({
-            user_id: admin.user_id,
-            title: "🚫 Booking Cancelled",
-            message: `${displayName} cancelled their ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${formatDateTime(booking.start_time, calTz)}.${hoursRefunded > 0 ? ` ${hoursRefunded}h refunded.` : ""}`,
-            type: "admin",
-          });
-        }
-      }
+      const notifyIds = await getAdminAndSiteAdminIds(adminClient, booking.city, userId);
+      await notifyAdminsInApp(adminClient, notifyIds, "🚫 Booking Cancelled", `${displayName} cancelled their ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${formatDateTime(booking.start_time, calTz)}.${hoursRefunded > 0 ? ` ${hoursRefunded}h refunded.` : ""}`);
+      await notifyAdmins(adminClient, notifyIds, "admin_booking_cancelled", "🚫 Booking Cancelled by Member", {
+        member_name: displayName,
+        city: booking.city,
+        bay: bayName,
+        date: formatDate(booking.start_time, calTz),
+        time: formatTime(booking.start_time, calTz),
+        session_type: booking.session_type,
+        hours_refunded: hoursRefunded,
+        cancelled_by: "member",
+      });
 
-      // Send cancellation email
+      // Send cancellation email to user
       try {
         await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
           method: "POST",
@@ -1392,7 +1486,7 @@ Deno.serve(async (req) => {
         type: "booking",
       });
 
-      // Send cancellation email
+      // Send cancellation email to user
       try {
         await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
           method: "POST",
@@ -1405,6 +1499,24 @@ Deno.serve(async (req) => {
           }),
         });
       } catch (e) { console.error("Failed to send cancellation email:", e); }
+
+      // Notify other admins + site-admins about the admin cancellation
+      try {
+        const { data: ownerProfile } = await adminClient.from("profiles").select("display_name").eq("user_id", booking.user_id).single();
+        const memberName = ownerProfile?.display_name || "A member";
+        const adminNotifyIds = await getAdminAndSiteAdminIds(adminClient, booking.city, userId);
+        await notifyAdminsInApp(adminClient, adminNotifyIds, "🚫 Booking Cancelled by Admin", `Admin cancelled ${memberName}'s ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${formatDateTime(booking.start_time, calTz)}.`);
+        await notifyAdmins(adminClient, adminNotifyIds, "admin_booking_cancelled", "🚫 Booking Cancelled by Admin", {
+          member_name: memberName,
+          city: booking.city,
+          bay: bayName,
+          date: formatDate(booking.start_time, calTz),
+          time: formatTime(booking.start_time, calTz),
+          session_type: booking.session_type,
+          hours_refunded: hoursRefunded,
+          cancelled_by: "admin",
+        });
+      } catch (e) { console.error("Failed to notify admins about admin cancellation:", e); }
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
