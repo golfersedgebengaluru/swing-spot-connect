@@ -512,7 +512,7 @@ export function AdminAllUsersTab() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Pre-Register New User</DialogTitle></DialogHeader>
             <PreRegisterUserForm onSave={async (data) => {
-              const insertData: Record<string, string> = { display_name: data.display_name, email: data.email, user_type: 'guest' };
+              const insertData: Record<string, string> = { display_name: data.display_name, email: data.email.trim().toLowerCase(), user_type: 'guest' };
               if (selectedCity) insertData.preferred_city = selectedCity;
               const { error } = await supabase.from("profiles").insert(insertData);
               if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
@@ -529,7 +529,7 @@ export function AdminAllUsersTab() {
             <DialogHeader><DialogTitle>Register New User</DialogTitle></DialogHeader>
             <RegisterUserForm onSave={async (data) => {
               const insertData: Record<string, string> = { display_name: data.display_name.trim() };
-              if (data.email.trim()) insertData.email = data.email.trim();
+              if (data.email.trim()) insertData.email = data.email.trim().toLowerCase();
               if (data.phone.trim()) insertData.phone = data.phone.trim();
               if (selectedCity) insertData.preferred_city = selectedCity;
               const { error } = await supabase.from("profiles").insert(insertData);

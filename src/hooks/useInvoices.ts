@@ -335,7 +335,7 @@ export function useCreateInvoice() {
           const { data } = await (supabase as any)
             .from("profiles")
             .select("id, user_id")
-            .eq("email", params.customerEmail)
+            .eq("email", (params.customerEmail || "").trim().toLowerCase())
             .maybeSingle();
           existingProfile = data;
         }
@@ -345,7 +345,7 @@ export function useCreateInvoice() {
             .from("profiles")
             .insert({
               display_name: params.customerName,
-              email: params.customerEmail || null,
+              email: params.customerEmail ? params.customerEmail.trim().toLowerCase() : null,
               phone: params.customerPhone || null,
               preferred_city: params.city || null,
               user_type: "guest",
