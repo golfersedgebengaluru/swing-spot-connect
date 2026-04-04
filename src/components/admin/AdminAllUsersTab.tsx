@@ -74,9 +74,8 @@ function HoursTransactionHistory({ userId }: { userId: string }) {
   );
 }
 
-function AllocatePointsForm({ profiles, onSave, onCancel }: { profiles: any[]; onSave: (data: { user_id: string; points: number; description: string }) => void; onCancel: () => void }) {
+function AllocatePointsForm({ profiles, onSave, onCancel }: { profiles: any[]; onSave: (data: { user_id: string; points: number; description: string; isProfileId?: boolean }) => void; onCancel: () => void }) {
   const [form, setForm] = useState({ user_id: "", points: 0, description: "" });
-  const activeProfiles = profiles.filter((p: any) => p.user_id);
   return (
     <div className="space-y-4">
       <div>
@@ -84,9 +83,10 @@ function AllocatePointsForm({ profiles, onSave, onCancel }: { profiles: any[]; o
         <Select value={form.user_id} onValueChange={(v) => setForm({ ...form, user_id: v })}>
           <SelectTrigger><SelectValue placeholder="Select a member" /></SelectTrigger>
           <SelectContent>
-            {activeProfiles.map((p: any) => (
-              <SelectItem key={p.user_id} value={p.user_id}>{p.display_name || p.email}</SelectItem>
-            ))}
+            {profiles.map((p: any) => {
+              const uid = p.user_id || p.id;
+              return <SelectItem key={uid} value={uid}>{p.display_name || p.email}{!p.user_id ? " (admin-registered)" : ""}</SelectItem>;
+            })}
           </SelectContent>
         </Select>
       </div>
@@ -94,7 +94,10 @@ function AllocatePointsForm({ profiles, onSave, onCancel }: { profiles: any[]; o
       <div><Label>Reason</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="e.g. Welcome bonus, event participation" /></div>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button onClick={() => onSave(form)} disabled={!form.user_id || form.points <= 0}>Allocate Points</Button>
+        <Button onClick={() => {
+          const selected = profiles.find((p: any) => (p.user_id || p.id) === form.user_id);
+          onSave({ ...form, isProfileId: !selected?.user_id });
+        }} disabled={!form.user_id || form.points <= 0}>Allocate Points</Button>
       </div>
     </div>
   );
