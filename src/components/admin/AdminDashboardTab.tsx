@@ -191,7 +191,8 @@ export function AdminDashboardTab() {
               (data?.upcomingBookings ?? []).map((b) => {
                 const start = new Date(b.start_time);
                 const end = new Date(b.end_time);
-                const timeStr = `${format(start, "HH:mm")}–${format(end, "HH:mm")}`;
+                const dateStr = format(start, "dd MMM");
+                const timeStr = `${dateStr} · ${format(start, "HH:mm")}–${format(end, "HH:mm")}`;
                 const isActive = b.status === "confirmed";
                 return (
                   <div
