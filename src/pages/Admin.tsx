@@ -14,7 +14,7 @@ import { AdminEmailLogsTab } from "@/components/admin/AdminEmailLogsTab";
 import { BayConfigTab } from "@/components/admin/BayConfigTab";
 import { AdminPaymentsTab } from "@/components/admin/AdminPaymentsTab";
 import { AdminPricingTab } from "@/components/admin/AdminPricingTab";
-import { AdminRevenueTab } from "@/components/admin/AdminRevenueTab";
+import { AdminReportsTab } from "@/components/admin/AdminReportsTab";
 import { AdminWalkInBookingTab } from "@/components/admin/AdminWalkInBookingTab";
 import { AdminFinanceTab } from "@/components/admin/AdminFinanceTab";
 import { AdminSalesInvoicesTab } from "@/components/admin/AdminSalesInvoicesTab";
@@ -41,7 +41,7 @@ const tabComponents: Record<string, React.ComponentType> = {
   payments: AdminPaymentsTab,
   pricing: AdminPricingTab,
   emails: AdminEmailLogsTab,
-  revenue: AdminRevenueTab,
+  reports: AdminReportsTab,
   finance: AdminFinanceTab,
   settings: AdminSettingsTab,
 };
