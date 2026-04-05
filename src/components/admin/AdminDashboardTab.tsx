@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
+import { useAdmin } from "@/hooks/useAdmin";
 
 interface AdminDashboardTabProps {
   onNavigate?: (tab: string) => void;
@@ -151,6 +152,7 @@ export function AdminDashboardTab({ onNavigate }: AdminDashboardTabProps = {}) {
   const { selectedCity } = useAdminCity();
   const { data, isLoading } = useAdminDashboardStats(selectedCity);
   const { format: formatAmount } = useDefaultCurrency();
+  const { isAdmin } = useAdmin();
 
   if (isLoading) {
     return (
@@ -173,12 +175,16 @@ export function AdminDashboardTab({ onNavigate }: AdminDashboardTabProps = {}) {
       sub: "birdie & coaching",
       icon: Users,
     },
-    {
-      label: "Revenue (month)",
-      value: formatAmount(data?.revenue ?? 0),
-      sub: "",
-      icon: IndianRupee,
-    },
+    ...(isAdmin
+      ? [
+          {
+            label: "Revenue (month)",
+            value: formatAmount(data?.revenue ?? 0),
+            sub: "",
+            icon: IndianRupee,
+          },
+        ]
+      : []),
     {
       label: "Hours booked (month)",
       value: data?.hoursSold ?? 0,
