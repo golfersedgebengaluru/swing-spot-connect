@@ -1,24 +1,57 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Search, ArrowUpDown } from "lucide-react";
 import { useAllProducts } from "@/hooks/useProducts";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
+import { useProductCategories } from "@/hooks/useProductCategories";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   city?: string;
 }
 
+type SortDir = "asc" | "desc";
+
 export function ProductProfitabilityReport({ city }: Props) {
   const { data: products, isLoading } = useAllProducts();
   const currency = useDefaultCurrency();
+  const { data: categories } = useProductCategories();
+
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"margin" | "marginPct">("marginPct");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const toggleSort = (col: "margin" | "marginPct") => {
+    if (sortBy === col) {
+      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setSortBy(col);
+      setSortDir("desc");
+    }
+  };
 
   const rows = useMemo(() => {
     if (!products) return [];
     let list = products as any[];
     if (city) {
       list = list.filter((p) => p.city === city || !p.city);
+    }
+    if (categoryFilter && categoryFilter !== "all") {
+      list = list.filter((p) => p.category === categoryFilter);
+    }
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter(
+        (p) =>
+          p.name?.toLowerCase().includes(q) ||
+          p.sku?.toLowerCase().includes(q) ||
+          p.category?.toLowerCase().includes(q)
+      );
     }
     return list
       .map((p) => {
@@ -40,8 +73,11 @@ export function ProductProfitabilityReport({ city }: Props) {
           gstRate: Number(p.gst_rate) || 0,
         };
       })
-      .sort((a, b) => b.margin - a.margin);
-  }, [products, city]);
+      .sort((a, b) => {
+        const mult = sortDir === "desc" ? -1 : 1;
+        return (a[sortBy] - b[sortBy]) * mult;
+      });
+  }, [products, city, categoryFilter, search, sortBy, sortDir]);
 
   const totalRevenuePotential = rows.reduce((s, r) => s + r.sellingPrice, 0);
   const totalCost = rows.reduce((s, r) => s + r.costPrice, 0);
@@ -77,6 +113,30 @@ export function ProductProfitabilityReport({ city }: Props) {
         </Card>
       </div>
 
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name, SKU, or category..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-full sm:w-[200px]">
+            <SelectValue placeholder="All Categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {(categories ?? []).map((c) => (
+              <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Table */}
       <Card>
         <CardHeader>
@@ -95,8 +155,12 @@ export function ProductProfitabilityReport({ city }: Props) {
                     <TableHead>Location</TableHead>
                     <TableHead className="text-right">Cost Price</TableHead>
                     <TableHead className="text-right">Selling Price</TableHead>
-                    <TableHead className="text-right">Margin</TableHead>
-                    <TableHead className="text-right">Margin %</TableHead>
+                    <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort("margin")}>
+                      <span className="inline-flex items-center gap-1">Margin <ArrowUpDown className="h-3 w-3" /></span>
+                    </TableHead>
+                    <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort("marginPct")}>
+                      <span className="inline-flex items-center gap-1">Margin % <ArrowUpDown className="h-3 w-3" /></span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
