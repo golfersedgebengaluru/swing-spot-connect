@@ -82,6 +82,17 @@ Deno.serve(async (req) => {
       .eq("user_id", event.user_id)
       .single();
 
+    // Gate: skip automated points for guest / non-registered users
+    const gatedTypes = ["guest", "non-registered"];
+    if (!profile || gatedTypes.includes(profile.user_type)) {
+      return new Response(JSON.stringify({
+        points: 0,
+        message: `Skipped: user_type is '${profile?.user_type ?? "unknown"}'. Guests earn points only via admin allocation.`,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // 4. Get user visit count for first-visits multiplier
     const { count: visitCount } = await supabase
       .from("points_transactions")
