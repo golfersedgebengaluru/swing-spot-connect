@@ -212,7 +212,7 @@ export default function MyBookings() {
     const canCancel = canCancelBooking(booking);
 
     return (
-      <Card className="shadow-elegant">
+      <Card className="shadow-md rounded-xl">
         <CardContent className="p-4 space-y-3">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
@@ -307,19 +307,19 @@ export default function MyBookings() {
 
           {/* Hours Balance Summary */}
           <div className="grid grid-cols-3 gap-3 mb-6">
-            <Card className="bg-gradient-card shadow-elegant">
+            <Card className="bg-card shadow-md rounded-xl">
               <CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Remaining</p>
                 <p className="font-display text-2xl font-bold text-primary">{balance?.remaining ?? 0}h</p>
               </CardContent>
             </Card>
-            <Card className="bg-gradient-card shadow-elegant">
+            <Card className="bg-card shadow-md rounded-xl">
               <CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Purchased</p>
                 <p className="font-display text-2xl font-bold text-foreground">{balance?.purchased ?? 0}h</p>
               </CardContent>
             </Card>
-            <Card className="bg-gradient-card shadow-elegant">
+            <Card className="bg-card shadow-md rounded-xl">
               <CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Used</p>
                 <p className="font-display text-2xl font-bold text-foreground">{balance?.used ?? 0}h</p>
@@ -354,7 +354,7 @@ export default function MyBookings() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : filteredBookings.length === 0 ? (
-            <Card className="shadow-elegant">
+            <Card className="shadow-md rounded-xl">
               <CardContent className="py-12 text-center text-muted-foreground">
                 <p className="text-lg mb-2">No bookings found</p>
                 <Button onClick={() => navigate("/bookings")} className="mt-2">
@@ -371,7 +371,7 @@ export default function MyBookings() {
             </div>
           ) : (
             /* Desktop: DataTable */
-            <Card className="shadow-elegant overflow-hidden">
+            <Card className="shadow-md rounded-xl overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
