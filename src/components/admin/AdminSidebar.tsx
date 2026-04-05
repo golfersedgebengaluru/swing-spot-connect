@@ -64,7 +64,10 @@ const configItems = [
 ];
 
 const reportsItems = [
-  { id: "reports", label: "Reports", icon: BarChart3 },
+  { id: "reports_revenue", label: "Revenue", icon: BarChart3 },
+  { id: "reports_expense_reports", label: "Expense Reports", icon: BarChart3 },
+  { id: "reports_pnl", label: "P&L", icon: BarChart3 },
+  { id: "reports_profitability", label: "Product Profitability", icon: BarChart3 },
 ];
 
 function NavItem({
