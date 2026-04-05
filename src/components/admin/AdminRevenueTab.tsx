@@ -242,7 +242,7 @@ export function AdminRevenueTab() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
@@ -267,7 +267,7 @@ export function AdminRevenueTab() {
 
         {/* Category breakdown cards */}
         {(() => {
-          const displayCategories = ["Food & Beverage", "Equipment", "Apparel", "Bay Usage"];
+          const displayCategories = ["F&B", "Equipment", "Apparel", "Bay Usage"];
           const catColors = [
             { bg: "bg-green-100", text: "text-green-800" },
             { bg: "bg-amber-100", text: "text-amber-800" },
