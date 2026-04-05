@@ -262,10 +262,10 @@ export function AdminSidebar({
           onTabChange={handleNavClick}
           collapsed={collapsed}
         />
-        {filterItems(reportsItems).length > 0 && (
+        {visibleReportsItems.length > 0 && (
           <AccordionGroup
             label="Reports"
-            items={filterItems(reportsItems)}
+            items={visibleReportsItems}
             activeTab={activeTab}
             onTabChange={handleNavClick}
             collapsed={collapsed}
