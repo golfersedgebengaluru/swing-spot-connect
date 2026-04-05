@@ -236,6 +236,7 @@ export type Database = {
           bay_id: string | null
           calendar_event_id: string | null
           city: string
+          coach_name: string | null
           created_at: string
           duration_minutes: number
           end_time: string
@@ -251,6 +252,7 @@ export type Database = {
           bay_id?: string | null
           calendar_event_id?: string | null
           city: string
+          coach_name?: string | null
           created_at?: string
           duration_minutes: number
           end_time: string
@@ -266,6 +268,7 @@ export type Database = {
           bay_id?: string | null
           calendar_event_id?: string | null
           city?: string
+          coach_name?: string | null
           created_at?: string
           duration_minutes?: number
           end_time?: string

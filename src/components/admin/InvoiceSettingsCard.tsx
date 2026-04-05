@@ -8,6 +8,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { FileText, Upload, Save, Loader2, X, Image, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useGlobalInvoiceSettings,
   useCityInvoiceSettings,
@@ -30,12 +32,27 @@ interface Props {
 
 export function InvoiceSettingsCard({ city }: Props) {
   const { toast } = useToast();
+  const qc = useQueryClient();
   const isGlobal = !city;
   const { data: globalSettings, isLoading: gl } = useGlobalInvoiceSettings();
   const { data: citySettings, isLoading: cl } = useCityInvoiceSettings(city);
   const saveSettings = useSaveInvoiceSettings();
   const deleteOverride = useDeleteCityInvoiceSettings();
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Coach name required setting (global only)
+  const { data: coachNameRequired } = useQuery({
+    queryKey: ["admin_config", "coach_name_required"],
+    enabled: isGlobal,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("admin_config")
+        .select("value")
+        .eq("key", "coach_name_required")
+        .maybeSingle();
+      return data?.value === "true";
+    },
+  });
 
   const [overrideEnabled, setOverrideEnabled] = useState(false);
   const [template, setTemplate] = useState<InvoiceTemplate | null>(null);
@@ -240,6 +257,34 @@ export function InvoiceSettingsCard({ city }: Props) {
               <p className="text-xs text-muted-foreground">Printed below the totals section.</p>
             </div>
 
+            {/* Booking Options (global only) */}
+            {isGlobal && (
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Booking Invoice Options</Label>
+                <div className="flex items-center justify-between rounded-lg border border-border p-4">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Require Coach Name</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      When enabled, coach name is mandatory for coaching session invoices.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={coachNameRequired ?? false}
+                    onCheckedChange={async (checked) => {
+                      try {
+                        await (supabase as any)
+                          .from("admin_config")
+                          .upsert({ key: "coach_name_required", value: checked ? "true" : "false" }, { onConflict: "key" });
+                        qc.invalidateQueries({ queryKey: ["admin_config", "coach_name_required"] });
+                        toast({ title: checked ? "Coach name is now required" : "Coach name is now optional" });
+                      } catch (err: any) {
+                        toast({ title: "Error", description: err.message, variant: "destructive" });
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <Button onClick={handleSave} disabled={saveSettings.isPending}>
                 {saveSettings.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : <><Save className="mr-2 h-4 w-4" />Save Settings</>}

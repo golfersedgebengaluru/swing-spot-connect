@@ -81,6 +81,20 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
   const { data: bays } = useBaysForCity(city);
   const createInvoice = useCreateInvoice();
 
+  // Coach name required setting
+  const { data: coachNameRequiredConfig } = useQuery({
+    queryKey: ["admin_config", "coach_name_required"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("admin_config")
+        .select("value")
+        .eq("key", "coach_name_required")
+        .maybeSingle();
+      return data?.value === "true";
+    },
+  });
+  const isCoachNameRequired = coachNameRequiredConfig ?? false;
+
   // Invoice category
   const [invoiceCategory, setInvoiceCategory] = useState<"purchase" | "booking">("purchase");
 
@@ -90,6 +104,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
   const [bookingEndTime, setBookingEndTime] = useState("11:00");
   const [bookingBayId, setBookingBayId] = useState("");
   const [sessionType, setSessionType] = useState("practice");
+  const [coachName, setCoachName] = useState("");
 
   // Invoice date & due date
   const [invoiceDate, setInvoiceDate] = useState<Date>(new Date());
@@ -192,6 +207,10 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
       toast({ title: "Select a booking date", variant: "destructive" });
       return;
     }
+    if (invoiceCategory === "booking" && sessionType === "coaching" && isCoachNameRequired && !coachName.trim()) {
+      toast({ title: "Coach name is required", description: "This setting is enabled in invoice settings.", variant: "destructive" });
+      return;
+    }
 
     try {
       const invoice = await createInvoice.mutateAsync({
@@ -222,6 +241,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
         bookingEndTime: invoiceCategory === "booking" ? bookingEndTime : undefined,
         bookingBayId: invoiceCategory === "booking" && bookingBayId ? bookingBayId : undefined,
         bookingSessionType: invoiceCategory === "booking" ? sessionType : undefined,
+        bookingCoachName: invoiceCategory === "booking" && sessionType === "coaching" ? coachName : undefined,
         bookingUserId: customerUserId || customerProfileId || undefined,
       });
       toast({ title: "Invoice created" });
@@ -256,6 +276,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
     setBookingEndTime("11:00");
     setBookingBayId("");
     setSessionType("practice");
+    setCoachName("");
   };
 
   return (
@@ -365,6 +386,17 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
                     <Label className="text-xs">End Time</Label>
                     <Input type="time" value={bookingEndTime} onChange={(e) => setBookingEndTime(e.target.value)} className="mt-1" />
                   </div>
+                  {sessionType === "coaching" && (
+                    <div className="col-span-2">
+                      <Label className="text-xs">Coach Name {isCoachNameRequired ? "*" : "(optional)"}</Label>
+                      <Input
+                        placeholder="Enter coach name"
+                        value={coachName}
+                        onChange={(e) => setCoachName(e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+                  )}
                   <div className="col-span-2">
                     <Label className="text-xs">Bay (optional)</Label>
                     <Select value={bookingBayId} onValueChange={setBookingBayId}>
