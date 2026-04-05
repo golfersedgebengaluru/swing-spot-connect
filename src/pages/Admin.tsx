@@ -14,21 +14,50 @@ import { AdminEmailLogsTab } from "@/components/admin/AdminEmailLogsTab";
 import { BayConfigTab } from "@/components/admin/BayConfigTab";
 import { AdminPaymentsTab } from "@/components/admin/AdminPaymentsTab";
 import { AdminPricingTab } from "@/components/admin/AdminPricingTab";
-import { AdminReportsTab } from "@/components/admin/AdminReportsTab";
+import { AdminRevenueTab } from "@/components/admin/AdminRevenueTab";
+import { ExpenseReports } from "@/components/admin/ExpenseReports";
+import { ProfitLossView } from "@/components/admin/ProfitLossView";
+import { ProductProfitabilityReport } from "@/components/admin/ProductProfitabilityReport";
 import { AdminWalkInBookingTab } from "@/components/admin/AdminWalkInBookingTab";
 import { AdminFinanceTab } from "@/components/admin/AdminFinanceTab";
 import { AdminSalesInvoicesTab } from "@/components/admin/AdminSalesInvoicesTab";
 import { AdminExpensesTab } from "@/components/admin/AdminExpensesTab";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminTopbar, getTabTitle } from "@/components/admin/AdminTopbar";
-import { AdminCityProvider } from "@/contexts/AdminCityContext";
+import { AdminCityProvider, useAdminCity } from "@/contexts/AdminCityContext";
+import { useAdmin } from "@/hooks/useAdmin";
+import { useAllCities } from "@/hooks/useBookings";
+
+function ReportsExpenseWrapper() {
+  const { selectedCity } = useAdminCity();
+  const { isAdmin, assignedCities } = useAdmin();
+  const { data: allCities } = useAllCities();
+  const cities = isAdmin ? allCities : (allCities ?? []).filter((c) => assignedCities.includes(c));
+  const effectiveCity = selectedCity || (cities && cities.length > 0 ? cities[0] : "");
+  if (!effectiveCity) return null;
+  return <ExpenseReports city={effectiveCity} />;
+}
+
+function ReportsPnlWrapper() {
+  const { selectedCity } = useAdminCity();
+  const { isAdmin, assignedCities } = useAdmin();
+  const { data: allCities } = useAllCities();
+  const cities = isAdmin ? allCities : (allCities ?? []).filter((c) => assignedCities.includes(c));
+  const effectiveCity = selectedCity || (cities && cities.length > 0 ? cities[0] : "");
+  if (!effectiveCity) return null;
+  return <ProfitLossView city={effectiveCity} />;
+}
+
+function ReportsProfitabilityWrapper() {
+  const { selectedCity } = useAdminCity();
+  return <ProductProfitabilityReport city={selectedCity || undefined} />;
+}
 
 const tabComponents: Record<string, React.ComponentType> = {
   dashboard: AdminDashboardTab,
   walkin: AdminWalkInBookingTab,
   events: AdminEventsTab,
   products: AdminProductsTab,
-  
   salesinvoices: AdminSalesInvoicesTab,
   expenses: AdminExpensesTab,
   rewards: AdminRewardsTab,
@@ -41,7 +70,10 @@ const tabComponents: Record<string, React.ComponentType> = {
   payments: AdminPaymentsTab,
   pricing: AdminPricingTab,
   emails: AdminEmailLogsTab,
-  reports: AdminReportsTab,
+  reports_revenue: AdminRevenueTab,
+  reports_expense_reports: ReportsExpenseWrapper,
+  reports_pnl: ReportsPnlWrapper,
+  reports_profitability: ReportsProfitabilityWrapper,
   finance: AdminFinanceTab,
   settings: AdminSettingsTab,
 };
