@@ -312,7 +312,58 @@ export function AdminSidebar({
             onClick={onClose}
           />
           <aside className="fixed inset-y-0 left-0 z-50 w-[220px] lg:hidden">
-            {sidebarContent}
+            {/* Mobile overlay always renders expanded (non-collapsed) sidebar */}
+            <div className="flex h-full flex-col bg-background border-r border-border/50">
+              {/* Header */}
+              <div className="flex h-[52px] items-center justify-between px-3 border-b border-border/50">
+                <span className="text-sm font-medium text-foreground truncate">
+                  Admin Panel
+                </span>
+                <button
+                  onClick={onClose}
+                  className="flex lg:hidden items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground min-h-[44px] min-w-[44px]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Nav */}
+              <div className="flex-1 overflow-y-auto px-2 py-3 space-y-1">
+                <div className="space-y-0.5">
+                  {filterItems(coreItems).map((item) => (
+                    <NavItem
+                      key={item.id}
+                      item={item}
+                      active={activeTab === item.id}
+                      onClick={() => handleNavClick(item.id)}
+                      collapsed={false}
+                    />
+                  ))}
+                </div>
+                <div className="border-b border-border/50 my-3" />
+                <AccordionGroup label="Users" items={filterItems(usersItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
+                <AccordionGroup label="Operations" items={filterItems(operationsItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
+                <AccordionGroup label="Config" items={filterItems(configItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
+                {visibleReportsItems.length > 0 && (
+                  <AccordionGroup label="Reports" items={visibleReportsItems} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="border-t border-border/50 px-3 py-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-800 text-xs font-medium">
+                    {initials}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {user?.email?.split("@")[0] ?? "Admin"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{roleLabel}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </aside>
         </>
       )}
