@@ -10,36 +10,39 @@
 
 @layer base {
   :root {
-    --background: 0 0% 96%;
-    --foreground: 0 0% 13%;
+    /* Member-facing: warm off-white */
+    --background: 40 20% 96%;
+    --foreground: 240 14% 17%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 13%;
+    --card-foreground: 240 14% 17%;
 
-    --popover: 0 0% 93%;
-    --popover-foreground: 0 0% 13%;
+    --popover: 40 10% 93%;
+    --popover-foreground: 240 14% 17%;
 
-    --primary: 240 4% 39%;
+    /* Deeper dark primary for member pages */
+    --primary: 240 14% 21%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 2% 50%;
+    --secondary: 240 6% 40%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 0 0% 90%;
-    --muted-foreground: 0 0% 42%;
+    --muted: 40 10% 90%;
+    --muted-foreground: 240 5% 42%;
 
-    --accent: 0 0% 96%;
-    --accent-foreground: 0 0% 42%;
+    --accent: 40 10% 96%;
+    --accent-foreground: 240 5% 42%;
 
     --destructive: 0 72% 50%;
     --destructive-foreground: 0 85% 97%;
 
-    --border: 0 0% 91%;
-    --input: 0 0% 91%;
-    --ring: 240 4% 39%;
+    --border: 40 10% 91%;
+    --input: 40 10% 91%;
+    --ring: 240 14% 21%;
 
     --radius: 0.75rem;
 
+    /* Sidebar stays admin grey for admin panel */
     --sidebar-background: 240 4% 39%;
     --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 240 4% 39%;
@@ -50,8 +53,8 @@
     --sidebar-ring: 240 4% 39%;
 
     /* Custom design tokens */
-    --golf-green: 240 4% 39%;
-    --golf-green-light: 240 3% 48%;
+    --golf-green: 240 14% 21%;
+    --golf-green-light: 240 10% 30%;
     --golf-gold: 43 55% 53%;
     --golf-gold-light: 43 55% 65%;
     --golf-cream: 40 20% 97%;
@@ -59,8 +62,11 @@
     --admin-gold: 43 55% 53%;
     --admin-gold-dark: 40 60% 30%;
 
-    /* Gradients */
-    --gradient-hero: linear-gradient(135deg, hsl(240 4% 37%) 0%, hsl(240 5% 30%) 100%);
+    /* Member accent gold as a token */
+    --member-gold: 43 55% 53%;
+
+    /* Gradients — member-facing uses deeper dark */
+    --gradient-hero: linear-gradient(135deg, hsl(240 14% 21%) 0%, hsl(240 14% 14%) 100%);
     --gradient-gold: linear-gradient(135deg, hsl(43 55% 53%) 0%, hsl(43 55% 60%) 100%);
     --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(40 20% 98%) 100%);
 

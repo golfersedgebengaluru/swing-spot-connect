@@ -260,7 +260,7 @@ export default function Dashboard() {
           <TooltipProvider>
             <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {stats.map((stat) => (
-                <Card key={stat.label} className="bg-gradient-card shadow-elegant">
+                <Card key={stat.label} className="bg-card shadow-md rounded-xl">
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
                       <div>
@@ -297,13 +297,13 @@ export default function Dashboard() {
           </TooltipProvider>
 
           {/* Your Wallet */}
-          <Card className="mb-8 shadow-elegant">
+          <Card className="mb-8 shadow-md rounded-xl">
             <CardHeader>
               <CardTitle className="font-display text-xl">Your Wallet</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="flex items-start gap-4 rounded-lg border border-border p-4">
+                 <div className="flex items-start gap-4 rounded-lg p-4 bg-muted/30">
                   <div className="rounded-xl bg-primary/10 p-3">
                     <Clock className="h-5 w-5 text-primary" />
                   </div>
@@ -322,13 +322,13 @@ export default function Dashboard() {
                     </Link>
                   </div>
                 </div>
-                <div className="flex items-start gap-4 rounded-lg border border-border p-4">
+                <div className="flex items-start gap-4 rounded-lg p-4 bg-muted/30">
                   <div className="rounded-xl bg-accent/10 p-3">
                     <Gift className="h-5 w-5 text-accent" />
                   </div>
                   <div>
                     <p className="font-medium text-foreground">Reward Points</p>
-                    <p className="font-display text-3xl font-bold text-accent">{currentPoints.toLocaleString()}</p>
+                    <p className="font-display text-3xl font-bold text-member-gold">{currentPoints.toLocaleString()}</p>
                     <p className="mt-1 text-xs text-muted-foreground">Earned through activity. Redeem for perks in the Rewards section.</p>
                     <Link to="/rewards">
                       <Button variant="link" size="sm" className="mt-1 h-auto p-0 text-xs">View rewards <ArrowRight className="ml-1 h-3 w-3" /></Button>
@@ -343,11 +343,11 @@ export default function Dashboard() {
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Recent Visits */}
             {showRecentVisits && (
-              <Card className="shadow-elegant">
+              <Card className="shadow-md rounded-xl">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="font-display text-xl">Recent Visits</CardTitle>
                   <Link to="/my-bookings">
-                    <Button variant="ghost" size="sm">View All</Button>
+                    <Button variant="ghost" size="sm" className="text-member-gold hover:text-member-gold/80">View All</Button>
                   </Link>
                 </CardHeader>
                 <CardContent>
@@ -368,14 +368,14 @@ export default function Dashboard() {
                       {recentVisits.map((visit, index) => (
                         <div
                           key={index}
-                          className="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
+                          className="flex items-center justify-between rounded-lg p-4 transition-colors hover:bg-muted/40 bg-muted/20"
                         >
                           <div>
                             <p className="font-medium text-foreground">{visit.bay}</p>
                             <p className="text-sm text-muted-foreground">{visit.date}</p>
                           </div>
                           <div className="text-right">
-                            <p className="font-display text-2xl font-bold text-primary">
+                            <p className="font-display text-2xl font-bold text-member-gold">
                               +{visit.points}
                             </p>
                             <p className="text-sm text-muted-foreground">points earned</p>
@@ -390,11 +390,11 @@ export default function Dashboard() {
 
             {/* Upcoming Events — only shown when events page is enabled */}
             {showUpcomingEvents && (
-              <Card className="shadow-elegant">
+              <Card className="shadow-md rounded-xl">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="font-display text-xl">Upcoming Events</CardTitle>
                   <Link to="/events">
-                    <Button variant="ghost" size="sm">View All</Button>
+                    <Button variant="ghost" size="sm" className="text-member-gold hover:text-member-gold/80">View All</Button>
                   </Link>
                 </CardHeader>
                 <CardContent>
@@ -406,7 +406,7 @@ export default function Dashboard() {
 
           {/* Buy Hours */}
           {activePackages.length > 0 && (
-            <Card className="mt-6 shadow-elegant">
+            <Card className="mt-6 shadow-md rounded-xl">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="font-display text-xl flex items-center gap-2">
                   <Package className="h-5 w-5 text-primary" />
@@ -418,10 +418,10 @@ export default function Dashboard() {
                   {activePackages.map((pkg: any) => (
                     <div
                       key={pkg.id}
-                      className="relative rounded-lg border border-border p-5 transition-colors hover:border-primary/40 hover:bg-muted/30"
+                      className="relative rounded-xl p-5 transition-all hover:shadow-lg bg-card shadow-sm"
                     >
                       {pkg.hours === 25 && (
-                        <Badge className="absolute -top-2.5 right-3 bg-amber-100 text-amber-800 hover:bg-amber-100 text-xs">
+                        <Badge className="absolute -top-2.5 right-3 bg-golf-gold/20 text-admin-gold-dark hover:bg-golf-gold/20 text-xs">
                           Birdie Member
                         </Badge>
                       )}
@@ -445,7 +445,7 @@ export default function Dashboard() {
 
 
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
-            <Card className="shadow-elegant">
+            <Card className="shadow-md rounded-xl">
               <CardHeader>
                 <CardTitle className="font-display text-xl flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" />
@@ -453,7 +453,7 @@ export default function Dashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-border">
+                <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-muted">
                   <p className="text-muted-foreground">
                     Score progression chart coming soon
                   </p>

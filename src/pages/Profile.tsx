@@ -98,7 +98,7 @@ export default function Profile() {
           <h1 className="font-display text-3xl font-bold text-foreground mb-8">My Profile</h1>
 
           {/* Profile Info Card */}
-          <Card className="shadow-elegant mb-6">
+          <Card className="shadow-md rounded-xl mb-6">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="font-display text-xl flex items-center gap-2">
                 <User className="h-5 w-5 text-primary" />
@@ -200,7 +200,7 @@ export default function Profile() {
 
           {/* Stats Cards */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-            <Card className="bg-gradient-card shadow-elegant">
+            <Card className="bg-card shadow-md rounded-xl">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div>
@@ -214,7 +214,7 @@ export default function Profile() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-gradient-card shadow-elegant">
+            <Card className="bg-card shadow-md rounded-xl">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div>
@@ -227,7 +227,7 @@ export default function Profile() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-gradient-card shadow-elegant">
+            <Card className="bg-card shadow-md rounded-xl">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div>
@@ -240,7 +240,7 @@ export default function Profile() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-gradient-card shadow-elegant">
+            <Card className="bg-card shadow-md rounded-xl">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div>
