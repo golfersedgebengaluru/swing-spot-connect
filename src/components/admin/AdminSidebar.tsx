@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useSiteAdminPermissions } from "@/hooks/useSiteAdminPermissions";
 import {
   Collapsible,
   CollapsibleContent,
@@ -169,11 +170,22 @@ export function AdminSidebar({
   onToggleCollapse,
 }: AdminSidebarProps) {
   const { user } = useAuth();
-  const { role, isAdmin } = useAdmin();
+  const { role, isAdmin, isSiteAdmin } = useAdmin();
+  const { data: permissions } = useSiteAdminPermissions();
   const initials = user?.email
     ? user.email.substring(0, 2).toUpperCase()
     : "AD";
   const roleLabel = role === "admin" ? "Administrator" : role === "site_admin" ? "Site-Admin" : "User";
+
+  const visibleReportsItems = reportsItems.filter((item) => {
+    if (isAdmin) return true;
+    if (!isSiteAdmin) return false;
+    if (item.id === "reports_revenue") return true;
+    if (item.id === "reports_expense_reports") return permissions?.site_admin_expense_reports_visible;
+    if (item.id === "reports_pnl") return permissions?.site_admin_pnl_visible;
+    if (item.id === "reports_profitability") return permissions?.site_admin_product_profitability_visible;
+    return false;
+  });
 
   const filterItems = (items: typeof coreItems) =>
     isAdmin ? items : items.filter((i) => !(i as any).adminOnly);
