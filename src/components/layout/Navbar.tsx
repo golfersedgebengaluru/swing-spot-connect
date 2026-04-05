@@ -38,7 +38,7 @@ export function Navbar() {
   const location = useLocation();
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-border/50 bg-card/80 backdrop-blur-lg">
+    <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-card/90 backdrop-blur-lg">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
@@ -58,8 +58,8 @@ export function Navbar() {
                 className={cn(
                   "px-4 py-2 text-sm font-medium transition-colors rounded-lg whitespace-nowrap",
                   location.pathname === link.href
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    ? "bg-primary/8 text-primary border-b-2 border-member-gold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                 )}
               >
                 {link.label}
@@ -123,8 +123,8 @@ export function Navbar() {
                     className={cn(
                       "px-4 py-3 text-sm font-medium transition-colors rounded-lg",
                       location.pathname === link.href
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        ? "bg-primary/8 text-primary border-l-2 border-member-gold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                     )}
                   >
                     {link.label}
