@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
+import { useAdmin } from "@/hooks/useAdmin";
 
 interface AdminDashboardTabProps {
   onNavigate?: (tab: string) => void;
