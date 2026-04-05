@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useSiteAdminPermissions } from "@/hooks/useSiteAdminPermissions";
+import { useBranding } from "@/hooks/useBranding";
 import {
   Collapsible,
   CollapsibleContent,
@@ -177,6 +178,8 @@ export function AdminSidebar({
   const { user } = useAuth();
   const { role, isAdmin, isSiteAdmin } = useAdmin();
   const { data: permissions } = useSiteAdminPermissions();
+  const { data: branding } = useBranding();
+  const studioName = branding?.studio_name || "Admin";
   const initials = user?.email
     ? user.email.substring(0, 2).toUpperCase()
     : "AD";
@@ -211,7 +214,7 @@ export function AdminSidebar({
       <div className="flex h-[52px] items-center justify-between px-3 border-b border-white/10">
         {!collapsed && (
           <span className="text-sm font-medium text-white truncate font-display">
-            EDGE Golf
+            {studioName}
           </span>
         )}
         <button
@@ -323,7 +326,7 @@ export function AdminSidebar({
               {/* Header */}
               <div className="flex h-[52px] items-center justify-between px-3 border-b border-white/10">
                 <span className="text-sm font-medium text-white truncate font-display">
-                  EDGE Golf
+                  {studioName}
                 </span>
                 <button
                   onClick={onClose}
