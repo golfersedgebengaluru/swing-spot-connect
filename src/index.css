@@ -263,3 +263,9 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Date inputs: show placeholder text when empty on mobile */
+input[type="date"]:invalid::-webkit-datetime-edit,
+input[type="date"][value=""]::-webkit-datetime-edit {
+  color: hsl(var(--muted-foreground));
+}
