@@ -424,20 +424,23 @@ Deno.serve(async (req) => {
         }
       } // end rate limit exempt check
 
-      // Duplicate check
-      const { data: recentEmails } = await supabaseAdmin
-        .from("email_log")
-        .select("id")
-        .eq("user_id", user_id)
-        .eq("template", template)
-        .eq("status", "sent")
-        .gte("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
-        .limit(1);
+      // Duplicate check — skip for critical booking/admin templates since
+      // a user may legitimately book, cancel, and rebook within minutes.
+      if (!RATE_LIMIT_EXEMPT_TEMPLATES.includes(template)) {
+        const { data: recentEmails } = await supabaseAdmin
+          .from("email_log")
+          .select("id")
+          .eq("user_id", user_id)
+          .eq("template", template)
+          .eq("status", "sent")
+          .gte("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
+          .limit(1);
 
-      if (recentEmails && recentEmails.length > 0) {
-        return new Response(JSON.stringify({ success: true, status: "deduplicated" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        if (recentEmails && recentEmails.length > 0) {
+          return new Response(JSON.stringify({ success: true, status: "deduplicated" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       }
     }
 
