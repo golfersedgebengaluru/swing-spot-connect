@@ -257,6 +257,34 @@ export function InvoiceSettingsCard({ city }: Props) {
               <p className="text-xs text-muted-foreground">Printed below the totals section.</p>
             </div>
 
+            {/* Booking Options (global only) */}
+            {isGlobal && (
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Booking Invoice Options</Label>
+                <div className="flex items-center justify-between rounded-lg border border-border p-4">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Require Coach Name</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      When enabled, coach name is mandatory for coaching session invoices.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={coachNameRequired ?? false}
+                    onCheckedChange={async (checked) => {
+                      try {
+                        await (supabase as any)
+                          .from("admin_config")
+                          .upsert({ key: "coach_name_required", value: checked ? "true" : "false" }, { onConflict: "key" });
+                        qc.invalidateQueries({ queryKey: ["admin_config", "coach_name_required"] });
+                        toast({ title: checked ? "Coach name is now required" : "Coach name is now optional" });
+                      } catch (err: any) {
+                        toast({ title: "Error", description: err.message, variant: "destructive" });
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <Button onClick={handleSave} disabled={saveSettings.isPending}>
                 {saveSettings.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : <><Save className="mr-2 h-4 w-4" />Save Settings</>}
