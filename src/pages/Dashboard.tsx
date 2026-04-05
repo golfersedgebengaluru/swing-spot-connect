@@ -390,11 +390,11 @@ export default function Dashboard() {
 
             {/* Upcoming Events — only shown when events page is enabled */}
             {showUpcomingEvents && (
-              <Card className="shadow-elegant">
+              <Card className="shadow-md rounded-xl">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="font-display text-xl">Upcoming Events</CardTitle>
                   <Link to="/events">
-                    <Button variant="ghost" size="sm">View All</Button>
+                    <Button variant="ghost" size="sm" className="text-member-gold hover:text-member-gold/80">View All</Button>
                   </Link>
                 </CardHeader>
                 <CardContent>
@@ -406,7 +406,7 @@ export default function Dashboard() {
 
           {/* Buy Hours */}
           {activePackages.length > 0 && (
-            <Card className="mt-6 shadow-elegant">
+            <Card className="mt-6 shadow-md rounded-xl">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="font-display text-xl flex items-center gap-2">
                   <Package className="h-5 w-5 text-primary" />
@@ -418,7 +418,7 @@ export default function Dashboard() {
                   {activePackages.map((pkg: any) => (
                     <div
                       key={pkg.id}
-                      className="relative rounded-lg border border-border p-5 transition-colors hover:border-primary/40 hover:bg-muted/30"
+                      className="relative rounded-xl p-5 transition-all hover:shadow-lg bg-card shadow-sm"
                     >
                       {pkg.hours === 25 && (
                         <Badge className="absolute -top-2.5 right-3 bg-amber-100 text-amber-800 hover:bg-amber-100 text-xs">
@@ -445,7 +445,7 @@ export default function Dashboard() {
 
 
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
-            <Card className="shadow-elegant">
+            <Card className="shadow-md rounded-xl">
               <CardHeader>
                 <CardTitle className="font-display text-xl flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" />
@@ -453,7 +453,7 @@ export default function Dashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-border">
+                <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-muted">
                   <p className="text-muted-foreground">
                     Score progression chart coming soon
                   </p>
