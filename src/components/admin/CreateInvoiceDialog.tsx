@@ -90,6 +90,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
   const [bookingEndTime, setBookingEndTime] = useState("11:00");
   const [bookingBayId, setBookingBayId] = useState("");
   const [sessionType, setSessionType] = useState("practice");
+  const [coachName, setCoachName] = useState("");
 
   // Invoice date & due date
   const [invoiceDate, setInvoiceDate] = useState<Date>(new Date());
@@ -222,6 +223,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
         bookingEndTime: invoiceCategory === "booking" ? bookingEndTime : undefined,
         bookingBayId: invoiceCategory === "booking" && bookingBayId ? bookingBayId : undefined,
         bookingSessionType: invoiceCategory === "booking" ? sessionType : undefined,
+        bookingCoachName: invoiceCategory === "booking" && sessionType === "coaching" ? coachName : undefined,
         bookingUserId: customerUserId || customerProfileId || undefined,
       });
       toast({ title: "Invoice created" });

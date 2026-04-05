@@ -196,6 +196,7 @@ export interface CreateInvoiceParams {
   bookingEndTime?: string;
   bookingBayId?: string;
   bookingSessionType?: string;
+  bookingCoachName?: string;
   bookingUserId?: string;
 }
 
@@ -410,6 +411,9 @@ export function useCreateInvoice() {
         };
         if (params.bookingBayId) {
           bookingPayload.bay_id = params.bookingBayId;
+        }
+        if (params.bookingCoachName) {
+          bookingPayload.coach_name = params.bookingCoachName;
         }
 
         const { data: booking, error: bookErr } = await (supabase as any)
