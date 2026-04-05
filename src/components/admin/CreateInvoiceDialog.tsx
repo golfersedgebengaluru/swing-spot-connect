@@ -207,6 +207,10 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
       toast({ title: "Select a booking date", variant: "destructive" });
       return;
     }
+    if (invoiceCategory === "booking" && sessionType === "coaching" && isCoachNameRequired && !coachName.trim()) {
+      toast({ title: "Coach name is required", description: "This setting is enabled in invoice settings.", variant: "destructive" });
+      return;
+    }
 
     try {
       const invoice = await createInvoice.mutateAsync({
@@ -382,6 +386,17 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
                     <Label className="text-xs">End Time</Label>
                     <Input type="time" value={bookingEndTime} onChange={(e) => setBookingEndTime(e.target.value)} className="mt-1" />
                   </div>
+                  {sessionType === "coaching" && (
+                    <div className="col-span-2">
+                      <Label className="text-xs">Coach Name {isCoachNameRequired ? "*" : "(optional)"}</Label>
+                      <Input
+                        placeholder="Enter coach name"
+                        value={coachName}
+                        onChange={(e) => setCoachName(e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+                  )}
                   <div className="col-span-2">
                     <Label className="text-xs">Bay (optional)</Label>
                     <Select value={bookingBayId} onValueChange={setBookingBayId}>
