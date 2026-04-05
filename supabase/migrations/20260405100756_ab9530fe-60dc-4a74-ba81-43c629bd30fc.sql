@@ -1,0 +1,1 @@
+ALTER TABLE public.bookings ADD COLUMN coach_name TEXT DEFAULT NULL;
