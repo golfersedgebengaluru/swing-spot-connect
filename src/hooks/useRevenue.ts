@@ -239,16 +239,70 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("user_id, display_name, email, user_type")
-          .in("user_id", userIds);
+          .select("id, user_id, display_name, email, user_type");
+        const dualMap = new Map<string, string>();
         for (const p of profiles ?? []) {
-          if (p.user_id && byUser[p.user_id]) {
-            byUser[p.user_id].name = p.display_name || p.email || p.user_id;
+          const name = p.display_name || p.email || "";
+          if (p.user_id) dualMap.set(p.user_id, name);
+          dualMap.set(p.id, name);
+        }
+        for (const uid of userIds) {
+          if (byUser[uid]) {
+            byUser[uid].name = dualMap.get(uid) || "";
           }
         }
       }
 
-      return { totalRevenue, totalRefunds, netRevenue: totalRevenue - totalRefunds, byType, byUser, byGuest, totalCount: transactions.length };
+      // --- Revenue by product category (from invoice line items) ---
+      const confirmedIds = confirmed
+        .filter((t) => t.transaction_type !== "refund")
+        .map((t: any) => t.id)
+        .filter(Boolean);
+
+      const byCategory: Record<string, number> = {};
+      if (confirmedIds.length > 0) {
+        // Get invoices linked to these transactions
+        const { data: invoices } = await supabase
+          .from("invoices")
+          .select("id, revenue_transaction_id")
+          .in("revenue_transaction_id", confirmedIds);
+
+        const invoiceIds = (invoices ?? []).map((inv) => inv.id);
+        if (invoiceIds.length > 0) {
+          const { data: lineItems } = await supabase
+            .from("invoice_line_items")
+            .select("invoice_id, line_total, product_id")
+            .in("invoice_id", invoiceIds);
+
+          // Get product categories for all product_ids
+          const productIds = [...new Set((lineItems ?? []).map((li) => li.product_id).filter(Boolean))] as string[];
+          let productCategoryMap: Record<string, string> = {};
+          if (productIds.length > 0) {
+            const { data: products } = await supabase
+              .from("products")
+              .select("id, category")
+              .in("id", productIds);
+            productCategoryMap = Object.fromEntries((products ?? []).map((p) => [p.id, p.category]));
+          }
+
+          for (const li of lineItems ?? []) {
+            const cat = li.product_id ? (productCategoryMap[li.product_id] || "Other") : "Other";
+            // Normalize sim usage categories to "Bay Usage"
+            const normalizedCat = cat.toLowerCase().includes("sim usage") ? "Bay Usage" : cat;
+            byCategory[normalizedCat] = (byCategory[normalizedCat] || 0) + Number(li.line_total);
+          }
+        }
+
+        // Add guest_booking amounts (no invoice) as Bay Usage
+        for (const t of confirmed.filter((t) => t.transaction_type === "guest_booking")) {
+          const hasInvoice = (invoices ?? []).some((inv) => inv.revenue_transaction_id === (t as any).id);
+          if (!hasInvoice) {
+            byCategory["Bay Usage"] = (byCategory["Bay Usage"] || 0) + Number(t.amount);
+          }
+        }
+      }
+
+      return { totalRevenue, totalRefunds, netRevenue: totalRevenue - totalRefunds, byType, byCategory, byUser, byGuest, totalCount: transactions.length };
     },
     enabled: !!startDate && !!endDate,
   });
