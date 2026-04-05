@@ -140,7 +140,7 @@ export function useInvoiceWithItems(invoiceId: string | null) {
         if (revTxn?.booking_id) {
           const { data: bookingData } = await (supabase as any)
             .from("bookings")
-            .select("id, start_time, end_time, bay_id, session_type")
+            .select("id, start_time, end_time, bay_id, session_type, coach_name")
             .eq("id", revTxn.booking_id)
             .maybeSingle();
           if (bookingData) {
