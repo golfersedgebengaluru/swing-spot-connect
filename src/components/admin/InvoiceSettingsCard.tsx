@@ -32,12 +32,27 @@ interface Props {
 
 export function InvoiceSettingsCard({ city }: Props) {
   const { toast } = useToast();
+  const qc = useQueryClient();
   const isGlobal = !city;
   const { data: globalSettings, isLoading: gl } = useGlobalInvoiceSettings();
   const { data: citySettings, isLoading: cl } = useCityInvoiceSettings(city);
   const saveSettings = useSaveInvoiceSettings();
   const deleteOverride = useDeleteCityInvoiceSettings();
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Coach name required setting (global only)
+  const { data: coachNameRequired } = useQuery({
+    queryKey: ["admin_config", "coach_name_required"],
+    enabled: isGlobal,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("admin_config")
+        .select("value")
+        .eq("key", "coach_name_required")
+        .maybeSingle();
+      return data?.value === "true";
+    },
+  });
 
   const [overrideEnabled, setOverrideEnabled] = useState(false);
   const [template, setTemplate] = useState<InvoiceTemplate | null>(null);
