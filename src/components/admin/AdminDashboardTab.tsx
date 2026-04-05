@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { CalendarDays, Users, IndianRupee, Clock, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -197,31 +198,43 @@ export function AdminDashboardTab({ onNavigate }: AdminDashboardTabProps = {}) {
     <div className="space-y-6">
       {/* KPI cards */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            className="rounded-lg bg-muted/60 p-4 space-y-1"
-          >
-            <p className="text-xs text-muted-foreground font-normal">{s.label}</p>
-            <p className="text-2xl font-medium text-foreground leading-tight">{s.value}</p>
-            {s.sub && <p className="text-xs text-primary">{s.sub}</p>}
-          </div>
-        ))}
+        {stats.map((s) => {
+          const isRevenue = s.label === "Revenue (month)";
+          const isHours = s.label === "Hours booked (month)";
+          return (
+            <div
+              key={s.label}
+              className={cn(
+                "rounded-xl p-4 space-y-1 border",
+                isRevenue
+                  ? "bg-[hsl(var(--sidebar-background))] border-transparent"
+                  : "bg-white border-[hsl(0_0%_92%)]"
+              )}
+            >
+              <p className={cn("text-xs font-normal", isRevenue ? "text-white/45" : "text-muted-foreground")}>{s.label}</p>
+              <p className={cn(
+                "text-2xl font-medium leading-tight",
+                isRevenue ? "text-white" : isHours ? "text-[hsl(var(--admin-gold-dark))]" : "text-foreground"
+              )}>{s.value}</p>
+              {s.sub && <p className={cn("text-xs", isRevenue ? "text-white/45" : "text-primary")}>{s.sub}</p>}
+            </div>
+          );
+        })}
       </div>
 
       {/* Two column: bookings + top members */}
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
         {/* Upcoming bookings */}
-        <Card className="border border-border/50 shadow-none">
+        <Card className="border border-[hsl(0_0%_92%)] shadow-none rounded-xl bg-white">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-base font-medium">Upcoming bookings</CardTitle>
+            <CardTitle className="text-base font-display font-medium text-[hsl(0_0%_13%)]">Upcoming bookings</CardTitle>
             <Button
               variant="ghost"
               size="sm"
-              className="text-xs text-muted-foreground h-auto py-1"
+              className="text-xs text-[hsl(var(--admin-gold))] hover:text-[hsl(var(--admin-gold-dark))] h-auto py-1"
               onClick={() => onNavigate?.("bookinglogs")}
             >
-              View all
+              View all →
             </Button>
           </CardHeader>
           <CardContent className="space-y-2 pt-0">
@@ -258,16 +271,16 @@ export function AdminDashboardTab({ onNavigate }: AdminDashboardTabProps = {}) {
         </Card>
 
         {/* Top members */}
-        <Card className="border border-border/50 shadow-none">
+        <Card className="border border-[hsl(0_0%_92%)] shadow-none rounded-xl bg-white">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-base font-medium">Top members</CardTitle>
+            <CardTitle className="text-base font-display font-medium text-[hsl(0_0%_13%)]">Top members</CardTitle>
             <Button
               variant="ghost"
               size="sm"
-              className="text-xs text-muted-foreground h-auto py-1"
+              className="text-xs text-[hsl(var(--admin-gold))] hover:text-[hsl(var(--admin-gold-dark))] h-auto py-1"
               onClick={() => onNavigate?.("members")}
             >
-              View all
+              View all →
             </Button>
           </CardHeader>
           <CardContent className="space-y-2 pt-0">
@@ -291,7 +304,7 @@ export function AdminDashboardTab({ onNavigate }: AdminDashboardTabProps = {}) {
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-medium text-foreground">
+                    <p className="text-sm font-medium text-[hsl(var(--admin-gold))]">
                       {(m.points ?? 0).toLocaleString()}
                     </p>
                     <p className="text-xs text-muted-foreground">pts</p>

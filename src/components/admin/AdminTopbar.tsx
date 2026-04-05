@@ -223,16 +223,16 @@ export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbar
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-[52px] items-center gap-3 border-b border-border/50 bg-background px-4">
+    <header className="sticky top-0 z-30 flex h-[52px] items-center gap-3 border-b border-[hsl(0_0%_91%)] bg-white px-4">
       <button
         onClick={onMenuClick}
-        className="flex lg:hidden items-center justify-center rounded-md border border-border/50 p-2 text-muted-foreground hover:bg-muted hover:text-foreground min-h-[44px] min-w-[44px]"
+        className="flex lg:hidden items-center justify-center rounded-md border border-[hsl(0_0%_91%)] p-2 text-muted-foreground hover:bg-accent hover:text-foreground min-h-[44px] min-w-[44px]"
         aria-label="Toggle menu"
       >
         <Menu className="h-4 w-4" />
       </button>
 
-      <h1 className="text-sm font-medium text-foreground truncate max-w-[140px] sm:max-w-none">
+      <h1 className="text-lg font-display font-medium text-[hsl(0_0%_13%)] truncate max-w-[140px] sm:max-w-none">
         {title}
       </h1>
 
@@ -241,7 +241,7 @@ export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbar
         <div className="flex items-center gap-1.5 ml-2">
           <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 hidden sm:block" />
           <Select value={selectedCity || "__all__"} onValueChange={(v) => setSelectedCity(v === "__all__" ? "" : v)}>
-            <SelectTrigger className="h-8 w-[130px] sm:w-[160px] text-xs border-border/50 bg-muted/40">
+            <SelectTrigger className="h-8 w-[130px] sm:w-[160px] text-xs border-[hsl(0_0%_91%)] bg-accent rounded-full">
               <SelectValue placeholder="All Cities" />
             </SelectTrigger>
             <SelectContent>
@@ -260,7 +260,7 @@ export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbar
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             placeholder="Search"
-            className="h-9 w-40 md:w-56 pl-8 text-sm rounded-md border-border/50 bg-muted/40"
+            className="h-9 w-40 md:w-56 pl-8 text-sm rounded-lg border-[hsl(0_0%_91%)] bg-accent"
           />
         </div>
 
