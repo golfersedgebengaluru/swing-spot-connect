@@ -265,29 +265,33 @@ export function AdminRevenueTab() {
           </CardContent>
         </Card>
 
-        {(categories ?? []).slice(0, 3).map((cat, i) => {
-          const key = cat.name.toLowerCase().replace(/\s+/g, "_");
-          const colorClass = CATEGORY_COLORS[i % CATEGORY_COLORS.length];
-          const iconColorClass = colorClass.split(" ")[0]; // bg-xxx-100
-          const textColorClass = colorClass.split(" ")[1]; // text-xxx-800
-          return (
-            <Card key={cat.id}>
+        {/* Category breakdown cards */}
+        {(() => {
+          const displayCategories = ["Food & Beverage", "Equipment", "Apparel", "Bay Usage"];
+          const catColors = [
+            { bg: "bg-green-100", text: "text-green-800" },
+            { bg: "bg-amber-100", text: "text-amber-800" },
+            { bg: "bg-purple-100", text: "text-purple-800" },
+            { bg: "bg-blue-100", text: "text-blue-800" },
+          ];
+          return displayCategories.map((catName, i) => (
+            <Card key={catName}>
               <CardContent className="p-5">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">{cat.name}</p>
+                    <p className="text-sm text-muted-foreground">{catName}</p>
                     <p className="mt-1 font-display text-2xl font-bold text-foreground">
-                      {loadingSummary ? "…" : `${currencySymbol}${(summary?.byType?.[key] ?? 0).toLocaleString()}`}
+                      {loadingSummary ? "…" : `${currencySymbol}${(summary?.byCategory?.[catName] ?? 0).toLocaleString()}`}
                     </p>
                   </div>
-                  <div className={`rounded-xl ${iconColorClass} p-3`}>
-                    <CreditCard className={`h-5 w-5 ${textColorClass}`} />
+                  <div className={`rounded-xl ${catColors[i].bg} p-3`}>
+                    <CreditCard className={`h-5 w-5 ${catColors[i].text}`} />
                   </div>
                 </div>
               </CardContent>
             </Card>
-          );
-        })}
+          ));
+        })()}
       </div>
 
       {/* User Spend Breakdown */}
