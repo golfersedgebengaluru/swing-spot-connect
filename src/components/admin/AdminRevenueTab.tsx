@@ -267,25 +267,30 @@ export function AdminRevenueTab() {
 
         {/* Category breakdown cards */}
         {(() => {
-          const displayCategories = ["F&B", "Equipment", "Apparel", "Bay Usage"];
+          const displayCategories = [
+            { label: "F&B", key: "Food & Beverage" },
+            { label: "Equipment", key: "Equipment" },
+            { label: "Apparel", key: "Apparel" },
+            { label: "Bay Usage", key: "Bay Usage" },
+          ];
           const catColors = [
             { bg: "bg-green-100", text: "text-green-800" },
             { bg: "bg-amber-100", text: "text-amber-800" },
             { bg: "bg-purple-100", text: "text-purple-800" },
             { bg: "bg-blue-100", text: "text-blue-800" },
           ];
-          return displayCategories.map((catName, i) => (
-            <Card key={catName}>
-              <CardContent className="p-5">
+          return displayCategories.map((cat, i) => (
+            <Card key={cat.key}>
+              <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">{catName}</p>
-                    <p className="mt-1 font-display text-2xl font-bold text-foreground">
-                      {loadingSummary ? "…" : `${currencySymbol}${(summary?.byCategory?.[catName] ?? 0).toLocaleString()}`}
+                    <p className="text-xs text-muted-foreground">{cat.label}</p>
+                    <p className="mt-1 font-display text-xl font-bold text-foreground">
+                      {loadingSummary ? "…" : `${currencySymbol}${(summary?.byCategory?.[cat.key] ?? 0).toLocaleString()}`}
                     </p>
                   </div>
-                  <div className={`rounded-xl ${catColors[i].bg} p-3`}>
-                    <CreditCard className={`h-5 w-5 ${catColors[i].text}`} />
+                  <div className={`rounded-lg ${catColors[i].bg} p-2`}>
+                    <CreditCard className={`h-4 w-4 ${catColors[i].text}`} />
                   </div>
                 </div>
               </CardContent>
