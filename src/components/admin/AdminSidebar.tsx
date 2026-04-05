@@ -84,9 +84,10 @@ function NavItem({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-normal transition-colors min-h-[44px]",
+        "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-normal transition-colors min-h-[44px] touch-manipulation",
         active
           ? "bg-muted text-foreground font-medium"
           : "text-foreground/70 hover:bg-muted hover:text-foreground"
@@ -133,16 +134,21 @@ function AccordionGroup({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 min-h-[44px]">
-        <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-          {label}
-        </span>
-        <ChevronRight
-          className={cn(
-            "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200",
-            open && "rotate-90"
-          )}
-        />
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          className="flex w-full items-center justify-between px-3 py-2 min-h-[44px] touch-manipulation"
+        >
+          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+            {label}
+          </span>
+          <ChevronRight
+            className={cn(
+              "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200",
+              open && "rotate-90"
+            )}
+          />
+        </button>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="space-y-0.5 pb-1">
@@ -308,8 +314,9 @@ export function AdminSidebar({
       {open && (
         <>
           <div
-            className="fixed inset-0 bg-black/30 z-40 lg:hidden"
+            className="fixed inset-0 bg-black/30 z-40 lg:hidden touch-manipulation"
             onClick={onClose}
+            onTouchEnd={(e) => { e.preventDefault(); onClose(); }}
           />
           <aside className="fixed inset-y-0 left-0 z-50 w-[220px] lg:hidden">
             {/* Mobile overlay always renders expanded (non-collapsed) sidebar */}
@@ -328,7 +335,7 @@ export function AdminSidebar({
               </div>
 
               {/* Nav */}
-              <div className="flex-1 overflow-y-auto px-2 py-3 space-y-1">
+              <div className="flex-1 overflow-y-auto px-2 py-3 space-y-1 [-webkit-overflow-scrolling:touch]">
                 <div className="space-y-0.5">
                   {filterItems(coreItems).map((item) => (
                     <NavItem
