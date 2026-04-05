@@ -421,7 +421,7 @@ export default function Dashboard() {
                       className="relative rounded-xl p-5 transition-all hover:shadow-lg bg-card shadow-sm"
                     >
                       {pkg.hours === 25 && (
-                        <Badge className="absolute -top-2.5 right-3 bg-amber-100 text-amber-800 hover:bg-amber-100 text-xs">
+                        <Badge className="absolute -top-2.5 right-3 bg-golf-gold/20 text-admin-gold-dark hover:bg-golf-gold/20 text-xs">
                           Birdie Member
                         </Badge>
                       )}

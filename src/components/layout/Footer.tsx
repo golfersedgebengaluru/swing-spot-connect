@@ -9,7 +9,7 @@ export function Footer() {
     .replace("{year}", String(new Date().getFullYear()));
 
   return (
-    <footer className="border-t border-border bg-card py-12">
+    <footer className="border-t border-border/40 bg-card py-12">
       <div className="container mx-auto px-4">
         <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
           {/* Logo */}
