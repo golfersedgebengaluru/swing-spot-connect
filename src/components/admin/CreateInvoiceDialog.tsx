@@ -258,6 +258,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
     setBookingEndTime("11:00");
     setBookingBayId("");
     setSessionType("practice");
+    setCoachName("");
   };
 
   return (
