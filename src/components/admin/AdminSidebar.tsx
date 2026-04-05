@@ -314,8 +314,9 @@ export function AdminSidebar({
       {open && (
         <>
           <div
-            className="fixed inset-0 bg-black/30 z-40 lg:hidden"
+            className="fixed inset-0 bg-black/30 z-40 lg:hidden touch-manipulation"
             onClick={onClose}
+            onTouchEnd={(e) => { e.preventDefault(); onClose(); }}
           />
           <aside className="fixed inset-y-0 left-0 z-50 w-[220px] lg:hidden">
             {/* Mobile overlay always renders expanded (non-collapsed) sidebar */}
@@ -334,7 +335,7 @@ export function AdminSidebar({
               </div>
 
               {/* Nav */}
-              <div className="flex-1 overflow-y-auto px-2 py-3 space-y-1">
+              <div className="flex-1 overflow-y-auto px-2 py-3 space-y-1 [-webkit-overflow-scrolling:touch]">
                 <div className="space-y-0.5">
                   {filterItems(coreItems).map((item) => (
                     <NavItem
