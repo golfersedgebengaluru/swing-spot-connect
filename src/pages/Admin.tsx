@@ -105,7 +105,11 @@ export default function Admin() {
           />
 
           <main className="flex-1 p-4 md:p-6">
-            <ActiveComponent />
+            {activeTab === "dashboard" ? (
+              <AdminDashboardTab onNavigate={setActiveTab} />
+            ) : (
+              <ActiveComponent />
+            )}
           </main>
         </div>
       </div>
