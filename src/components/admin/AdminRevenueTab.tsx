@@ -244,11 +244,11 @@ export function AdminRevenueTab() {
       {/* Summary Cards */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
         <Card>
-          <CardContent className="p-5">
+          <CardContent className="p-4">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Revenue</p>
-                <p className="mt-1 font-display text-2xl font-bold text-foreground">
+                <p className="text-xs text-muted-foreground">Total Revenue</p>
+                <p className="mt-1 font-display text-xl font-bold text-foreground">
                   {loadingSummary ? "…" : (summary?.totalRevenue ?? 0).toLocaleString()}
                 </p>
                 {revenueChange !== null && (
@@ -258,8 +258,8 @@ export function AdminRevenueTab() {
                   </p>
                 )}
               </div>
-              <div className="rounded-xl bg-primary/10 p-3">
-                <span className="text-lg font-semibold text-primary">{currencySymbol}</span>
+              <div className="rounded-lg bg-primary/10 p-2">
+                <span className="text-sm font-semibold text-primary">{currencySymbol}</span>
               </div>
             </div>
           </CardContent>
