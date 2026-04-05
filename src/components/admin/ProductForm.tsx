@@ -9,6 +9,7 @@ import { useProductCategories } from "@/hooks/useProductCategories";
 import { useUnitsOfMeasure } from "@/hooks/useUnitsOfMeasure";
 import { useCities } from "@/hooks/useBookings";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useSiteAdminPermissions } from "@/hooks/useSiteAdminPermissions";
 
 function generateSKU(itemType: string) {
   const prefix = itemType === "service" ? "SVC" : "PRD";
@@ -26,6 +27,8 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const { data: units } = useUnitsOfMeasure();
   const { data: cities } = useCities();
   const { isAdmin, isSiteAdmin, assignedCities } = useAdmin();
+  const { data: permissions } = useSiteAdminPermissions();
+  const showCostPrice = isAdmin || (isSiteAdmin && permissions?.site_admin_cost_price_visible);
 
   const [form, setForm] = useState({
     name: product?.name ?? "",
@@ -204,7 +207,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className={`grid gap-4 ${showCostPrice ? "grid-cols-2" : "grid-cols-1"}`}>
         <div>
           <Label>Unit of Measure</Label>
           <Select value={form.unit_of_measure} onValueChange={(v) => setForm({ ...form, unit_of_measure: v })}>
@@ -214,10 +217,12 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label>Cost Price</Label>
-          <Input type="number" step="0.01" min={0} value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} />
-        </div>
+        {showCostPrice && (
+          <div>
+            <Label>Cost Price</Label>
+            <Input type="number" step="0.01" min={0} value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} />
+          </div>
+        )}
       </div>
 
       {/* Selling Price with Toggle */}
