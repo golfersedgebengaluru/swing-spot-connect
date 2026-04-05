@@ -5,6 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { useAdminCity } from "@/contexts/AdminCityContext";
+import { useDefaultCurrency } from "@/hooks/useCurrency";
+
+interface AdminDashboardTabProps {
+  onNavigate?: (tab: string) => void;
+}
 
 function useAdminDashboardStats(cityFilter: string) {
   return useQuery({
@@ -14,57 +19,75 @@ function useAdminDashboardStats(cityFilter: string) {
       const monthStart = startOfMonth(now).toISOString();
       const monthEnd = endOfMonth(now).toISOString();
 
-      let bookingsQuery = supabase
-        .from("bookings")
-        .select("id, status, start_time, end_time, bay_id, user_id, duration_minutes, session_type, city")
-        .in("status", ["confirmed", "pending"])
-        .gte("start_time", now.toISOString())
-        .order("start_time", { ascending: true })
-        .limit(5);
-      if (cityFilter) bookingsQuery = bookingsQuery.eq("city", cityFilter);
-
-      let hoursQuery = supabase
-        .from("hours_transactions")
-        .select("hours, type")
-        .gte("created_at", monthStart)
-        .lte("created_at", monthEnd);
-
-      const [bookingsRes, membersRes, hoursRes] = await Promise.all([
-        bookingsQuery,
-        supabase.from("profiles").select("id, display_name, email, points, tier, total_rounds, user_id, preferred_city"),
-        hoursQuery,
-      ]);
-
-      // Active bookings count (all confirmed today+)
-      let activeQuery = supabase
+      // --- Total confirmed bookings this month ---
+      let totalBookingsQuery = supabase
         .from("bookings")
         .select("id", { count: "exact", head: true })
-        .in("status", ["confirmed", "pending"]);
-      if (cityFilter) activeQuery = activeQuery.eq("city", cityFilter);
-      const { count: activeCount } = await activeQuery;
+        .eq("status", "confirmed")
+        .gte("start_time", monthStart)
+        .lte("start_time", monthEnd);
+      if (cityFilter) totalBookingsQuery = totalBookingsQuery.eq("city", cityFilter);
+      const { count: totalBookings } = await totalBookingsQuery;
 
-      // Members count - filter by preferred_city when a city is selected
+      // --- Members count (birdie + coaching only) ---
       let membersQuery = supabase
         .from("profiles")
-        .select("id", { count: "exact", head: true });
+        .select("id", { count: "exact", head: true })
+        .in("user_type", ["birdie", "coaching"]);
       if (cityFilter) membersQuery = membersQuery.eq("preferred_city", cityFilter);
       const { count: memberCount } = await membersQuery;
 
-      // Hours sold this month
-      const hoursSold = (hoursRes.data ?? [])
-        .filter((t) => t.type === "purchase")
-        .reduce((sum, t) => sum + (t.hours ?? 0), 0);
+      // --- Revenue this month (from revenue_transactions) ---
+      let revenueQuery = supabase
+        .from("revenue_transactions")
+        .select("amount, transaction_type")
+        .eq("status", "confirmed")
+        .gte("created_at", monthStart)
+        .lte("created_at", monthEnd);
+      if (cityFilter) revenueQuery = revenueQuery.eq("city", cityFilter);
+      const { data: revData } = await revenueQuery;
 
-      // Get bay names for bookings
-      const bayIds = [...new Set((bookingsRes.data ?? []).map((b) => b.bay_id).filter(Boolean))];
+      const revenue = (revData ?? []).reduce((sum, t) => {
+        if (t.transaction_type === "refund") return sum - (t.amount ?? 0);
+        return sum + (t.amount ?? 0);
+      }, 0);
+
+      // --- Hours sold this month (from confirmed bookings) ---
+      let hoursQuery = supabase
+        .from("bookings")
+        .select("duration_minutes")
+        .eq("status", "confirmed")
+        .gte("start_time", monthStart)
+        .lte("start_time", monthEnd);
+      if (cityFilter) hoursQuery = hoursQuery.eq("city", cityFilter);
+      const { data: hoursData } = await hoursQuery;
+
+      const hoursSold = (hoursData ?? []).reduce(
+        (sum, b) => sum + (b.duration_minutes ?? 0),
+        0
+      ) / 60;
+
+      // --- Upcoming 5 confirmed bookings ---
+      let upcomingQuery = supabase
+        .from("bookings")
+        .select("id, status, start_time, end_time, bay_id, user_id, duration_minutes, session_type, city")
+        .eq("status", "confirmed")
+        .gte("start_time", now.toISOString())
+        .order("start_time", { ascending: true })
+        .limit(5);
+      if (cityFilter) upcomingQuery = upcomingQuery.eq("city", cityFilter);
+      const { data: bookingsData } = await upcomingQuery;
+
+      // Get bay names
+      const bayIds = [...new Set((bookingsData ?? []).map((b) => b.bay_id).filter(Boolean))];
       let baysMap: Record<string, string> = {};
       if (bayIds.length > 0) {
         const { data: bays } = await supabase.from("bays").select("id, name").in("id", bayIds);
         baysMap = Object.fromEntries((bays ?? []).map((b) => [b.id, b.name]));
       }
 
-      // Get user names for bookings — dual-key lookup (auth user_id + profile id)
-      const userIds = [...new Set((bookingsRes.data ?? []).map((b) => b.user_id).filter(Boolean))];
+      // Get user names
+      const userIds = [...new Set((bookingsData ?? []).map((b) => b.user_id).filter(Boolean))];
       let usersMap: Record<string, string> = {};
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
@@ -81,19 +104,24 @@ function useAdminDashboardStats(cityFilter: string) {
         );
       }
 
-      // Top members by points (filter by city if selected)
-      const membersPool = cityFilter
-        ? (membersRes.data ?? []).filter((m: any) => m.preferred_city === cityFilter)
-        : (membersRes.data ?? []);
-      const topMembers = membersPool
-        .sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
-        .slice(0, 5);
+      // --- Top 5 members by points (birdie + coaching only) ---
+      let topQuery = supabase
+        .from("profiles")
+        .select("id, display_name, email, points, tier, total_rounds, user_id, preferred_city")
+        .in("user_type", ["birdie", "coaching"])
+        .order("points", { ascending: false })
+        .limit(50);
+      if (cityFilter) topQuery = topQuery.eq("preferred_city", cityFilter);
+      const { data: topData } = await topQuery;
+
+      const topMembers = (topData ?? []).slice(0, 5);
 
       return {
-        activeBookings: activeCount ?? 0,
+        totalBookings: totalBookings ?? 0,
         memberCount: memberCount ?? 0,
+        revenue,
         hoursSold,
-        upcomingBookings: (bookingsRes.data ?? []).map((b) => ({
+        upcomingBookings: (bookingsData ?? []).map((b) => ({
           ...b,
           bayName: b.bay_id ? baysMap[b.bay_id] ?? "Bay" : "Bay",
           userName: usersMap[b.user_id] ?? "Unknown",
@@ -119,9 +147,10 @@ function getBayShort(name: string) {
   return match ? `B${match[0]}` : name.slice(0, 2).toUpperCase();
 }
 
-export function AdminDashboardTab() {
+export function AdminDashboardTab({ onNavigate }: AdminDashboardTabProps = {}) {
   const { selectedCity } = useAdminCity();
   const { data, isLoading } = useAdminDashboardStats(selectedCity);
+  const { format: formatAmount } = useDefaultCurrency();
 
   if (isLoading) {
     return (
@@ -133,25 +162,25 @@ export function AdminDashboardTab() {
 
   const stats = [
     {
-      label: "Active bookings",
-      value: data?.activeBookings ?? 0,
-      sub: "",
+      label: "Total bookings",
+      value: data?.totalBookings ?? 0,
+      sub: "this month",
       icon: CalendarDays,
     },
     {
       label: "Members",
       value: (data?.memberCount ?? 0).toLocaleString(),
-      sub: "",
+      sub: "birdie & coaching",
       icon: Users,
     },
     {
       label: "Revenue (month)",
-      value: "—",
+      value: formatAmount(data?.revenue ?? 0),
       sub: "",
       icon: IndianRupee,
     },
     {
-      label: "Hours sold (month)",
+      label: "Hours booked (month)",
       value: data?.hoursSold ?? 0,
       sub: "",
       icon: Clock,
@@ -176,11 +205,16 @@ export function AdminDashboardTab() {
 
       {/* Two column: bookings + top members */}
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
-        {/* Active & upcoming bookings */}
+        {/* Upcoming bookings */}
         <Card className="border border-border/50 shadow-none">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-base font-medium">Active &amp; upcoming bookings</CardTitle>
-            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-auto py-1">
+            <CardTitle className="text-base font-medium">Upcoming bookings</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground h-auto py-1"
+              onClick={() => onNavigate?.("bookinglogs")}
+            >
               View all
             </Button>
           </CardHeader>
@@ -193,7 +227,6 @@ export function AdminDashboardTab() {
                 const end = new Date(b.end_time);
                 const dateStr = format(start, "dd MMM");
                 const timeStr = `${dateStr} · ${format(start, "HH:mm")}–${format(end, "HH:mm")}`;
-                const isActive = b.status === "confirmed";
                 return (
                   <div
                     key={b.id}
@@ -208,14 +241,8 @@ export function AdminDashboardTab() {
                         {b.bayName} · {timeStr}
                       </p>
                     </div>
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                      }`}
-                    >
-                      {isActive ? "Active" : "Upcoming"}
+                    <span className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-primary/10 text-primary">
+                      Confirmed
                     </span>
                   </div>
                 );
@@ -228,7 +255,12 @@ export function AdminDashboardTab() {
         <Card className="border border-border/50 shadow-none">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-base font-medium">Top members</CardTitle>
-            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-auto py-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground h-auto py-1"
+              onClick={() => onNavigate?.("members")}
+            >
               View all
             </Button>
           </CardHeader>

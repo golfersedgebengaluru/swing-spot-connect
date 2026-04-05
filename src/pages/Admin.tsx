@@ -53,7 +53,7 @@ function ReportsProfitabilityWrapper() {
   return <ProductProfitabilityReport city={selectedCity || undefined} />;
 }
 
-const tabComponents: Record<string, React.ComponentType> = {
+const tabComponents: Record<string, React.ComponentType<any>> = {
   dashboard: AdminDashboardTab,
   walkin: AdminWalkInBookingTab,
   events: AdminEventsTab,
@@ -105,7 +105,11 @@ export default function Admin() {
           />
 
           <main className="flex-1 p-4 md:p-6">
-            <ActiveComponent />
+            {activeTab === "dashboard" ? (
+              <AdminDashboardTab onNavigate={setActiveTab} />
+            ) : (
+              <ActiveComponent />
+            )}
           </main>
         </div>
       </div>
