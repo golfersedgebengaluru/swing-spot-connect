@@ -81,6 +81,20 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
   const { data: bays } = useBaysForCity(city);
   const createInvoice = useCreateInvoice();
 
+  // Coach name required setting
+  const { data: coachNameRequiredConfig } = useQuery({
+    queryKey: ["admin_config", "coach_name_required"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("admin_config")
+        .select("value")
+        .eq("key", "coach_name_required")
+        .maybeSingle();
+      return data?.value === "true";
+    },
+  });
+  const isCoachNameRequired = coachNameRequiredConfig ?? false;
+
   // Invoice category
   const [invoiceCategory, setInvoiceCategory] = useState<"purchase" | "booking">("purchase");
 
