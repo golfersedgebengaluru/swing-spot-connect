@@ -88,8 +88,8 @@ function NavItem({
       className={cn(
         "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-normal transition-colors min-h-[44px] touch-manipulation",
         active
-          ? "bg-muted text-foreground font-medium"
-          : "text-foreground/70 hover:bg-muted hover:text-foreground"
+          ? "bg-white/[0.12] text-white font-medium border-r-2 border-[hsl(var(--admin-gold))]"
+          : "text-white/60 hover:bg-white/[0.08] hover:text-white/90"
       )}
       title={collapsed ? item.label : undefined}
     >
@@ -138,12 +138,12 @@ function AccordionGroup({
           type="button"
           className="flex w-full items-center justify-between px-3 py-2 min-h-[44px] touch-manipulation"
         >
-          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+          <span className="text-xs text-white/30 font-medium uppercase tracking-wide">
             {label}
           </span>
           <ChevronRight
             className={cn(
-              "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200",
+              "h-3.5 w-3.5 text-white/30 transition-transform duration-200",
               open && "rotate-90"
             )}
           />
@@ -206,23 +206,23 @@ export function AdminSidebar({
   const sidebarWidth = collapsed ? "w-14" : "w-[220px]";
 
   const sidebarContent = (
-    <div className="flex h-full flex-col bg-background border-r border-border/50">
+    <div className="flex h-full flex-col bg-[hsl(var(--sidebar-background))]">
       {/* Header */}
-      <div className="flex h-[52px] items-center justify-between px-3 border-b border-border/50">
+      <div className="flex h-[52px] items-center justify-between px-3 border-b border-white/10">
         {!collapsed && (
-          <span className="text-sm font-medium text-foreground truncate">
-            Admin Panel
+          <span className="text-sm font-medium text-white truncate font-display">
+            EDGE Golf
           </span>
         )}
         <button
           onClick={onToggleCollapse}
-          className="hidden lg:flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground min-h-[44px] min-w-[44px]"
+          className="hidden lg:flex items-center justify-center rounded-md p-1.5 text-white/50 hover:bg-white/[0.08] hover:text-white min-h-[44px] min-w-[44px]"
         >
           <PanelLeftClose className={cn("h-4 w-4 transition-transform", collapsed && "rotate-180")} />
         </button>
         <button
           onClick={onClose}
-          className="flex lg:hidden items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground min-h-[44px] min-w-[44px]"
+          className="flex lg:hidden items-center justify-center rounded-md p-1.5 text-white/50 hover:bg-white/[0.08] hover:text-white min-h-[44px] min-w-[44px]"
         >
           <X className="h-4 w-4" />
         </button>
@@ -243,7 +243,7 @@ export function AdminSidebar({
           ))}
         </div>
 
-        <div className="border-b border-border/50 my-3" />
+        <div className="border-b border-white/10 my-3" />
 
         {/* Accordion groups */}
         <AccordionGroup
@@ -279,17 +279,17 @@ export function AdminSidebar({
       </div>
 
       {/* Footer */}
-      <div className="border-t border-border/50 px-3 py-3">
+      <div className="border-t border-white/10 px-3 py-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-800 text-xs font-medium">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--admin-gold))] text-[hsl(var(--sidebar-background))] text-xs font-semibold">
             {initials}
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-foreground">
+              <p className="truncate text-sm font-medium text-white">
                 {user?.email?.split("@")[0] ?? "Admin"}
               </p>
-              <p className="text-xs text-muted-foreground">{roleLabel}</p>
+              <p className="text-xs text-white/40">{roleLabel}</p>
             </div>
           )}
         </div>
@@ -319,15 +319,15 @@ export function AdminSidebar({
           />
           <aside className="fixed inset-y-0 left-0 z-50 w-[220px] lg:hidden">
             {/* Mobile overlay always renders expanded (non-collapsed) sidebar */}
-            <div className="flex h-full flex-col bg-background border-r border-border/50">
+            <div className="flex h-full flex-col bg-[hsl(var(--sidebar-background))]">
               {/* Header */}
-              <div className="flex h-[52px] items-center justify-between px-3 border-b border-border/50">
-                <span className="text-sm font-medium text-foreground truncate">
-                  Admin Panel
+              <div className="flex h-[52px] items-center justify-between px-3 border-b border-white/10">
+                <span className="text-sm font-medium text-white truncate font-display">
+                  EDGE Golf
                 </span>
                 <button
                   onClick={onClose}
-                  className="flex lg:hidden items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground min-h-[44px] min-w-[44px]"
+                  className="flex lg:hidden items-center justify-center rounded-md p-1.5 text-white/50 hover:bg-white/[0.08] hover:text-white min-h-[44px] min-w-[44px]"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -346,7 +346,7 @@ export function AdminSidebar({
                     />
                   ))}
                 </div>
-                <div className="border-b border-border/50 my-3" />
+                <div className="border-b border-white/10 my-3" />
                 <AccordionGroup label="Users" items={filterItems(usersItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
                 <AccordionGroup label="Operations" items={filterItems(operationsItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
                 <AccordionGroup label="Config" items={filterItems(configItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
@@ -356,16 +356,16 @@ export function AdminSidebar({
               </div>
 
               {/* Footer */}
-              <div className="border-t border-border/50 px-3 py-3">
+              <div className="border-t border-white/10 px-3 py-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-800 text-xs font-medium">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--admin-gold))] text-[hsl(var(--sidebar-background))] text-xs font-semibold">
                     {initials}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-foreground">
+                    <p className="truncate text-sm font-medium text-white">
                       {user?.email?.split("@")[0] ?? "Admin"}
                     </p>
-                    <p className="text-xs text-muted-foreground">{roleLabel}</p>
+                    <p className="text-xs text-white/40">{roleLabel}</p>
                   </div>
                 </div>
               </div>

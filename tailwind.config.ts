@@ -96,14 +96,16 @@ export default {
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
   			},
-  			golf: {
-  				green: 'hsl(var(--golf-green))',
-  				'green-light': 'hsl(var(--golf-green-light))',
-  				gold: 'hsl(var(--golf-gold))',
-  				'gold-light': 'hsl(var(--golf-gold-light))',
-  				cream: 'hsl(var(--golf-cream))',
-  				'cream-dark': 'hsl(var(--golf-cream-dark))'
-  			}
+			golf: {
+				green: 'hsl(var(--golf-green))',
+				'green-light': 'hsl(var(--golf-green-light))',
+				gold: 'hsl(var(--golf-gold))',
+				'gold-light': 'hsl(var(--golf-gold-light))',
+				cream: 'hsl(var(--golf-cream))',
+				'cream-dark': 'hsl(var(--golf-cream-dark))'
+			},
+			'admin-gold': 'hsl(var(--admin-gold))',
+			'admin-gold-dark': 'hsl(var(--admin-gold-dark))'
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
