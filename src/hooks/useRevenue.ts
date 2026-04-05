@@ -193,7 +193,7 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
     queryFn: async () => {
       let query = supabase
         .from("revenue_transactions")
-        .select("transaction_type, amount, status, user_id, guest_name, guest_email, created_at")
+        .select("id, transaction_type, amount, status, user_id, guest_name, guest_email, created_at")
         .neq("transaction_type", "hours_deduction");
 
       if (startDate) query = query.gte("created_at", startDate);
