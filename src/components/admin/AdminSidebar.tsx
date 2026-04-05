@@ -64,7 +64,7 @@ const configItems = [
 ];
 
 const reportsItems = [
-  { id: "revenue", label: "Revenue", icon: BarChart3 },
+  { id: "reports", label: "Reports", icon: BarChart3 },
 ];
 
 function NavItem({

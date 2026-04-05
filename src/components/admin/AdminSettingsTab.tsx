@@ -20,6 +20,7 @@ import { UnitOfMeasureCard } from "@/components/admin/UnitOfMeasureCard";
 import { InvoiceSettingsCard } from "@/components/admin/InvoiceSettingsCard";
 import { VendorsCard } from "@/components/admin/VendorsCard";
 import { ExpenseCategoriesCard } from "@/components/admin/ExpenseCategoriesCard";
+import { SiteAdminPermissionsCard } from "@/components/admin/SiteAdminPermissionsCard";
 
 const pageVisibilityItems = [
   { key: "page_events_visible", label: "Events", description: "Show the Events tab in navigation" },
@@ -535,6 +536,7 @@ export function AdminSettingsTab() {
   return (
     <div className="space-y-6">
       <BrandingSettingsCard />
+      <SiteAdminPermissionsCard />
       <AdminRolesManager />
       <FinancialYearSettingsSection />
       <InvoiceSettingsCard />
