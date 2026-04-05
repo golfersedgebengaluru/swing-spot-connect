@@ -1,24 +1,57 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Search, ArrowUpDown } from "lucide-react";
 import { useAllProducts } from "@/hooks/useProducts";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
+import { useProductCategories } from "@/hooks/useProductCategories";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   city?: string;
 }
 
+type SortDir = "asc" | "desc";
+
 export function ProductProfitabilityReport({ city }: Props) {
   const { data: products, isLoading } = useAllProducts();
   const currency = useDefaultCurrency();
+  const { data: categories } = useProductCategories();
+
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"margin" | "marginPct">("marginPct");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const toggleSort = (col: "margin" | "marginPct") => {
+    if (sortBy === col) {
+      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setSortBy(col);
+      setSortDir("desc");
+    }
+  };
 
   const rows = useMemo(() => {
     if (!products) return [];
     let list = products as any[];
     if (city) {
       list = list.filter((p) => p.city === city || !p.city);
+    }
+    if (categoryFilter && categoryFilter !== "all") {
+      list = list.filter((p) => p.category === categoryFilter);
+    }
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter(
+        (p) =>
+          p.name?.toLowerCase().includes(q) ||
+          p.sku?.toLowerCase().includes(q) ||
+          p.category?.toLowerCase().includes(q)
+      );
     }
     return list
       .map((p) => {
@@ -40,8 +73,11 @@ export function ProductProfitabilityReport({ city }: Props) {
           gstRate: Number(p.gst_rate) || 0,
         };
       })
-      .sort((a, b) => b.margin - a.margin);
-  }, [products, city]);
+      .sort((a, b) => {
+        const mult = sortDir === "desc" ? -1 : 1;
+        return (a[sortBy] - b[sortBy]) * mult;
+      });
+  }, [products, city, categoryFilter, search, sortBy, sortDir]);
 
   const totalRevenuePotential = rows.reduce((s, r) => s + r.sellingPrice, 0);
   const totalCost = rows.reduce((s, r) => s + r.costPrice, 0);
