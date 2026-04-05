@@ -150,7 +150,7 @@ function getBayShort(name: string) {
 export function AdminDashboardTab({ onNavigate }: AdminDashboardTabProps = {}) {
   const { selectedCity } = useAdminCity();
   const { data, isLoading } = useAdminDashboardStats(selectedCity);
-  const { formatAmount } = useCurrency();
+  const { format: formatAmount } = useDefaultCurrency();
 
   if (isLoading) {
     return (
