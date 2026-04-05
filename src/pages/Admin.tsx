@@ -53,7 +53,7 @@ function ReportsProfitabilityWrapper() {
   return <ProductProfitabilityReport city={selectedCity || undefined} />;
 }
 
-const tabComponents: Record<string, React.ComponentType> = {
+const tabComponents: Record<string, React.ComponentType<any>> = {
   dashboard: AdminDashboardTab,
   walkin: AdminWalkInBookingTab,
   events: AdminEventsTab,
