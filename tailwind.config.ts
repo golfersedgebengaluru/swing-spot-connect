@@ -105,7 +105,8 @@ export default {
 				'cream-dark': 'hsl(var(--golf-cream-dark))'
 			},
 			'admin-gold': 'hsl(var(--admin-gold))',
-			'admin-gold-dark': 'hsl(var(--admin-gold-dark))'
+			'admin-gold-dark': 'hsl(var(--admin-gold-dark))',
+			'member-gold': 'hsl(var(--member-gold))'
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
