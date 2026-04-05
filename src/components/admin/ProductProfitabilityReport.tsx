@@ -138,6 +138,7 @@ export function ProductProfitabilityReport({ city }: Props) {
       </div>
 
       {/* Table */}
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">Product Margin Analysis</CardTitle>
         </CardHeader>
@@ -154,8 +155,12 @@ export function ProductProfitabilityReport({ city }: Props) {
                     <TableHead>Location</TableHead>
                     <TableHead className="text-right">Cost Price</TableHead>
                     <TableHead className="text-right">Selling Price</TableHead>
-                    <TableHead className="text-right">Margin</TableHead>
-                    <TableHead className="text-right">Margin %</TableHead>
+                    <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort("margin")}>
+                      <span className="inline-flex items-center gap-1">Margin <ArrowUpDown className="h-3 w-3" /></span>
+                    </TableHead>
+                    <TableHead className="text-right cursor-pointer select-none" onClick={() => toggleSort("marginPct")}>
+                      <span className="inline-flex items-center gap-1">Margin % <ArrowUpDown className="h-3 w-3" /></span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
