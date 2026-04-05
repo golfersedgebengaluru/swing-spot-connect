@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
-
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Loader2 } from "lucide-react";
 import { ExpensesList } from "@/components/admin/ExpensesList";
-import { ExpenseReports } from "@/components/admin/ExpenseReports";
-import { ProfitLossView } from "@/components/admin/ProfitLossView";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAllCities } from "@/hooks/useBookings";
 import { useAdminCity } from "@/contexts/AdminCityContext";
@@ -20,7 +17,6 @@ function useAvailableCities() {
 }
 
 export function AdminExpensesTab() {
-  const [tab, setTab] = useState("list");
   const { data: cities, isLoading: loadingCities } = useAvailableCities();
   const { selectedCity: globalCity } = useAdminCity();
   const [localCity, setLocalCity] = useState<string>("");
@@ -58,22 +54,7 @@ export function AdminExpensesTab() {
         </div>
       )}
 
-      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="list">Expense List</TabsTrigger>
-          <TabsTrigger value="reports">Expense Reports</TabsTrigger>
-          <TabsTrigger value="pnl">P&L</TabsTrigger>
-        </TabsList>
-        <TabsContent value="list">
-          {selectedCity && <ExpensesList city={selectedCity} />}
-        </TabsContent>
-        <TabsContent value="reports">
-          {selectedCity && <ExpenseReports city={selectedCity} />}
-        </TabsContent>
-        <TabsContent value="pnl">
-          {selectedCity && <ProfitLossView city={selectedCity} />}
-        </TabsContent>
-      </Tabs>
+      {selectedCity && <ExpensesList city={selectedCity} />}
     </div>
   );
 }
