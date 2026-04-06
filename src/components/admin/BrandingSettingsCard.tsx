@@ -85,7 +85,21 @@ export function BrandingSettingsCard() {
           White-Label Branding
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+        {/* Landing Page Mode Toggle */}
+        <div className="flex items-center justify-between rounded-lg border p-4">
+          <div className="space-y-0.5">
+            <Label className="text-sm font-medium">Landing Page Mode</Label>
+            <p className="text-xs text-muted-foreground">
+              {config?.landing_page_mode === "booking" ? "Booking Only — focused on bay reservations" : "Community — full landing with features & CTA"}
+            </p>
+          </div>
+          <Switch
+            checked={config?.landing_page_mode === "booking"}
+            onCheckedChange={handleLandingModeToggle}
+          />
+        </div>
+
         <form onSubmit={handleSave} className="space-y-4">
           {brandingFields.map((field) => (
             <div key={field.key}>
