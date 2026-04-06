@@ -16,8 +16,8 @@ export function BookingHeroSection() {
         <div className="mx-auto max-w-3xl text-center">
           {/* Headline */}
           <h1 className="animate-fade-up font-display text-4xl font-bold leading-tight text-foreground sm:text-5xl lg:text-6xl" style={{ animationDelay: "0.1s" }}>
-            Book Your Bay at
-            <span className="text-primary"> {studioName}</span>
+            Book Your
+            <span className="text-primary"> Bay Today</span>
           </h1>
 
           {/* Subheadline */}
