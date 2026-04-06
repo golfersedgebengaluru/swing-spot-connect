@@ -365,6 +365,20 @@ function CityOfflinePaymentMethodsCard({ city }: { city: string }) {
         )}
       </CardContent>
     </Card>
+
+    <AlertDialog open={confirmRemoveOverride} onOpenChange={setConfirmRemoveOverride}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove custom payment methods?</AlertDialogTitle>
+          <AlertDialogDescription>All custom payment methods for this city will be removed. It will revert to using global defaults.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>No – Keep Custom Methods</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirmRemoveOverride} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Yes – Remove</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 
