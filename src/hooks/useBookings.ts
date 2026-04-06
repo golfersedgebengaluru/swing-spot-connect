@@ -139,6 +139,7 @@ export function useCreateBooking() {
             is_coaching: params.session_type === "coaching",
             staff_id: user.id,
             reason: `Booking: ${params.bay_name || "Bay"} (${params.session_type || "individual"})`,
+            booking_id: res.data?.booking?.id,
             metadata: {
               booking_id: res.data?.booking?.id,
               city: params.city,
@@ -157,6 +158,7 @@ export function useCreateBooking() {
               is_off_peak: isOffPeak,
               staff_id: user.id,
               reason: `Practice session: ${params.bay_name || "Bay"}`,
+              booking_id: res.data?.booking?.id,
               metadata: {
                 booking_id: res.data?.booking?.id,
                 city: params.city,
@@ -244,6 +246,7 @@ export function useApproveBooking() {
             is_coaching: true,
             staff_id: user?.id || "system",
             reason: `Coaching session approved`,
+            booking_id: bookingId,
             metadata: {
               booking_id: bookingId,
               city: booking.city,

@@ -16,6 +16,7 @@ interface LoyaltyEvent {
   reason?: string;
   city?: string; // used for auto off-peak detection
   booking_start_time?: string; // ISO string, used for auto off-peak detection
+  booking_id?: string; // links points to the booking for clawback on cancellation
   metadata?: Record<string, any>;
 }
 
@@ -223,6 +224,7 @@ Deno.serve(async (req) => {
       base_points: basePoints,
       multipliers_applied: appliedMultipliers,
       event_type: event.event_type,
+      booking_id: event.booking_id || null,
       event_metadata: {
         ...event.metadata,
         amount_spent: event.amount_spent,

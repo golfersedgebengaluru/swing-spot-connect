@@ -219,6 +219,7 @@ export function AdminWalkInBookingTab() {
             is_off_peak: isOffPeak,
             staff_id: user?.id || "system",
             reason: `Walk-in: ${guestName} at ${currentBay.name}`,
+            booking_id: res.data.booking.id,
             metadata: {
               booking_id: res.data.booking.id,
               city: selectedCity,
@@ -237,6 +238,7 @@ export function AdminWalkInBookingTab() {
             is_off_peak: isOffPeak,
             staff_id: user?.id || "system",
             reason: `Practice session: ${guestName} at ${currentBay.name}`,
+            booking_id: res.data.booking.id,
             metadata: {
               booking_id: res.data.booking.id,
               city: selectedCity,
