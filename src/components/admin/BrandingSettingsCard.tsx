@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Palette, Save, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,12 +28,28 @@ export function BrandingSettingsCard() {
       const { data } = await supabase
         .from("admin_config")
         .select("key, value")
-        .in("key", brandingFields.map((f) => f.key));
+        .in("key", [...brandingFields.map((f) => f.key), "landing_page_mode"]);
       const map: Record<string, string> = {};
       data?.forEach((row) => { map[row.key] = row.value; });
       return map;
     },
   });
+
+  const handleLandingModeToggle = async (checked: boolean) => {
+    const newMode = checked ? "booking" : "community";
+    try {
+      const { error } = await supabase
+        .from("admin_config")
+        .update({ value: newMode })
+        .eq("key", "landing_page_mode");
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["branding_admin_config"] });
+      queryClient.invalidateQueries({ queryKey: ["landing_page_mode"] });
+      toast({ title: "Updated", description: `Landing page set to ${newMode} mode.` });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +85,21 @@ export function BrandingSettingsCard() {
           White-Label Branding
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+        {/* Landing Page Mode Toggle */}
+        <div className="flex items-center justify-between rounded-lg border p-4">
+          <div className="space-y-0.5">
+            <Label className="text-sm font-medium">Landing Page Mode</Label>
+            <p className="text-xs text-muted-foreground">
+              {config?.landing_page_mode === "booking" ? "Booking Only — focused on bay reservations" : "Community — full landing with features & CTA"}
+            </p>
+          </div>
+          <Switch
+            checked={config?.landing_page_mode === "booking"}
+            onCheckedChange={handleLandingModeToggle}
+          />
+        </div>
+
         <form onSubmit={handleSave} className="space-y-4">
           {brandingFields.map((field) => (
             <div key={field.key}>
