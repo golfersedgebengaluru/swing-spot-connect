@@ -342,12 +342,24 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get user profile for email
-    const { data: profile } = await supabaseAdmin
+    // Get user profile for email — dual-key lookup (user_id first, then id)
+    let profile: { email: string | null; display_name: string | null; user_id: string | null } | null = null;
+    const { data: profileByUserId } = await supabaseAdmin
       .from("profiles")
       .select("email, display_name, user_id")
       .eq("user_id", user_id)
       .single();
+    profile = profileByUserId;
+
+    if (!profile?.email) {
+      // Fallback: try matching by profile primary key (id)
+      const { data: profileById } = await supabaseAdmin
+        .from("profiles")
+        .select("email, display_name, user_id")
+        .eq("id", user_id)
+        .single();
+      profile = profileById;
+    }
 
     if (!profile?.email) {
       return new Response(JSON.stringify({ error: "User email not found" }), {
