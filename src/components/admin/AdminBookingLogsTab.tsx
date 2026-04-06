@@ -143,7 +143,7 @@ export function AdminBookingLogsTab() {
   };
 
   const handleExportCSV = () => {
-    const headers = ["User", "User Type", "City", "Bay", "Session Type", "Date", "Start Time", "End Time", "Duration (hrs)", "Status", "Note"];
+    const headers = ["User", "User Type", "City", "Bay", "Session Type", "Date", "Start Time", "End Time", "Duration (hrs)", "Booked On", "Status", "Cancelled/Rejected On", "Note"];
     const rows = sorted.map((b: any) => [
       b.display_name ?? "",
       b.user_type ?? "",
@@ -154,7 +154,9 @@ export function AdminBookingLogsTab() {
       format(new Date(b.start_time), "HH:mm"),
       format(new Date(b.end_time), "HH:mm"),
       (b.duration_minutes / 60).toString(),
+      format(new Date(b.created_at), "yyyy-MM-dd HH:mm"),
       b.status ?? "",
+      (b.status === "cancelled" || b.status === "rejected") && b.updated_at ? format(new Date(b.updated_at), "yyyy-MM-dd HH:mm") : "",
       b.note ?? "",
     ]);
     const csvContent = [headers, ...rows].map((r) => r.map((c: string) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
