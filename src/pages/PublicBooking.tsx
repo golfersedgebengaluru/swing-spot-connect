@@ -212,6 +212,7 @@ export default function PublicBooking() {
                     bay_id: currentBay.id,
                     bay_name: currentBay.name,
                     session_type: sessionType,
+                    payment_method: "razorpay",
                   });
                   // Create revenue transaction for registered user payment
                   try {

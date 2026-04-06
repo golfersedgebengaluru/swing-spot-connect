@@ -739,7 +739,10 @@ Deno.serve(async (req) => {
     }
 
     if (action === "create_booking") {
-      const { calendar_email, start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type } = params;
+      const { calendar_email, start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type, payment_method } = params;
+
+      // If payment was made via a gateway (e.g. Razorpay), skip hours check/deduction
+      const paidViaGateway = !!payment_method && payment_method !== "hours";
 
       // Get the calendar's timezone for consistent formatting
       const calTz = await getCalendarTimezone(accessToken, calendar_email);
@@ -759,8 +762,8 @@ Deno.serve(async (req) => {
       const needsApproval = isCoaching && coachingMode === "approval_required";
       const hoursNeeded = isCoaching ? coachingHours : duration_minutes / 60;
 
-      // Only check/deduct balance for non-pending bookings
-      if (!needsApproval) {
+      // Only check/deduct balance for non-pending, non-gateway-paid bookings
+      if (!needsApproval && !paidViaGateway) {
         const { data: hours } = await supabase
           .from("member_hours")
           .select("*")
@@ -827,8 +830,8 @@ Deno.serve(async (req) => {
       const { data: booking, error: bookingError } = await supabase.from("bookings").insert(bookingInsert).select().single();
       if (bookingError) throw bookingError;
 
-      // Deduct hours only for instant bookings — use admin client to bypass RLS
-      if (!needsApproval) {
+      // Deduct hours only for instant bookings that were NOT paid via gateway — use admin client to bypass RLS
+      if (!needsApproval && !paidViaGateway) {
         const adminClient = createAdminClient();
 
         const { data: hours } = await adminClient
@@ -944,6 +947,61 @@ Deno.serve(async (req) => {
           const notifyIds = await getAdminAndSiteAdminIds(adminClient, city, userId);
           await notifyAdminsInApp(adminClient, notifyIds, "📅 New Booking", `${memberName} booked ${bayLabel}${isCoaching ? " (Coaching)" : ""} on ${formatDateTime(start_time, calTz)}.`);
           await notifyAdmins(adminClient, notifyIds, "admin_new_booking", "📅 New Booking", {
+            member_name: memberName,
+            city,
+            bay: bayLabel,
+            date: formatDate(start_time, calTz),
+            time: formatTimeRange(start_time, end_time, calTz),
+            duration: `${hoursNeeded}h`,
+            session_type: isCoaching ? "coaching" : "practice",
+          });
+        } catch (e) {
+          console.error("Failed to notify admins about new booking:", e);
+        }
+      } else if (paidViaGateway && !needsApproval) {
+        // Gateway-paid booking — no hours deduction, just notifications
+        const adminClient = createAdminClient();
+
+        await adminClient.from("notifications").insert({
+          user_id: userId,
+          title: isCoaching ? "Coaching Booked!" : "Bay Booked!",
+          message: `Your ${bayLabel} ${isCoaching ? "coaching session" : "bay"} has been booked for ${formatDateTime(start_time, calTz)} (${hoursNeeded}h). Payment confirmed via ${payment_method}.`,
+          type: "booking",
+        });
+
+        // Send confirmed booking email
+        try {
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({
+              user_id: userId,
+              template: "booking_confirmed",
+              subject: "✅ Bay Booking Confirmed!",
+              data: {
+                city,
+                bay: bayLabel,
+                date: formatDate(start_time, calTz),
+                time: formatTimeRange(start_time, end_time, calTz),
+                duration: `${hoursNeeded}h`,
+                hours_remaining: "N/A (paid via gateway)",
+              },
+            }),
+          });
+        } catch (e) {
+          console.error("Failed to send booking confirmation email:", e);
+        }
+
+        // Notify admins + site-admins about new confirmed booking
+        try {
+          const { data: userPrf } = await adminClient.from("profiles").select("display_name").eq("user_id", userId).single();
+          const memberName = userPrf?.display_name || display_name || "A member";
+          const notifyIds = await getAdminAndSiteAdminIds(adminClient, city, userId);
+          await notifyAdminsInApp(adminClient, notifyIds, "📅 New Booking (Paid)", `${memberName} booked ${bayLabel}${isCoaching ? " (Coaching)" : ""} on ${formatDateTime(start_time, calTz)} — paid via ${payment_method}.`);
+          await notifyAdmins(adminClient, notifyIds, "admin_new_booking", "📅 New Booking (Paid)", {
             member_name: memberName,
             city,
             bay: bayLabel,
