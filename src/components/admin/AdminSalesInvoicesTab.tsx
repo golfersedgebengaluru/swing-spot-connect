@@ -182,11 +182,11 @@ function InvoiceListSection({ city }: { city: string }) {
                         <Eye className="h-3.5 w-3.5" />
                       </Button>
                       {inv.status === "issued" && inv.invoice_type === "invoice" && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleCancel(inv.id)} disabled={cancelInvoice.isPending} title="Cancel & create credit note">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCancelConfirmId(inv.id)} disabled={cancelInvoice.isPending} title="Cancel & create credit note">
                           <FileX className="h-3.5 w-3.5 text-destructive" />
                         </Button>
                       )}
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(inv.id)} disabled={deleteInvoice.isPending} title="Permanently delete">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteConfirmId(inv.id)} disabled={deleteInvoice.isPending} title="Permanently delete">
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button>
                     </div>
