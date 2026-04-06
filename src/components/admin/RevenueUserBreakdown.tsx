@@ -90,7 +90,7 @@ export function RevenueUserBreakdown({ byUser, byGuest, isLoading }: Props) {
                       <TableRow key={u.id}>
                         <TableCell className="text-muted-foreground text-sm">{i + 1}</TableCell>
                         <TableCell className="font-medium text-sm">
-                          {u.name || u.id.substring(0, 8) + "…"}
+                          {u.name || "Unknown User"}
                         </TableCell>
                         <TableCell className="text-right font-medium text-sm">
                           ₹{u.amount.toLocaleString()}

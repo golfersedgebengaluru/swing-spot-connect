@@ -12,6 +12,8 @@ import {
   CreditCard, ArrowUpDown,
 } from "lucide-react";
 import { useRevenueTransactions, useRevenueSummary, useActiveFinancialYear } from "@/hooks/useRevenue";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useAllCities } from "@/hooks/useBookings";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
@@ -393,7 +395,7 @@ export function AdminRevenueTab() {
                         <TableCell className="max-w-[200px] truncate text-sm">{t.description || "—"}</TableCell>
                         <TableCell className="text-sm">{(t as any).city || "—"}</TableCell>
                         <TableCell className="text-sm">
-                          {t.guest_name || (t.user_id ? t.user_id.substring(0, 8) + "…" : "—")}
+                          {t.guest_name || (t.user_id ? (profileNameMap?.[t.user_id] || t.user_id.substring(0, 8) + "…") : "—")}
                         </TableCell>
                         <TableCell className="text-right font-medium whitespace-nowrap">
                           {t.transaction_type === "refund" ? "-" : ""}
