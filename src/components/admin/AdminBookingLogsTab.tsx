@@ -172,7 +172,7 @@ export function AdminBookingLogsTab() {
   const pendingCount = (bookings ?? []).filter((b: any) => b.status === "pending").length;
 
   return (
-    <Card>
+    <>
       <CardHeader>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <CardTitle className="flex items-center gap-2">
