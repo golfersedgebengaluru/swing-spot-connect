@@ -242,23 +242,27 @@ function CityOfflinePaymentMethodsCard({ city }: { city: string }) {
   const deleteMethod = useDeleteOfflinePaymentMethod();
   const deleteCityMethods = useDeleteCityOfflinePaymentMethods();
   const [newLabel, setNewLabel] = useState("");
+  const [confirmRemoveOverride, setConfirmRemoveOverride] = useState(false);
 
   const isOverridden = (cityMethods?.length ?? 0) > 0;
   const isLoading = loadingGlobal || loadingCity;
 
   const handleToggleOverride = async (checked: boolean) => {
     if (checked) {
-      // Copy global methods as city-specific
       const methods = globalMethods ?? [];
       for (const m of methods) {
         await createMethod.mutateAsync({ label: m.label, sort_order: m.sort_order, city });
       }
       toast({ title: "Override Enabled", description: `Custom payment methods created for ${city}. You can now edit them independently.` });
     } else {
-      if (!confirm("Remove all custom payment methods for this city? It will revert to using global defaults.")) return;
-      await deleteCityMethods.mutateAsync(city);
-      toast({ title: "Override Disabled", description: `${city} now uses global payment methods.` });
+      setConfirmRemoveOverride(true);
     }
+  };
+
+  const handleConfirmRemoveOverride = async () => {
+    setConfirmRemoveOverride(false);
+    await deleteCityMethods.mutateAsync(city);
+    toast({ title: "Override Disabled", description: `${city} now uses global payment methods.` });
   };
 
   const handleAdd = () => {
