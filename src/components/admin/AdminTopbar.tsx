@@ -215,7 +215,7 @@ export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbar
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const { selectedCity, setSelectedCity, availableCities, isLoadingCities } = useAdminCity();
-  const { isAdmin } = useAdmin();
+  const { isAdmin, hasAdminAccess } = useAdmin();
 
   const handleSignOut = async () => {
     await signOut();
@@ -268,7 +268,7 @@ export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbar
 
         <AdminProfilePopover />
 
-        {isAdmin && (
+        {hasAdminAccess && (
           <Button variant="ghost" size="icon" className="hidden sm:inline-flex min-h-[44px] min-w-[44px]" onClick={onSettingsClick}>
             <Settings className="h-4 w-4" />
             <span className="sr-only">Settings</span>
