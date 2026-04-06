@@ -323,10 +323,11 @@ const TEMPLATE_PREF_MAP: Record<string, string> = {
   points_redeemed: "points_redeemed",
   league_update: "league_updates",
   low_hours_alert: "booking_confirmed",
-  // Admin templates — no user preference check (always send)
+  // Admin + guest templates — no user preference check (always send)
   admin_new_booking: "",
   admin_coaching_request: "",
   admin_booking_cancelled: "",
+  guest_booking_confirmed: "",
 };
 
 Deno.serve(async (req) => {
