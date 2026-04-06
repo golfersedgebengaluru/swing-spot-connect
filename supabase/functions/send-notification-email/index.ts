@@ -358,37 +358,52 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { user_id, template, subject, data, is_test } = body as EmailPayload & { is_test?: boolean };
+    const { user_id, template, subject, data, is_test, recipient_email } = body as EmailPayload & { is_test?: boolean; recipient_email?: string };
 
-    if (!user_id || !template || !subject) {
-      return new Response(JSON.stringify({ error: "Missing required fields: user_id, template, subject" }), {
+    if (!template || !subject) {
+      return new Response(JSON.stringify({ error: "Missing required fields: template, subject" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Get user profile for email — dual-key lookup (user_id first, then id)
-    let profile: { email: string | null; display_name: string | null; user_id: string | null } | null = null;
-    const { data: profileByUserId } = await supabaseAdmin
-      .from("profiles")
-      .select("email, display_name, user_id")
-      .eq("user_id", user_id)
-      .single();
-    profile = profileByUserId;
+    // Determine recipient email: either from direct recipient_email param (for guests) or profile lookup
+    let recipientEmail: string | null = recipient_email || null;
+    let profileDisplayName: string | null = data?.display_name || null;
 
-    if (!profile?.email) {
-      // Fallback: try matching by profile primary key (id)
-      const { data: profileById } = await supabaseAdmin
+    if (!recipientEmail && user_id) {
+      // Get user profile for email — dual-key lookup (user_id first, then id)
+      let profile: { email: string | null; display_name: string | null; user_id: string | null } | null = null;
+      const { data: profileByUserId } = await supabaseAdmin
         .from("profiles")
         .select("email, display_name, user_id")
-        .eq("id", user_id)
+        .eq("user_id", user_id)
         .single();
-      profile = profileById;
+      profile = profileByUserId;
+
+      if (!profile?.email) {
+        // Fallback: try matching by profile primary key (id)
+        const { data: profileById } = await supabaseAdmin
+          .from("profiles")
+          .select("email, display_name, user_id")
+          .eq("id", user_id)
+          .single();
+        profile = profileById;
+      }
+
+      if (!profile?.email) {
+        return new Response(JSON.stringify({ error: "User email not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      recipientEmail = profile.email;
+      profileDisplayName = profileDisplayName || profile.display_name;
     }
 
-    if (!profile?.email) {
-      return new Response(JSON.stringify({ error: "User email not found" }), {
-        status: 404,
+    if (!recipientEmail) {
+      return new Response(JSON.stringify({ error: "No recipient email available" }), {
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
