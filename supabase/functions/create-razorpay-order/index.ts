@@ -27,6 +27,7 @@ serve(async (req) => {
     }
 
     // Get Razorpay credentials for this city from payment_gateways table
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
