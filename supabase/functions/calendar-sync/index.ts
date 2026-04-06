@@ -170,8 +170,14 @@ async function getAdminAndSiteAdminIds(adminClient: any, city: string, excludeUs
 async function notifyAdmins(adminClient: any, adminIds: string[], template: string, subject: string, data: Record<string, any>) {
   for (const adminId of adminIds) {
     try {
-      // Get admin display name for personalization
-      const { data: adminProfile } = await adminClient.from("profiles").select("display_name").eq("user_id", adminId).single();
+      // Dual-key profile lookup: try user_id first, then id
+      let adminProfile: any = null;
+      const { data: byUserId } = await adminClient.from("profiles").select("display_name").eq("user_id", adminId).single();
+      adminProfile = byUserId;
+      if (!adminProfile) {
+        const { data: byId } = await adminClient.from("profiles").select("display_name").eq("id", adminId).single();
+        adminProfile = byId;
+      }
       await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
         method: "POST",
         headers: {
