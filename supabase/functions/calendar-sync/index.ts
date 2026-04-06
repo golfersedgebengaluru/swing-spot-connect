@@ -643,6 +643,36 @@ Deno.serve(async (req) => {
         console.error("Failed to notify admins about guest booking:", e);
       }
 
+      // Send confirmation email to the guest
+      if (guest_email) {
+        try {
+          const calTzEmail = calendar_email ? await getCalendarTimezone(await getAccessToken(JSON.parse(Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY") || "{}")), calendar_email) : "UTC";
+          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({
+              template: "guest_booking_confirmed",
+              subject: "✅ Your Booking is Confirmed!",
+              recipient_email: guest_email,
+              data: {
+                display_name: guest_name,
+                city,
+                bay: bay_name || city,
+                date: formatDate(start_time, calTzEmail),
+                time: formatTimeRange(start_time, end_time, calTzEmail),
+                duration: `${duration_minutes} min`,
+                amount: params.amount || null,
+              },
+            }),
+          });
+        } catch (e) {
+          console.error("Failed to send guest confirmation email:", e);
+        }
+      }
+
       return new Response(JSON.stringify({ booking }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

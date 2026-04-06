@@ -284,6 +284,31 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
         <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge — Admin Notification</p>
       </div>
     </div>`,
+
+  guest_booking_confirmed: (d) => `
+    <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:0">
+      <div style="background:#2b3544;padding:32px 24px;text-align:center">
+        <h1 style="color:#f5f0eb;margin:0;font-family:'Playfair Display',Georgia,serif;font-size:24px">Booking Confirmed ✅</h1>
+      </div>
+      <div style="padding:32px 24px">
+        <p style="color:#1a2332;font-size:16px;margin:0 0 16px">Hi ${d.display_name || "there"},</p>
+        <p style="color:#1a2332;font-size:16px;margin:0 0 24px">Your booking has been confirmed! Here are your details:</p>
+        <div style="background:#f0f3f7;border-radius:8px;padding:20px;margin:0 0 24px">
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Location</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.city}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Bay</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.bay}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Date</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.date}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Time</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.time}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Duration</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.duration}</td></tr>
+            ${d.amount ? `<tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Amount Paid</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">₹${d.amount}</td></tr>` : ""}
+          </table>
+        </div>
+        <p style="color:#6b7a8d;font-size:14px;margin:0 0 8px">Thank you for booking with us. We look forward to seeing you!</p>
+      </div>
+      <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
+        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
+      </div>
+    </div>`,
 };
 
 // Template to preference field mapping
@@ -298,10 +323,11 @@ const TEMPLATE_PREF_MAP: Record<string, string> = {
   points_redeemed: "points_redeemed",
   league_update: "league_updates",
   low_hours_alert: "booking_confirmed",
-  // Admin templates — no user preference check (always send)
+  // Admin + guest templates — no user preference check (always send)
   admin_new_booking: "",
   admin_coaching_request: "",
   admin_booking_cancelled: "",
+  guest_booking_confirmed: "",
 };
 
 Deno.serve(async (req) => {
@@ -333,43 +359,58 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { user_id, template, subject, data, is_test } = body as EmailPayload & { is_test?: boolean };
+    const { user_id, template, subject, data, is_test, recipient_email } = body as EmailPayload & { is_test?: boolean; recipient_email?: string };
 
-    if (!user_id || !template || !subject) {
-      return new Response(JSON.stringify({ error: "Missing required fields: user_id, template, subject" }), {
+    if (!template || !subject) {
+      return new Response(JSON.stringify({ error: "Missing required fields: template, subject" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Get user profile for email — dual-key lookup (user_id first, then id)
-    let profile: { email: string | null; display_name: string | null; user_id: string | null } | null = null;
-    const { data: profileByUserId } = await supabaseAdmin
-      .from("profiles")
-      .select("email, display_name, user_id")
-      .eq("user_id", user_id)
-      .single();
-    profile = profileByUserId;
+    // Determine recipient email: either from direct recipient_email param (for guests) or profile lookup
+    let recipientEmail: string | null = recipient_email || null;
+    let profileDisplayName: string | null = data?.display_name || null;
 
-    if (!profile?.email) {
-      // Fallback: try matching by profile primary key (id)
-      const { data: profileById } = await supabaseAdmin
+    if (!recipientEmail && user_id) {
+      // Get user profile for email — dual-key lookup (user_id first, then id)
+      let profile: { email: string | null; display_name: string | null; user_id: string | null } | null = null;
+      const { data: profileByUserId } = await supabaseAdmin
         .from("profiles")
         .select("email, display_name, user_id")
-        .eq("id", user_id)
+        .eq("user_id", user_id)
         .single();
-      profile = profileById;
+      profile = profileByUserId;
+
+      if (!profile?.email) {
+        // Fallback: try matching by profile primary key (id)
+        const { data: profileById } = await supabaseAdmin
+          .from("profiles")
+          .select("email, display_name, user_id")
+          .eq("id", user_id)
+          .single();
+        profile = profileById;
+      }
+
+      if (!profile?.email) {
+        return new Response(JSON.stringify({ error: "User email not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      recipientEmail = profile.email;
+      profileDisplayName = profileDisplayName || profile.display_name;
     }
 
-    if (!profile?.email) {
-      return new Response(JSON.stringify({ error: "User email not found" }), {
-        status: 404,
+    if (!recipientEmail) {
+      return new Response(JSON.stringify({ error: "No recipient email available" }), {
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Check email preferences (skip for test emails)
-    if (!is_test) {
+    // Check email preferences (skip for test emails and guest emails without user_id)
+    if (!is_test && user_id) {
       const prefField = TEMPLATE_PREF_MAP[template];
       if (prefField) {
         const { data: prefs } = await supabaseAdmin
@@ -381,7 +422,7 @@ Deno.serve(async (req) => {
         if (prefs && prefs[prefField] === false) {
           await supabaseAdmin.from("email_log").insert({
             user_id,
-            recipient_email: profile.email,
+            recipient_email: recipientEmail,
             template,
             subject,
             status: "suppressed",
@@ -404,6 +445,7 @@ Deno.serve(async (req) => {
         "admin_new_booking",
         "admin_coaching_request",
         "admin_booking_cancelled",
+        "guest_booking_confirmed",
       ];
 
       if (!RATE_LIMIT_EXEMPT_TEMPLATES.includes(template)) {
@@ -423,7 +465,7 @@ Deno.serve(async (req) => {
         if (!rateLimitOk) {
           await supabaseAdmin.from("email_log").insert({
             user_id,
-            recipient_email: profile.email,
+            recipient_email: recipientEmail,
             template,
             subject,
             status: "rate_limited",
@@ -491,7 +533,7 @@ Deno.serve(async (req) => {
 
     const templateData = {
       ...data,
-      display_name: data.display_name || profile.display_name,
+      display_name: data.display_name || profileDisplayName,
       _footer_text: template === "booking_confirmed" ? customContent : undefined,
       _custom_body: customContent,
     };
@@ -509,8 +551,8 @@ Deno.serve(async (req) => {
 
     // Create pending log entry
     const { data: logEntry } = await supabaseAdmin.from("email_log").insert({
-      user_id,
-      recipient_email: profile.email,
+      user_id: user_id || "00000000-0000-0000-0000-000000000000",
+      recipient_email: recipientEmail,
       template,
       subject: finalSubject,
       status: "pending",
@@ -526,7 +568,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         from: `${senderName} <${senderEmail}>`,
-        to: [profile.email],
+        to: [recipientEmail],
         subject: finalSubject,
         html,
       }),
