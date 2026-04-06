@@ -341,7 +341,7 @@ export function AdminBookingLogsTab() {
                     )}
                     {(b.status === "confirmed" || b.status === "pending") && new Date(b.end_time) >= new Date() && (
                       <Badge
-                        onClick={() => handleAdminCancel(b.id)}
+                        onClick={() => setCancelConfirmId(b.id)}
                         className="cursor-pointer mt-1 bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20 text-xs"
                         variant="outline"
                       >
@@ -379,5 +379,19 @@ export function AdminBookingLogsTab() {
         })()}
       </CardContent>
     </Card>
+
+    <AlertDialog open={!!cancelConfirmId} onOpenChange={(open) => { if (!open) setCancelConfirmId(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
+          <AlertDialogDescription>Hours will be refunded if applicable. This action cannot be undone.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>No – Keep Booking</AlertDialogCancel>
+          <AlertDialogAction onClick={() => cancelConfirmId && handleAdminCancel(cancelConfirmId)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Yes – Cancel Booking</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

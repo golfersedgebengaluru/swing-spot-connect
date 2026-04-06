@@ -34,6 +34,8 @@ function InvoiceListSection({ city }: { city: string }) {
   const [page, setPage] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
   const [viewId, setViewId] = useState<string | null>(null);
+  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const cancelInvoice = useCancelInvoice();
   const deleteInvoice = useDeleteInvoice();
@@ -71,7 +73,7 @@ function InvoiceListSection({ city }: { city: string }) {
   };
 
   const handleCancel = async (id: string) => {
-    if (!confirm("Cancel this invoice and generate a credit note?")) return;
+    setCancelConfirmId(null);
     try {
       await cancelInvoice.mutateAsync(id);
       toast({ title: "Invoice cancelled", description: "Credit note generated." });
@@ -81,7 +83,7 @@ function InvoiceListSection({ city }: { city: string }) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Permanently delete this invoice? The invoice number will be recycled for the next invoice. This cannot be undone.")) return;
+    setDeleteConfirmId(null);
     try {
       await deleteInvoice.mutateAsync(id);
       toast({ title: "Invoice deleted", description: "Invoice number will be reused." });
