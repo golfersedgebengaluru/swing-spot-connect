@@ -81,6 +81,7 @@ export default function MyBookings() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [cancelTarget, setCancelTarget] = useState<any>(null);
   const [confirmingCancelId, setConfirmingCancelId] = useState<string | null>(null);
+  const [cancelDialogBooking, setCancelDialogBooking] = useState<any>(null);
 
   const { data: cancellationWindowHours = 24 } = useQuery({
     queryKey: ["cancellation_window_hours"],
@@ -117,12 +118,13 @@ export default function MyBookings() {
     if (info.isCoaching && info.penalty > 0) {
       setConfirmingCancelId(booking.id);
     } else {
-      performCancel(booking);
+      setCancelDialogBooking(booking);
     }
   };
 
   const performCancel = async (booking: any) => {
     setConfirmingCancelId(null);
+    setCancelDialogBooking(null);
     try {
       await cancelBooking.mutateAsync(booking.id);
       toast({ title: "Booking Cancelled", description: "Your hours have been refunded." });
