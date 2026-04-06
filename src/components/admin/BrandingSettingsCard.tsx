@@ -40,8 +40,7 @@ export function BrandingSettingsCard() {
     try {
       const { error } = await supabase
         .from("admin_config")
-        .update({ value: newMode })
-        .eq("key", "landing_page_mode");
+        .upsert({ key: "landing_page_mode", value: newMode }, { onConflict: "key" });
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["branding_admin_config"] });
       queryClient.invalidateQueries({ queryKey: ["landing_page_mode"] });
