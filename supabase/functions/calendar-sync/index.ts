@@ -379,6 +379,66 @@ async function reverseRevenueAndInvoice(adminClient: any, bookingId: string) {
   }
 }
 
+// ─── Loyalty points clawback on cancellation ───
+// Reverses all loyalty points awarded for a specific booking.
+async function clawbackLoyaltyPoints(adminClient: any, bookingId: string, bookingUserId: string, cancelledBy: string) {
+  try {
+    // Find all point allocations linked to this booking
+    const { data: pointsTxns } = await adminClient
+      .from("points_transactions")
+      .select("id, points, description")
+      .eq("booking_id", bookingId)
+      .eq("type", "allocation");
+
+    if (!pointsTxns || pointsTxns.length === 0) {
+      console.log(`No loyalty points to claw back for booking ${bookingId}`);
+      return 0;
+    }
+
+    const totalToDeduct = pointsTxns.reduce((sum: number, tx: any) => sum + (tx.points || 0), 0);
+    if (totalToDeduct <= 0) return 0;
+
+    // Deduct points from user profile (use RPC, fallback to direct update)
+    const { error: rpcErr } = await adminClient.rpc("increment_user_points", {
+      p_user_id: bookingUserId,
+      p_delta: -totalToDeduct,
+    });
+
+    if (rpcErr) {
+      // Fallback: direct update, floor at 0
+      const { data: profile } = await adminClient.from("profiles").select("points").eq("user_id", bookingUserId).single();
+      const newPoints = Math.max(0, (profile?.points || 0) - totalToDeduct);
+      await adminClient.from("profiles").update({ points: newPoints }).eq("user_id", bookingUserId);
+    }
+
+    // Log clawback transaction
+    await adminClient.from("points_transactions").insert({
+      user_id: bookingUserId,
+      type: "redemption",
+      points: totalToDeduct,
+      description: `Points reversed: booking cancelled`,
+      booking_id: bookingId,
+      created_by: cancelledBy,
+      event_type: "cancellation_clawback",
+      reason: `Clawback for cancelled booking ${bookingId}`,
+    });
+
+    // Notify user
+    await adminClient.from("notifications").insert({
+      user_id: bookingUserId,
+      title: "🔄 Points Reversed",
+      message: `${totalToDeduct} EDGE points were reversed due to a booking cancellation.`,
+      type: "reward",
+    });
+
+    console.log(`Clawed back ${totalToDeduct} loyalty points for booking ${bookingId}`);
+    return totalToDeduct;
+  } catch (e) {
+    console.error("Loyalty clawback failed (non-fatal):", e);
+    return 0;
+  }
+}
+
 // Fetch the calendar's timezone from Google Calendar API
 async function getCalendarTimezone(accessToken: string, calendarId: string): Promise<string> {
   try {
