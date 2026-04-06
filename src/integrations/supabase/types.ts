@@ -1532,6 +1532,7 @@ export type Database = {
       points_transactions: {
         Row: {
           base_points: number | null
+          booking_id: string | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -1548,6 +1549,7 @@ export type Database = {
         }
         Insert: {
           base_points?: number | null
+          booking_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -1564,6 +1566,7 @@ export type Database = {
         }
         Update: {
           base_points?: number | null
+          booking_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -1579,6 +1582,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "points_transactions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "points_transactions_reward_id_fkey"
             columns: ["reward_id"]
