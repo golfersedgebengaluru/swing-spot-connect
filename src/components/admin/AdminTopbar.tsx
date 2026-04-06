@@ -269,7 +269,7 @@ export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbar
         <AdminProfilePopover />
 
         {hasAdminAccess && (
-          <Button variant="ghost" size="icon" className="hidden sm:inline-flex min-h-[44px] min-w-[44px]" onClick={onSettingsClick}>
+          <Button variant="ghost" size="icon" className="inline-flex min-h-[36px] min-w-[36px] sm:min-h-[44px] sm:min-w-[44px]" onClick={onSettingsClick}>
             <Settings className="h-4 w-4" />
             <span className="sr-only">Settings</span>
           </Button>
