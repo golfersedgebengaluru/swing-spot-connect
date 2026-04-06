@@ -4,7 +4,8 @@ import { ArrowRight } from "lucide-react";
 import { useBranding } from "@/hooks/useBranding";
 
 export function BookingHeroSection() {
-  const { studioName } = useBranding();
+  const { data: branding } = useBranding();
+  const studioName = branding?.studio_name || "Golfer's Edge";
 
   return (
     <section className="relative overflow-hidden bg-background py-20 lg:py-32">
