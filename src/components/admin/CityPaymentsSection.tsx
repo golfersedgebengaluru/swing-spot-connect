@@ -279,6 +279,7 @@ function CityOfflinePaymentMethodsCard({ city }: { city: string }) {
   if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
