@@ -194,9 +194,13 @@ export function GiftsTab() {
   const { data: profilesMap } = useQuery({
     queryKey: ["profiles_map_gifts"],
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("user_id, display_name, email");
+      const { data } = await supabase.from("profiles").select("id, user_id, display_name, email");
       const map: Record<string, string> = {};
-      (data ?? []).forEach((p: any) => { if (p.user_id) map[p.user_id] = p.display_name || p.email || "Unknown"; });
+      (data ?? []).forEach((p: any) => {
+        const name = p.display_name || p.email || "Unknown";
+        if (p.user_id) map[p.user_id] = name;
+        map[p.id] = name;
+      });
       return map;
     },
   });
