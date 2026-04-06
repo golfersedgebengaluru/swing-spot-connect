@@ -408,8 +408,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check email preferences (skip for test emails)
-    if (!is_test) {
+    // Check email preferences (skip for test emails and guest emails without user_id)
+    if (!is_test && user_id) {
       const prefField = TEMPLATE_PREF_MAP[template];
       if (prefField) {
         const { data: prefs } = await supabaseAdmin
@@ -421,7 +421,7 @@ Deno.serve(async (req) => {
         if (prefs && prefs[prefField] === false) {
           await supabaseAdmin.from("email_log").insert({
             user_id,
-            recipient_email: profile.email,
+            recipient_email: recipientEmail,
             template,
             subject,
             status: "suppressed",
@@ -444,6 +444,7 @@ Deno.serve(async (req) => {
         "admin_new_booking",
         "admin_coaching_request",
         "admin_booking_cancelled",
+        "guest_booking_confirmed",
       ];
 
       if (!RATE_LIMIT_EXEMPT_TEMPLATES.includes(template)) {
@@ -463,7 +464,7 @@ Deno.serve(async (req) => {
         if (!rateLimitOk) {
           await supabaseAdmin.from("email_log").insert({
             user_id,
-            recipient_email: profile.email,
+            recipient_email: recipientEmail,
             template,
             subject,
             status: "rate_limited",
@@ -531,7 +532,7 @@ Deno.serve(async (req) => {
 
     const templateData = {
       ...data,
-      display_name: data.display_name || profile.display_name,
+      display_name: data.display_name || profileDisplayName,
       _footer_text: template === "booking_confirmed" ? customContent : undefined,
       _custom_body: customContent,
     };
@@ -549,8 +550,8 @@ Deno.serve(async (req) => {
 
     // Create pending log entry
     const { data: logEntry } = await supabaseAdmin.from("email_log").insert({
-      user_id,
-      recipient_email: profile.email,
+      user_id: user_id || "00000000-0000-0000-0000-000000000000",
+      recipient_email: recipientEmail,
       template,
       subject: finalSubject,
       status: "pending",
@@ -566,7 +567,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         from: `${senderName} <${senderEmail}>`,
-        to: [profile.email],
+        to: [recipientEmail],
         subject: finalSubject,
         html,
       }),
