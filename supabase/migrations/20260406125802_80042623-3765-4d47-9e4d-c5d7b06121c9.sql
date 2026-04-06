@@ -1,0 +1,1 @@
+ALTER TABLE public.points_transactions ADD COLUMN booking_id uuid REFERENCES public.bookings(id) ON DELETE SET NULL;
