@@ -490,6 +490,18 @@ export default function MyBookings() {
       </main>
       <Footer />
 
+      <AlertDialog open={!!cancelDialogBooking} onOpenChange={(open) => { if (!open) setCancelDialogBooking(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
+            <AlertDialogDescription>Your hours will be refunded. This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No – Keep Booking</AlertDialogCancel>
+            <AlertDialogAction onClick={() => cancelDialogBooking && performCancel(cancelDialogBooking)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Yes – Cancel Booking</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
