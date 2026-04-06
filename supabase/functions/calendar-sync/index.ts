@@ -739,7 +739,10 @@ Deno.serve(async (req) => {
     }
 
     if (action === "create_booking") {
-      const { calendar_email, start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type } = params;
+      const { calendar_email, start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type, payment_method } = params;
+
+      // If payment was made via a gateway (e.g. Razorpay), skip hours check/deduction
+      const paidViaGateway = !!payment_method && payment_method !== "hours";
 
       // Get the calendar's timezone for consistent formatting
       const calTz = await getCalendarTimezone(accessToken, calendar_email);
@@ -759,8 +762,8 @@ Deno.serve(async (req) => {
       const needsApproval = isCoaching && coachingMode === "approval_required";
       const hoursNeeded = isCoaching ? coachingHours : duration_minutes / 60;
 
-      // Only check/deduct balance for non-pending bookings
-      if (!needsApproval) {
+      // Only check/deduct balance for non-pending, non-gateway-paid bookings
+      if (!needsApproval && !paidViaGateway) {
         const { data: hours } = await supabase
           .from("member_hours")
           .select("*")
@@ -827,8 +830,8 @@ Deno.serve(async (req) => {
       const { data: booking, error: bookingError } = await supabase.from("bookings").insert(bookingInsert).select().single();
       if (bookingError) throw bookingError;
 
-      // Deduct hours only for instant bookings — use admin client to bypass RLS
-      if (!needsApproval) {
+      // Deduct hours only for instant bookings that were NOT paid via gateway — use admin client to bypass RLS
+      if (!needsApproval && !paidViaGateway) {
         const adminClient = createAdminClient();
 
         const { data: hours } = await adminClient

@@ -103,6 +103,7 @@ export function useCreateBooking() {
       bay_id: string;
       bay_name?: string;
       session_type?: string;
+      payment_method?: string;
     }) => {
       const profile = await supabase
         .from("profiles")
