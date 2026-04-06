@@ -587,8 +587,8 @@ export function AdminAllUsersTab() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteConfirm && handleDeleteUser(deleteConfirm.id, deleteConfirm.display_name || "User")} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+            <AlertDialogCancel>No – Don't Delete</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteConfirm && handleDeleteUser(deleteConfirm.id, deleteConfirm.display_name || "User")} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Yes – Delete User</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

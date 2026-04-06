@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -241,23 +242,27 @@ function CityOfflinePaymentMethodsCard({ city }: { city: string }) {
   const deleteMethod = useDeleteOfflinePaymentMethod();
   const deleteCityMethods = useDeleteCityOfflinePaymentMethods();
   const [newLabel, setNewLabel] = useState("");
+  const [confirmRemoveOverride, setConfirmRemoveOverride] = useState(false);
 
   const isOverridden = (cityMethods?.length ?? 0) > 0;
   const isLoading = loadingGlobal || loadingCity;
 
   const handleToggleOverride = async (checked: boolean) => {
     if (checked) {
-      // Copy global methods as city-specific
       const methods = globalMethods ?? [];
       for (const m of methods) {
         await createMethod.mutateAsync({ label: m.label, sort_order: m.sort_order, city });
       }
       toast({ title: "Override Enabled", description: `Custom payment methods created for ${city}. You can now edit them independently.` });
     } else {
-      if (!confirm("Remove all custom payment methods for this city? It will revert to using global defaults.")) return;
-      await deleteCityMethods.mutateAsync(city);
-      toast({ title: "Override Disabled", description: `${city} now uses global payment methods.` });
+      setConfirmRemoveOverride(true);
     }
+  };
+
+  const handleConfirmRemoveOverride = async () => {
+    setConfirmRemoveOverride(false);
+    await deleteCityMethods.mutateAsync(city);
+    toast({ title: "Override Disabled", description: `${city} now uses global payment methods.` });
   };
 
   const handleAdd = () => {
@@ -274,6 +279,7 @@ function CityOfflinePaymentMethodsCard({ city }: { city: string }) {
   if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
@@ -360,6 +366,20 @@ function CityOfflinePaymentMethodsCard({ city }: { city: string }) {
         )}
       </CardContent>
     </Card>
+
+    <AlertDialog open={confirmRemoveOverride} onOpenChange={setConfirmRemoveOverride}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove custom payment methods?</AlertDialogTitle>
+          <AlertDialogDescription>All custom payment methods for this city will be removed. It will revert to using global defaults.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>No – Keep Custom Methods</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirmRemoveOverride} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Yes – Remove</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 

@@ -81,6 +81,7 @@ export default function MyBookings() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [cancelTarget, setCancelTarget] = useState<any>(null);
   const [confirmingCancelId, setConfirmingCancelId] = useState<string | null>(null);
+  const [cancelDialogBooking, setCancelDialogBooking] = useState<any>(null);
 
   const { data: cancellationWindowHours = 24 } = useQuery({
     queryKey: ["cancellation_window_hours"],
@@ -117,12 +118,13 @@ export default function MyBookings() {
     if (info.isCoaching && info.penalty > 0) {
       setConfirmingCancelId(booking.id);
     } else {
-      performCancel(booking);
+      setCancelDialogBooking(booking);
     }
   };
 
   const performCancel = async (booking: any) => {
     setConfirmingCancelId(null);
+    setCancelDialogBooking(null);
     try {
       await cancelBooking.mutateAsync(booking.id);
       toast({ title: "Booking Cancelled", description: "Your hours have been refunded." });
@@ -488,6 +490,18 @@ export default function MyBookings() {
       </main>
       <Footer />
 
+      <AlertDialog open={!!cancelDialogBooking} onOpenChange={(open) => { if (!open) setCancelDialogBooking(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
+            <AlertDialogDescription>Your hours will be refunded. This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No – Keep Booking</AlertDialogCancel>
+            <AlertDialogAction onClick={() => cancelDialogBooking && performCancel(cancelDialogBooking)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Yes – Cancel Booking</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

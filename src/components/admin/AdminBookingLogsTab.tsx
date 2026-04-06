@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ClipboardList, Download, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAllBookings, useBays, useApproveBooking, useRejectBooking, useAdminCancelBooking, useAllCities } from "@/hooks/useBookings";
@@ -129,8 +130,10 @@ export function AdminBookingLogsTab() {
     }
   };
 
+  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
+
   const handleAdminCancel = async (id: string) => {
-    if (!window.confirm("Are you sure you want to cancel this booking? Hours will be refunded if applicable.")) return;
+    setCancelConfirmId(null);
     try {
       await adminCancelBooking.mutateAsync(id);
       toast({ title: "Booking Cancelled", description: "Booking has been cancelled and hours refunded." });
@@ -169,6 +172,7 @@ export function AdminBookingLogsTab() {
   const pendingCount = (bookings ?? []).filter((b: any) => b.status === "pending").length;
 
   return (
+    <>
     <Card>
       <CardHeader>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -338,7 +342,7 @@ export function AdminBookingLogsTab() {
                     )}
                     {(b.status === "confirmed" || b.status === "pending") && new Date(b.end_time) >= new Date() && (
                       <Badge
-                        onClick={() => handleAdminCancel(b.id)}
+                        onClick={() => setCancelConfirmId(b.id)}
                         className="cursor-pointer mt-1 bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20 text-xs"
                         variant="outline"
                       >
@@ -376,5 +380,19 @@ export function AdminBookingLogsTab() {
         })()}
       </CardContent>
     </Card>
+
+    <AlertDialog open={!!cancelConfirmId} onOpenChange={(open) => { if (!open) setCancelConfirmId(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
+          <AlertDialogDescription>Hours will be refunded if applicable. This action cannot be undone.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>No – Keep Booking</AlertDialogCancel>
+          <AlertDialogAction onClick={() => cancelConfirmId && handleAdminCancel(cancelConfirmId)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Yes – Cancel Booking</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

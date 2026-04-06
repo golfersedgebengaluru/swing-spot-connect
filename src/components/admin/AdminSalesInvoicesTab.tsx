@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,8 @@ function InvoiceListSection({ city }: { city: string }) {
   const [page, setPage] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
   const [viewId, setViewId] = useState<string | null>(null);
+  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const cancelInvoice = useCancelInvoice();
   const deleteInvoice = useDeleteInvoice();
@@ -71,7 +74,7 @@ function InvoiceListSection({ city }: { city: string }) {
   };
 
   const handleCancel = async (id: string) => {
-    if (!confirm("Cancel this invoice and generate a credit note?")) return;
+    setCancelConfirmId(null);
     try {
       await cancelInvoice.mutateAsync(id);
       toast({ title: "Invoice cancelled", description: "Credit note generated." });
@@ -81,7 +84,7 @@ function InvoiceListSection({ city }: { city: string }) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Permanently delete this invoice? The invoice number will be recycled for the next invoice. This cannot be undone.")) return;
+    setDeleteConfirmId(null);
     try {
       await deleteInvoice.mutateAsync(id);
       toast({ title: "Invoice deleted", description: "Invoice number will be reused." });
@@ -180,11 +183,11 @@ function InvoiceListSection({ city }: { city: string }) {
                         <Eye className="h-3.5 w-3.5" />
                       </Button>
                       {inv.status === "issued" && inv.invoice_type === "invoice" && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleCancel(inv.id)} disabled={cancelInvoice.isPending} title="Cancel & create credit note">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCancelConfirmId(inv.id)} disabled={cancelInvoice.isPending} title="Cancel & create credit note">
                           <FileX className="h-3.5 w-3.5 text-destructive" />
                         </Button>
                       )}
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(inv.id)} disabled={deleteInvoice.isPending} title="Permanently delete">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteConfirmId(inv.id)} disabled={deleteInvoice.isPending} title="Permanently delete">
                         <Trash2 className="h-3.5 w-3.5 text-destructive" />
                       </Button>
                     </div>
@@ -213,6 +216,32 @@ function InvoiceListSection({ city }: { city: string }) {
 
       <CreateInvoiceDialog open={createOpen} onOpenChange={setCreateOpen} city={city} />
       <InvoiceViewDialog invoiceId={viewId} onClose={() => setViewId(null)} />
+
+      <AlertDialog open={!!cancelConfirmId} onOpenChange={(open) => { if (!open) setCancelConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this invoice?</AlertDialogTitle>
+            <AlertDialogDescription>This will cancel the invoice and generate a credit note. This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No – Keep Invoice</AlertDialogCancel>
+            <AlertDialogAction onClick={() => cancelConfirmId && handleCancel(cancelConfirmId)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Yes – Cancel Invoice</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently delete this invoice?</AlertDialogTitle>
+            <AlertDialogDescription>The invoice number will be recycled for the next invoice. This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No – Keep Invoice</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Yes – Delete Invoice</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
