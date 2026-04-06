@@ -1386,6 +1386,9 @@ Deno.serve(async (req) => {
       // Reverse paid revenue and auto-generate credit note for guest/walk-in bookings
       await reverseRevenueAndInvoice(adminClient, booking_id);
 
+      // Claw back loyalty points awarded for this booking
+      const pointsClawedBack = await clawbackLoyaltyPoints(adminClient, booking_id, userId, userId);
+
       // User notification
       await adminClient.from("notifications").insert({
         user_id: userId,
