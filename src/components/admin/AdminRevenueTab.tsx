@@ -145,6 +145,19 @@ export function AdminRevenueTab() {
   const { symbol: currencySymbol } = useDefaultCurrency();
   const { selectedCity: globalCity } = useAdminCity();
   const { data: categories } = useProductCategories();
+  const { data: profileNameMap } = useQuery({
+    queryKey: ["profiles_dual_map_revenue"],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("id, user_id, display_name, email");
+      const map: Record<string, string> = {};
+      (data ?? []).forEach((p: any) => {
+        const name = p.display_name || p.email || "Unknown";
+        if (p.user_id) map[p.user_id] = name;
+        map[p.id] = name;
+      });
+      return map;
+    },
+  });
   const cities = isAdmin ? allCities : (allCities ?? []).filter((c) => assignedCities.includes(c));
 
   const { labels: typeLabels, colors: typeColors } = useMemo(
