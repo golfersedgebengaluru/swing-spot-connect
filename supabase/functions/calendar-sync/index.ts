@@ -1510,7 +1510,7 @@ Deno.serve(async (req) => {
       try {
         const { data: ownerProfile } = await adminClient.from("profiles").select("display_name").eq("user_id", booking.user_id).single();
         const memberName = ownerProfile?.display_name || "A member";
-        const adminNotifyIds = await getAdminAndSiteAdminIds(adminClient, booking.city, userId);
+        const adminNotifyIds = await getAdminAndSiteAdminIds(adminClient, booking.city);
         await notifyAdminsInApp(adminClient, adminNotifyIds, "🚫 Booking Cancelled by Admin", `Admin cancelled ${memberName}'s ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${formatDateTime(booking.start_time, calTz)}.`);
         await notifyAdmins(adminClient, adminNotifyIds, "admin_booking_cancelled", "🚫 Booking Cancelled by Admin", {
           member_name: memberName,
