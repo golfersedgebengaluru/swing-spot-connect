@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ClipboardList, Download, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAllBookings, useBays, useApproveBooking, useRejectBooking, useAdminCancelBooking, useAllCities } from "@/hooks/useBookings";
@@ -129,8 +130,10 @@ export function AdminBookingLogsTab() {
     }
   };
 
+  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
+
   const handleAdminCancel = async (id: string) => {
-    if (!window.confirm("Are you sure you want to cancel this booking? Hours will be refunded if applicable.")) return;
+    setCancelConfirmId(null);
     try {
       await adminCancelBooking.mutateAsync(id);
       toast({ title: "Booking Cancelled", description: "Booking has been cancelled and hours refunded." });
