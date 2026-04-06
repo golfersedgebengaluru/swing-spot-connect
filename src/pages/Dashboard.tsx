@@ -248,12 +248,16 @@ export default function Dashboard() {
                 Pay-Per-Use
               </Button>
             </Link>
-            <Link to="/shop">
-              <Button variant="outline">Order Beverages</Button>
-            </Link>
-            <Link to="/events">
-              <Button variant="outline">View Events</Button>
-            </Link>
+            {visibility?.page_shop_visible !== false && (
+              <Link to="/shop">
+                <Button variant="outline">Order Beverages</Button>
+              </Link>
+            )}
+            {visibility?.page_events_visible !== false && (
+              <Link to="/events">
+                <Button variant="outline">View Events</Button>
+              </Link>
+            )}
           </div>
 
           {/* Stats Grid */}
