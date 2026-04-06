@@ -143,7 +143,7 @@ export function AdminBookingLogsTab() {
   };
 
   const handleExportCSV = () => {
-    const headers = ["User", "User Type", "City", "Bay", "Session Type", "Date", "Start Time", "End Time", "Duration (hrs)", "Status", "Note"];
+    const headers = ["User", "User Type", "City", "Bay", "Session Type", "Date", "Start Time", "End Time", "Duration (hrs)", "Booked On", "Status", "Cancelled/Rejected On", "Note"];
     const rows = sorted.map((b: any) => [
       b.display_name ?? "",
       b.user_type ?? "",
@@ -154,7 +154,9 @@ export function AdminBookingLogsTab() {
       format(new Date(b.start_time), "HH:mm"),
       format(new Date(b.end_time), "HH:mm"),
       (b.duration_minutes / 60).toString(),
+      format(new Date(b.created_at), "yyyy-MM-dd HH:mm"),
       b.status ?? "",
+      (b.status === "cancelled" || b.status === "rejected") && b.updated_at ? format(new Date(b.updated_at), "yyyy-MM-dd HH:mm") : "",
       b.note ?? "",
     ]);
     const csvContent = [headers, ...rows].map((r) => r.map((c: string) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
@@ -259,13 +261,14 @@ export function AdminBookingLogsTab() {
                 <TableHead>Date</TableHead>
                 <TableHead>Time</TableHead>
                 <TableHead>Duration</TableHead>
+                <TableHead>Booked On</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sorted.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">No bookings found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">No bookings found.</TableCell></TableRow>
               )}
               {paginated.map((b: any, idx: number) => {
                 const avatarColors = [
@@ -313,6 +316,15 @@ export function AdminBookingLogsTab() {
                   <TableCell>{format(new Date(b.start_time), "PP")}</TableCell>
                   <TableCell>{format(new Date(b.start_time), "h:mm a")} – {format(new Date(b.end_time), "h:mm a")}</TableCell>
                   <TableCell>{b.duration_minutes / 60}h</TableCell>
+                  <TableCell>
+                    <div className="text-xs">{format(new Date(b.created_at), "PP")}</div>
+                    <div className="text-[10px] text-muted-foreground">{format(new Date(b.created_at), "h:mm a")}</div>
+                    {(b.status === "cancelled" || b.status === "rejected") && b.updated_at && (
+                      <div className="text-[10px] text-destructive mt-0.5">
+                        {b.status === "cancelled" ? "Cancelled" : "Rejected"}: {format(new Date(b.updated_at), "PP, h:mm a")}
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Badge
                       variant={b.status === "confirmed" ? "secondary" : b.status === "rejected" ? "destructive" : b.status === "cancelled" ? "destructive" : "outline"}
