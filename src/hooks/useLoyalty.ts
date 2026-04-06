@@ -77,7 +77,7 @@ export function useLoyaltyTransactions(limit = 50) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("points_transactions")
-        .select("*, profiles!points_transactions_user_id_fkey(display_name, email)")
+        .select("*")
         .order("created_at", { ascending: false })
         .limit(limit);
       if (error) throw error;
