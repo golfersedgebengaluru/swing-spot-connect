@@ -285,7 +285,12 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             revenueTransactionId,
             city: selectedCity,
             invoiceCategory: "booking",
-            bookingId: res.data?.booking?.id,
+            bookingBayId: currentBay.id,
+            bookingSessionType: sessionType,
+            bookingDate: selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined,
+            bookingStartTime: startTime || undefined,
+            bookingEndTime: endTime || undefined,
+            bookingUserId: customerUserId || undefined,
             customerUserId: customerUserId || undefined,
           });
         } catch (invoiceErr: any) {
