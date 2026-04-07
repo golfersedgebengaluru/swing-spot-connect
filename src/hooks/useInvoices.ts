@@ -518,10 +518,37 @@ export function useUpdateInvoice() {
         const { error: liErr } = await (supabase as any).from("invoice_line_items").insert(payload);
         if (liErr) throw liErr;
       }
+
+      // ── Sync changes to linked revenue_transactions record ──
+      const { data: invoice } = await (supabase as any)
+        .from("invoices")
+        .select("revenue_transaction_id, total, payment_method, notes, invoice_number, customer_name")
+        .eq("id", invoiceId)
+        .maybeSingle();
+
+      if (invoice?.revenue_transaction_id) {
+        const revUpdate: Record<string, any> = {};
+        if (invoiceFields.total !== undefined) revUpdate.amount = invoiceFields.total;
+        if (invoiceFields.paymentMethod !== undefined) {
+          revUpdate.gateway_name = invoiceFields.paymentMethod || null;
+        }
+        // Build a meaningful description from invoice number + customer
+        const desc = `${invoice.invoice_number}${invoice.customer_name ? ` — ${invoice.customer_name}` : ""}`;
+        revUpdate.description = desc;
+
+        if (Object.keys(revUpdate).length > 0) {
+          await (supabase as any)
+            .from("revenue_transactions")
+            .update(revUpdate)
+            .eq("id", invoice.revenue_transaction_id);
+        }
+      }
     },
     onSuccess: (_, params) => {
       qc.invalidateQueries({ queryKey: ["invoices"] });
       qc.invalidateQueries({ queryKey: ["invoice", params.invoiceId] });
+      qc.invalidateQueries({ queryKey: ["revenue_transactions"] });
+      qc.invalidateQueries({ queryKey: ["revenue_summary"] });
     },
   });
 }
