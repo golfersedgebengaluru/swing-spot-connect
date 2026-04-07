@@ -350,7 +350,7 @@ export function AdminWalkInBookingTab() {
                 <Input id="wn" value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Walk-in guest name" className="mt-1" />
                 {!guestName.trim() && <p className="text-xs text-destructive mt-1">Name is required</p>}
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="we">Email *</Label>
                   <Input id="we" type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="guest@example.com" className="mt-1" />
