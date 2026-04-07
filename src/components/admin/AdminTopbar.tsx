@@ -45,6 +45,7 @@ const tabTitles: Record<string, string> = {
   reports_expense_reports: "Expense Reports",
   reports_pnl: "P&L",
   reports_profitability: "Product Profitability",
+  reports_gstr1: "GSTR-1",
   finance: "Finance Settings",
   settings: "Settings",
 };

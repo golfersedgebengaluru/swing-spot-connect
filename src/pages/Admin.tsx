@@ -17,6 +17,7 @@ import { AdminPricingTab } from "@/components/admin/AdminPricingTab";
 import { AdminRevenueTab } from "@/components/admin/AdminRevenueTab";
 import { ExpenseReports } from "@/components/admin/ExpenseReports";
 import { ProfitLossView } from "@/components/admin/ProfitLossView";
+import { GSTR1DownloadCard } from "@/components/admin/GSTR1DownloadCard";
 import { ProductProfitabilityReport } from "@/components/admin/ProductProfitabilityReport";
 import { AdminWalkInBookingTab } from "@/components/admin/AdminWalkInBookingTab";
 import { AdminFinanceTab } from "@/components/admin/AdminFinanceTab";
@@ -53,6 +54,16 @@ function ReportsProfitabilityWrapper() {
   return <ProductProfitabilityReport city={selectedCity || undefined} />;
 }
 
+function ReportsGSTR1Wrapper() {
+  const { selectedCity } = useAdminCity();
+  const { isAdmin, assignedCities } = useAdmin();
+  const { data: allCities } = useAllCities();
+  const cities = isAdmin ? allCities : (allCities ?? []).filter((c) => assignedCities.includes(c));
+  const effectiveCity = selectedCity || (cities && cities.length > 0 ? cities[0] : "");
+  if (!effectiveCity) return null;
+  return <GSTR1DownloadCard city={effectiveCity} />;
+}
+
 const tabComponents: Record<string, React.ComponentType<any>> = {
   dashboard: AdminDashboardTab,
   walkin: AdminWalkInBookingTab,
@@ -74,6 +85,7 @@ const tabComponents: Record<string, React.ComponentType<any>> = {
   reports_expense_reports: ReportsExpenseWrapper,
   reports_pnl: ReportsPnlWrapper,
   reports_profitability: ReportsProfitabilityWrapper,
+  reports_gstr1: ReportsGSTR1Wrapper,
   finance: AdminFinanceTab,
   settings: AdminSettingsTab,
 };
