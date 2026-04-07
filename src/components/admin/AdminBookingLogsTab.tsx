@@ -177,6 +177,15 @@ export function AdminBookingLogsTab() {
 
   return (
     <>
+    {/* Manual Booking Button */}
+    <div className="flex justify-end mb-4">
+      <Button onClick={() => setManualBookingOpen(true)} className="gap-1.5">
+        <Plus className="h-4 w-4" /> Manual Booking
+      </Button>
+    </div>
+
+    <ManualBookingDialog open={manualBookingOpen} onOpenChange={setManualBookingOpen} />
+
     <Card>
       <CardHeader>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
