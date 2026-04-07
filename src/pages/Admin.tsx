@@ -85,6 +85,7 @@ const tabComponents: Record<string, React.ComponentType<any>> = {
   reports_expense_reports: ReportsExpenseWrapper,
   reports_pnl: ReportsPnlWrapper,
   reports_profitability: ReportsProfitabilityWrapper,
+  reports_gstr1: ReportsGSTR1Wrapper,
   finance: AdminFinanceTab,
   settings: AdminSettingsTab,
 };
