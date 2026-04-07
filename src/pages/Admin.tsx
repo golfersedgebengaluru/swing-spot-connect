@@ -16,6 +16,7 @@ import { AdminPaymentsTab } from "@/components/admin/AdminPaymentsTab";
 import { AdminPricingTab } from "@/components/admin/AdminPricingTab";
 import { AdminRevenueTab } from "@/components/admin/AdminRevenueTab";
 import { ExpenseReports } from "@/components/admin/ExpenseReports";
+import { ProfitLossView } from "@/components/admin/ProfitLossView";
 import { GSTR1DownloadCard } from "@/components/admin/GSTR1DownloadCard";
 import { ProductProfitabilityReport } from "@/components/admin/ProductProfitabilityReport";
 import { AdminWalkInBookingTab } from "@/components/admin/AdminWalkInBookingTab";
