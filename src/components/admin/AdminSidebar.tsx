@@ -69,6 +69,7 @@ const reportsItems = [
   { id: "reports_expense_reports", label: "Expense Reports", icon: BarChart3 },
   { id: "reports_pnl", label: "P&L", icon: BarChart3 },
   { id: "reports_profitability", label: "Product Profitability", icon: BarChart3 },
+  { id: "reports_gstr1", label: "GSTR-1", icon: BarChart3 },
 ];
 
 function NavItem({
@@ -192,6 +193,7 @@ export function AdminSidebar({
     if (item.id === "reports_expense_reports") return permissions?.site_admin_expense_reports_visible;
     if (item.id === "reports_pnl") return permissions?.site_admin_pnl_visible;
     if (item.id === "reports_profitability") return permissions?.site_admin_product_profitability_visible;
+    if (item.id === "reports_gstr1") return true; // visible if other reports are visible
     return false;
   });
 
