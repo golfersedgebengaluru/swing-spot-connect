@@ -532,6 +532,10 @@ export function useUpdateInvoice() {
         if (invoiceFields.paymentMethod !== undefined) {
           revUpdate.gateway_name = invoiceFields.paymentMethod || null;
         }
+        // Sync invoice_category → transaction_type
+        if (invoiceFields.invoiceCategory !== undefined) {
+          revUpdate.transaction_type = invoiceFields.invoiceCategory === "booking" ? "booking" : "purchase";
+        }
         // Build a meaningful description from invoice number + customer
         const desc = `${invoice.invoice_number}${invoice.customer_name ? ` — ${invoice.customer_name}` : ""}`;
         revUpdate.description = desc;
