@@ -68,6 +68,7 @@ export function AdminBookingLogsTab() {
   const [rejectMessages, setRejectMessages] = useState<Record<string, string>>({});
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
+  const [manualBookingOpen, setManualBookingOpen] = useState(false);
 
   const { isAdmin, assignedCities } = useAdmin();
   const { data: allCities = [] } = useAllCities();
