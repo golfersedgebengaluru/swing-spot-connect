@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ClipboardList, Download, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { ClipboardList, Download, Loader2, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAllBookings, useBays, useApproveBooking, useRejectBooking, useAdminCancelBooking, useAllCities } from "@/hooks/useBookings";
+import { ManualBookingDialog } from "./ManualBookingDialog";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useActiveFinancialYear } from "@/hooks/useRevenue";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, addMonths, parseISO, isWithinInterval } from "date-fns";
@@ -67,6 +68,7 @@ export function AdminBookingLogsTab() {
   const [rejectMessages, setRejectMessages] = useState<Record<string, string>>({});
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
+  const [manualBookingOpen, setManualBookingOpen] = useState(false);
 
   const { isAdmin, assignedCities } = useAdmin();
   const { data: allCities = [] } = useAllCities();
@@ -175,6 +177,15 @@ export function AdminBookingLogsTab() {
 
   return (
     <>
+    {/* Manual Booking Button */}
+    <div className="flex justify-end mb-4">
+      <Button onClick={() => setManualBookingOpen(true)} className="gap-1.5">
+        <Plus className="h-4 w-4" /> Manual Booking
+      </Button>
+    </div>
+
+    <ManualBookingDialog open={manualBookingOpen} onOpenChange={setManualBookingOpen} />
+
     <Card>
       <CardHeader>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
