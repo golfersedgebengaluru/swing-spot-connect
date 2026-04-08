@@ -235,6 +235,9 @@ export function AdminFinanceTab() {
         <TabsContent value="payments">
           {selectedCity && <CityPaymentsSection city={selectedCity} />}
         </TabsContent>
+        <TabsContent value="advance_accounts">
+          <AdvanceAccountsReport city={selectedCity || undefined} />
+        </TabsContent>
         {showCityFY && (
           <TabsContent value="financial_year">
             {selectedCity && (
