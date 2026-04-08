@@ -11,7 +11,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   CalendarIcon, Clock, MapPin, Loader2, LayoutGrid,
-  ArrowLeft, ArrowRight, User, CheckCircle2, Users, Banknote, Search, Hourglass, AlertTriangle,
+  ArrowLeft, ArrowRight, User, CheckCircle2, Users, Banknote, Search, Hourglass, AlertTriangle, Wallet,
 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,7 @@ import { calculateLineItems, getGstType } from "@/lib/gst-utils";
 import { useProducts } from "@/hooks/useProducts";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useAdvanceBalance, useDrawdownAdvance } from "@/hooks/useAdvanceAccount";
 
 type Step = "customer" | "slot" | "payment" | "confirm";
 type CustomerMode = "existing" | "new";
@@ -59,6 +60,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<any>(null);
   const [hoursBalance, setHoursBalance] = useState<number | null>(null);
+  const [advanceDrawdown, setAdvanceDrawdown] = useState<number>(0);
 
   // New guest fields
   const [guestName, setGuestName] = useState("");
@@ -177,6 +179,10 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
   const customerEmail = customerMode === "existing" ? selectedProfile?.email : guestEmail;
   const customerPhone = customerMode === "existing" ? selectedProfile?.phone : guestPhone;
   const customerUserId = customerMode === "existing" ? (selectedProfile?.user_id || selectedProfile?.id) : null;
+
+  // Advance balance
+  const { data: advanceBalance } = useAdvanceBalance(customerUserId);
+  const drawdownAdvance = useDrawdownAdvance();
 
   const canProceedFromCustomer = customerMode === "existing" ? !!selectedProfile : (!!guestName.trim() && (!!guestEmail.trim() || !!guestPhone.trim()));
   const canProceedFromSlot = !!selectedCity && !!currentBay && !!selectedDate && !!startTime;
