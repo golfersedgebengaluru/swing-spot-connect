@@ -223,6 +223,7 @@ export function AdminFinanceTab() {
           <TabsTrigger value="settings">GST Settings</TabsTrigger>
           <TabsTrigger value="invoice_settings">Invoice Template</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
+          <TabsTrigger value="advance_accounts">Advance Accounts</TabsTrigger>
           {showCityFY && <TabsTrigger value="financial_year">Financial Year</TabsTrigger>}
         </TabsList>
         <TabsContent value="settings">
