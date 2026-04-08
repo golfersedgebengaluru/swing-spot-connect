@@ -508,6 +508,7 @@ Deno.serve(async (req) => {
         payment_id, order_id,
         start_time, end_time, duration_minutes, city, bay_id, bay_name,
         session_type, guest_name, guest_email, guest_phone, calendar_email,
+        user_id_override,
       } = params;
 
       const adminClient = createAdminClient();

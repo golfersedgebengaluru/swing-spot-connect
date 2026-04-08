@@ -317,6 +317,20 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
         }
       }
 
+      // Process advance drawdown if applicable
+      if (advanceDrawdown > 0 && customerUserId && selectedCity) {
+        try {
+          await drawdownAdvance.mutateAsync({
+            customerId: customerUserId,
+            amount: advanceDrawdown,
+            description: `Drawdown against manual booking`,
+            city: selectedCity,
+          });
+        } catch (advErr: any) {
+          console.error("Advance drawdown failed (non-fatal):", advErr);
+        }
+      }
+
       // Invalidate all related queries
       queryClient.invalidateQueries({ queryKey: ["all_bookings"] });
       queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
@@ -328,6 +342,8 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
       queryClient.invalidateQueries({ queryKey: ["revenue_summary"] });
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["advance_balance"] });
+      queryClient.invalidateQueries({ queryKey: ["advance_transactions"] });
 
       setBookingComplete(true);
       toast({ title: "Manual Booking Created!", description: paymentMode === "hours" ? `${hoursNeeded}h deducted from ${customerName}'s balance.` : `Payment via ${selectedPaymentMethod} recorded.` });
@@ -361,6 +377,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
     setPaymentReference("");
     setBookingComplete(false);
     setIsProcessing(false);
+    setAdvanceDrawdown(0);
   };
 
   const handleClose = () => {
