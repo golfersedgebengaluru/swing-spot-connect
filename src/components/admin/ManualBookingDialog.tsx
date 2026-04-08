@@ -496,11 +496,18 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
                           <p className="font-medium text-sm">{selectedProfile.display_name}</p>
                           <p className="text-xs text-muted-foreground">{selectedProfile.email}</p>
                         </div>
-                        {hoursBalance !== null && (
-                          <Badge variant="secondary" className="text-xs">
-                            <Hourglass className="h-3 w-3 mr-1" /> {hoursBalance.toFixed(1)}h balance
-                          </Badge>
-                        )}
+                        <div className="flex gap-1.5">
+                          {hoursBalance !== null && (
+                            <Badge variant="secondary" className="text-xs">
+                              <Hourglass className="h-3 w-3 mr-1" /> {hoursBalance.toFixed(1)}h
+                            </Badge>
+                          )}
+                          {advanceBalance != null && advanceBalance > 0 && (
+                            <Badge variant="outline" className="text-xs text-primary border-primary/30">
+                              <Wallet className="h-3 w-3 mr-1" /> ₹{advanceBalance.toLocaleString()}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
