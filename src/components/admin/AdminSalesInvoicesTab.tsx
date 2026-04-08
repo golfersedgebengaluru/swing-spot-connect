@@ -74,11 +74,14 @@ function InvoiceListSection({ city }: { city: string }) {
     URL.revokeObjectURL(url);
   };
 
-  const handleCancel = async (id: string) => {
+  const handleCancel = async (id: string, disposition: "external_refund" | "advance_credit") => {
     setCancelConfirmId(null);
     try {
-      await cancelInvoice.mutateAsync(id);
-      toast({ title: "Invoice cancelled", description: "Credit note generated." });
+      await cancelInvoice.mutateAsync({ invoiceId: id, disposition });
+      const desc = disposition === "advance_credit"
+        ? "Credit note generated and amount parked as customer advance."
+        : "Credit note generated for external refund.";
+      toast({ title: "Invoice cancelled", description: desc });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
