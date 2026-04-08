@@ -1,11 +1,12 @@
 import { useState, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Loader2, Download, Upload, Info } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Download, Upload, Info, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAllProducts } from "@/hooks/useProducts";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
@@ -50,6 +51,7 @@ export function AdminProductsTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [cityFilter, setCityFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const effectiveCityFilter = globalCity || cityFilter;
@@ -59,7 +61,6 @@ export function AdminProductsTab() {
     if (!products) return [];
     let list = products as any[];
     if (isSiteAdmin && !isAdmin) {
-      // Site-admin sees global + their cities
       list = list.filter((p: any) => !p.city || assignedCities.includes(p.city));
     }
     if (effectiveCityFilter !== "all" && effectiveCityFilter) {
@@ -69,8 +70,17 @@ export function AdminProductsTab() {
         list = list.filter((p: any) => p.city === effectiveCityFilter);
       }
     }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((p: any) =>
+        p.name?.toLowerCase().includes(q) ||
+        p.sku?.toLowerCase().includes(q) ||
+        p.category?.toLowerCase().includes(q) ||
+        p.description?.toLowerCase().includes(q)
+      );
+    }
     return list;
-  }, [products, effectiveCityFilter, isAdmin, isSiteAdmin, assignedCities]);
+  }, [products, effectiveCityFilter, isAdmin, isSiteAdmin, assignedCities, searchQuery]);
 
   const handleSave = async (data: any) => {
     const { error } = editingProduct?.id
@@ -197,6 +207,15 @@ export function AdminProductsTab() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 justify-between">
         <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search products..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 w-[200px]"
+            />
+          </div>
           <Select value={cityFilter} onValueChange={setCityFilter}>
             <SelectTrigger className="w-[180px]"><SelectValue placeholder="Filter by location" /></SelectTrigger>
             <SelectContent>
