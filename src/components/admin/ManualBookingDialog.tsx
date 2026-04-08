@@ -583,6 +583,57 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
               </div>
             </div>
 
+            {/* Calendar Availability Grid */}
+            {currentBay && selectedDate && (
+              <div>
+                <Label className="flex items-center gap-1.5 mb-1.5">
+                  <CalendarIcon className="h-3.5 w-3.5" /> Slot Availability
+                </Label>
+                {slotsLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading slots…
+                  </div>
+                ) : availableSlots && availableSlots.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {availableSlots.map((slot) => {
+                      const isSelected = slot.time === `${startHour}:${startMinute}`;
+                      return (
+                        <button
+                          key={slot.time}
+                          type="button"
+                          onClick={() => slot.available && handleSlotClick(slot.time)}
+                          className={cn(
+                            "px-2 py-1 rounded-md text-xs font-medium border transition-colors",
+                            slot.available
+                              ? isSelected
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background text-foreground border-border hover:bg-accent hover:text-accent-foreground"
+                              : "bg-muted text-muted-foreground border-transparent cursor-not-allowed line-through opacity-60"
+                          )}
+                          disabled={!slot.available}
+                        >
+                          {slot.time}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No calendar data available. You can still enter a time manually.</p>
+                )}
+                <p className="text-[10px] text-muted-foreground mt-1">Tap an available slot to auto-fill start time, or enter manually above.</p>
+              </div>
+            )}
+
+            {/* Conflict Warning */}
+            {hasConflict && (
+              <div className="flex items-start gap-2 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-2.5 text-sm">
+                <AlertTriangle className="h-4 w-4 text-yellow-600 shrink-0 mt-0.5" />
+                <span className="text-yellow-700 dark:text-yellow-400">
+                  This time overlaps with an existing calendar event. The booking can still be created as an override.
+                </span>
+              </div>
+            )}
+
             {/* Duration */}
             <div>
               <Label className="flex items-center gap-1.5 mb-1.5"><Clock className="h-3.5 w-3.5" /> Duration</Label>
