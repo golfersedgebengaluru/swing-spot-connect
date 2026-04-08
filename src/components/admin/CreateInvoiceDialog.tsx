@@ -296,6 +296,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
     setBookingBayId("");
     setSessionType("practice");
     setCoachName("");
+    setAdvanceDrawdown(0);
   };
 
   return (
