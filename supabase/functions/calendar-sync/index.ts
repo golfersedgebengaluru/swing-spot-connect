@@ -768,7 +768,17 @@ Deno.serve(async (req) => {
     }
 
     if (action === "create_booking") {
-      const { calendar_email, start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type, payment_method } = params;
+      const { calendar_email, start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type, payment_method, user_id_override } = params;
+
+      // If an admin/site_admin is booking on behalf of a member, use their user_id
+      let bookingUserId = userId;
+      if (user_id_override && user_id_override !== userId) {
+        const adminClient = createAdminClient();
+        const { data: callerIsAdminOrSA } = await adminClient.rpc("is_admin_or_site_admin", { _user_id: userId });
+        if (callerIsAdminOrSA) {
+          bookingUserId = user_id_override;
+        }
+      }
 
       // If payment was made via a gateway (e.g. Razorpay), skip hours check/deduction
       const paidViaGateway = !!payment_method && payment_method !== "hours";
