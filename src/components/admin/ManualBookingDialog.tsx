@@ -626,9 +626,9 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
 
             {/* Conflict Warning */}
             {hasConflict && (
-              <div className="flex items-start gap-2 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-2.5 text-sm">
-                <AlertTriangle className="h-4 w-4 text-yellow-600 shrink-0 mt-0.5" />
-                <span className="text-yellow-700 dark:text-yellow-400">
+              <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-2.5 text-sm">
+                <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                <span className="text-destructive">
                   This time overlaps with an existing calendar event. The booking can still be created as an override.
                 </span>
               </div>
