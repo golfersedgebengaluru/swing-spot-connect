@@ -51,6 +51,7 @@ export function AdminProductsTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [cityFilter, setCityFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const effectiveCityFilter = globalCity || cityFilter;
