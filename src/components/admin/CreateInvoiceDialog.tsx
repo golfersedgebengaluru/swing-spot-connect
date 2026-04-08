@@ -128,6 +128,12 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
 
   const { data: searchResults } = useProfileSearch(customerSearch);
 
+  // Advance balance
+  const effectiveCustomerId = customerUserId || customerProfileId;
+  const { data: advanceBalance } = useAdvanceBalance(effectiveCustomerId);
+  const drawdownAdvance = useDrawdownAdvance();
+  const [advanceDrawdown, setAdvanceDrawdown] = useState<number>(0);
+
   // Line items
   const [lineItems, setLineItems] = useState<GstLineItem[]>([]);
   const [catalogueSearch, setCatalogueSearch] = useState("");
