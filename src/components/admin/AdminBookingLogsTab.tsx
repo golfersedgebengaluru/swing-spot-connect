@@ -263,18 +263,18 @@ export function AdminBookingLogsTab() {
           return (
             <>
         <div className="overflow-x-auto">
-          <Table>
+          <Table className="text-xs">
             <TableHeader>
               <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>City / Bay</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Time</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Booked On</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right sticky right-0 bg-background z-10">Actions</TableHead>
+                <TableHead className="py-1.5 px-2">User</TableHead>
+                <TableHead className="py-1.5 px-2">City / Bay</TableHead>
+                <TableHead className="py-1.5 px-2">Type</TableHead>
+                <TableHead className="py-1.5 px-2">Date</TableHead>
+                <TableHead className="py-1.5 px-2">Time</TableHead>
+                <TableHead className="py-1.5 px-2">Dur.</TableHead>
+                <TableHead className="py-1.5 px-2 sticky right-[180px] bg-background z-10 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.08)]">Status</TableHead>
+                <TableHead className="py-1.5 px-2 sticky right-[90px] bg-background z-10">Booked On</TableHead>
+                <TableHead className="py-1.5 px-2 text-right sticky right-0 bg-background z-10">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -299,81 +299,81 @@ export function AdminBookingLogsTab() {
                   .slice(0, 2);
                 return (
                 <TableRow key={b.id} className={b.status === "pending" ? "bg-amber-500/5" : ""}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${avatarClass}`}>
+                  <TableCell className="py-1.5 px-2 font-medium">
+                    <div className="flex items-center gap-1.5">
+                      <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${avatarClass}`}>
                         {initials}
                       </div>
                       <div>
-                        <div>{b.display_name}</div>
-                        <Badge variant="outline" className="text-[10px] mt-0.5">
+                        <div className="text-xs leading-tight">{b.display_name}</div>
+                        <Badge variant="outline" className="text-[9px] px-1 py-0 mt-0.5">
                           {b.user_type === "member" ? "👤 Member" : b.user_type === "non-registered" ? "🔗 Guest" : "📝 Registered"}
                         </Badge>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <div>{b.city}</div>
-                    {b.bay_name && <div className="text-xs text-muted-foreground">{b.bay_name}</div>}
+                  <TableCell className="py-1.5 px-2">
+                    <div className="leading-tight">{b.city}</div>
+                    {b.bay_name && <div className="text-[10px] text-muted-foreground">{b.bay_name}</div>}
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={b.session_type === "coaching" ? "text-primary" : ""}>
+                  <TableCell className="py-1.5 px-2">
+                    <Badge variant="outline" className={`text-[10px] px-1 py-0 ${b.session_type === "coaching" ? "text-primary" : ""}`}>
                       {b.session_type === "coaching" ? "🎓 Coaching" : "Practice"}
                     </Badge>
-                    <Badge variant="outline" className={`text-[10px] mt-0.5 block w-fit ${b.note?.startsWith("Invoice") ? "text-blue-600 border-blue-300" : "text-emerald-600 border-emerald-300"}`}>
+                    <Badge variant="outline" className={`text-[9px] px-1 py-0 mt-0.5 block w-fit ${b.note?.startsWith("Invoice") ? "text-blue-600 border-blue-300" : "text-emerald-600 border-emerald-300"}`}>
                       {b.note?.startsWith("Invoice") ? "📄 Invoice" : "🌐 Online"}
                     </Badge>
                   </TableCell>
-                  <TableCell>{format(new Date(b.start_time), "PP")}</TableCell>
-                  <TableCell>{format(new Date(b.start_time), "h:mm a")} – {format(new Date(b.end_time), "h:mm a")}</TableCell>
-                  <TableCell>{b.duration_minutes / 60}h</TableCell>
-                  <TableCell>
-                    <div className="text-xs">{format(new Date(b.created_at), "PP")}</div>
-                    <div className="text-[10px] text-muted-foreground">{format(new Date(b.created_at), "h:mm a")}</div>
-                    {(b.status === "cancelled" || b.status === "rejected") && b.updated_at && (
-                      <div className="text-[10px] text-destructive mt-0.5">
-                        {b.status === "cancelled" ? "Cancelled" : "Rejected"}: {format(new Date(b.updated_at), "PP, h:mm a")}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
+                  <TableCell className="py-1.5 px-2 whitespace-nowrap">{format(new Date(b.start_time), "PP")}</TableCell>
+                  <TableCell className="py-1.5 px-2 whitespace-nowrap">{format(new Date(b.start_time), "h:mm a")} – {format(new Date(b.end_time), "h:mm a")}</TableCell>
+                  <TableCell className="py-1.5 px-2">{b.duration_minutes / 60}h</TableCell>
+                  <TableCell className="py-1.5 px-2 sticky right-[180px] bg-background z-10 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.08)]">
                     <Badge
                       variant={b.status === "confirmed" ? "secondary" : b.status === "rejected" ? "destructive" : b.status === "cancelled" ? "destructive" : "outline"}
-                      className={b.status === "pending" ? "bg-amber-500/15 text-amber-600 border-amber-300" : ""}
+                      className={`text-[10px] px-1.5 py-0 ${b.status === "pending" ? "bg-amber-500/15 text-amber-600 border-amber-300" : ""}`}
                     >
                       {b.status === "pending" ? "🟡 Pending" : b.status === "confirmed" ? "🟢 Confirmed" : b.status === "rejected" ? "🔴 Rejected" : b.status === "cancelled" ? "🚫 Cancelled" : b.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right sticky right-0 bg-background z-10">
+                  <TableCell className="py-1.5 px-2 sticky right-[90px] bg-background z-10">
+                    <div className="text-[10px] text-muted-foreground">{format(new Date(b.created_at), "PP")}</div>
+                    <div className="text-[9px] text-muted-foreground">{format(new Date(b.created_at), "h:mm a")}</div>
+                    {(b.status === "cancelled" || b.status === "rejected") && b.updated_at && (
+                      <div className="text-[9px] text-destructive mt-0.5">
+                        {b.status === "cancelled" ? "Cancelled" : "Rejected"}: {format(new Date(b.updated_at), "PP, h:mm a")}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="py-1.5 px-2 text-right sticky right-0 bg-background z-10">
                     {b.status === "pending" && (
                       <div className="flex flex-col gap-1 items-end">
                         <div className="flex gap-1">
-                          <Button size="sm" variant="default" onClick={() => handleApprove(b.id)} disabled={approveBooking.isPending} className="h-7 text-xs">
+                          <Button size="sm" variant="default" onClick={() => handleApprove(b.id)} disabled={approveBooking.isPending} className="h-6 text-[10px] px-2">
                             ✓ Approve
                           </Button>
-                          <Button size="sm" variant="destructive" onClick={() => handleReject(b.id)} disabled={rejectBooking.isPending} className="h-7 text-xs">
+                          <Button size="sm" variant="destructive" onClick={() => handleReject(b.id)} disabled={rejectBooking.isPending} className="h-6 text-[10px] px-2">
                             ✗ Reject
                           </Button>
                         </div>
                         <Textarea
-                          placeholder="Enter next available slot or reason (optional)"
+                          placeholder="Reason (optional)"
                           value={rejectMessages[b.id] || ""}
                           onChange={(e) => setRejectMessages((prev) => ({ ...prev, [b.id]: e.target.value }))}
-                          className="text-xs w-56 min-h-[56px] resize-none"
+                          className="text-[10px] w-48 min-h-[44px] resize-none"
                         />
                       </div>
                     )}
                     {(b.status === "confirmed" || b.status === "pending") && new Date(b.end_time) >= new Date() && (
                       <Badge
                         onClick={() => setCancelConfirmId(b.id)}
-                        className="cursor-pointer mt-1 bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20 text-xs"
+                        className="cursor-pointer mt-1 bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20 text-[10px] px-1.5 py-0"
                         variant="outline"
                       >
                         🚫 Cancel
                       </Badge>
                     )}
                     {b.status === "rejected" && b.note && (
-                      <span className="text-xs text-muted-foreground italic">"{b.note}"</span>
+                      <span className="text-[10px] text-muted-foreground italic">"{b.note}"</span>
                     )}
                   </TableCell>
                 </TableRow>
