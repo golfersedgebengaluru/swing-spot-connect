@@ -61,7 +61,6 @@ export function AdminProductsTab() {
     if (!products) return [];
     let list = products as any[];
     if (isSiteAdmin && !isAdmin) {
-      // Site-admin sees global + their cities
       list = list.filter((p: any) => !p.city || assignedCities.includes(p.city));
     }
     if (effectiveCityFilter !== "all" && effectiveCityFilter) {
@@ -71,8 +70,17 @@ export function AdminProductsTab() {
         list = list.filter((p: any) => p.city === effectiveCityFilter);
       }
     }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((p: any) =>
+        p.name?.toLowerCase().includes(q) ||
+        p.sku?.toLowerCase().includes(q) ||
+        p.category?.toLowerCase().includes(q) ||
+        p.description?.toLowerCase().includes(q)
+      );
+    }
     return list;
-  }, [products, effectiveCityFilter, isAdmin, isSiteAdmin, assignedCities]);
+  }, [products, effectiveCityFilter, isAdmin, isSiteAdmin, assignedCities, searchQuery]);
 
   const handleSave = async (data: any) => {
     const { error } = editingProduct?.id
