@@ -251,6 +251,18 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
         bookingCoachName: invoiceCategory === "booking" && sessionType === "coaching" ? coachName : undefined,
         bookingUserId: customerUserId || customerProfileId || undefined,
       });
+
+      // Process advance drawdown if applicable
+      if (advanceDrawdown > 0 && effectiveCustomerId && city) {
+        await drawdownAdvance.mutateAsync({
+          customerId: effectiveCustomerId,
+          amount: advanceDrawdown,
+          sourceId: invoice.id,
+          description: `Drawdown against invoice ${invoice.invoice_number}`,
+          city,
+        });
+      }
+
       toast({ title: "Invoice created" });
       onOpenChange(false);
       resetForm();
