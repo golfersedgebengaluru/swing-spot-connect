@@ -175,18 +175,9 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
 
     try {
       if (paymentMode === "hours") {
-        // Deduct hours first
-        const userId = customerUserId!;
-        const { error: htErr } = await supabase.from("hours_transactions").insert({
-          user_id: userId,
-          type: "deduction",
-          hours: hoursNeeded,
-          note: `Manual booking: ${currentBay.name} on ${format(new Date(startTime), "PP")}`,
-          created_by: user?.id,
-        });
-        if (htErr) throw new Error("Failed to deduct hours: " + htErr.message);
+        const targetUserId = customerUserId!;
 
-        // Create booking via calendar-sync
+        // Create booking via calendar-sync — hours deduction handled server-side
         const res = await supabase.functions.invoke("calendar-sync", {
           body: {
             action: "create_booking",
@@ -199,7 +190,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             bay_name: currentBay.name,
             session_type: sessionType,
             display_name: customerName,
-            user_id_override: userId,
+            user_id_override: targetUserId,
             payment_method: "hours",
           },
         });

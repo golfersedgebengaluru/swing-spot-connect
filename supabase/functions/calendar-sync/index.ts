@@ -768,7 +768,17 @@ Deno.serve(async (req) => {
     }
 
     if (action === "create_booking") {
-      const { calendar_email, start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type, payment_method } = params;
+      const { calendar_email, start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type, payment_method, user_id_override } = params;
+
+      // If an admin/site_admin is booking on behalf of a member, use their user_id
+      let bookingUserId = userId;
+      if (user_id_override && user_id_override !== userId) {
+        const adminClient = createAdminClient();
+        const { data: callerIsAdminOrSA } = await adminClient.rpc("is_admin_or_site_admin", { _user_id: userId });
+        if (callerIsAdminOrSA) {
+          bookingUserId = user_id_override;
+        }
+      }
 
       // If payment was made via a gateway (e.g. Razorpay), skip hours check/deduction
       const paidViaGateway = !!payment_method && payment_method !== "hours";
@@ -796,7 +806,7 @@ Deno.serve(async (req) => {
         const { data: hours } = await supabase
           .from("member_hours")
           .select("*")
-          .eq("user_id", userId)
+          .eq("user_id", bookingUserId)
           .single();
 
         const remaining = (hours?.hours_purchased ?? 0) - (hours?.hours_used ?? 0);
@@ -845,7 +855,7 @@ Deno.serve(async (req) => {
       // Create booking record
       const bookingStatus = needsApproval ? "pending" : "confirmed";
       const bookingInsert: any = {
-        user_id: userId,
+        user_id: bookingUserId,
         city,
         start_time,
         end_time,
@@ -866,16 +876,16 @@ Deno.serve(async (req) => {
         const { data: hours } = await adminClient
           .from("member_hours")
           .select("*")
-          .eq("user_id", userId)
+          .eq("user_id", bookingUserId)
           .single();
 
         await adminClient
           .from("member_hours")
           .update({ hours_used: (hours?.hours_used ?? 0) + hoursNeeded })
-          .eq("user_id", userId);
+          .eq("user_id", bookingUserId);
 
         const { data: htxn } = await adminClient.from("hours_transactions").insert({
-          user_id: userId,
+          user_id: bookingUserId,
           type: "deduction",
           hours: hoursNeeded,
           note: `${isCoaching ? "Coaching" : "Bay"} booking - ${bayLabel} - ${formatShortDate(start_time, calTz)}`,
@@ -888,7 +898,7 @@ Deno.serve(async (req) => {
             transaction_type: "hours_deduction",
             amount: 0,
             currency: "INR",
-            user_id: userId,
+            user_id: bookingUserId,
             booking_id: booking.id,
             hours_transaction_id: htxn?.id || null,
             description: `${isCoaching ? "Coaching" : "Bay"} booking (${hoursNeeded}h) - ${bayLabel}`,
@@ -901,7 +911,7 @@ Deno.serve(async (req) => {
         const remaining = (hours?.hours_purchased ?? 0) - (hours?.hours_used ?? 0) - hoursNeeded;
 
         await adminClient.from("notifications").insert({
-          user_id: userId,
+          user_id: bookingUserId,
           title: isCoaching ? "Coaching Booked!" : "Bay Booked!",
           message: `Your ${bayLabel} ${isCoaching ? "coaching session" : "bay"} has been booked for ${formatDateTime(start_time, calTz)} (${hoursNeeded}h). ${remaining}h remaining.`,
           type: "booking",
@@ -916,7 +926,7 @@ Deno.serve(async (req) => {
 
         if (remaining <= lowHoursThreshold && remaining >= 0) {
           await adminClient.from("notifications").insert({
-            user_id: userId,
+            user_id: bookingUserId,
             title: "⚠️ Low Hours Balance",
             message: `You have only ${remaining}h remaining. Consider purchasing more hours.`,
             type: "warning",
@@ -930,7 +940,7 @@ Deno.serve(async (req) => {
                 Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
               },
               body: JSON.stringify({
-                user_id: userId,
+                user_id: bookingUserId,
                 template: "low_hours_alert",
                 subject: "Low Hours Alert",
                 data: {
@@ -952,7 +962,7 @@ Deno.serve(async (req) => {
               Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
             },
             body: JSON.stringify({
-              user_id: userId,
+              user_id: bookingUserId,
               template: "booking_confirmed",
               subject: "✅ Bay Booking Confirmed!",
               data: {
@@ -971,9 +981,9 @@ Deno.serve(async (req) => {
 
         // Notify admins + site-admins about new confirmed booking
         try {
-          const { data: userPrf } = await adminClient.from("profiles").select("display_name").eq("user_id", userId).single();
+          const { data: userPrf } = await adminClient.from("profiles").select("display_name").eq("user_id", bookingUserId).single();
           const memberName = userPrf?.display_name || display_name || "A member";
-          const notifyIds = await getAdminAndSiteAdminIds(adminClient, city, userId);
+          const notifyIds = await getAdminAndSiteAdminIds(adminClient, city, bookingUserId);
           await notifyAdminsInApp(adminClient, notifyIds, "📅 New Booking", `${memberName} booked ${bayLabel}${isCoaching ? " (Coaching)" : ""} on ${formatDateTime(start_time, calTz)}.`);
           await notifyAdmins(adminClient, notifyIds, "admin_new_booking", "📅 New Booking", {
             member_name: memberName,
@@ -992,7 +1002,7 @@ Deno.serve(async (req) => {
         const adminClient = createAdminClient();
 
         await adminClient.from("notifications").insert({
-          user_id: userId,
+          user_id: bookingUserId,
           title: isCoaching ? "Coaching Booked!" : "Bay Booked!",
           message: `Your ${bayLabel} ${isCoaching ? "coaching session" : "bay"} has been booked for ${formatDateTime(start_time, calTz)} (${hoursNeeded}h). Payment confirmed via ${payment_method}.`,
           type: "booking",
@@ -1007,7 +1017,7 @@ Deno.serve(async (req) => {
               Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
             },
             body: JSON.stringify({
-              user_id: userId,
+              user_id: bookingUserId,
               template: "booking_confirmed",
               subject: "✅ Bay Booking Confirmed!",
               data: {
@@ -1026,9 +1036,9 @@ Deno.serve(async (req) => {
 
         // Notify admins + site-admins about new confirmed booking
         try {
-          const { data: userPrf } = await adminClient.from("profiles").select("display_name").eq("user_id", userId).single();
+          const { data: userPrf } = await adminClient.from("profiles").select("display_name").eq("user_id", bookingUserId).single();
           const memberName = userPrf?.display_name || display_name || "A member";
-          const notifyIds = await getAdminAndSiteAdminIds(adminClient, city, userId);
+          const notifyIds = await getAdminAndSiteAdminIds(adminClient, city, bookingUserId);
           await notifyAdminsInApp(adminClient, notifyIds, "📅 New Booking (Paid)", `${memberName} booked ${bayLabel}${isCoaching ? " (Coaching)" : ""} on ${formatDateTime(start_time, calTz)} — paid via ${payment_method}.`);
           await notifyAdmins(adminClient, notifyIds, "admin_new_booking", "📅 New Booking (Paid)", {
             member_name: memberName,
@@ -1045,7 +1055,7 @@ Deno.serve(async (req) => {
       } else {
         // Pending coaching notification
         await supabase.from("notifications").insert({
-          user_id: userId,
+          user_id: bookingUserId,
           title: "🕐 Coaching Pending Approval",
           message: `Your coaching session at ${bayLabel} on ${formatDateTime(start_time, calTz)} is awaiting admin approval.`,
           type: "booking",
@@ -1065,7 +1075,7 @@ Deno.serve(async (req) => {
               Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
             },
             body: JSON.stringify({
-              user_id: userId,
+              user_id: bookingUserId,
               template: "coaching_pending",
               subject: "🕐 Coaching Session Pending Approval",
               data: {
