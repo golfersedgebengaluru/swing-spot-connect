@@ -618,6 +618,50 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
             </Card>
           )}
 
+          {/* ── Advance Balance Drawdown ── */}
+          {effectiveCustomerId && (advanceBalance ?? 0) > 0 && calculated.total > 0 && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="pt-4 pb-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Wallet className="h-4 w-4 text-primary" />
+                    Customer Advance Balance: {currency.format(advanceBalance ?? 0)}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 items-end">
+                  <div>
+                    <Label className="text-xs">Draw down from advance</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={Math.min(advanceBalance ?? 0, calculated.total)}
+                      step="0.01"
+                      value={advanceDrawdown || ""}
+                      onChange={(e) => setAdvanceDrawdown(Math.min(Number(e.target.value) || 0, advanceBalance ?? 0, calculated.total))}
+                      className="mt-1"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAdvanceDrawdown(Math.min(advanceBalance ?? 0, calculated.total))}
+                    >
+                      Use Full Balance
+                    </Button>
+                  </div>
+                </div>
+                {advanceDrawdown > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Amount to collect: {currency.format(Math.max(calculated.total - advanceDrawdown, 0))}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* ── Payment Method & Status ── */}
           <div className="grid grid-cols-2 gap-3">
             <div>
