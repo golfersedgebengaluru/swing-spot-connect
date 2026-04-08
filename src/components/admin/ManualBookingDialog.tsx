@@ -11,7 +11,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   CalendarIcon, Clock, MapPin, Loader2, LayoutGrid,
-  ArrowLeft, ArrowRight, User, CheckCircle2, Users, Banknote, Search, Hourglass, AlertTriangle,
+  ArrowLeft, ArrowRight, User, CheckCircle2, Users, Banknote, Search, Hourglass, AlertTriangle, Wallet,
 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,7 @@ import { calculateLineItems, getGstType } from "@/lib/gst-utils";
 import { useProducts } from "@/hooks/useProducts";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useAdvanceBalance, useDrawdownAdvance } from "@/hooks/useAdvanceAccount";
 
 type Step = "customer" | "slot" | "payment" | "confirm";
 type CustomerMode = "existing" | "new";
@@ -59,6 +60,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<any>(null);
   const [hoursBalance, setHoursBalance] = useState<number | null>(null);
+  const [advanceDrawdown, setAdvanceDrawdown] = useState<number>(0);
 
   // New guest fields
   const [guestName, setGuestName] = useState("");
@@ -177,6 +179,10 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
   const customerEmail = customerMode === "existing" ? selectedProfile?.email : guestEmail;
   const customerPhone = customerMode === "existing" ? selectedProfile?.phone : guestPhone;
   const customerUserId = customerMode === "existing" ? (selectedProfile?.user_id || selectedProfile?.id) : null;
+
+  // Advance balance
+  const { data: advanceBalance } = useAdvanceBalance(customerUserId);
+  const drawdownAdvance = useDrawdownAdvance();
 
   const canProceedFromCustomer = customerMode === "existing" ? !!selectedProfile : (!!guestName.trim() && (!!guestEmail.trim() || !!guestPhone.trim()));
   const canProceedFromSlot = !!selectedCity && !!currentBay && !!selectedDate && !!startTime;
@@ -311,6 +317,20 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
         }
       }
 
+      // Process advance drawdown if applicable
+      if (advanceDrawdown > 0 && customerUserId && selectedCity) {
+        try {
+          await drawdownAdvance.mutateAsync({
+            customerId: customerUserId,
+            amount: advanceDrawdown,
+            description: `Drawdown against manual booking`,
+            city: selectedCity,
+          });
+        } catch (advErr: any) {
+          console.error("Advance drawdown failed (non-fatal):", advErr);
+        }
+      }
+
       // Invalidate all related queries
       queryClient.invalidateQueries({ queryKey: ["all_bookings"] });
       queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
@@ -322,6 +342,8 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
       queryClient.invalidateQueries({ queryKey: ["revenue_summary"] });
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["advance_balance"] });
+      queryClient.invalidateQueries({ queryKey: ["advance_transactions"] });
 
       setBookingComplete(true);
       toast({ title: "Manual Booking Created!", description: paymentMode === "hours" ? `${hoursNeeded}h deducted from ${customerName}'s balance.` : `Payment via ${selectedPaymentMethod} recorded.` });
@@ -355,6 +377,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
     setPaymentReference("");
     setBookingComplete(false);
     setIsProcessing(false);
+    setAdvanceDrawdown(0);
   };
 
   const handleClose = () => {
@@ -473,11 +496,18 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
                           <p className="font-medium text-sm">{selectedProfile.display_name}</p>
                           <p className="text-xs text-muted-foreground">{selectedProfile.email}</p>
                         </div>
-                        {hoursBalance !== null && (
-                          <Badge variant="secondary" className="text-xs">
-                            <Hourglass className="h-3 w-3 mr-1" /> {hoursBalance.toFixed(1)}h balance
-                          </Badge>
-                        )}
+                        <div className="flex gap-1.5">
+                          {hoursBalance !== null && (
+                            <Badge variant="secondary" className="text-xs">
+                              <Hourglass className="h-3 w-3 mr-1" /> {hoursBalance.toFixed(1)}h
+                            </Badge>
+                          )}
+                          {advanceBalance != null && advanceBalance > 0 && (
+                            <Badge variant="outline" className="text-xs text-primary border-primary/30">
+                              <Wallet className="h-3 w-3 mr-1" /> ₹{advanceBalance.toLocaleString()}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -776,6 +806,36 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
                       onChange={(e) => setPaymentReference(e.target.value)}
                     />
                   </div>
+                )}
+
+                {/* Advance Balance Drawdown */}
+                {customerUserId && advanceBalance != null && advanceBalance > 0 && (
+                  <Card className="border-primary/30">
+                    <CardContent className="p-3 space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-1.5"><Wallet className="h-3.5 w-3.5 text-primary" /> Advance Balance</span>
+                        <span className="font-medium text-primary">₹{advanceBalance.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Apply from advance</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={Math.min(advanceBalance, totalCost)}
+                          step={0.01}
+                          value={advanceDrawdown || ""}
+                          onChange={(e) => setAdvanceDrawdown(Math.min(Number(e.target.value) || 0, advanceBalance, totalCost))}
+                          className="mt-1"
+                          placeholder="0"
+                        />
+                      </div>
+                      {advanceDrawdown > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Net payable: <span className="font-medium text-foreground">₹{(totalCost - advanceDrawdown).toLocaleString()}</span>
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
                 )}
               </>
             )}

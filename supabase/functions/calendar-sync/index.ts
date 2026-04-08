@@ -508,6 +508,7 @@ Deno.serve(async (req) => {
         payment_id, order_id,
         start_time, end_time, duration_minutes, city, bay_id, bay_name,
         session_type, guest_name, guest_email, guest_phone, calendar_email,
+        user_id_override,
       } = params;
 
       const adminClient = createAdminClient();
@@ -547,9 +548,11 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Find or create a non-registered profile for this guest
+      // If user_id_override is provided (admin booking for existing member), use it directly
       let guestUserId = "00000000-0000-0000-0000-000000000000";
-      if (guest_email) {
+      if (user_id_override) {
+        guestUserId = user_id_override;
+      } else if (guest_email) {
         const { data: existingProfile } = await adminClient
           .from("profiles")
           .select("id, user_id")
@@ -624,17 +627,28 @@ Deno.serve(async (req) => {
         console.error("Failed to create revenue transaction for guest:", e);
       }
 
+      // Get timezone once for notifications (reuse cached access token if available)
+      let calTzNotify = "UTC";
+      try {
+        if (calendar_email && serviceAccountKeyStr) {
+          const sak = JSON.parse(serviceAccountKeyStr);
+          const notifyToken = await getAccessToken(sak);
+          calTzNotify = await getCalendarTimezone(notifyToken, calendar_email);
+        }
+      } catch (e) {
+        console.error("Failed to get calendar timezone for notifications:", e);
+      }
+
       // Notify admins + site-admins about the guest booking
       try {
         const notifyAdminIds = await getAdminAndSiteAdminIds(adminClient, city);
-        const calTzGuest = calendar_email ? await getCalendarTimezone(await getAccessToken(JSON.parse(Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY") || "{}")), calendar_email) : "UTC";
-        await notifyAdminsInApp(adminClient, notifyAdminIds, "📅 New Guest Booking", `Guest ${guest_name} booked ${bay_name || city} on ${formatDateTime(start_time, calTzGuest)}.`);
+        await notifyAdminsInApp(adminClient, notifyAdminIds, "📅 New Guest Booking", `Guest ${guest_name} booked ${bay_name || city} on ${formatDateTime(start_time, calTzNotify)}.`);
         await notifyAdmins(adminClient, notifyAdminIds, "admin_new_booking", "📅 New Guest Booking", {
           member_name: guest_name,
           city,
           bay: bay_name || city,
-          date: formatDate(start_time, calTzGuest),
-          time: formatTimeRange(start_time, end_time, calTzGuest),
+          date: formatDate(start_time, calTzNotify),
+          time: formatTimeRange(start_time, end_time, calTzNotify),
           duration: `${duration_minutes} min`,
           session_type: "practice",
           is_guest: true,
@@ -646,7 +660,6 @@ Deno.serve(async (req) => {
       // Send confirmation email to the guest
       if (guest_email) {
         try {
-          const calTzEmail = calendar_email ? await getCalendarTimezone(await getAccessToken(JSON.parse(Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY") || "{}")), calendar_email) : "UTC";
           await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
             method: "POST",
             headers: {
@@ -661,8 +674,8 @@ Deno.serve(async (req) => {
                 display_name: guest_name,
                 city,
                 bay: bay_name || city,
-                date: formatDate(start_time, calTzEmail),
-                time: formatTimeRange(start_time, end_time, calTzEmail),
+                date: formatDate(start_time, calTzNotify),
+                time: formatTimeRange(start_time, end_time, calTzNotify),
                 duration: `${duration_minutes} min`,
                 amount: params.amount || null,
               },
