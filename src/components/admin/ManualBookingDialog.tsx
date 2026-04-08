@@ -91,6 +91,36 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
   const effectiveBayId = cityBays.length === 1 ? cityBays[0]?.id : selectedBayId;
   const currentBay = cityBays.find((b: any) => b.id === effectiveBayId);
 
+  // Fetch calendar availability when bay + date are selected
+  const slotDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined;
+  const { data: availableSlots, isLoading: slotsLoading } = useAvailableSlots(
+    currentBay?.calendar_email,
+    slotDate,
+    currentBay?.open_time,
+    currentBay?.close_time,
+    { refetchInterval: 0 }
+  );
+
+  // Detect conflict: check if the selected manual time overlaps any busy slot
+  const hasConflict = useMemo(() => {
+    if (!availableSlots || !selectedDate || !startHour || !startMinute) return false;
+    const startMins = parseInt(startHour) * 60 + parseInt(startMinute);
+    const endMins = startMins + duration;
+    return availableSlots.some((slot) => {
+      if (slot.available) return false;
+      const [h, m] = slot.time.split(":").map(Number);
+      const slotStart = h * 60 + m;
+      const slotEnd = slotStart + 30; // slots are 30-min intervals
+      return slotStart < endMins && slotEnd > startMins;
+    });
+  }, [availableSlots, selectedDate, startHour, startMinute, duration]);
+
+  const handleSlotClick = useCallback((time: string) => {
+    const [h, m] = time.split(":");
+    setStartHour(h);
+    setStartMinute(m);
+  }, []);
+
   const playerSessionType = numPlayers === 1 ? "individual" : numPlayers === 2 ? "couple" : "group";
 
   const currentPrice = useMemo(() => {
@@ -100,7 +130,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
     return bayPricing.find((p: any) => p.city === selectedCity && p.day_type === dayType && p.session_type === playerSessionType) ?? null;
   }, [selectedCity, bayPricing, selectedDate, playerSessionType]);
 
-  const totalCost = currentPrice ? currentPrice.price_per_hour * (duration / 60) : 0;
+  const totalCost = currentPrice ? currentPrice.price_per_hour * (duration / 60) : null;
 
   const startTime = useMemo(() => {
     if (!selectedDate) return null;
