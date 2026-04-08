@@ -272,9 +272,9 @@ export function AdminBookingLogsTab() {
                 <TableHead className="py-1.5 px-2">Date</TableHead>
                 <TableHead className="py-1.5 px-2">Time</TableHead>
                 <TableHead className="py-1.5 px-2">Dur.</TableHead>
-                <TableHead className="py-1.5 px-2 sticky right-[180px] bg-background z-10 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.08)]">Status</TableHead>
-                <TableHead className="py-1.5 px-2 sticky right-[90px] bg-background z-10">Booked On</TableHead>
-                <TableHead className="py-1.5 px-2 text-right sticky right-0 bg-background z-10">Actions</TableHead>
+                 <TableHead className="py-1.5 px-2">Status</TableHead>
+                 <TableHead className="py-1.5 px-2">Booked On</TableHead>
+                 <TableHead className="py-1.5 px-2 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -327,7 +327,7 @@ export function AdminBookingLogsTab() {
                   <TableCell className="py-1.5 px-2 whitespace-nowrap">{format(new Date(b.start_time), "PP")}</TableCell>
                   <TableCell className="py-1.5 px-2 whitespace-nowrap">{format(new Date(b.start_time), "h:mm a")} – {format(new Date(b.end_time), "h:mm a")}</TableCell>
                   <TableCell className="py-1.5 px-2">{b.duration_minutes / 60}h</TableCell>
-                  <TableCell className="py-1.5 px-2 sticky right-[180px] bg-background z-10 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.08)]">
+                  <TableCell className="py-1.5 px-2">
                     <Badge
                       variant={b.status === "confirmed" ? "secondary" : b.status === "rejected" ? "destructive" : b.status === "cancelled" ? "destructive" : "outline"}
                       className={`text-[10px] px-1.5 py-0 ${b.status === "pending" ? "bg-amber-500/15 text-amber-600 border-amber-300" : ""}`}
@@ -335,7 +335,7 @@ export function AdminBookingLogsTab() {
                       {b.status === "pending" ? "🟡 Pending" : b.status === "confirmed" ? "🟢 Confirmed" : b.status === "rejected" ? "🔴 Rejected" : b.status === "cancelled" ? "🚫 Cancelled" : b.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="py-1.5 px-2 sticky right-[90px] bg-background z-10">
+                  <TableCell className="py-1.5 px-2">
                     <div className="text-[10px] text-muted-foreground">{format(new Date(b.created_at), "PP")}</div>
                     <div className="text-[9px] text-muted-foreground">{format(new Date(b.created_at), "h:mm a")}</div>
                     {(b.status === "cancelled" || b.status === "rejected") && b.updated_at && (
@@ -344,7 +344,7 @@ export function AdminBookingLogsTab() {
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="py-1.5 px-2 text-right sticky right-0 bg-background z-10">
+                  <TableCell className="py-1.5 px-2 text-right">
                     {b.status === "pending" && (
                       <div className="flex flex-col gap-1 items-end">
                         <div className="flex gap-1">
