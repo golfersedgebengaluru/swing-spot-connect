@@ -548,9 +548,11 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Find or create a non-registered profile for this guest
+      // If user_id_override is provided (admin booking for existing member), use it directly
       let guestUserId = "00000000-0000-0000-0000-000000000000";
-      if (guest_email) {
+      if (user_id_override) {
+        guestUserId = user_id_override;
+      } else if (guest_email) {
         const { data: existingProfile } = await adminClient
           .from("profiles")
           .select("id, user_id")
