@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -8,8 +8,6 @@ import { Plus, Download, Search, Loader2, Eye, FileX, Trash2, ChevronLeft, Chevr
 import { useToast } from "@/hooks/use-toast";
 import { useInvoices, useCancelInvoice, useDeleteInvoice } from "@/hooks/useInvoices";
 import type { CancelInvoiceParams } from "@/hooks/useInvoices";
-import { useToast } from "@/hooks/use-toast";
-import { useInvoices, useCancelInvoice, useDeleteInvoice } from "@/hooks/useInvoices";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { CreateInvoiceDialog } from "@/components/admin/CreateInvoiceDialog";
 import { InvoiceViewDialog } from "@/components/admin/InvoiceViewDialog";
