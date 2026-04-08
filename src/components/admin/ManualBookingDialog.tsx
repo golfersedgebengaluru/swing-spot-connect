@@ -131,23 +131,15 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
     }
   };
 
-  // Fetch hours balance for selected profile
+  // Fetch hours balance for selected profile using the DB function
   useEffect(() => {
     if (!selectedProfile) { setHoursBalance(null); return; }
-    const userId = selectedProfile.user_id || selectedProfile.id;
+    const uid = selectedProfile.user_id || selectedProfile.id;
     supabase
-      .from("hours_transactions")
-      .select("type, hours")
-      .eq("user_id", userId)
-      .then(({ data }) => {
-        let purchased = 0, used = 0;
-        for (const t of data ?? []) {
-          if (t.type === "purchase" || t.type === "credit") purchased += Number(t.hours);
-          else if (t.type === "adjustment" || t.type === "refund") used -= Number(t.hours);
-          else used += Number(t.hours);
-        }
-        used = Math.max(0, used);
-        setHoursBalance(purchased - used);
+      .rpc("get_hours_balance", { p_user_id: uid })
+      .then(({ data, error }) => {
+        if (error) { console.error("Failed to fetch hours balance:", error); setHoursBalance(null); return; }
+        setHoursBalance(Number(data) || 0);
       });
   }, [selectedProfile]);
 
