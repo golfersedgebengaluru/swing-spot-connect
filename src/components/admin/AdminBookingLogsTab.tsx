@@ -274,7 +274,7 @@ export function AdminBookingLogsTab() {
                 <TableHead>Duration</TableHead>
                 <TableHead>Booked On</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-right sticky right-0 bg-background z-10">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -344,7 +344,7 @@ export function AdminBookingLogsTab() {
                       {b.status === "pending" ? "🟡 Pending" : b.status === "confirmed" ? "🟢 Confirmed" : b.status === "rejected" ? "🔴 Rejected" : b.status === "cancelled" ? "🚫 Cancelled" : b.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right sticky right-0 bg-background z-10">
                     {b.status === "pending" && (
                       <div className="flex flex-col gap-1 items-end">
                         <div className="flex gap-1">
