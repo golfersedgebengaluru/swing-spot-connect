@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,11 +11,11 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   CalendarIcon, Clock, MapPin, Loader2, LayoutGrid,
-  ArrowLeft, ArrowRight, User, CheckCircle2, Users, Banknote, Search, Hourglass,
+  ArrowLeft, ArrowRight, User, CheckCircle2, Users, Banknote, Search, Hourglass, AlertTriangle,
 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useBays, useCities } from "@/hooks/useBookings";
+import { useBays, useCities, useAvailableSlots } from "@/hooks/useBookings";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useBayPricing } from "@/hooks/usePricing";
 import { useOfflinePaymentMethods } from "@/hooks/useOfflinePaymentMethods";
