@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,11 +11,11 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   CalendarIcon, Clock, MapPin, Loader2, LayoutGrid,
-  ArrowLeft, ArrowRight, User, CheckCircle2, Users, Banknote, Search, Hourglass,
+  ArrowLeft, ArrowRight, User, CheckCircle2, Users, Banknote, Search, Hourglass, AlertTriangle,
 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useBays, useCities } from "@/hooks/useBookings";
+import { useBays, useCities, useAvailableSlots } from "@/hooks/useBookings";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useBayPricing } from "@/hooks/usePricing";
 import { useOfflinePaymentMethods } from "@/hooks/useOfflinePaymentMethods";
@@ -90,6 +90,36 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
   const cityBays = useMemo(() => (bays ?? []).filter((b: any) => b.city === selectedCity && b.is_active), [bays, selectedCity]);
   const effectiveBayId = cityBays.length === 1 ? cityBays[0]?.id : selectedBayId;
   const currentBay = cityBays.find((b: any) => b.id === effectiveBayId);
+
+  // Fetch calendar availability when bay + date are selected
+  const slotDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined;
+  const { data: availableSlots, isLoading: slotsLoading } = useAvailableSlots(
+    currentBay?.calendar_email,
+    slotDate,
+    currentBay?.open_time,
+    currentBay?.close_time,
+    { refetchInterval: 0 }
+  );
+
+  // Detect conflict: check if the selected manual time overlaps any busy slot
+  const hasConflict = useMemo(() => {
+    if (!availableSlots || !selectedDate || !startHour || !startMinute) return false;
+    const startMins = parseInt(startHour) * 60 + parseInt(startMinute);
+    const endMins = startMins + duration;
+    return availableSlots.some((slot) => {
+      if (slot.available) return false;
+      const [h, m] = slot.time.split(":").map(Number);
+      const slotStart = h * 60 + m;
+      const slotEnd = slotStart + 30; // slots are 30-min intervals
+      return slotStart < endMins && slotEnd > startMins;
+    });
+  }, [availableSlots, selectedDate, startHour, startMinute, duration]);
+
+  const handleSlotClick = useCallback((time: string) => {
+    const [h, m] = time.split(":");
+    setStartHour(h);
+    setStartMinute(m);
+  }, []);
 
   const playerSessionType = numPlayers === 1 ? "individual" : numPlayers === 2 ? "couple" : "group";
 
@@ -552,6 +582,57 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
                 </Select>
               </div>
             </div>
+
+            {/* Calendar Availability Grid */}
+            {currentBay && selectedDate && (
+              <div>
+                <Label className="flex items-center gap-1.5 mb-1.5">
+                  <CalendarIcon className="h-3.5 w-3.5" /> Slot Availability
+                </Label>
+                {slotsLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading slots…
+                  </div>
+                ) : availableSlots && availableSlots.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {availableSlots.map((slot) => {
+                      const isSelected = slot.time === `${startHour}:${startMinute}`;
+                      return (
+                        <button
+                          key={slot.time}
+                          type="button"
+                          onClick={() => slot.available && handleSlotClick(slot.time)}
+                          className={cn(
+                            "px-2 py-1 rounded-md text-xs font-medium border transition-colors",
+                            slot.available
+                              ? isSelected
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background text-foreground border-border hover:bg-accent hover:text-accent-foreground"
+                              : "bg-muted text-muted-foreground border-transparent cursor-not-allowed line-through opacity-60"
+                          )}
+                          disabled={!slot.available}
+                        >
+                          {slot.time}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No calendar data available. You can still enter a time manually.</p>
+                )}
+                <p className="text-[10px] text-muted-foreground mt-1">Tap an available slot to auto-fill start time, or enter manually above.</p>
+              </div>
+            )}
+
+            {/* Conflict Warning */}
+            {hasConflict && (
+              <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-2.5 text-sm">
+                <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                <span className="text-destructive">
+                  This time overlaps with an existing calendar event. The booking can still be created as an override.
+                </span>
+              </div>
+            )}
 
             {/* Duration */}
             <div>
