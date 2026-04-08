@@ -716,6 +716,9 @@ export function AdminAllUsersTab() {
                               <DropdownMenuItem onClick={() => { setViewingHoursHistory(u.user_id || u.id); setDialogOpen("hourshistory"); }}>
                                 <History className="mr-2 h-4 w-4" />Hours History
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("finance"); }}>
+                                <Wallet className="mr-2 h-4 w-4" />Finance
+                              </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteConfirm(u)}>
                                 <Trash2 className="mr-2 h-4 w-4" />Delete User
