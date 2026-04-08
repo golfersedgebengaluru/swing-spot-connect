@@ -130,7 +130,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
     return bayPricing.find((p: any) => p.city === selectedCity && p.day_type === dayType && p.session_type === playerSessionType) ?? null;
   }, [selectedCity, bayPricing, selectedDate, playerSessionType]);
 
-  const totalCost = currentPrice ? currentPrice.price_per_hour * (duration / 60) : null;
+  const totalCost = currentPrice ? currentPrice.price_per_hour * (duration / 60) : 0;
 
   const startTime = useMemo(() => {
     if (!selectedDate) return null;
