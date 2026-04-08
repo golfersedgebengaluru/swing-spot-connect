@@ -557,10 +557,17 @@ export function useUpdateInvoice() {
   });
 }
 
+export interface CancelInvoiceParams {
+  invoiceId: string;
+  disposition: "external_refund" | "advance_credit";
+}
+
 export function useCancelInvoice() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (invoiceId: string) => {
+    mutationFn: async (params: CancelInvoiceParams) => {
+      const { invoiceId, disposition } = params;
+
       await (supabase as any)
         .from("invoices")
         .update({ status: "cancelled" })
@@ -619,6 +626,7 @@ export function useCancelInvoice() {
           status: "issued",
           invoice_type: "credit_note",
           credit_note_for: invoiceId,
+          credit_note_disposition: disposition,
           payment_method: original.payment_method,
           city: original.city,
         })
@@ -647,9 +655,31 @@ export function useCancelInvoice() {
         );
       }
 
+      // If parking as advance credit, create advance transaction
+      if (disposition === "advance_credit" && original.customer_user_id && original.city) {
+        const { data: userData } = await supabase.auth.getUser();
+        await (supabase as any)
+          .from("advance_transactions")
+          .insert({
+            customer_id: original.customer_user_id,
+            amount: Number(original.total),
+            transaction_type: "credit",
+            source_type: "credit_note",
+            source_id: creditNote.id,
+            description: `Credit note ${cnNumber} — parked as advance`,
+            city: original.city,
+            created_by: userData.user?.id || null,
+          });
+      }
+
       return creditNote;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["invoices"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: ["advance_balance"] });
+      qc.invalidateQueries({ queryKey: ["advance_transactions"] });
+      qc.invalidateQueries({ queryKey: ["advance_balances_all"] });
+    },
   });
 }
 

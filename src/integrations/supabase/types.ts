@@ -35,6 +35,45 @@ export type Database = {
         }
         Relationships: []
       }
+      advance_transactions: {
+        Row: {
+          amount: number
+          city: string
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          description: string | null
+          id: string
+          source_id: string | null
+          source_type: string
+          transaction_type: string
+        }
+        Insert: {
+          amount?: number
+          city: string
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          description?: string | null
+          id?: string
+          source_id?: string | null
+          source_type?: string
+          transaction_type?: string
+        }
+        Update: {
+          amount?: number
+          city?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          description?: string | null
+          id?: string
+          source_id?: string | null
+          source_type?: string
+          transaction_type?: string
+        }
+        Relationships: []
+      }
       auto_gift_rules: {
         Row: {
           created_at: string
@@ -996,6 +1035,7 @@ export type Database = {
           cgst_total: number
           city: string | null
           created_at: string
+          credit_note_disposition: string | null
           credit_note_for: string | null
           customer_email: string | null
           customer_gstin: string | null
@@ -1033,6 +1073,7 @@ export type Database = {
           cgst_total?: number
           city?: string | null
           created_at?: string
+          credit_note_disposition?: string | null
           credit_note_for?: string | null
           customer_email?: string | null
           customer_gstin?: string | null
@@ -1070,6 +1111,7 @@ export type Database = {
           cgst_total?: number
           city?: string | null
           created_at?: string
+          credit_note_disposition?: string | null
           credit_note_for?: string | null
           customer_email?: string | null
           customer_gstin?: string | null
@@ -2068,6 +2110,7 @@ export type Database = {
         Args: { p_delta: number; p_user_id: string }
         Returns: number
       }
+      get_advance_balance: { Args: { p_customer_id: string }; Returns: number }
       get_hours_balance: { Args: { p_user_id: string }; Returns: number }
       get_next_invoice_number: {
         Args: {

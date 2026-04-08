@@ -12,11 +12,12 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, Trash2, Loader2, Search, CheckCircle, XCircle, CalendarIcon } from "lucide-react";
+import { Plus, Trash2, Loader2, Search, CheckCircle, XCircle, CalendarIcon, Wallet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCreateInvoice, useGstProfile } from "@/hooks/useInvoices";
 import { useOfflinePaymentMethods } from "@/hooks/useOfflinePaymentMethods";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
+import { useAdvanceBalance, useDrawdownAdvance } from "@/hooks/useAdvanceAccount";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { validateGSTIN, getGstType, calculateLineItems, type GstLineItem } from "@/lib/gst-utils";
@@ -126,6 +127,12 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
   const [gstinValidation, setGstinValidation] = useState<boolean | null>(null);
 
   const { data: searchResults } = useProfileSearch(customerSearch);
+
+  // Advance balance
+  const effectiveCustomerId = customerUserId || customerProfileId;
+  const { data: advanceBalance } = useAdvanceBalance(effectiveCustomerId);
+  const drawdownAdvance = useDrawdownAdvance();
+  const [advanceDrawdown, setAdvanceDrawdown] = useState<number>(0);
 
   // Line items
   const [lineItems, setLineItems] = useState<GstLineItem[]>([]);
@@ -244,6 +251,18 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
         bookingCoachName: invoiceCategory === "booking" && sessionType === "coaching" ? coachName : undefined,
         bookingUserId: customerUserId || customerProfileId || undefined,
       });
+
+      // Process advance drawdown if applicable
+      if (advanceDrawdown > 0 && effectiveCustomerId && city) {
+        await drawdownAdvance.mutateAsync({
+          customerId: effectiveCustomerId,
+          amount: advanceDrawdown,
+          sourceId: invoice.id,
+          description: `Drawdown against invoice ${invoice.invoice_number}`,
+          city,
+        });
+      }
+
       toast({ title: "Invoice created" });
       onOpenChange(false);
       resetForm();
@@ -277,6 +296,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
     setBookingBayId("");
     setSessionType("practice");
     setCoachName("");
+    setAdvanceDrawdown(0);
   };
 
   return (
@@ -607,6 +627,50 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
                 <div className="flex justify-between font-semibold text-base">
                   <span>Total (incl. GST)</span><span>{currency.format(calculated.total)}</span>
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ── Advance Balance Drawdown ── */}
+          {effectiveCustomerId && (advanceBalance ?? 0) > 0 && calculated.total > 0 && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="pt-4 pb-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Wallet className="h-4 w-4 text-primary" />
+                    Customer Advance Balance: {currency.format(advanceBalance ?? 0)}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 items-end">
+                  <div>
+                    <Label className="text-xs">Draw down from advance</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={Math.min(advanceBalance ?? 0, calculated.total)}
+                      step="0.01"
+                      value={advanceDrawdown || ""}
+                      onChange={(e) => setAdvanceDrawdown(Math.min(Number(e.target.value) || 0, advanceBalance ?? 0, calculated.total))}
+                      className="mt-1"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAdvanceDrawdown(Math.min(advanceBalance ?? 0, calculated.total))}
+                    >
+                      Use Full Balance
+                    </Button>
+                  </div>
+                </div>
+                {advanceDrawdown > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Amount to collect: {currency.format(Math.max(calculated.total - advanceDrawdown, 0))}
+                  </p>
+                )}
               </CardContent>
             </Card>
           )}

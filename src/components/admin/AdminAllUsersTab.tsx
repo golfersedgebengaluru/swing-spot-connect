@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Loader2, MinusCircle, PlusCircle, Star, Award, UserCheck, ChevronLeft, ChevronRight, Clock, MoreHorizontal, Pencil, History, Trash2, Search } from "lucide-react";
+import { Plus, Loader2, MinusCircle, PlusCircle, Star, Award, UserCheck, ChevronLeft, ChevronRight, Clock, MoreHorizontal, Pencil, History, Trash2, Search, Wallet } from "lucide-react";
+import { CustomerFinanceDialog } from "@/components/admin/CustomerFinanceDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useRewards } from "@/hooks/useRewards";
 import { useAllocatePoints, useRedeemPoints, usePointsTransactions } from "@/hooks/usePoints";
@@ -593,6 +594,16 @@ export function AdminAllUsersTab() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {selectedUser && dialogOpen === "finance" && (
+        <CustomerFinanceDialog
+          open
+          onOpenChange={(open) => { if (!open) { setDialogOpen(null); setSelectedUser(null); } }}
+          userId={selectedUser.user_id || selectedUser.id}
+          displayName={selectedUser.display_name || "User"}
+          city={selectedCity || undefined}
+        />
+      )}
+
       {/* Search bar */}
       <div className="relative w-64">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -714,6 +725,9 @@ export function AdminAllUsersTab() {
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setViewingHoursHistory(u.user_id || u.id); setDialogOpen("hourshistory"); }}>
                                 <History className="mr-2 h-4 w-4" />Hours History
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("finance"); }}>
+                                <Wallet className="mr-2 h-4 w-4" />Finance
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteConfirm(u)}>

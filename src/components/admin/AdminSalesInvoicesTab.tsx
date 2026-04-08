@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Download, Search, Loader2, Eye, FileX, Trash2, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import { Plus, Download, Search, Loader2, Eye, FileX, Trash2, ChevronLeft, ChevronRight, MapPin, Wallet, ArrowUpRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useInvoices, useCancelInvoice, useDeleteInvoice } from "@/hooks/useInvoices";
+import type { CancelInvoiceParams } from "@/hooks/useInvoices";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { CreateInvoiceDialog } from "@/components/admin/CreateInvoiceDialog";
 import { InvoiceViewDialog } from "@/components/admin/InvoiceViewDialog";
@@ -73,11 +74,14 @@ function InvoiceListSection({ city }: { city: string }) {
     URL.revokeObjectURL(url);
   };
 
-  const handleCancel = async (id: string) => {
+  const handleCancel = async (id: string, disposition: "external_refund" | "advance_credit") => {
     setCancelConfirmId(null);
     try {
-      await cancelInvoice.mutateAsync(id);
-      toast({ title: "Invoice cancelled", description: "Credit note generated." });
+      await cancelInvoice.mutateAsync({ invoiceId: id, disposition });
+      const desc = disposition === "advance_credit"
+        ? "Credit note generated and amount parked as customer advance."
+        : "Credit note generated for external refund.";
+      toast({ title: "Invoice cancelled", description: desc });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
@@ -221,11 +225,36 @@ function InvoiceListSection({ city }: { city: string }) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel this invoice?</AlertDialogTitle>
-            <AlertDialogDescription>This will cancel the invoice and generate a credit note. This action cannot be undone.</AlertDialogDescription>
+            <AlertDialogDescription>This will cancel the invoice and generate a credit note. Choose how to handle the refund amount:</AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="flex flex-col gap-3 py-2">
+            <Button
+              variant="outline"
+              className="justify-start gap-3 h-auto py-3"
+              onClick={() => cancelConfirmId && handleCancel(cancelConfirmId, "external_refund")}
+              disabled={cancelInvoice.isPending}
+            >
+              <ArrowUpRight className="h-4 w-4 shrink-0" />
+              <div className="text-left">
+                <div className="font-medium">External Refund</div>
+                <div className="text-xs text-muted-foreground">Refund via cash, card, UPI etc.</div>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="justify-start gap-3 h-auto py-3"
+              onClick={() => cancelConfirmId && handleCancel(cancelConfirmId, "advance_credit")}
+              disabled={cancelInvoice.isPending}
+            >
+              <Wallet className="h-4 w-4 shrink-0" />
+              <div className="text-left">
+                <div className="font-medium">Park as Customer Advance</div>
+                <div className="text-xs text-muted-foreground">Credit the amount to the customer's advance account</div>
+              </div>
+            </Button>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>No – Keep Invoice</AlertDialogCancel>
-            <AlertDialogAction onClick={() => cancelConfirmId && handleCancel(cancelConfirmId)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Yes – Cancel Invoice</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
