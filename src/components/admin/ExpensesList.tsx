@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Download, Loader2, Trash2, Receipt, ScanLine, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Copy } from "lucide-react";
+import { Plus, Download, Loader2, Trash2, Receipt, ScanLine, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Copy, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useExpenses, useDeleteExpense, type ExpenseFilters, type Expense } from "@/hooks/useExpenses";
 import { useVendors } from "@/hooks/useVendors";
@@ -100,6 +100,15 @@ export function ExpensesList({ city }: Props) {
         <CardContent className="space-y-4">
           {/* Filters */}
           <div className="flex flex-wrap gap-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-[7px] h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search expenses..."
+                value={filters.search || ""}
+                onChange={(e) => { setFilters((f) => ({ ...f, search: e.target.value || undefined })); setPage(0); }}
+                className="pl-8 w-[160px] h-8 text-xs"
+              />
+            </div>
             <Select value={filters.vendorId || "all"} onValueChange={(v) => { setFilters((f) => ({ ...f, vendorId: v === "all" ? undefined : v })); setPage(0); }}>
               <SelectTrigger className="w-[160px] h-8 text-xs"><SelectValue placeholder="All Vendors" /></SelectTrigger>
               <SelectContent>

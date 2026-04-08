@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
-import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useEvents } from "@/hooks/useEvents";
 import { supabase } from "@/integrations/supabase/client";
@@ -74,6 +74,13 @@ export function AdminEventsTab() {
   const { data: events, isLoading } = useEvents();
   const [editingEvent, setEditingEvent] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredEvents = (events ?? []).filter((e: any) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return e.title?.toLowerCase().includes(q) || e.location?.toLowerCase().includes(q) || e.type?.toLowerCase().includes(q);
+  });
 
   const handleSave = async (data: any) => {
     const { error } = editingEvent?.id
@@ -95,7 +102,16 @@ export function AdminEventsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center gap-2 justify-between">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search events..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 w-[200px]"
+          />
+        </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingEvent(null); }}>
           <DialogTrigger asChild>
             <Button onClick={() => setEditingEvent({})}><Plus className="mr-2 h-4 w-4" />Add Event</Button>
@@ -108,8 +124,8 @@ export function AdminEventsTab() {
       </div>
       {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
         <div className="space-y-3">
-          {(events ?? []).length === 0 && <p className="text-center text-muted-foreground py-8">No events yet.</p>}
-          {(events ?? []).map((event) => (
+          {filteredEvents.length === 0 && <p className="text-center text-muted-foreground py-8">No events found.</p>}
+          {filteredEvents.map((event) => (
             <Card key={event.id} className="shadow-elegant">
               <CardContent className="flex items-center justify-between p-4">
                 <div>

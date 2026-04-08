@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Clock, MinusCircle, PlusCircle, History, Trash2 } from "lucide-react";
+import { Loader2, Clock, MinusCircle, PlusCircle, History, Trash2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMemberHours, useHoursTransactions, MemberHoursRow } from "@/hooks/useMemberHours";
 import { supabase } from "@/integrations/supabase/client";
@@ -156,6 +156,16 @@ export function AdminMembersTab() {
   const [adjustingMember, setAdjustingMember] = useState<any>(null);
   const [viewingHistory, setViewingHistory] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const displayedMembers = useMemo(() => {
+    if (!memberHours) return [];
+    if (!searchQuery.trim()) return memberHours;
+    const q = searchQuery.toLowerCase();
+    return memberHours.filter((m: any) =>
+      m.display_name?.toLowerCase().includes(q) || m.email?.toLowerCase().includes(q)
+    );
+  }, [memberHours, searchQuery]);
 
   const handleAdjustHours = async (data: any) => {
     const member = adjustingMember;
@@ -294,10 +304,20 @@ export function AdminMembersTab() {
         </DialogContent>
       </Dialog>
 
+      <div className="relative w-full sm:w-[250px]">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search members..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
       {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
         <>
-          {(memberHours ?? []).length === 0 && <p className="text-center text-muted-foreground py-8">No members found.</p>}
-          {(memberHours ?? []).length > 0 && (
+          {displayedMembers.length === 0 && <p className="text-center text-muted-foreground py-8">No members found.</p>}
+          {displayedMembers.length > 0 && (
             <div className="rounded-lg border bg-card overflow-hidden">
               <Table>
                 <TableHeader>
@@ -310,7 +330,7 @@ export function AdminMembersTab() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(memberHours ?? []).map((member, idx) => {
+                  {displayedMembers.map((member, idx) => {
                     const remaining = member.hours_purchased - member.hours_used;
                     const avatarColors = [
                       "bg-blue-500/15 text-blue-400",
