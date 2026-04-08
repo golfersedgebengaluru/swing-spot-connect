@@ -158,7 +158,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
 
   const canProceedFromCustomer = customerMode === "existing" ? !!selectedProfile : (!!guestName.trim() && (!!guestEmail.trim() || !!guestPhone.trim()));
   const canProceedFromSlot = !!selectedCity && !!currentBay && !!selectedDate && !!startTime;
-  const hoursNeeded = duration / 60;
+  const hoursNeeded = sessionType === "coaching" ? (currentBay?.coaching_hours ?? 1) : duration / 60;
   const canPayWithHours = paymentMode === "hours" && hoursBalance !== null && hoursBalance >= hoursNeeded;
   const canConfirm = paymentMode === "hours" ? canPayWithHours : !!selectedPaymentMethod;
 
