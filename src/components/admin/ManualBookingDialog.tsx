@@ -800,6 +800,36 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
                     />
                   </div>
                 )}
+
+                {/* Advance Balance Drawdown */}
+                {customerUserId && advanceBalance != null && advanceBalance > 0 && (
+                  <Card className="border-primary/30">
+                    <CardContent className="p-3 space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-1.5"><Wallet className="h-3.5 w-3.5 text-primary" /> Advance Balance</span>
+                        <span className="font-medium text-primary">₹{advanceBalance.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Apply from advance</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={Math.min(advanceBalance, totalCost)}
+                          step={0.01}
+                          value={advanceDrawdown || ""}
+                          onChange={(e) => setAdvanceDrawdown(Math.min(Number(e.target.value) || 0, advanceBalance, totalCost))}
+                          className="mt-1"
+                          placeholder="0"
+                        />
+                      </div>
+                      {advanceDrawdown > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Net payable: <span className="font-medium text-foreground">₹{(totalCost - advanceDrawdown).toLocaleString()}</span>
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
               </>
             )}
 
