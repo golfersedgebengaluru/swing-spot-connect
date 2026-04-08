@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Download, Search, Loader2, Eye, FileX, Trash2, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import { Plus, Download, Search, Loader2, Eye, FileX, Trash2, ChevronLeft, ChevronRight, MapPin, Wallet, ArrowUpRight } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useInvoices, useCancelInvoice, useDeleteInvoice } from "@/hooks/useInvoices";
+import type { CancelInvoiceParams } from "@/hooks/useInvoices";
 import { useToast } from "@/hooks/use-toast";
 import { useInvoices, useCancelInvoice, useDeleteInvoice } from "@/hooks/useInvoices";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
