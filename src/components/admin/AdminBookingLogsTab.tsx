@@ -274,7 +274,7 @@ export function AdminBookingLogsTab() {
                 <TableHead>Duration</TableHead>
                 <TableHead>Booked On</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-right sticky right-0 bg-background z-10">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
