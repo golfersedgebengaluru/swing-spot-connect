@@ -594,6 +594,16 @@ export function AdminAllUsersTab() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {selectedUser && dialogOpen === "finance" && (
+        <CustomerFinanceDialog
+          open
+          onOpenChange={(open) => { if (!open) { setDialogOpen(null); setSelectedUser(null); } }}
+          userId={selectedUser.user_id || selectedUser.id}
+          displayName={selectedUser.display_name || "User"}
+          city={selectedCity || undefined}
+        />
+      )}
+
       {/* Search bar */}
       <div className="relative w-64">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
