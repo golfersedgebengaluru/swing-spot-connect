@@ -48,6 +48,7 @@ export interface ExpenseFilters {
   startDate?: string;
   endDate?: string;
   paymentMethod?: string;
+  search?: string;
   page?: number;
   pageSize?: number;
 }
@@ -71,6 +72,7 @@ export function useExpenses(filters?: ExpenseFilters) {
       if (filters?.startDate) query = query.gte("expense_date", filters.startDate);
       if (filters?.endDate) query = query.lte("expense_date", filters.endDate);
       if (filters?.paymentMethod) query = query.eq("payment_method", filters.paymentMethod);
+      if (filters?.search) query = query.or(`notes.ilike.%${filters.search}%,payment_reference.ilike.%${filters.search}%`);
       query = query.range(page * pageSize, (page + 1) * pageSize - 1);
 
       const { data, error, count } = await query;

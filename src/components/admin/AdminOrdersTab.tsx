@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ShoppingBag, Loader2 } from "lucide-react";
+import { ShoppingBag, Loader2, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +29,7 @@ export function AdminOrdersTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ["admin_orders"],
@@ -53,9 +55,16 @@ export function AdminOrdersTab() {
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
-  const filtered = (orders ?? []).filter((o: any) =>
-    statusFilter === "all" || o.status === statusFilter
-  );
+  const filtered = (orders ?? []).filter((o: any) => {
+    if (statusFilter !== "all" && o.status !== statusFilter) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const name = o.profiles?.display_name?.toLowerCase() || "";
+      const email = o.profiles?.email?.toLowerCase() || "";
+      if (!name.includes(q) && !email.includes(q)) return false;
+    }
+    return true;
+  });
 
   const pendingCount = (orders ?? []).filter((o: any) => o.status === "pending").length;
 
@@ -68,7 +77,16 @@ export function AdminOrdersTab() {
             <Badge className="bg-amber-500/15 text-amber-600 border-amber-300">{pendingCount} new</Badge>
           )}
         </CardTitle>
-        <div className="mt-2">
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search orders..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 w-[200px]"
+            />
+          </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
             <SelectContent>
