@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Golfer's Edge — User Guide</title>
+<style>
+  :root {
+    --green-dark: #1a3a2a;
+    --green-mid: #2d5a3d;
+    --green-light: #4a9060;
+    --gold: #c9a84c;
+    --gold-light: #e8c870;
+    --white: #ffffff;
+    --slate-800: #1e293b;
+    --slate-700: #334155;
+    --slate-600: #475569;
+    --slate-400: #94a3b8;
+    --slate-200: #e2e8f0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #0f1a12;
+    color: var(--white);
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ─── Slide Engine ─── */
+  .slideshow { width: 100vw; height: 100vh; position: relative; }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 44px 64px 56px;
+    opacity: 0;
+    transform: translateX(40px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .slide.active  { opacity: 1; transform: translateX(0); pointer-events: all; }
+  .slide.exit    { opacity: 0; transform: translateX(-40px); transition: opacity 0.28s ease, transform 0.28s ease; }
+
+  /* ─── Backgrounds ─── */
+  .bg-hero   { background: radial-gradient(ellipse at 30% 40%, #1a4a2a 0%, #0a1a0f 60%), linear-gradient(135deg,#0f2518 0%,#071010 100%); }
+  .bg-dark   { background: #0f1a12; }
+  .bg-slate  { background: linear-gradient(135deg,#0f172a 0%,#1e293b 100%); }
+  .bg-green  { background: linear-gradient(135deg,#1a3a2a 0%,#0f2518 100%); }
+  .bg-gold   { background: linear-gradient(135deg,#1a1400 0%,#2d2000 100%); }
+  .bg-teal   { background: linear-gradient(135deg,#042f2e 0%,#0d1a1a 100%); }
+  .bg-purple { background: linear-gradient(135deg,#1e0a3c 0%,#0f0820 100%); }
+  .bg-biz    { background: linear-gradient(135deg,#0c1f3a 0%,#0a1520 100%); }
+
+  /* ─── Typography ─── */
+  .slide-tag {
+    font-size: 11px; font-weight: 700; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--gold); margin-bottom: 10px; opacity: 0.85;
+  }
+  h1.hero-title {
+    font-size: 62px; font-weight: 800; line-height: 1.05;
+    background: linear-gradient(135deg,#ffffff 0%,#c9a84c 60%,#e8c870 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    margin-bottom: 18px;
+  }
+  h2.slide-title { font-size: 36px; font-weight: 700; color: var(--white); margin-bottom: 6px; line-height: 1.15; }
+  h2.slide-title span { color: var(--gold); }
+  .slide-subtitle { font-size: 15px; color: var(--slate-400); margin-bottom: 20px; line-height: 1.65; max-width: 780px; }
+
+  /* ─── Grid ─── */
+  .grid-2   { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3   { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .grid-4   { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+  .grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; }
+  .grid-1-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 18px; }
+
+  /* ─── Cards ─── */
+  .card        { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 18px; }
+  .card-gold   { background: rgba(201,168,76,0.08);  border: 1px solid rgba(201,168,76,0.25);  border-radius: 12px; padding: 18px; }
+  .card-green  { background: rgba(74,144,96,0.10);   border: 1px solid rgba(74,144,96,0.25);   border-radius: 12px; padding: 18px; }
+  .card-blue   { background: rgba(59,130,246,0.08);  border: 1px solid rgba(59,130,246,0.25);  border-radius: 12px; padding: 18px; }
+  .card-purple { background: rgba(139,92,246,0.08);  border: 1px solid rgba(139,92,246,0.25);  border-radius: 12px; padding: 18px; }
+  .card-teal   { background: rgba(13,148,136,0.08);  border: 1px solid rgba(13,148,136,0.25);  border-radius: 12px; padding: 18px; }
+  .card-sky    { background: rgba(14,165,233,0.08);  border: 1px solid rgba(14,165,233,0.25);  border-radius: 12px; padding: 18px; }
+
+  .card h3, .card-gold h3, .card-green h3, .card-blue h3,
+  .card-purple h3, .card-teal h3, .card-sky h3 {
+    font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--white); letter-spacing: 0.3px;
+  }
+  .card p, .card-gold p, .card-green p, .card-blue p,
+  .card-purple p, .card-teal p, .card-sky p {
+    font-size: 12.5px; color: var(--slate-400); line-height: 1.55; margin-bottom: 7px;
+  }
+  .card ul, .card-gold ul, .card-green ul, .card-blue ul,
+  .card-purple ul, .card-teal ul, .card-sky ul { list-style: none; }
+  .card ul li, .card-gold ul li, .card-green ul li, .card-blue ul li,
+  .card-purple ul li, .card-teal ul li, .card-sky ul li {
+    font-size: 12.5px; color: var(--slate-400); padding: 3px 0;
+    display: flex; align-items: flex-start; gap: 7px; line-height: 1.45;
+  }
+  .card ul li::before, .card-gold ul li::before, .card-green ul li::before,
+  .card-blue ul li::before, .card-purple ul li::before, .card-teal ul li::before,
+  .card-sky ul li::before {
+    content: "›"; color: var(--gold); flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ─── QA pairs ─── */
+  .qa { margin-bottom: 12px; }
+  .qa .q { font-size: 12.5px; font-weight: 700; color: var(--white); margin-bottom: 3px; }
+  .qa .a { font-size: 12px; color: var(--slate-400); line-height: 1.5; }
+
+  /* ─── Badges ─── */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+  .badge-green  { background: rgba(74,144,96,0.2);   color: #4CAF7A; border: 1px solid rgba(74,144,96,0.4); }
+  .badge-gold   { background: rgba(201,168,76,0.15); color: #c9a84c; border: 1px solid rgba(201,168,76,0.35); }
+  .badge-blue   { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+  .badge-teal   { background: rgba(13,148,136,0.15); color: #2dd4bf; border: 1px solid rgba(13,148,136,0.3); }
+  .badge-purple { background: rgba(139,92,246,0.15); color: #a78bfa; border: 1px solid rgba(139,92,246,0.3); }
+  .badge-orange { background: rgba(249,115,22,0.15); color: #fb923c; border: 1px solid rgba(249,115,22,0.3); }
+  .badge-sky    { background: rgba(14,165,233,0.15); color: #38bdf8; border: 1px solid rgba(14,165,233,0.3); }
+
+  /* ─── Tables ─── */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .data-table th { text-align: left; padding: 7px 11px; color: var(--gold); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid rgba(201,168,76,0.2); }
+  .data-table td { padding: 6px 11px; color: var(--slate-400); border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; }
+  .data-table td:first-child { color: #7dd3fc; font-family: monospace; font-size: 12px; }
+  .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* ─── Layers ─── */
+  .layer { display: flex; align-items: flex-start; gap: 14px; padding: 11px 18px; border-radius: 10px; margin-bottom: 9px; }
+  .layer-num { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+  /* ─── Note ─── */
+  .note {
+    font-size: 11.5px; color: var(--slate-400);
+    background: rgba(255,255,255,0.035); border-left: 2px solid var(--gold);
+    padding: 7px 13px; border-radius: 0 6px 6px 0; margin-top: 10px; line-height: 1.5;
+  }
+
+  /* ─── Flow arrows (business) ─── */
+  .biz-flow { display: flex; align-items: center; gap: 0; margin: 10px 0 14px; flex-wrap: nowrap; }
+  .biz-step {
+    flex: 1; text-align: center; padding: 11px 8px;
+    border-radius: 8px; font-size: 11.5px; font-weight: 600; line-height: 1.35;
+    position: relative;
+  }
+  .biz-arrow {
+    font-size: 16px; color: var(--slate-600); flex-shrink: 0; padding: 0 2px;
+  }
+
+  /* ─── Stat boxes ─── */
+  .stat-box { text-align: center; padding: 18px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; }
+  .stat-box .number { font-size: 28px; font-weight: 800; color: var(--gold); line-height: 1; }
+  .stat-box .label  { font-size: 11px; color: var(--slate-400); margin-top: 5px; letter-spacing: 0.5px; }
+  .stat-box .sub    { font-size: 10.5px; color: var(--slate-600); margin-top: 4px; }
+
+  /* ─── TOC items ─── */
+  .toc-item { display: flex; align-items: center; gap: 13px; padding: 7px 12px; border-radius: 8px; cursor: pointer; transition: background 0.18s; }
+  .toc-item:hover { background: rgba(255,255,255,0.04); }
+  .toc-num  { font-size: 11px; color: var(--gold); font-weight: 700; min-width: 22px; }
+  .toc-text { font-size: 13px; color: var(--slate-400); }
+  .toc-section { font-size: 10px; letter-spacing: 1.5px; color: var(--slate-600); text-transform: uppercase; padding: 10px 12px 4px; }
+
+  /* ─── Hero decoration ─── */
+  .hero-orb { position: absolute; border-radius: 50%; filter: blur(60px); pointer-events: none; }
+  .hero-tagline { font-size: 19px; color: rgba(255,255,255,0.62); max-width: 600px; line-height: 1.6; margin-bottom: 30px; }
+  .hero-meta { display: flex; gap: 22px; flex-wrap: wrap; }
+  .hero-meta-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--slate-400); }
+  .hero-meta-item .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green-light); }
+
+  /* ─── Progress & Nav ─── */
+  .progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg,var(--green-light),var(--gold)); transition: width 0.4s ease; z-index: 200; }
+
+  #nav {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 14px;
+    background: rgba(0,0,0,0.65); backdrop-filter: blur(14px);
+    padding: 9px 18px; border-radius: 40px;
+    border: 1px solid rgba(255,255,255,0.1); z-index: 100;
+  }
+  .nav-btn {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.07);
+    color: var(--white); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 13px;
+    transition: all 0.18s;
+  }
+  .nav-btn:hover { background: rgba(201,168,76,0.22); border-color: var(--gold); }
+  .slide-counter { font-size: 12px; color: var(--slate-400); min-width: 52px; text-align: center; font-weight: 600; }
+
+  .slide-num-badge { position: absolute; top: 22px; right: 28px; font-size: 11px; color: rgba(255,255,255,0.18); letter-spacing: 1px; }
+
+  /* ─── Icon circle ─── */
+  .icon-circle { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; margin-bottom: 8px; }
+
+  /* ─── Tier cards (Slide 11) ─── */
+  .tier-card { border-radius: 14px; padding: 20px 16px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .tier-card .tier-icon { font-size: 30px; }
+  .tier-card .tier-name { font-size: 15px; font-weight: 800; }
+  .tier-card .tier-range { font-size: 11.5px; color: var(--slate-400); font-weight: 600; }
+  .tier-card .tier-perk { font-size: 11.5px; color: var(--slate-400); line-height: 1.45; text-align: center; margin-top: 4px; }
+
+  /* ─── Step list ─── */
+  .step-list { list-style: none; }
+  .step-list li {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 12.5px; color: var(--slate-400); padding: 4px 0; line-height: 1.45;
+  }
+  .step-num {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: rgba(13,148,136,0.25); border: 1px solid rgba(13,148,136,0.45);
+    color: #2dd4bf; font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ─── Status pill ─── */
+  .status { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+  .status-pending  { background: rgba(234,179,8,0.15); color: #facc15; border: 1px solid rgba(234,179,8,0.3); }
+  .status-active   { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+  .status-ready    { background: rgba(74,144,96,0.18);  color: #4CAF7A; border: 1px solid rgba(74,144,96,0.35); }
+  .status-done     { background: rgba(255,255,255,0.07); color: var(--slate-400); border: 1px solid rgba(255,255,255,0.12); }
+
+  /* ─── Mini divider ─── */
+  .divider { height: 1px; background: rgba(255,255,255,0.06); margin: 12px 0; }
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+<div class="slideshow" id="slideshow">
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 01 — WELCOME
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-hero active" id="slide-1">
+  <div class="hero-orb" style="width:520px;height:520px;top:-160px;right:-60px;background:rgba(74,144,96,0.13)"></div>
+  <div class="hero-orb" style="width:300px;height:300px;bottom:-60px;left:100px;background:rgba(201,168,76,0.08)"></div>
+
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;max-width:820px">
+    <div class="slide-tag">User Guide &middot; Golfer's Edge</div>
+    <h1 class="hero-title">Welcome to<br>Golfer's Edge</h1>
+    <p class="hero-tagline">Your complete guide to booking bays, earning rewards, shopping, and getting the most out of your membership.</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item"><div class="dot"></div> Bay Bookings</div>
+      <div class="hero-meta-item"><div class="dot" style="background:#c9a84c"></div> Loyalty Rewards</div>
+      <div class="hero-meta-item"><div class="dot" style="background:#0d9488"></div> Shop &amp; Orders</div>
+      <div class="hero-meta-item"><div class="dot" style="background:#8b5cf6"></div> Leaderboard</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:24px">
+    <span class="badge badge-green">Members</span>
+    <span class="badge badge-teal">Walk-in Guests</span>
+    <span class="badge badge-gold">18 Slides</span>
+  </div>
+  <div class="slide-num-badge">01 / 18</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 02 — TABLE OF CONTENTS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-slate" id="slide-2">
+  <div class="slide-tag">Contents</div>
+  <h2 class="slide-title">Your Guide <span>At a Glance</span></h2>
+  <p class="slide-subtitle" style="margin-bottom:14px">Use ← → arrow keys or the buttons below to navigate. Click any topic to jump directly to it.</p>
+
+  <div class="grid-2" style="gap:0 28px;flex:1;align-items:start">
+    <div>
+      <div class="toc-section">Getting Started</div>
+      <div class="toc-item" onclick="goTo(3)"><span class="toc-num">03</span><span class="toc-text">Getting Started &amp; Creating an Account</span></div>
+      <div class="toc-item" onclick="goTo(4)"><span class="toc-num">04</span><span class="toc-text">Your Dashboard</span></div>
+      <div class="toc-item" onclick="goTo(5)"><span class="toc-num">05</span><span class="toc-text">Hour Packages</span></div>
+      <div class="toc-item" onclick="goTo(6)"><span class="toc-num">06</span><span class="toc-text">Booking a Bay</span></div>
+      <div class="toc-item" onclick="goTo(7)"><span class="toc-num">07</span><span class="toc-text">Guest / Public Booking</span></div>
+      <div class="toc-item" onclick="goTo(8)"><span class="toc-num">08</span><span class="toc-text">Your Bookings &amp; History</span></div>
+      <div class="toc-item" onclick="goTo(9)"><span class="toc-num">09</span><span class="toc-text">The Shop</span></div>
+    </div>
+    <div>
+      <div class="toc-section">Loyalty &amp; Community</div>
+      <div class="toc-item" onclick="goTo(10)"><span class="toc-num">10</span><span class="toc-text">Earning Points</span></div>
+      <div class="toc-item" onclick="goTo(11)"><span class="toc-num">11</span><span class="toc-text">Loyalty Tiers</span></div>
+      <div class="toc-item" onclick="goTo(12)"><span class="toc-num">12</span><span class="toc-text">Redeeming Rewards</span></div>
+      <div class="toc-item" onclick="goTo(13)"><span class="toc-num">13</span><span class="toc-text">Milestones &amp; Gifted Rewards</span></div>
+      <div class="toc-item" onclick="goTo(14)"><span class="toc-num">14</span><span class="toc-text">Events &amp; Tournaments</span></div>
+      <div class="toc-item" onclick="goTo(15)"><span class="toc-num">15</span><span class="toc-text">Community &amp; Leaderboard</span></div>
+      <div class="toc-item" onclick="goTo(16)"><span class="toc-num">16</span><span class="toc-text">Your Profile</span></div>
+      <div class="toc-item" onclick="goTo(17)"><span class="toc-num">17</span><span class="toc-text">Notifications &amp; Emails</span></div>
+      <div class="toc-item" onclick="goTo(18)"><span class="toc-num">18</span><span class="toc-text">FAQs &amp; Help</span></div>
+    </div>
+  </div>
+  <div class="slide-num-badge">02 / 18</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 03 — GETTING STARTED
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-biz" id="slide-3">
+  <div class="slide-tag">Getting Started</div>
+  <h2 class="slide-title">Creating Your <span>Account</span></h2>
+
+  <div class="biz-flow">
+    <div class="biz-step" style="background:rgba(13,148,136,0.12);border:1px solid rgba(13,148,136,0.3);color:#2dd4bf">Visit the App</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(13,148,136,0.12);border:1px solid rgba(13,148,136,0.3);color:#2dd4bf">Sign Up</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(13,148,136,0.12);border:1px solid rgba(13,148,136,0.3);color:#2dd4bf">Complete Profile</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(13,148,136,0.12);border:1px solid rgba(13,148,136,0.3);color:#2dd4bf">Choose Your City</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(74,144,96,0.18);border:1px solid rgba(74,144,96,0.4);color:#4CAF7A">You're Ready!</div>
+  </div>
+
+  <div class="grid-2" style="flex:1;align-items:start">
+    <div class="card-teal">
+      <h3>Sign Up Options</h3>
+      <p style="font-size:12px;color:var(--slate-400);margin-bottom:10px">Choose the method that works for you:</p>
+      <ul>
+        <li><strong style="color:var(--white)">Email &amp; Password</strong> &mdash; Enter your email, choose a password, then verify your email address via the link sent to your inbox.</li>
+        <li><strong style="color:var(--white)">Sign in with Apple</strong> &mdash; Tap "Continue with Apple". You must provide your real email address &mdash; not the Apple relay address (@privaterelay.appleid.com).</li>
+      </ul>
+    </div>
+    <div class="card-gold">
+      <h3>Profile Completion</h3>
+      <p style="font-size:12px;color:var(--slate-400);margin-bottom:10px">After signing up you'll be prompted to:</p>
+      <ul>
+        <li>Confirm your full name</li>
+        <li>Provide your real email address (especially important for Apple Sign-In users)</li>
+        <li>Add your phone number — required for booking confirmations</li>
+        <li>Select your preferred city</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">Tip: Choose your preferred city in your profile &mdash; the app will always default to it when showing bays and available time slots.</div>
+  <div class="slide-num-badge">03 / 18</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 04 — YOUR DASHBOARD
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="slide-4">
+  <div class="slide-tag">Dashboard</div>
+  <h2 class="slide-title">Your <span>Dashboard</span></h2>
+
+  <div class="grid-3" style="margin-bottom:14px">
+    <div class="stat-box">
+      <div style="font-size:22px;margin-bottom:6px">⏱️</div>
+      <div class="number">Hours</div>
+      <div class="label">Balance Remaining</div>
+      <div class="sub">Your unused booked hours</div>
+    </div>
+    <div class="stat-box">
+      <div style="font-size:22px;margin-bottom:6px">🏆</div>
+      <div class="number">Points</div>
+      <div class="label">Loyalty Points</div>
+      <div class="sub">Earn &amp; redeem rewards</div>
+    </div>
+    <div class="stat-box">
+      <div style="font-size:22px;margin-bottom:6px">📅</div>
+      <div class="number">Visits</div>
+      <div class="label">Recent Sessions</div>
+      <div class="sub">Last 5 confirmed sessions</div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="flex:1;align-items:start">
+    <div class="card-green">
+      <h3>What You'll See on the Dashboard</h3>
+      <ul>
+        <li>Hours Remaining — how many hours you have left in your current package</li>
+        <li>Active Packages — available hour packages ready to purchase</li>
+        <li>Recent Visits — your last 5 confirmed bay sessions</li>
+        <li>Points Summary — current balance and your tier progress bar</li>
+        <li>Quick links to Book a Bay, Shop, and Rewards</li>
+      </ul>
+    </div>
+    <div class="card-teal">
+      <h3>Quick Actions</h3>
+      <ul>
+        <li>Buy Hours — purchase a new hour package instantly</li>
+        <li>Book a Bay — jump straight to the booking calendar</li>
+        <li>View Rewards — check your points and browse the catalogue</li>
+        <li>Update Preferences — link to your profile settings</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">Admins are automatically redirected to the Admin Panel when they log in &mdash; regular members will always land on this Dashboard.</div>
+  <div class="slide-num-badge">04 / 18</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 05 — HOUR PACKAGES
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-gold" id="slide-5">
+  <div class="slide-tag">Hours &amp; Packages</div>
+  <h2 class="slide-title">Buying <span>Hour Packages</span></h2>
+
+  <div class="biz-flow">
+    <div class="biz-step" style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);color:#e8c870">Dashboard</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);color:#e8c870">Choose Package</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);color:#e8c870">Razorpay Checkout</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);color:#e8c870">Payment Confirmed</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(74,144,96,0.18);border:1px solid rgba(74,144,96,0.4);color:#4CAF7A">Hours Added Instantly</div>
+  </div>
+
+  <div class="grid-2" style="flex:1;align-items:start">
+    <div class="card-gold">
+      <h3>Available Package Types</h3>
+      <p>Packages are configured by your club admin and may vary by city. Each package shows:</p>
+      <ul>
+        <li>Total hours included in the package</li>
+        <li>Price (including applicable taxes)</li>
+        <li>Any special terms or member-only restrictions</li>
+      </ul>
+      <p style="margin-top:8px">Hours are credited to your balance immediately after a successful payment.</p>
+    </div>
+    <div class="card-blue">
+      <h3>How Hours Work</h3>
+      <ul>
+        <li>Each bay session deducts hours from your balance</li>
+        <li>Practice sessions: charged by duration (e.g. 1 hour = 1 hr deducted)</li>
+        <li>Coaching sessions: charged at the coaching rate set per bay — usually higher than practice</li>
+        <li>Unused hours carry over and don't expire automatically</li>
+        <li>View your full hours history on the My Bookings page</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">If you run out of hours you can still book a walk-in session at the front desk and pay on the spot. Hours packages give you the best value for regular play.</div>
+  <div class="slide-num-badge">05 / 18</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 06 — BOOKING A BAY
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-teal" id="slide-6">
+  <div class="slide-tag">Bookings</div>
+  <h2 class="slide-title">Booking a <span>Bay</span></h2>
+
+  <div class="biz-flow">
+    <div class="biz-step" style="background:rgba(13,148,136,0.12);border:1px solid rgba(13,148,136,0.3);color:#2dd4bf">Go to Bookings</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(13,148,136,0.12);border:1px solid rgba(13,148,136,0.3);color:#2dd4bf">Select City &amp; Bay</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(13,148,136,0.12);border:1px solid rgba(13,148,136,0.3);color:#2dd4bf">Pick Date</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(13,148,136,0.12);border:1px solid rgba(13,148,136,0.3);color:#2dd4bf">Choose Time Slot</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(74,144,96,0.18);border:1px solid rgba(74,144,96,0.4);color:#4CAF7A">Confirm</div>
+  </div>
+
+  <div class="grid-2" style="flex:1;align-items:start">
+    <div class="card-teal">
+      <h3>Step by Step</h3>
+      <ol class="step-list">
+        <li><span class="step-num">1</span>Go to Bookings from the navigation menu</li>
+        <li><span class="step-num">2</span>Your preferred city is pre-selected — change if needed</li>
+        <li><span class="step-num">3</span>Choose your bay (if multiple bays are available)</li>
+        <li><span class="step-num">4</span>Pick a date using the calendar picker</li>
+        <li><span class="step-num">5</span>Available time slots load automatically — they refresh every 30 seconds</li>
+        <li><span class="step-num">6</span>Choose your session type: Practice or Coaching</li>
+        <li><span class="step-num">7</span>Select duration (default is 60 minutes)</li>
+        <li><span class="step-num">8</span>Click Confirm Booking</li>
+      </ol>
+    </div>
+    <div class="card-green">
+      <h3>Session Types</h3>
+      <p><strong style="color:var(--white)">Practice</strong> — Standard bay session. Hours deducted = duration ÷ 60. Confirmed immediately.</p>
+      <div class="divider"></div>
+      <p><strong style="color:var(--white)">Coaching</strong> — Session with a coach. May require admin approval before confirmation. Hours are charged at the bay's coaching rate (usually higher than practice).</p>
+      <p style="margin-top:6px">You'll receive a notification when your coaching session is approved or declined.</p>
+    </div>
+  </div>
+
+  <div class="note">Coaching sessions show as "Pending" until an admin approves them. Hours are only deducted from your balance after the session is approved.</div>
+  <div class="slide-num-badge">06 / 18</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 07 — GUEST / PUBLIC BOOKING
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-slate" id="slide-7">
+  <div class="slide-tag">Guest Booking</div>
+  <h2 class="slide-title">Booking Without <span>an Account</span></h2>
+  <p class="slide-subtitle">You can book a bay as a guest without creating an account. Go to the Public Booking page (<strong style="color:var(--white)">/book</strong>) from the home page.</p>
+
+  <div class="biz-flow">
+    <div class="biz-step" style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);color:#60a5fa">Visit /book</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);color:#60a5fa">Select Bay &amp; Time</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);color:#60a5fa">Enter Contact Details</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);color:#60a5fa">Pay via Razorpay</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(74,144,96,0.18);border:1px solid rgba(74,144,96,0.4);color:#4CAF7A">Confirmation Email</div>
+  </div>
+
+  <div class="grid-2" style="flex:1;align-items:start">
+    <div class="card-blue">
+      <h3>What You Need</h3>
+      <ul>
+        <li>Your full name and a valid contact email</li>
+        <li>A valid phone number</li>
+        <li>Payment via Razorpay — accepts card, UPI, or netbanking</li>
+      </ul>
+      <p style="margin-top:10px">No account is required for single one-off sessions.</p>
+    </div>
+    <div class="card-gold">
+      <h3>Differences from Member Booking</h3>
+      <ul>
+        <li>Payment is required upfront — you cannot use an hours balance</li>
+        <li>No loyalty points are earned for guest bookings</li>
+        <li>Booking confirmation is sent only to the email you enter</li>
+        <li>You cannot view booking history without an account</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">Want to enjoy loyalty points, hours packages, and the shop? Create a free account at <strong>/auth</strong> and get started today!</div>
+  <div class="slide-num-badge">07 / 18</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 08 — YOUR BOOKINGS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="slide-8">
+  <div class="slide-tag">My Bookings</div>
+  <h2 class="slide-title">Your Booking <span>History</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card">
+      <h3>Viewing Your Bookings</h3>
+      <p>Go to <strong style="color:var(--white)">My Bookings</strong> from the navigation menu. Each booking entry shows:</p>
+      <ul>
+        <li>Bay name and city location</li>
+        <li>Date and scheduled time</li>
+        <li>Session type: Practice or Coaching</li>
+        <li>Duration and hours deducted from your balance</li>
+        <li>Status badge:</li>
+      </ul>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px">
+        <span class="status status-ready">Confirmed</span>
+        <span class="status status-pending">Pending</span>
+        <span class="status status-done">Cancelled</span>
+      </div>
+    </div>
+    <div class="card-gold">
+      <h3>Cancellation Policy</h3>
+      <p>You can cancel a confirmed booking directly from My Bookings.</p>
+      <p>Standard policy: cancellations must be made at least <strong style="color:var(--gold-light)">24 hours before</strong> the session start time.</p>
+      <div class="divider"></div>
+      <p>On cancellation:</p>
+      <ul>
+        <li>Your hours are automatically refunded to your balance</li>
+        <li>Any loyalty points earned for that booking are reversed</li>
+        <li>You'll receive a cancellation confirmation notification</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">Cancellation windows may vary — your club admin sets the exact policy. If you need to cancel within 24 hours of your session, contact staff directly at the facility.</div>
+  <div class="slide-num-badge">08 / 18</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 09 — THE SHOP
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-biz" id="slide-9">
+  <div class="slide-tag">Shop</div>
+  <h2 class="slide-title">Beverages &amp; <span>Merchandise</span></h2>
+
+  <div class="biz-flow">
+    <div class="biz-step" style="background:rgba(13,148,136,0.12);border:1px solid rgba(13,148,136,0.3);color:#2dd4bf">Browse Products</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(13,148,136,0.12);border:1px solid rgba(13,148,136,0.3);color:#2dd4bf">Add to Cart</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(13,148,136,0.12);border:1px solid rgba(13,148,136,0.3);color:#2dd4bf">Checkout</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(13,148,136,0.12);border:1px solid rgba(13,148,136,0.3);color:#2dd4bf">Order Placed</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(74,144,96,0.18);border:1px solid rgba(74,144,96,0.4);color:#4CAF7A">Collect at Counter</div>
+  </div>
+
+  <div class="grid-2" style="flex:1;align-items:start">
+    <div class="card-teal">
+      <h3>Shopping</h3>
+      <ul>
+        <li>Go to <strong style="color:var(--white)">Shop</strong> from the navigation bar</li>
+        <li>Products are organised into tabs: Beverages and Merchandise</li>
+        <li>Tap any item to add it to your cart</li>
+        <li>Adjust quantities in the cart before checkout</li>
+        <li>The cart shows a live running total before you confirm</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Order Tracking</h3>
+      <p>After placing an order, track its status in real time:</p>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+        <div style="display:flex;align-items:center;gap:10px"><span class="status status-pending">Pending</span><span style="font-size:12px;color:var(--slate-400)">Order received, being reviewed</span></div>
+        <div style="display:flex;align-items:center;gap:10px"><span class="status status-active">Preparing</span><span style="font-size:12px;color:var(--slate-400)">Being prepared by staff</span></div>
+        <div style="display:flex;align-items:center;gap:10px"><span class="status status-ready">Ready</span><span style="font-size:12px;color:var(--slate-400)">Collect at the counter!</span></div>
+        <div style="display:flex;align-items:center;gap:10px"><span class="status status-done">Delivered</span><span style="font-size:12px;color:var(--slate-400)">Order complete</span></div>
+      </div>
+      <p style="margin-top:10px">Your full order history is at the bottom of the Shop page.</p>
+    </div>
+  </div>
+
+  <div class="note">Orders are fulfilled at the facility counter. You'll receive a "Ready" status update when your order is prepared and waiting for you.</div>
+  <div class="slide-num-badge">09 / 18</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 10 — EARNING POINTS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-green" id="slide-10">
+  <div class="slide-tag">Loyalty &middot; Earning</div>
+  <h2 class="slide-title">How to Earn <span>Points</span></h2>
+  <p class="slide-subtitle" style="margin-bottom:12px">Points are awarded automatically — no manual claiming needed for bay sessions.</p>
+
+  <div class="grid-3" style="flex:1;align-items:start">
+    <div class="card-green">
+      <h3>Bay Sessions</h3>
+      <ul>
+        <li>Points are awarded automatically after each confirmed session</li>
+        <li>Base rate is multiplied by any applicable bonuses</li>
+        <li>Coaching sessions may earn more points than standard practice sessions</li>
+        <li>Walk-in visits also earn points</li>
+      </ul>
+    </div>
+    <div class="card-gold">
+      <h3>Bonus Multipliers</h3>
+      <ul>
+        <li><strong style="color:var(--gold-light)">Off-Peak Hours</strong> — Sessions during off-peak times earn bonus points (e.g. 1.5×)</li>
+        <li><strong style="color:var(--gold-light)">First Visit Bonus</strong> — Extra points on your very first session</li>
+        <li><strong style="color:var(--gold-light)">Tier Multiplier</strong> — Eagle &amp; Birdie member types may earn at a higher rate</li>
+      </ul>
+    </div>
+    <div class="card-teal">
+      <h3>Other Ways to Earn</h3>
+      <ul>
+        <li>Package renewals for Eagle / Birdie membership plans</li>
+        <li>Milestone completions (see Slide 13)</li>
+        <li>Attending special events that award bonus points</li>
+        <li>Welcome gifts on account creation</li>
+        <li>Check the Earn Methods section on your Rewards page for the full up-to-date list</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">Points appear in your Rewards page and on your Dashboard shortly after your session is confirmed. If missing after 24 hours, contact staff.</div>
+  <div class="slide-num-badge">10 / 18</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 11 — LOYALTY TIERS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="slide-11">
+  <div class="slide-tag">Loyalty &middot; Tiers</div>
+  <h2 class="slide-title">Loyalty <span>Tiers</span></h2>
+  <p class="slide-subtitle" style="margin-bottom:14px">Your tier is determined by your cumulative points. Progress through four levels to unlock exclusive perks.</p>
+
+  <div class="grid-4" style="flex:1;align-items:stretch;margin-bottom:12px">
+    <div class="tier-card" style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25)">
+      <div class="tier-icon">🥉</div>
+      <div class="tier-name" style="color:#c9a84c">Bronze</div>
+      <div class="tier-range">0 – 1,000 pts</div>
+      <div class="divider" style="width:100%"></div>
+      <div class="tier-perk">Entry level. Access to the standard rewards catalogue and earning methods.</div>
+      <span class="badge badge-gold" style="margin-top:4px">Entry</span>
+    </div>
+    <div class="tier-card" style="background:rgba(14,165,233,0.08);border:1px solid rgba(14,165,233,0.25)">
+      <div class="tier-icon">🥈</div>
+      <div class="tier-name" style="color:#38bdf8">Silver</div>
+      <div class="tier-range">1,000 – 5,000 pts</div>
+      <div class="divider" style="width:100%"></div>
+      <div class="tier-perk">Enhanced earning rate. Additional rewards unlocked in the catalogue.</div>
+      <span class="badge badge-sky" style="margin-top:4px">Enhanced</span>
+    </div>
+    <div class="tier-card" style="background:rgba(13,148,136,0.08);border:1px solid rgba(13,148,136,0.25)">
+      <div class="tier-icon">🥇</div>
+      <div class="tier-name" style="color:#2dd4bf">Gold</div>
+      <div class="tier-range">5,000 – 10,000 pts</div>
+      <div class="divider" style="width:100%"></div>
+      <div class="tier-perk">Priority booking access. Exclusive rewards and discounts available.</div>
+      <span class="badge badge-teal" style="margin-top:4px">Priority</span>
+    </div>
+    <div class="tier-card" style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25)">
+      <div class="tier-icon">💎</div>
+      <div class="tier-name" style="color:#a78bfa">Platinum</div>
+      <div class="tier-range">10,000 – 25,000 pts</div>
+      <div class="divider" style="width:100%"></div>
+      <div class="tier-perk">Top tier. All rewards unlocked plus exclusive VIP perks and benefits.</div>
+      <span class="badge badge-purple" style="margin-top:4px">VIP</span>
+    </div>
+  </div>
+
+  <div class="note">Your current tier and progress bar are shown on your Rewards page and Dashboard. Tiers are based on cumulative (lifetime) points — they never go down even if you redeem rewards.</div>
+  <div class="slide-num-badge">11 / 18</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 12 — REDEEMING REWARDS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-gold" id="slide-12">
+  <div class="slide-tag">Loyalty &middot; Rewards</div>
+  <h2 class="slide-title">Redeeming <span>Rewards</span></h2>
+
+  <div class="biz-flow">
+    <div class="biz-step" style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);color:#e8c870">Rewards Page</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);color:#e8c870">Browse Catalogue</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);color:#e8c870">Check Point Cost</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);color:#e8c870">Click Redeem</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step" style="background:rgba(74,144,96,0.18);border:1px solid rgba(74,144,96,0.4);color:#4CAF7A">Show Staff</div>
+  </div>
+
+  <div class="grid-2" style="flex:1;align-items:start">
+    <div class="card">
+      <h3>How to Redeem</h3>
+      <ol class="step-list">
+        <li><span class="step-num">1</span>Go to <strong style="color:var(--white)">Rewards</strong> from the navigation</li>
+        <li><span class="step-num">2</span>Browse the Rewards Catalogue section</li>
+        <li><span class="step-num">3</span>Each reward shows its point cost and a description</li>
+        <li><span class="step-num">4</span>Click <strong style="color:#4CAF7A">Redeem</strong> if you have enough points</li>
+        <li><span class="step-num">5</span>Show the on-screen confirmation to staff when collecting your reward</li>
+      </ol>
+    </div>
+    <div class="card-gold">
+      <h3>Things to Know</h3>
+      <ul>
+        <li><strong style="color:var(--gold-light)">Daily Cap</strong> — Some rewards can only be redeemed once per day to prevent abuse</li>
+        <li><strong style="color:var(--gold-light)">Gated Rewards</strong> — Certain rewards only unlock after you've used a set percentage of your plan hours (e.g. "Use 50% of hours to unlock")</li>
+        <li><strong style="color:#94a3b8">Grey button</strong> — Not enough points, or reward is still locked</li>
+        <li><strong style="color:#4CAF7A">Green button</strong> — Available and ready to redeem</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">Redeemed rewards appear in your Gifted Rewards card with a "Claimed" status once staff confirms the redemption.</div>
+  <div class="slide-num-badge">12 / 18</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 13 — MILESTONES & GIFTS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-teal" id="slide-13">
+  <div class="slide-tag">Milestones &amp; Gifts</div>
+  <h2 class="slide-title">Milestones &amp; <span>Gifted Rewards</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card-teal">
+      <h3>Milestones</h3>
+      <p>Milestones are bonus points awarded automatically when you reach certain hours-played thresholds.</p>
+      <p style="margin-top:6px">Example: <em style="color:var(--white)">"Play 10 hours → earn 500 bonus points"</em></p>
+      <div class="divider"></div>
+      <p>Your progress toward each milestone is displayed as a progress bar on the Rewards page.</p>
+      <p style="margin-top:6px">Achieved milestones are marked with a <strong style="color:#4CAF7A">✓</strong> — the bonus points are credited to your account automatically as soon as you hit the threshold.</p>
+      <ul style="margin-top:8px">
+        <li>Multiple milestones can be active at the same time</li>
+        <li>Each milestone can only be achieved once</li>
+      </ul>
+    </div>
+    <div class="card-gold">
+      <h3>Gifted Rewards</h3>
+      <p>Admins can manually send you rewards — for example, a free session, a discount voucher, or a merchandise item.</p>
+      <p style="margin-top:6px">You'll also receive automatic gifts on special occasions, such as when you first sign up.</p>
+      <div class="divider"></div>
+      <p>Check your <strong style="color:var(--gold-light)">Gifted Rewards</strong> card on the Rewards page:</p>
+      <ul style="margin-top:6px">
+        <li><strong style="color:var(--white)">Pending</strong> — A Claim button appears. Tap it and show staff to redeem</li>
+        <li><strong style="color:var(--white)">Claimed</strong> — Successfully collected</li>
+        <li><strong style="color:var(--white)">Expired</strong> — Shown for your records</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">Milestone progress is based on total hours played across all sessions. Check the Rewards page regularly to see how close you are to your next bonus!</div>
+  <div class="slide-num-badge">13 / 18</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 14 — EVENTS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-purple" id="slide-14">
+  <div class="slide-tag">Events</div>
+  <h2 class="slide-title">Tournaments &amp; <span>Events</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card-purple">
+      <h3>What's Available</h3>
+      <p>Go to <strong style="color:var(--white)">Events</strong> from the navigation to see all upcoming events at your club.</p>
+      <p style="margin-top:8px">Event types include:</p>
+      <ul>
+        <li>Tournaments — scored competitions with rankings</li>
+        <li>Leagues — ongoing series spanning multiple sessions</li>
+        <li>Social events — fun, non-competitive gatherings</li>
+      </ul>
+      <div class="divider"></div>
+      <p>Each event listing shows:</p>
+      <ul>
+        <li>Date, time, and location</li>
+        <li>Available spots remaining</li>
+        <li>Registration fee (if applicable)</li>
+        <li>Prizes and rewards on offer</li>
+      </ul>
+    </div>
+    <div class="card-teal">
+      <h3>Participating in Events</h3>
+      <ul>
+        <li>Events are created and posted by your club admin</li>
+        <li>Spots are limited — check availability early to avoid missing out</li>
+        <li>Some events may have a registration fee payable to the club</li>
+        <li>Contact staff or the front desk to register for an event</li>
+      </ul>
+      <div class="divider"></div>
+      <div style="padding:12px;background:rgba(139,92,246,0.1);border-radius:8px;border:1px solid rgba(139,92,246,0.2);margin-top:4px">
+        <p style="font-size:12px;color:#a78bfa;font-weight:700;margin-bottom:4px">Upcoming Events</p>
+        <p style="font-size:12px;color:var(--slate-400)">Check the Events page regularly — your admin posts new tournaments, leagues, and social events throughout the season.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">Attending certain events may earn you bonus loyalty points. Check the Earn Methods section on your Rewards page to see which events qualify.</div>
+  <div class="slide-num-badge">14 / 18</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 15 — COMMUNITY & LEADERBOARD
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-biz" id="slide-15">
+  <div class="slide-tag">Community</div>
+  <h2 class="slide-title">Community &amp; <span>Leaderboard</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card-blue">
+      <h3>Community Feed</h3>
+      <p>The Community page is your club's social space — a place to connect with fellow members between sessions.</p>
+      <div class="divider"></div>
+      <ul>
+        <li>Post updates, share game highlights, and celebrate achievements</li>
+        <li>Posts appear in a feed visible to all club members</li>
+        <li>Like and interact with other members' posts</li>
+        <li>Stay engaged with club news and announcements</li>
+      </ul>
+      <div style="padding:10px;background:rgba(59,130,246,0.08);border-radius:8px;border:1px solid rgba(59,130,246,0.2);margin-top:10px">
+        <p style="font-size:11.5px;color:#60a5fa">Keep it friendly and club-focused. Posts are visible to all members at your club.</p>
+      </div>
+    </div>
+    <div class="card-gold">
+      <h3>Leaderboard</h3>
+      <p>The Leaderboard ranks members based on activity and points earned.</p>
+      <div class="divider"></div>
+      <ul>
+        <li>See where you stand among all members at your club</li>
+        <li>Rankings reflect your sessions played, points earned, and activity level</li>
+        <li>Updated regularly as members play and earn</li>
+        <li>Use the leaderboard as motivation — every session counts!</li>
+      </ul>
+      <div style="padding:10px;background:rgba(201,168,76,0.08);border-radius:8px;border:1px solid rgba(201,168,76,0.2);margin-top:10px">
+        <p style="font-size:11.5px;color:var(--gold)">The more sessions you book and complete, the higher you'll climb. Consistency is rewarded!</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">Go to Community from the navigation to access both the feed and leaderboard. Both are specific to your club location.</div>
+  <div class="slide-num-badge">15 / 18</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 16 — YOUR PROFILE
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-slate" id="slide-16">
+  <div class="slide-tag">Profile</div>
+  <h2 class="slide-title">Managing Your <span>Profile</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card">
+      <h3>What You Can Edit</h3>
+      <p>Go to <strong style="color:var(--white)">Profile</strong> from the navigation menu to view and update your details.</p>
+      <div class="divider"></div>
+      <p style="font-size:11.5px;color:var(--gold);font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px">Editable Fields</p>
+      <ul>
+        <li><strong style="color:var(--white)">Display Name</strong> — the name shown across the app and in the community feed</li>
+        <li><strong style="color:var(--white)">Preferred City</strong> — your default location for browsing bays and slots</li>
+        <li><strong style="color:var(--white)">Phone Number</strong> — required for booking confirmations and staff contact</li>
+      </ul>
+      <div class="divider"></div>
+      <p>Your key stats are also shown on the Profile page: points balance, hours remaining, and your current loyalty tier.</p>
+    </div>
+    <div class="card-teal">
+      <h3>Email Preferences</h3>
+      <p>At the bottom of your Dashboard and Profile, you can manage which email notifications you receive.</p>
+      <div class="divider"></div>
+      <p style="font-size:11.5px;color:#2dd4bf;font-weight:700;margin-bottom:8px">Choose your preferences:</p>
+      <ul>
+        <li>Booking confirmations &amp; reminders</li>
+        <li>Points earned notifications after sessions</li>
+        <li>Low hours alerts when your balance is running low</li>
+        <li>Event announcements from your club admin</li>
+      </ul>
+      <div style="padding:10px;background:rgba(13,148,136,0.08);border-radius:8px;border:1px solid rgba(13,148,136,0.2);margin-top:10px">
+        <p style="font-size:11.5px;color:#2dd4bf">You can opt out of any category at any time without affecting your account.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">Keep your phone number up to date — staff use it to contact you for booking changes and facility updates.</div>
+  <div class="slide-num-badge">16 / 18</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 17 — NOTIFICATIONS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="slide-17">
+  <div class="slide-tag">Notifications &amp; Emails</div>
+  <h2 class="slide-title">Staying <span>Informed</span></h2>
+  <p class="slide-subtitle" style="margin-bottom:12px">Golfer's Edge keeps you in the loop with both in-app notifications and email alerts for every important event.</p>
+
+  <div class="grid-3" style="flex:1;align-items:start">
+    <div class="card-green">
+      <h3>Booking Emails</h3>
+      <ul>
+        <li><strong style="color:#4CAF7A">Bay Booking Confirmed</strong> — slot details, bay name, and your remaining hours balance</li>
+        <li><strong style="color:#facc15">Coaching Session Pending</strong> — your session is awaiting admin approval</li>
+        <li><strong style="color:#4CAF7A">Coaching Approved</strong> — session confirmed with full details</li>
+        <li><strong style="color:#f87171">Coaching Rejected</strong> — with reason provided by admin</li>
+        <li><strong style="color:var(--slate-400)">Booking Cancelled</strong> — confirmation with hours refund details</li>
+      </ul>
+    </div>
+    <div class="card-gold">
+      <h3>Loyalty Emails</h3>
+      <ul>
+        <li><strong style="color:var(--gold-light)">Points Earned</strong> — after each confirmed session, showing points awarded and your new balance</li>
+        <li><strong style="color:var(--gold-light)">Points Redeemed</strong> — confirmation when you redeem a reward from the catalogue</li>
+        <li><strong style="color:#fb923c">Low Hours Alert</strong> — notified when your hours balance is running low so you can top up before your next session</li>
+      </ul>
+    </div>
+    <div class="card-teal">
+      <h3>Other Notifications</h3>
+      <ul>
+        <li><strong style="color:#2dd4bf">In-App Bell</strong> — instant alerts for all activity, visible in the notification bell in the app header</li>
+        <li><strong style="color:#2dd4bf">League &amp; Event Updates</strong> — announcements from your club admin about upcoming events</li>
+        <li><strong style="color:#2dd4bf">Welcome Gifts</strong> — automatic notifications on account creation with any gifted rewards</li>
+        <li><strong style="color:#2dd4bf">Tier Upgrades</strong> — when you level up to a new loyalty tier</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">Manage email preferences on your Dashboard or Profile page. You can turn off any category individually without affecting your account or in-app notifications.</div>
+  <div class="slide-num-badge">17 / 18</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 18 — FAQs
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="slide-18">
+  <div class="slide-tag">Help &amp; FAQs</div>
+  <h2 class="slide-title">Common <span>Questions</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card">
+      <h3>Bookings &amp; Hours</h3>
+
+      <div class="qa">
+        <div class="q">How do I cancel a booking?</div>
+        <div class="a">Go to My Bookings, find the session, and click Cancel. Cancellations must be made at least 24 hours before the session start time.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q">My hours weren't refunded after cancellation.</div>
+        <div class="a">Refunds are processed automatically. Wait a few minutes, then check your Dashboard balance. If missing after an hour, contact staff at the facility.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q">Can I book without hours in my balance?</div>
+        <div class="a">No — you need an hours balance to book online. Purchase a package on your Dashboard, or book a walk-in session directly at the front desk.</div>
+      </div>
+
+      <div class="qa" style="margin-bottom:0">
+        <div class="q">Why can I only see certain time slots?</div>
+        <div class="a">Available slots come from your club's Google Calendar. Slots already booked or blocked by the admin are hidden. Slots refresh every 30 seconds.</div>
+      </div>
+    </div>
+
+    <div class="card-gold">
+      <h3>Points &amp; Rewards</h3>
+
+      <div class="qa">
+        <div class="q">I didn't get points after my session.</div>
+        <div class="a">Points appear shortly after your session is confirmed. If they're missing after 24 hours, contact staff with your session details.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q">Can I transfer points to another member?</div>
+        <div class="a">No — points are personal and non-transferable. They are tied to your account only.</div>
+      </div>
+
+      <div class="qa">
+        <div class="q">Why is a reward greyed out?</div>
+        <div class="a">Either you don't have enough points, or it's a gated reward that requires more plan hours usage before it unlocks. Check the reward description for conditions.</div>
+      </div>
+
+      <div class="qa" style="margin-bottom:0">
+        <div class="q">I signed up with Apple and can't see my email.</div>
+        <div class="a">Go to Profile and edit your email field to replace the Apple relay address (@privaterelay.appleid.com) with your real email address.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">Still need help? Contact your club's front desk staff directly — they can resolve most account, booking, and rewards issues on the spot.</div>
+  <div class="slide-num-badge">18 / 18</div>
+</div>
+
+</div><!-- /slideshow -->
+
+<!-- ─── Navigation Pill ─── -->
+<div id="nav">
+  <button class="nav-btn" onclick="goTo(current-1)" title="Previous (← key)">&#8592;</button>
+  <span class="slide-counter" id="slideCounter">1 / 18</span>
+  <button class="nav-btn" onclick="goTo(current+1)" title="Next (→ key)">&#8594;</button>
+</div>
+
+<script>
+  let current = 1;
+  const total = document.querySelectorAll('.slide').length;
+
+  function goTo(n) {
+    const slides = document.querySelectorAll('.slide');
+    slides[current-1].classList.remove('active');
+    slides[current-1].classList.add('exit');
+    setTimeout(function(){ slides[current-1].classList.remove('exit'); }, 300);
+    current = Math.max(1, Math.min(n, total));
+    slides[current-1].classList.add('active');
+    document.getElementById('slideCounter').textContent = current + ' / ' + total;
+    document.getElementById('progressBar').style.width = (current/total*100)+'%';
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goTo(current+1);
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   goTo(current-1);
+  });
+
+  document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('progressBar').style.width = (1/total*100)+'%';
+    document.getElementById('slideCounter').textContent = '1 / ' + total;
+  });
+</script>
+</body>
+</html>

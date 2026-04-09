@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Golfer's Edge — Platform Architecture</title>
+<style>
+  :root {
+    --green-dark: #1a3a2a;
+    --green-mid: #2d5a3d;
+    --green-light: #4a9060;
+    --gold: #c9a84c;
+    --gold-light: #e8c870;
+    --white: #ffffff;
+    --slate-800: #1e293b;
+    --slate-700: #334155;
+    --slate-600: #475569;
+    --slate-400: #94a3b8;
+    --slate-200: #e2e8f0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #0f1a12;
+    color: var(--white);
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ─── Slide Engine ─── */
+  .slideshow { width: 100vw; height: 100vh; position: relative; }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 44px 64px 56px;
+    opacity: 0;
+    transform: translateX(40px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .slide.active  { opacity: 1; transform: translateX(0); pointer-events: all; }
+  .slide.exit    { opacity: 0; transform: translateX(-40px); transition: opacity 0.28s ease, transform 0.28s ease; }
+
+  /* ─── Backgrounds ─── */
+  .bg-hero   { background: radial-gradient(ellipse at 30% 40%, #1a4a2a 0%, #0a1a0f 60%), linear-gradient(135deg,#0f2518 0%,#071010 100%); }
+  .bg-dark   { background: #0f1a12; }
+  .bg-slate  { background: linear-gradient(135deg,#0f172a 0%,#1e293b 100%); }
+  .bg-green  { background: linear-gradient(135deg,#1a3a2a 0%,#0f2518 100%); }
+  .bg-gold   { background: linear-gradient(135deg,#1a1400 0%,#2d2000 100%); }
+  .bg-teal   { background: linear-gradient(135deg,#042f2e 0%,#0d1a1a 100%); }
+  .bg-purple { background: linear-gradient(135deg,#1e0a3c 0%,#0f0820 100%); }
+  .bg-biz    { background: linear-gradient(135deg,#0c1f3a 0%,#0a1520 100%); }
+
+  /* ─── Typography ─── */
+  .slide-tag {
+    font-size: 11px; font-weight: 700; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--gold); margin-bottom: 10px; opacity: 0.85;
+  }
+  h1.hero-title {
+    font-size: 62px; font-weight: 800; line-height: 1.05;
+    background: linear-gradient(135deg,#ffffff 0%,#c9a84c 60%,#e8c870 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    margin-bottom: 18px;
+  }
+  h2.slide-title { font-size: 36px; font-weight: 700; color: var(--white); margin-bottom: 6px; line-height: 1.15; }
+  h2.slide-title span { color: var(--gold); }
+  .slide-subtitle { font-size: 15px; color: var(--slate-400); margin-bottom: 28px; line-height: 1.65; max-width: 700px; }
+
+  /* ─── Grid ─── */
+  .grid-2   { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3   { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .grid-4   { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+  .grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 18px; }
+  .grid-1-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 18px; }
+
+  /* ─── Cards ─── */
+  .card        { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 18px; }
+  .card-gold   { background: rgba(201,168,76,0.08);  border: 1px solid rgba(201,168,76,0.25);  border-radius: 12px; padding: 18px; }
+  .card-green  { background: rgba(74,144,96,0.10);   border: 1px solid rgba(74,144,96,0.25);   border-radius: 12px; padding: 18px; }
+  .card-blue   { background: rgba(59,130,246,0.08);  border: 1px solid rgba(59,130,246,0.25);  border-radius: 12px; padding: 18px; }
+  .card-purple { background: rgba(139,92,246,0.08);  border: 1px solid rgba(139,92,246,0.25);  border-radius: 12px; padding: 18px; }
+  .card-teal   { background: rgba(13,148,136,0.08);  border: 1px solid rgba(13,148,136,0.25);  border-radius: 12px; padding: 18px; }
+  .card-sky    { background: rgba(14,165,233,0.08);  border: 1px solid rgba(14,165,233,0.25);  border-radius: 12px; padding: 18px; }
+
+  .card h3, .card-gold h3, .card-green h3, .card-blue h3, .card-purple h3, .card-teal h3, .card-sky h3 {
+    font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--white); letter-spacing: 0.3px;
+  }
+  .card ul, .card-gold ul, .card-green ul, .card-blue ul, .card-purple ul, .card-teal ul, .card-sky ul { list-style: none; }
+  .card ul li, .card-gold ul li, .card-green ul li, .card-blue ul li, .card-purple ul li, .card-teal ul li, .card-sky ul li {
+    font-size: 12.5px; color: var(--slate-400); padding: 3px 0;
+    display: flex; align-items: flex-start; gap: 7px; line-height: 1.4;
+  }
+  .card ul li::before, .card-gold ul li::before, .card-green ul li::before,
+  .card-blue ul li::before, .card-purple ul li::before, .card-teal ul li::before, .card-sky ul li::before {
+    content: "›"; color: var(--gold); flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ─── Badges ─── */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+  .badge-green  { background: rgba(74,144,96,0.2);   color: #4CAF7A; border: 1px solid rgba(74,144,96,0.4); }
+  .badge-gold   { background: rgba(201,168,76,0.15); color: #c9a84c; border: 1px solid rgba(201,168,76,0.35); }
+  .badge-blue   { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+  .badge-teal   { background: rgba(13,148,136,0.15); color: #2dd4bf; border: 1px solid rgba(13,148,136,0.3); }
+  .badge-purple { background: rgba(139,92,246,0.15); color: #a78bfa; border: 1px solid rgba(139,92,246,0.3); }
+  .badge-orange { background: rgba(249,115,22,0.15); color: #fb923c; border: 1px solid rgba(249,115,22,0.3); }
+  .badge-sky    { background: rgba(14,165,233,0.15); color: #38bdf8; border: 1px solid rgba(14,165,233,0.3); }
+
+  /* ─── Code Block ─── */
+  .code-block {
+    background: #0d1117; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+    padding: 14px 18px; font-family: 'Consolas','Fira Code',monospace;
+    font-size: 12.5px; line-height: 1.7; color: #e6edf3;
+    white-space: pre;
+    overflow-x: auto;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(201,168,76,0.25) transparent;
+  }
+  .code-block .kw  { color: #ff7b72; }
+  .code-block .fn  { color: #d2a8ff; }
+  .code-block .str { color: #a5d6ff; }
+  .code-block .cm  { color: #8b949e; font-style: italic; }
+  .code-block .key { color: #79c0ff; }
+  .code-block .num { color: #f0883e; }
+  .code-block .typ { color: #ffa657; }
+
+  /* ─── Tables ─── */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .data-table th { text-align: left; padding: 7px 11px; color: var(--gold); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid rgba(201,168,76,0.2); }
+  .data-table td { padding: 6px 11px; color: var(--slate-400); border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; }
+  .data-table td:first-child { color: #7dd3fc; font-family: monospace; font-size: 12px; }
+  .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* ─── Layers ─── */
+  .layer { display: flex; align-items: flex-start; gap: 14px; padding: 11px 18px; border-radius: 10px; margin-bottom: 9px; }
+  .layer-num { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+  /* ─── Note ─── */
+  .note {
+    font-size: 11.5px; color: var(--slate-400);
+    background: rgba(255,255,255,0.035); border-left: 2px solid var(--gold);
+    padding: 7px 13px; border-radius: 0 6px 6px 0; margin-top: 10px; line-height: 1.5;
+  }
+
+  /* ─── Business Flow ─── */
+  .biz-flow { display: flex; align-items: center; gap: 0; margin: 10px 0; flex-wrap: nowrap; }
+  .biz-step {
+    flex: 1; text-align: center; padding: 12px 8px;
+    border-radius: 8px; font-size: 12px; font-weight: 600; line-height: 1.35;
+    position: relative;
+  }
+  .biz-arrow { font-size: 16px; color: var(--slate-600); flex-shrink: 0; padding: 0 2px; }
+
+  /* ─── Stat boxes ─── */
+  .stat-box { text-align: center; padding: 18px 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; }
+  .stat-box .number { font-size: 32px; font-weight: 800; color: var(--gold); line-height: 1; }
+  .stat-box .label  { font-size: 11px; color: var(--slate-400); margin-top: 5px; letter-spacing: 0.5px; }
+
+  /* ─── TOC ─── */
+  .toc-item { display: flex; align-items: center; gap: 13px; padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: background 0.18s; }
+  .toc-item:hover { background: rgba(255,255,255,0.04); }
+  .toc-num  { font-size: 11px; color: var(--gold); font-weight: 700; min-width: 22px; }
+  .toc-text { font-size: 13px; color: var(--slate-400); }
+  .toc-section { font-size: 10px; letter-spacing: 1.5px; color: var(--slate-600); text-transform: uppercase; padding: 10px 12px 4px; }
+
+  /* ─── Hero decoration ─── */
+  .hero-orb { position: absolute; border-radius: 50%; filter: blur(60px); pointer-events: none; }
+  .hero-tagline { font-size: 19px; color: rgba(255,255,255,0.62); max-width: 560px; line-height: 1.6; margin-bottom: 30px; }
+  .hero-meta { display: flex; gap: 22px; flex-wrap: wrap; }
+  .hero-meta-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--slate-400); }
+  .hero-meta-item .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green-light); }
+
+  /* ─── Progress & Nav ─── */
+  .progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg,var(--green-light),var(--gold)); transition: width 0.4s ease; z-index: 200; }
+
+  #nav {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 14px;
+    background: rgba(0,0,0,0.65); backdrop-filter: blur(14px);
+    padding: 9px 18px; border-radius: 40px;
+    border: 1px solid rgba(255,255,255,0.1); z-index: 100;
+  }
+  .nav-btn {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.07);
+    color: var(--white); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 13px;
+    transition: all 0.18s;
+  }
+  .nav-btn:hover { background: rgba(201,168,76,0.22); border-color: var(--gold); }
+  .slide-counter { font-size: 12px; color: var(--slate-400); min-width: 52px; text-align: center; font-weight: 600; }
+  .slide-num-badge { position: absolute; top: 22px; right: 28px; font-size: 11px; color: rgba(255,255,255,0.18); letter-spacing: 1px; }
+
+  /* ─── Icon circle ─── */
+  .icon-circle { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; margin-bottom: 8px; }
+
+  /* ─── Flow label ─── */
+  .flow-label { font-size: 10.5px; color: var(--gold); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+<div class="slideshow" id="slideshow">
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 01 — TITLE
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-hero active" id="slide-1">
+  <div class="hero-orb" style="width:500px;height:500px;top:-150px;right:-80px;background:rgba(74,144,96,0.12)"></div>
+  <div class="hero-orb" style="width:280px;height:280px;bottom:-40px;left:120px;background:rgba(201,168,76,0.07)"></div>
+
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;max-width:820px">
+    <div class="slide-tag">PLATFORM ARCHITECTURE · APRIL 2026</div>
+    <h1 class="hero-title">Golfer's Edge<br>Platform Guide</h1>
+    <p class="hero-tagline">A complete technical reference for the EdgeCollective golf facility management SaaS — multi-city, multi-role, real-time.</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item"><div class="dot"></div> React 18 + TypeScript</div>
+      <div class="hero-meta-item"><div class="dot" style="background:#c9a84c"></div> Supabase + 11 Edge Functions</div>
+      <div class="hero-meta-item"><div class="dot" style="background:#3b82f6"></div> 45 Database Tables</div>
+      <div class="hero-meta-item"><div class="dot" style="background:#8b5cf6"></div> PWA Ready</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:24px">
+    <span class="badge badge-green">Multi-City SaaS</span>
+    <span class="badge badge-gold">B2B2C</span>
+    <span class="badge badge-blue">24 Slides</span>
+    <span class="badge badge-purple">April 2026 Security Hardening</span>
+  </div>
+  <div class="slide-num-badge">01 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 02 — TABLE OF CONTENTS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-slate" id="slide-2">
+  <div class="slide-tag">CONTENTS</div>
+  <h2 class="slide-title">What's <span>Inside</span></h2>
+
+  <div class="grid-2" style="gap:0 32px;flex:1;align-items:start;margin-top:8px">
+    <div>
+      <div class="toc-section">A — Overview</div>
+      <div class="toc-item" onclick="goTo(3)"><span class="toc-num">03</span><span class="toc-text">Platform Overview</span></div>
+      <div class="toc-item" onclick="goTo(4)"><span class="toc-num">04</span><span class="toc-text">Business Flows</span></div>
+      <div class="toc-item" onclick="goTo(5)"><span class="toc-num">05</span><span class="toc-text">Platform Stats</span></div>
+      <div class="toc-section" style="margin-top:6px">B — Frontend</div>
+      <div class="toc-item" onclick="goTo(6)"><span class="toc-num">06</span><span class="toc-text">Tech Stack</span></div>
+      <div class="toc-item" onclick="goTo(7)"><span class="toc-num">07</span><span class="toc-text">App Routes</span></div>
+      <div class="toc-item" onclick="goTo(8)"><span class="toc-num">08</span><span class="toc-text">State &amp; Hooks</span></div>
+      <div class="toc-item" onclick="goTo(9)"><span class="toc-num">09</span><span class="toc-text">Component Structure</span></div>
+      <div class="toc-section" style="margin-top:6px">C — Backend</div>
+      <div class="toc-item" onclick="goTo(10)"><span class="toc-num">10</span><span class="toc-text">Supabase Architecture</span></div>
+      <div class="toc-item" onclick="goTo(11)"><span class="toc-num">11</span><span class="toc-text">Database Schema</span></div>
+      <div class="toc-item" onclick="goTo(12)"><span class="toc-num">12</span><span class="toc-text">Edge Functions</span></div>
+    </div>
+    <div>
+      <div class="toc-section">C — Backend (cont.)</div>
+      <div class="toc-item" onclick="goTo(13)"><span class="toc-num">13</span><span class="toc-text">Stored Procedures</span></div>
+      <div class="toc-item" onclick="goTo(14)"><span class="toc-num">14</span><span class="toc-text">Data Flows</span></div>
+      <div class="toc-section" style="margin-top:6px">D — Security</div>
+      <div class="toc-item" onclick="goTo(15)"><span class="toc-num">15</span><span class="toc-text">Auth &amp; Authorisation</span></div>
+      <div class="toc-item" onclick="goTo(16)"><span class="toc-num">16</span><span class="toc-text">RLS Hardening</span></div>
+      <div class="toc-item" onclick="goTo(17)"><span class="toc-num">17</span><span class="toc-text">Password &amp; Rate Limiting</span></div>
+      <div class="toc-item" onclick="goTo(18)"><span class="toc-num">18</span><span class="toc-text">Payment Security</span></div>
+      <div class="toc-item" onclick="goTo(19)"><span class="toc-num">19</span><span class="toc-text">HTTP Headers &amp; Audit</span></div>
+      <div class="toc-section" style="margin-top:6px">E — Operations</div>
+      <div class="toc-item" onclick="goTo(20)"><span class="toc-num">20</span><span class="toc-text">Admin Panel</span></div>
+      <div class="toc-item" onclick="goTo(21)"><span class="toc-num">21</span><span class="toc-text">Loyalty System</span></div>
+      <div class="toc-item" onclick="goTo(22)"><span class="toc-num">22</span><span class="toc-text">Integrations</span></div>
+      <div class="toc-item" onclick="goTo(23)"><span class="toc-num">23</span><span class="toc-text">Developer Conventions</span></div>
+      <div class="toc-item" onclick="goTo(24)"><span class="toc-num">24</span><span class="toc-text">Deployment</span></div>
+    </div>
+  </div>
+  <div class="slide-num-badge">02 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 03 — PLATFORM OVERVIEW
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-biz" id="slide-3">
+  <div class="slide-tag">OVERVIEW</div>
+  <h2 class="slide-title">What is <span>Golfer's Edge</span>?</h2>
+  <p class="slide-subtitle">A multi-city B2B2C SaaS platform for indoor golf facilities — handling bookings, loyalty, shop orders, invoicing, and GST compliance in one system.</p>
+
+  <div class="grid-3" style="flex:1;align-items:start">
+    <div class="card-green">
+      <h3>&#127944; For Members</h3>
+      <ul>
+        <li>Bay bookings with real-time slot availability</li>
+        <li>Hours packages — Birdie &amp; Eagle plans</li>
+        <li>Loyalty points &amp; tier progression (Bronze → Platinum)</li>
+        <li>Shop orders for beverages &amp; merchandise</li>
+        <li>Events: tournaments, leagues, coaching sessions</li>
+        <li>Community feed, leaderboard &amp; handicap tracking</li>
+        <li>Reward redemptions from loyalty catalogue</li>
+        <li>Profile management &amp; booking history</li>
+      </ul>
+    </div>
+    <div class="card-gold">
+      <h3>&#9881;&#65039; For Admins</h3>
+      <ul>
+        <li>Walk-in booking creation &amp; management</li>
+        <li>GST-compliant invoice generation (GSTR-1 export)</li>
+        <li>Expense tracking &amp; categorisation</li>
+        <li>Revenue reports, P&amp;L, product profitability</li>
+        <li>Member management &amp; role assignment</li>
+        <li>Loyalty config: rules, multipliers, milestones</li>
+        <li>Bay pricing, hour packages, payment gateways</li>
+        <li>Admin audit logs &amp; background job monitoring</li>
+      </ul>
+    </div>
+    <div class="card-blue">
+      <h3>&#127959; Platform Core</h3>
+      <ul>
+        <li>Multi-city scoping via AdminCityContext</li>
+        <li>Real-time calendar slot sync (Google Calendar)</li>
+        <li>bcrypt password auth + Supabase JWT</li>
+        <li>Row-Level Security on all 45 tables</li>
+        <li>HMAC-SHA256 Razorpay webhook verification</li>
+        <li>Deno Edge Functions with Zod validation</li>
+        <li>Atomic stored procedures (no partial state)</li>
+        <li>PWA manifest + service worker ready</li>
+      </ul>
+    </div>
+  </div>
+  <div class="slide-num-badge">03 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 04 — BUSINESS FLOWS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="slide-4">
+  <div class="slide-tag">BUSINESS FLOWS</div>
+  <h2 class="slide-title">Core <span>User Journeys</span></h2>
+  <p class="slide-subtitle">The three primary end-to-end flows that drive platform value — bay booking, payment processing, and admin walk-in operations.</p>
+
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:20px">
+    <div>
+      <div class="flow-label">&#127944; Booking Flow</div>
+      <div class="biz-flow">
+        <div class="biz-step" style="background:rgba(74,144,96,0.12);border:1px solid rgba(74,144,96,0.3);color:#4CAF7A">Pick Bay</div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(74,144,96,0.12);border:1px solid rgba(74,144,96,0.3);color:#4CAF7A">Select Slot</div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(74,144,96,0.12);border:1px solid rgba(74,144,96,0.3);color:#4CAF7A">Confirm Booking</div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(74,144,96,0.12);border:1px solid rgba(74,144,96,0.3);color:#4CAF7A">Hours Deducted</div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(74,144,96,0.12);border:1px solid rgba(74,144,96,0.3);color:#4CAF7A">Points Earned</div>
+      </div>
+    </div>
+    <div>
+      <div class="flow-label">&#128176; Payment Flow</div>
+      <div class="biz-flow">
+        <div class="biz-step" style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.3);color:#60a5fa">Create Order</div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.3);color:#60a5fa">Razorpay Checkout</div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.3);color:#60a5fa">Webhook Received</div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.3);color:#60a5fa">Signature Verified</div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.3);color:#60a5fa">Status Updated</div>
+      </div>
+    </div>
+    <div>
+      <div class="flow-label">&#9881;&#65039; Admin Walk-in Flow</div>
+      <div class="biz-flow">
+        <div class="biz-step" style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.3);color:#c9a84c">Walk-in Visit</div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.3);color:#c9a84c">Manual Booking</div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.3);color:#c9a84c">Invoice Created</div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.3);color:#c9a84c">GST Calculated</div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.3);color:#c9a84c">Revenue Logged</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num-badge">04 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 05 — PLATFORM STATS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="slide-5">
+  <div class="slide-tag">BY THE NUMBERS</div>
+  <h2 class="slide-title">Platform <span>At a Glance</span></h2>
+
+  <div class="grid-4" style="margin-bottom:14px;margin-top:10px">
+    <div class="stat-box"><div class="number">17</div><div class="label">Routes</div></div>
+    <div class="stat-box"><div class="number">45</div><div class="label">DB Tables</div></div>
+    <div class="stat-box"><div class="number">11</div><div class="label">Edge Functions</div></div>
+    <div class="stat-box"><div class="number">33+</div><div class="label">React Hooks</div></div>
+  </div>
+
+  <div class="grid-4" style="margin-bottom:18px">
+    <div class="stat-box"><div class="number">4</div><div class="label">Stored Procedures</div></div>
+    <div class="stat-box"><div class="number">3</div><div class="label">Auth Providers</div></div>
+    <div class="stat-box"><div class="number">9</div><div class="label">Migrations (Apr '26)</div></div>
+    <div class="stat-box" style="border-color:rgba(201,168,76,0.2)"><div class="number" style="font-size:22px;color:#c9a84c">PWA</div><div class="label">Multi-City</div></div>
+  </div>
+
+  <div class="grid-3" style="margin-bottom:14px">
+    <div class="card-blue">
+      <h3>Frontend</h3>
+      <ul>
+        <li>React 18.3.1 + Vite 5.4.19</li>
+        <li>TypeScript 5.8.3 strict mode</li>
+        <li>@tanstack/react-query 5.83</li>
+        <li>TailwindCSS 3.4.17 + Radix UI 15 primitives</li>
+      </ul>
+    </div>
+    <div class="card-teal">
+      <h3>Backend</h3>
+      <ul>
+        <li>Supabase (PostgreSQL + Auth + Storage)</li>
+        <li>Deno Edge Runtime (11 functions)</li>
+        <li>RLS on every single table</li>
+        <li>SECURITY DEFINER stored procedures</li>
+      </ul>
+    </div>
+    <div class="card-purple">
+      <h3>Integrations</h3>
+      <ul>
+        <li>Razorpay — per-city payment gateways</li>
+        <li>Google Calendar — bay slot sync</li>
+        <li>Resend — transactional email</li>
+        <li>Gemini 2.5 Flash — bill OCR</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">April 2026 security hardening: 9 new migrations (20260409100001–20260409100009) fixing RLS policies, adding atomic stored procedures, audit logging, rate limiting, and HMAC webhook verification.</div>
+  <div class="slide-num-badge">05 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 06 — TECH STACK
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-slate" id="slide-6">
+  <div class="slide-tag">FRONTEND</div>
+  <h2 class="slide-title">Tech <span>Stack</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="card-blue">
+        <h3>Frontend Framework</h3>
+        <ul>
+          <li>React <strong style="color:#e2e8f0">18.3.1</strong></li>
+          <li>Vite <strong style="color:#e2e8f0">5.4.19</strong></li>
+          <li>TypeScript <strong style="color:#e2e8f0">5.8.3</strong></li>
+          <li>@vitejs/plugin-react-swc <strong style="color:#e2e8f0">3.11</strong></li>
+        </ul>
+      </div>
+      <div class="card-teal">
+        <h3>UI &amp; Styling</h3>
+        <ul>
+          <li>TailwindCSS <strong style="color:#e2e8f0">3.4.17</strong></li>
+          <li>Radix UI — <strong style="color:#e2e8f0">15 primitives</strong></li>
+          <li>shadcn/ui component library</li>
+          <li>lucide-react <strong style="color:#e2e8f0">0.462</strong></li>
+        </ul>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="card-green">
+        <h3>Data &amp; Forms</h3>
+        <ul>
+          <li>@tanstack/react-query <strong style="color:#e2e8f0">5.83</strong></li>
+          <li>@supabase/supabase-js <strong style="color:#e2e8f0">2.98</strong></li>
+          <li>zod <strong style="color:#e2e8f0">3.25.76</strong></li>
+          <li>react-hook-form <strong style="color:#e2e8f0">7.61</strong></li>
+        </ul>
+      </div>
+      <div class="card-purple">
+        <h3>Utilities</h3>
+        <ul>
+          <li>react-router-dom <strong style="color:#e2e8f0">6.30</strong></li>
+          <li>date-fns <strong style="color:#e2e8f0">3.6</strong></li>
+          <li>recharts <strong style="color:#e2e8f0">2.15</strong></li>
+          <li>xlsx <strong style="color:#e2e8f0">0.18</strong>, sonner <strong style="color:#e2e8f0">1.7</strong>, next-themes <strong style="color:#e2e8f0">0.3</strong></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num-badge">06 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 07 — APP ROUTES
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="slide-7">
+  <div class="slide-tag">ROUTING</div>
+  <h2 class="slide-title">Application <span>Routes</span></h2>
+
+  <div style="flex:1;overflow-y:auto;margin-top:10px">
+    <table class="data-table">
+      <thead>
+        <tr><th>Path</th><th>Component</th><th>Auth</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>/</td><td>Index</td><td><span class="badge badge-green" style="font-size:10px">Public</span></td><td>Landing page</td></tr>
+        <tr><td>/auth</td><td>Auth</td><td><span class="badge badge-green" style="font-size:10px">Public</span></td><td>Login &amp; sign-up</td></tr>
+        <tr><td>/dashboard</td><td>Dashboard</td><td><span class="badge badge-blue" style="font-size:10px">Auth</span></td><td>User home (hours, points, packages)</td></tr>
+        <tr><td>/book</td><td>PublicBooking</td><td><span class="badge badge-green" style="font-size:10px">Public</span></td><td>Guest bay booking</td></tr>
+        <tr><td>/bookings</td><td>Bookings</td><td><span class="badge badge-blue" style="font-size:10px">Auth</span></td><td>Bay booking interface</td></tr>
+        <tr><td>/my-bookings</td><td>MyBookings</td><td><span class="badge badge-blue" style="font-size:10px">Auth</span></td><td>Booking history &amp; cancellations</td></tr>
+        <tr><td>/shop</td><td>Shop</td><td><span class="badge badge-blue" style="font-size:10px">Auth</span></td><td>Beverages &amp; merchandise</td></tr>
+        <tr><td>/rewards</td><td>Rewards</td><td><span class="badge badge-blue" style="font-size:10px">Auth</span></td><td>Loyalty points &amp; redemptions</td></tr>
+        <tr><td>/events</td><td>Events</td><td><span class="badge badge-blue" style="font-size:10px">Auth</span></td><td>Tournaments &amp; leagues</td></tr>
+        <tr><td>/community</td><td>Community</td><td><span class="badge badge-blue" style="font-size:10px">Auth</span></td><td>Social feed</td></tr>
+        <tr><td>/leaderboard</td><td>Leaderboard</td><td><span class="badge badge-blue" style="font-size:10px">Auth</span></td><td>Handicap rankings</td></tr>
+        <tr><td>/profile</td><td>Profile</td><td><span class="badge badge-blue" style="font-size:10px">Auth</span></td><td>User settings</td></tr>
+        <tr><td>/admin</td><td>Admin</td><td><span class="badge badge-gold" style="font-size:10px">Admin Role</span></td><td>Full admin panel</td></tr>
+        <tr><td>/admin/setup</td><td>AdminSetup</td><td><span class="badge badge-green" style="font-size:10px">Public</span></td><td>Initial admin claim</td></tr>
+        <tr><td>/page/:slug</td><td>PageView</td><td><span class="badge badge-green" style="font-size:10px">Public</span></td><td>CMS dynamic pages</td></tr>
+        <tr><td>*</td><td>NotFound</td><td>—</td><td>404 fallback</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="slide-num-badge">07 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 08 — STATE MANAGEMENT & HOOKS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-green" id="slide-8">
+  <div class="slide-tag">FRONTEND STATE</div>
+  <h2 class="slide-title">State <span>Management</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card">
+      <h3>Server State — React Query</h3>
+      <ul>
+        <li>All DB reads via <code style="color:#7dd3fc;font-size:11.5px">useQuery</code> + Supabase client</li>
+        <li>All writes via <code style="color:#7dd3fc;font-size:11.5px">useMutation</code> with <code style="color:#7dd3fc;font-size:11.5px">queryClient.invalidateQueries</code></li>
+        <li>Key query domains: bookings, bays, orders, products, rewards, invoices, users, loyalty</li>
+        <li>Stale-while-revalidate pattern — no manual loading states</li>
+        <li>Calendar slots refetch every 30 seconds for live availability</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Client / UI State</h3>
+      <ul>
+        <li><strong style="color:#e2e8f0">AuthContext</strong>: user session, profile completion flows (Apple relay, phone)</li>
+        <li><strong style="color:#e2e8f0">AdminCityContext</strong>: city selection (sessionStorage), role-scoped city list</li>
+        <li>No Redux / Zustand — context + React Query is sufficient at current scale</li>
+        <li>Theme: next-themes with dark mode default</li>
+        <li>Toast notifications via sonner</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="margin-top:14px">
+    <div style="font-size:11px;color:var(--gold);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">33+ Custom React Query Hooks — by domain</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <span class="badge badge-green">Bookings (8)</span>
+      <span class="badge badge-blue">Orders (4)</span>
+      <span class="badge badge-gold">Loyalty / Points (8)</span>
+      <span class="badge badge-teal">Admin / Finance (6)</span>
+      <span class="badge badge-purple">Config (5)</span>
+      <span class="badge badge-sky">Products (3)</span>
+      <span class="badge badge-orange">Community (2)</span>
+      <span class="badge badge-green">Notifications (2)</span>
+    </div>
+  </div>
+  <div class="note" style="margin-top:12px">All hook filenames follow the pattern <code style="color:#7dd3fc">use[Domain].ts</code> — e.g. <code style="color:#7dd3fc">useBookings.ts</code>, <code style="color:#7dd3fc">useLoyaltyConfig.ts</code>, <code style="color:#7dd3fc">useAdminRevenue.ts</code>. Each hook owns its own query key and cache invalidation strategy.</div>
+  <div class="slide-num-badge">08 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 09 — COMPONENT STRUCTURE
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="slide-9">
+  <div class="slide-tag">FRONTEND STRUCTURE</div>
+  <h2 class="slide-title">Directory <span>Structure</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px;gap:20px">
+    <div class="code-block" style="height:100%;font-size:12px">src/
+├── pages/           <span style="color:#8b949e">(17 route components)</span>
+├── components/
+│   ├── admin/       <span style="color:#8b949e">(40+ admin tabs &amp; dialogs)</span>
+│   │   └── loyalty/ <span style="color:#8b949e">(8 loyalty management tabs)</span>
+│   ├── rewards/     <span style="color:#8b949e">(6 loyalty display cards)</span>
+│   ├── home/        <span style="color:#8b949e">(landing page sections)</span>
+│   ├── layout/      <span style="color:#8b949e">(Navbar, Footer)</span>
+│   └── ui/          <span style="color:#8b949e">(40+ shadcn/Radix primitives)</span>
+├── hooks/           <span style="color:#8b949e">(33+ custom React Query hooks)</span>
+├── contexts/        <span style="color:#8b949e">(AuthContext, AdminCityContext)</span>
+├── integrations/
+│   ├── supabase/    <span style="color:#8b949e">(typed client + generated types)</span>
+│   └── lovable/     <span style="color:#8b949e">(OAuth wrapper)</span>
+└── lib/             <span style="color:#8b949e">(gst-utils, gstr1-export,
+                      invoice-templates, currencies)</span></div>
+
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card-blue">
+        <h3>Key File Conventions</h3>
+        <ul>
+          <li>Route components in <code style="color:#7dd3fc;font-size:11px">src/pages/</code> match router path names</li>
+          <li>Admin components colocated in <code style="color:#7dd3fc;font-size:11px">components/admin/</code> — one file per tab</li>
+          <li>All Supabase types: <code style="color:#7dd3fc;font-size:11px">integrations/supabase/types.ts</code> (auto-generated)</li>
+          <li>GST utilities isolated in <code style="color:#7dd3fc;font-size:11px">lib/gst-utils.ts</code></li>
+          <li>Invoice HTML templates: <code style="color:#7dd3fc;font-size:11px">lib/invoice-templates.ts</code></li>
+        </ul>
+      </div>
+      <div class="card-gold">
+        <h3>Type-Cast Pattern</h3>
+        <ul>
+          <li>Tables added after last type-gen use the narrow cast:</li>
+          <li><code style="color:#a5d6ff;font-size:11px">supabase.from('table' as any)</code></li>
+          <li>NOT <code style="color:#ff7b72;font-size:11px">(supabase as any).from('table')</code> — this bypasses all types</li>
+          <li>Re-run type generation after each new migration batch</li>
+        </ul>
+      </div>
+      <div class="note">Supabase types are auto-generated via <code style="color:#7dd3fc">supabase gen types typescript</code>. New tables added in April 2026 migrations (audit_log, rate_limit_attempts, payment_events) should be included in the next type-gen run.</div>
+    </div>
+  </div>
+  <div class="slide-num-badge">09 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 10 — SUPABASE ARCHITECTURE
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-teal" id="slide-10">
+  <div class="slide-tag">BACKEND</div>
+  <h2 class="slide-title">Supabase <span>Architecture</span></h2>
+
+  <div class="grid-2-1" style="flex:1;align-items:start;margin-top:10px">
+    <div>
+      <div class="layer" style="background:rgba(201,168,76,0.10);border:1px solid rgba(201,168,76,0.25)">
+        <div class="layer-num" style="background:rgba(201,168,76,0.25);color:#c9a84c">1</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#c9a84c;margin-bottom:3px">React Client (Browser)</div>
+          <div style="font-size:12px;color:var(--slate-400)">JWT auth headers · typed Supabase JS client · real-time subscriptions via WebSocket</div>
+        </div>
+      </div>
+      <div class="layer" style="background:rgba(13,148,136,0.10);border:1px solid rgba(13,148,136,0.25)">
+        <div class="layer-num" style="background:rgba(13,148,136,0.25);color:#2dd4bf">2</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#2dd4bf;margin-bottom:3px">Supabase Auth</div>
+          <div style="font-size:12px;color:var(--slate-400)">Email/password · Apple OAuth (relay detection) · JWT issued to client on success</div>
+        </div>
+      </div>
+      <div class="layer" style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.25)">
+        <div class="layer-num" style="background:rgba(59,130,246,0.25);color:#60a5fa">3</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#60a5fa;margin-bottom:3px">Postgres + RLS</div>
+          <div style="font-size:12px;color:var(--slate-400)">45 tables · Row-Level Security on every table · SECURITY DEFINER functions for elevated ops</div>
+        </div>
+      </div>
+      <div class="layer" style="background:rgba(74,144,96,0.10);border:1px solid rgba(74,144,96,0.25)">
+        <div class="layer-num" style="background:rgba(74,144,96,0.25);color:#4CAF7A">4</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#4CAF7A;margin-bottom:3px">Deno Edge Functions</div>
+          <div style="font-size:12px;color:var(--slate-400)">11 serverless functions · env-var secrets · Zod validation at entry · service-role client inside</div>
+        </div>
+      </div>
+      <div class="layer" style="background:rgba(139,92,246,0.10);border:1px solid rgba(139,92,246,0.25)">
+        <div class="layer-num" style="background:rgba(139,92,246,0.25);color:#a78bfa">5</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#a78bfa;margin-bottom:3px">External APIs</div>
+          <div style="font-size:12px;color:var(--slate-400)">Razorpay · Google Calendar · Resend · Lovable AI (Gemini 2.5)</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card-gold">
+        <h3>Auth Providers</h3>
+        <ul>
+          <li>Email / Password</li>
+          <li>Apple OAuth (with privacy relay handling)</li>
+          <li>Supabase social OAuth</li>
+        </ul>
+      </div>
+      <div class="card-teal">
+        <h3>Key Security Patterns</h3>
+        <ul>
+          <li>RLS on every table</li>
+          <li>SECURITY DEFINER for elevated functions</li>
+          <li>Service-role key stays server-side only</li>
+          <li>Anon key safe for browser</li>
+          <li>HMAC webhook verification</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num-badge">10 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 11 — DATABASE SCHEMA
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="slide-11">
+  <div class="slide-tag">DATABASE · 45 TABLES</div>
+  <h2 class="slide-title">Schema <span>Overview</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card">
+      <h3>Core Domains</h3>
+      <ul>
+        <li><strong style="color:#60a5fa">User &amp; Profiles:</strong> profiles, user_roles, site_admin_cities</li>
+        <li><strong style="color:#60a5fa">Facility:</strong> bays, bay_config, bay_pricing, hour_packages, member_hours, hours_transactions</li>
+        <li><strong style="color:#60a5fa">Bookings:</strong> bookings (+razorpay_order_id, payment_status), orders (+razorpay_order_id, payment_status)</li>
+        <li><strong style="color:#60a5fa">Loyalty:</strong> loyalty_config, earning_rules, multipliers, milestones, user_progress, points_transactions, auto_gift_rules, gifted_rewards</li>
+        <li><strong style="color:#60a5fa">Products:</strong> products, product_categories, rewards, vendors, units_of_measure</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Financial, Events &amp; Audit</h3>
+      <ul>
+        <li><strong style="color:#c9a84c">Financial:</strong> invoices, invoice_line_items, invoice_settings, invoice_sequences, financial_years, expense_categories, expenses, expense_line_items, revenue_transactions, offline_payment_methods, gst_profiles, advance_transactions</li>
+        <li><strong style="color:#c9a84c">Events &amp; Community:</strong> events, earn_methods, community_posts, notifications, email_log, email_preferences, page_content, admin_config</li>
+        <li><strong style="color:#c9a84c">Payment:</strong> payment_gateways, payment_events (idempotency key)</li>
+        <li><strong style="color:#c9a84c">Audit (Apr '26):</strong> audit_log, background_job_failures, rate_limit_attempts</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note">All tables have RLS enabled. The audit_log table has an append-only policy — no UPDATE or DELETE permissions granted to any role, including authenticated. payment_events stores unique razorpay_event_id to ensure idempotent webhook processing.</div>
+  <div class="slide-num-badge">11 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 12 — EDGE FUNCTIONS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-purple" id="slide-12">
+  <div class="slide-tag">EDGE FUNCTIONS · 11 FUNCTIONS</div>
+  <h2 class="slide-title">Serverless <span>Functions</span></h2>
+
+  <div style="flex:1;overflow-y:auto;margin-top:8px">
+    <table class="data-table">
+      <thead>
+        <tr><th>Function</th><th>Auth</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>create-razorpay-order</td><td><span class="badge badge-green" style="font-size:10px">Public</span></td><td>Creates Razorpay payment orders; Zod validated; reads RAZORPAY_SECRET_&lt;CITY_SLUG&gt; env var</td></tr>
+        <tr><td>razorpay-webhook</td><td><span class="badge badge-orange" style="font-size:10px">HMAC Sig</span></td><td>HMAC-SHA256 webhook; idempotent via payment_events; updates booking/order payment_status</td></tr>
+        <tr><td>calendar-sync</td><td><span class="badge badge-blue" style="font-size:10px">JWT</span></td><td>Full booking lifecycle: create, approve, cancel; loyalty trigger; failure logging</td></tr>
+        <tr><td>setup-admin</td><td><span class="badge badge-orange" style="font-size:10px">Public+PW</span></td><td>Rate-limited (5/15 min); bcrypt verify; grants admin role to user</td></tr>
+        <tr><td>change-admin-password</td><td><span class="badge badge-gold" style="font-size:10px">JWT+Admin</span></td><td>Rate-limited; bcrypt hash; strong password policy (12 chars, mixed)</td></tr>
+        <tr><td>manage-roles</td><td><span class="badge badge-gold" style="font-size:10px">JWT+Admin</span></td><td>Zod validated; atomic site_admin grant via grant_site_admin_with_cities() stored proc</td></tr>
+        <tr><td>create-admin-user</td><td><span class="badge badge-teal" style="font-size:10px">Service</span></td><td>Creates admin@golfers-edge.com; reads password from ADMIN_AUTH_PASSWORD env var</td></tr>
+        <tr><td>calculate-loyalty-points</td><td><span class="badge badge-teal" style="font-size:10px">Service</span></td><td>Event-driven points; stacking multipliers; booking_id FK for clawback</td></tr>
+        <tr><td>process-auto-gifts</td><td><span class="badge badge-teal" style="font-size:10px">Service</span></td><td>Zod validated; processes auto_gift_rules on trigger events with max_per_user cap</td></tr>
+        <tr><td>send-notification-email</td><td><span class="badge badge-blue" style="font-size:10px">JWT</span></td><td>10+ HTML templates; body size limit 50 KB; failures logged to background_job_failures</td></tr>
+        <tr><td>scan-bill</td><td><span class="badge badge-gold" style="font-size:10px">JWT+Admin</span></td><td>Gemini 2.5 Flash OCR; file-upload only (SSRF removed); 10 MB limit; MIME validation</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="slide-num-badge">12 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 13 — STORED PROCEDURES
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-green" id="slide-13">
+  <div class="slide-tag">DATABASE FUNCTIONS</div>
+  <h2 class="slide-title">Atomic <span>Stored Procedures</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card-teal">
+        <h3>grant_site_admin_with_cities(user_id, cities[])</h3>
+        <ul>
+          <li>Atomically inserts <code style="color:#2dd4bf;font-size:11px">user_roles</code> row AND <code style="color:#2dd4bf;font-size:11px">site_admin_cities</code> rows in one transaction</li>
+          <li>Prevents partial state: role granted but city assignment fails</li>
+          <li>SECURITY DEFINER — service role only, not callable from browser</li>
+          <li>Called by manage-roles edge function</li>
+        </ul>
+      </div>
+      <div class="card-gold">
+        <h3>cancel_booking_with_clawback(booking_id, cancelled_by)</h3>
+        <ul>
+          <li>Row-locks booking, marks as cancelled</li>
+          <li>Sums allocation points for that booking_id</li>
+          <li>Inserts negative points_transactions (redemption)</li>
+          <li>Decrements profile.points (floor: 0 — never negative)</li>
+          <li>All in one transaction — impossible to have cancelled booking with unclaimed points</li>
+        </ul>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card-blue">
+        <h3>audit_log_trigger()</h3>
+        <ul>
+          <li>AFTER trigger on INSERT / UPDATE / DELETE of critical tables</li>
+          <li>Records: changed_by (auth.uid()), table_name, operation, old_values, new_values as JSONB</li>
+          <li>Append-only — no UPDATE/DELETE policy on audit_log</li>
+          <li>Active on: user_roles, payment_gateways, bay_pricing, admin_config, bookings (status only), invoices</li>
+        </ul>
+      </div>
+      <div class="card-purple">
+        <h3>RLS Helper Functions</h3>
+        <ul>
+          <li><code style="color:#a78bfa;font-size:11px">has_role(uid, role)</code> — checks user_roles table</li>
+          <li><code style="color:#a78bfa;font-size:11px">is_admin_or_site_admin(uid)</code> — used in all write RLS policies</li>
+          <li><code style="color:#a78bfa;font-size:11px">has_city_access(uid, city)</code> — scopes site_admin to their cities</li>
+          <li><code style="color:#a78bfa;font-size:11px">increment_user_points(user_id, delta)</code></li>
+          <li><code style="color:#a78bfa;font-size:11px">decrement_user_points_safe(user_id, delta)</code> — floors at 0</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num-badge">13 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 14 — KEY DATA FLOWS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-biz" id="slide-14">
+  <div class="slide-tag">DATA FLOWS</div>
+  <h2 class="slide-title">End-to-End <span>Flows</span></h2>
+
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:22px">
+    <div>
+      <div class="flow-label">&#127944; Bay Booking</div>
+      <div class="biz-flow">
+        <div class="biz-step" style="background:rgba(74,144,96,0.12);border:1px solid rgba(74,144,96,0.3);color:#4CAF7A;font-size:11px">Browser</div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(74,144,96,0.12);border:1px solid rgba(74,144,96,0.3);color:#4CAF7A;font-size:11px">calendar-sync<br><span style="color:var(--slate-400);font-size:10px">create_booking</span></div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(74,144,96,0.12);border:1px solid rgba(74,144,96,0.3);color:#4CAF7A;font-size:11px">Google Calendar<br><span style="color:var(--slate-400);font-size:10px">API</span></div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(74,144,96,0.12);border:1px solid rgba(74,144,96,0.3);color:#4CAF7A;font-size:11px">bookings table<br><span style="color:var(--slate-400);font-size:10px">+hours_transactions</span></div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(74,144,96,0.12);border:1px solid rgba(74,144,96,0.3);color:#4CAF7A;font-size:11px">calculate-loyalty-<br>points</div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(74,144,96,0.12);border:1px solid rgba(74,144,96,0.3);color:#4CAF7A;font-size:11px">points_transactions</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="flow-label">&#128176; Payment</div>
+      <div class="biz-flow">
+        <div class="biz-step" style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.3);color:#60a5fa;font-size:11px">Browser</div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.3);color:#60a5fa;font-size:11px">create-razorpay-<br>order</div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.3);color:#60a5fa;font-size:11px">Razorpay API<br><span style="color:var(--slate-400);font-size:10px">order_id returned</span></div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.3);color:#60a5fa;font-size:11px">razorpay-webhook<br><span style="color:var(--slate-400);font-size:10px">HMAC verify</span></div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.3);color:#60a5fa;font-size:11px">payment_events<br><span style="color:var(--slate-400);font-size:10px">idempotent</span></div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.3);color:#60a5fa;font-size:11px">bookings.<br>payment_status='paid'</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="flow-label">&#10060; Cancellation</div>
+      <div class="biz-flow">
+        <div class="biz-step" style="background:rgba(249,115,22,0.10);border:1px solid rgba(249,115,22,0.3);color:#fb923c;font-size:11px">Browser</div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(249,115,22,0.10);border:1px solid rgba(249,115,22,0.3);color:#fb923c;font-size:11px">calendar-sync<br><span style="color:var(--slate-400);font-size:10px">cancel_booking</span></div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(249,115,22,0.10);border:1px solid rgba(249,115,22,0.3);color:#fb923c;font-size:11px">cancel_booking_<br>with_clawback()</div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(249,115,22,0.10);border:1px solid rgba(249,115,22,0.3);color:#fb923c;font-size:11px">booking cancelled<br>+ points clawed back</div>
+        <div class="biz-arrow">&#8594;</div>
+        <div class="biz-step" style="background:rgba(249,115,22,0.10);border:1px solid rgba(249,115,22,0.3);color:#fb923c;font-size:11px">audit_log<br>entry</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num-badge">14 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 15 — AUTH & AUTHORISATION
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-slate" id="slide-15">
+  <div class="slide-tag">SECURITY · AUTH</div>
+  <h2 class="slide-title">Authentication &amp; <span>Authorisation</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card">
+      <h3>Authentication</h3>
+      <ul>
+        <li>Supabase JWT — every request carries Bearer token in Authorization header</li>
+        <li>Apple OAuth: relay email detection triggers profile completion modal</li>
+        <li>Phone completion modal for missing phone numbers</li>
+        <li>localStorage session with auto-refresh (supabase client config)</li>
+        <li>bcrypt password for admin setup and password change flows</li>
+        <li>create-admin-user reads password from ADMIN_AUTH_PASSWORD env var</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Role Hierarchy</h3>
+      <ul>
+        <li><strong style="color:#c9a84c">admin</strong> — Full access: all cities, all tabs, all reports, role manager, settings</li>
+        <li><strong style="color:#2dd4bf">site_admin</strong> — City-scoped: assigned cities only, limited reports (SiteAdminPermissionsCard)</li>
+        <li><strong style="color:#4CAF7A">user</strong> — Member access: dashboard, bookings, shop, rewards, profile</li>
+        <li>Roles stored in <code style="color:#7dd3fc;font-size:11px">user_roles</code> table, scoped by city for site_admin</li>
+        <li>Role checks embedded in RLS policies — no frontend-only role guards</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="margin-top:14px">
+    <div style="font-size:11px;color:var(--gold);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">RLS Helper Functions (SECURITY DEFINER)</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <span class="badge badge-teal" style="font-size:10.5px;font-family:monospace">has_role(uid, role)</span>
+      <span class="badge badge-teal" style="font-size:10.5px;font-family:monospace">is_admin_or_site_admin(uid)</span>
+      <span class="badge badge-teal" style="font-size:10.5px;font-family:monospace">has_city_access(uid, city)</span>
+    </div>
+  </div>
+  <div class="note" style="margin-top:12px">All three RLS helpers are SECURITY DEFINER — they run with the privileges of the function owner, not the calling user. This allows them to query user_roles and site_admin_cities without exposing those tables via RLS bypass.</div>
+  <div class="slide-num-badge">15 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 16 — RLS HARDENING
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-gold" id="slide-16">
+  <div class="slide-tag">SECURITY · RLS · APRIL 2026</div>
+  <h2 class="slide-title">Row-Level Security <span>Hardening</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card-gold">
+      <h3 style="color:#f87171">Before (Critical Bug)</h3>
+      <div class="code-block" style="margin-top:8px;font-size:11.5px">
+<span class="cm">-- ANY logged-in user could insert!</span>
+<span class="kw">CREATE POLICY</span> <span class="str">"Authenticated users can insert events"</span>
+<span class="kw">ON</span> public.events <span class="kw">FOR</span> INSERT <span class="kw">TO</span> authenticated
+<span class="kw">WITH CHECK</span> (<span class="kw">true</span>); <span class="cm">← no role check</span>
+      </div>
+      <ul style="margin-top:10px">
+        <li>Same <code style="color:#ff7b72;font-size:11px">WITH CHECK (true)</code> on: products, rewards, earn_methods (INSERT/UPDATE/DELETE)</li>
+        <li><code style="color:#ff7b72;font-size:11px">community_posts</code> UPDATE: USING(true) — any user could edit any post</li>
+        <li>No DELETE policies on community_posts — all authenticated could delete</li>
+      </ul>
+    </div>
+    <div class="card-green">
+      <h3 style="color:#4CAF7A">After (Fixed — Migration 20260409100001)</h3>
+      <div class="code-block" style="margin-top:8px;font-size:11.5px">
+<span class="cm">-- Only admins can write</span>
+<span class="kw">CREATE POLICY</span> <span class="str">"Admins can insert events"</span>
+<span class="kw">ON</span> public.events <span class="kw">FOR</span> INSERT <span class="kw">TO</span> authenticated
+<span class="kw">WITH CHECK</span> (<span class="fn">is_admin_or_site_admin</span>(<span class="fn">auth</span>.uid()));
+      </div>
+      <div class="code-block" style="margin-top:8px;font-size:11.5px">
+<span class="cm">-- Own posts only</span>
+<span class="kw">ON</span> community_posts <span class="kw">FOR</span> UPDATE <span class="kw">TO</span> authenticated
+<span class="kw">USING</span> (<span class="fn">auth</span>.uid() <span class="kw">=</span> user_id)
+<span class="kw">WITH CHECK</span> (<span class="fn">auth</span>.uid() <span class="kw">=</span> user_id);
+<span class="cm">-- + admin override policy</span>
+      </div>
+    </div>
+  </div>
+  <div class="note">Migrations 20260409100001 and 20260409100002. All business-data write operations now require is_admin_or_site_admin() — regular members cannot corrupt platform data.</div>
+  <div class="slide-num-badge">16 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 17 — PASSWORD & RATE SECURITY
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-purple" id="slide-17">
+  <div class="slide-tag">SECURITY · AUTH HARDENING</div>
+  <h2 class="slide-title">Password &amp; <span>Rate Limiting</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card-purple">
+      <h3>Password Security</h3>
+      <ul>
+        <li><strong style="color:#f87171">Old:</strong> plain-text stored in admin_config table, direct <code style="color:#ff7b72;font-size:11px">===</code> comparison (timing attack vulnerable)</li>
+        <li><strong style="color:#4CAF7A">New:</strong> bcrypt hash via <code style="color:#a78bfa;font-size:11px">deno.land/x/bcrypt@v0.4.1</code>, constant-time <code style="color:#a78bfa;font-size:11px">safeCompare()</code></li>
+        <li>Legacy migration: plain-text auto-upgraded to bcrypt on next successful login</li>
+        <li>Strong policy: 12+ chars, uppercase, lowercase, number, special char</li>
+        <li>create-admin-user reads from ADMIN_AUTH_PASSWORD env var (not DB hash)</li>
+        <li>Password change: rate-limited + bcrypt rehash on every change</li>
+      </ul>
+    </div>
+    <div class="card-gold">
+      <h3>Rate Limiting</h3>
+      <ul>
+        <li>Table: <code style="color:#c9a84c;font-size:11px">rate_limit_attempts</code> (identifier, action, attempted_at)</li>
+        <li>Max: 5 attempts per 15 minutes per identifier</li>
+        <li>Returns HTTP 429 when limit exceeded</li>
+        <li>Index: (identifier, action, attempted_at) for fast window queries</li>
+        <li>Survives function restarts — stored in DB, not in-memory</li>
+        <li><strong style="color:#e2e8f0">setup-admin:</strong> IP-based rate limit (x-forwarded-for header)</li>
+        <li><strong style="color:#e2e8f0">change-admin-password:</strong> user_id-based rate limit</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note">Migrations 20260409100003 and 20260409100004. The bcrypt upgrade is backward-compatible: if the stored hash does not start with <code style="color:#7dd3fc">$2</code>, it is treated as plain-text, verified, then immediately re-hashed and stored.</div>
+  <div class="slide-num-badge">17 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 18 — PAYMENT SECURITY
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-biz" id="slide-18">
+  <div class="slide-tag">SECURITY · PAYMENTS</div>
+  <h2 class="slide-title">Payment <span>Security</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card-blue">
+      <h3>Webhook Verification (razorpay-webhook)</h3>
+      <ul>
+        <li>1. Read raw body <strong style="color:#e2e8f0">before</strong> JSON parse — preserves byte-exact payload for signature</li>
+        <li>2. Load per-city webhook_secret from <code style="color:#60a5fa;font-size:11px">payment_gateways</code> or <code style="color:#60a5fa;font-size:11px">RAZORPAY_WEBHOOK_SECRET</code> env</li>
+        <li>3. HMAC-SHA256(secret, rawBody) using Web Crypto API (<code style="color:#60a5fa;font-size:11px">crypto.subtle</code>)</li>
+        <li>4. Constant-time hex comparison against <code style="color:#60a5fa;font-size:11px">x-razorpay-signature</code> header</li>
+        <li>5. Reject with HTTP 403 on signature mismatch</li>
+        <li>6. Idempotency: INSERT with UNIQUE <code style="color:#60a5fa;font-size:11px">razorpay_event_id</code> — skip if already processed</li>
+      </ul>
+    </div>
+    <div class="card-green">
+      <h3>Secret Management</h3>
+      <ul>
+        <li><code style="color:#4CAF7A;font-size:11px">api_secret</code> column: REVOKE SELECT from authenticated role (service-role only)</li>
+        <li>Edge function reads: <code style="color:#4CAF7A;font-size:11px">RAZORPAY_SECRET_&lt;CITY_SLUG&gt;</code> env var (e.g. <code style="color:#4CAF7A;font-size:11px">RAZORPAY_SECRET_BANGALORE</code>)</li>
+        <li>Fallback to DB column during migration period</li>
+        <li><code style="color:#4CAF7A;font-size:11px">payment_gateways.city_slug</code>: auto-generated computed column</li>
+        <li><code style="color:#4CAF7A;font-size:11px">payment_status</code> tracked on both bookings and orders rows</li>
+        <li>Migration 20260409100008: DROP COLUMN api_secret (uncomment after migration)</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note">Migrations 20260409100005–20260409100008 cover: payment_events idempotency table, HMAC webhook logic, api_secret column revocation, and payment_status columns on bookings/orders.</div>
+  <div class="slide-num-badge">18 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 19 — HTTP HEADERS & AUDIT
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="slide-19">
+  <div class="slide-tag">SECURITY · HEADERS &amp; AUDIT</div>
+  <h2 class="slide-title">HTTP Headers &amp; <span>Audit Logging</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card">
+      <h3>Security Headers (public/_headers)</h3>
+      <div class="code-block" style="margin-top:8px;font-size:11.5px">X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+Content-Security-Policy:
+  script-src 'self' checkout.razorpay.com
+  connect-src 'self' *.supabase.co
+              api.razorpay.com
+  frame-src api.razorpay.com</div>
+      <ul style="margin-top:8px">
+        <li>CORS: ALLOWED_ORIGIN env var on all edge functions (default *)</li>
+        <li>Set ALLOWED_ORIGIN to production domain before go-live</li>
+        <li>frame-src allows Razorpay checkout iframe</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Audit Log</h3>
+      <ul>
+        <li>Table: <code style="color:#7dd3fc;font-size:11px">audit_log</code> (changed_by, table_name, record_id, operation, old_values, new_values JSONB)</li>
+        <li>Triggers on: user_roles, payment_gateways, bay_pricing, admin_config, bookings (status changes only), invoices</li>
+        <li>Immutable: no UPDATE/DELETE policy — append-only forever</li>
+        <li><code style="color:#7dd3fc;font-size:11px">background_job_failures</code>: email / revenue / calendar async failures — admins can view and resolve</li>
+        <li>Migration 20260409100009: audit_log trigger + rate_limit_attempts cleanup index</li>
+      </ul>
+    </div>
+  </div>
+  <div class="slide-num-badge">19 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 20 — ADMIN PANEL
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-biz" id="slide-20">
+  <div class="slide-tag">OPERATIONS · ADMIN</div>
+  <h2 class="slide-title">Admin <span>Panel</span></h2>
+
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:8px;margin-top:8px">
+    <div class="layer" style="background:rgba(74,144,96,0.10);border:1px solid rgba(74,144,96,0.25)">
+      <div class="layer-num" style="background:rgba(74,144,96,0.3);color:#4CAF7A">&#9679;</div>
+      <div><span style="font-size:11px;color:#4CAF7A;font-weight:700;letter-spacing:1px;text-transform:uppercase">Core</span> &nbsp;<span style="font-size:12.5px;color:var(--slate-400)">Dashboard &middot; Walk-in Booking &middot; Booking Logs &middot; EDGE Rewards</span></div>
+    </div>
+    <div class="layer" style="background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.25)">
+      <div class="layer-num" style="background:rgba(59,130,246,0.3);color:#60a5fa">&#9679;</div>
+      <div><span style="font-size:11px;color:#60a5fa;font-weight:700;letter-spacing:1px;text-transform:uppercase">Users</span> &nbsp;<span style="font-size:12.5px;color:var(--slate-400)">All Users &middot; Members</span></div>
+    </div>
+    <div class="layer" style="background:rgba(201,168,76,0.10);border:1px solid rgba(201,168,76,0.25)">
+      <div class="layer-num" style="background:rgba(201,168,76,0.3);color:#c9a84c">&#9679;</div>
+      <div><span style="font-size:11px;color:#c9a84c;font-weight:700;letter-spacing:1px;text-transform:uppercase">Operations</span> &nbsp;<span style="font-size:12.5px;color:var(--slate-400)">Sales &amp; Invoices &middot; Expenses &middot; Products &middot; Orders</span></div>
+    </div>
+    <div class="layer" style="background:rgba(139,92,246,0.10);border:1px solid rgba(139,92,246,0.25)">
+      <div class="layer-num" style="background:rgba(139,92,246,0.3);color:#a78bfa">&#9679;</div>
+      <div><span style="font-size:11px;color:#a78bfa;font-weight:700;letter-spacing:1px;text-transform:uppercase">Config</span> &nbsp;<span style="font-size:12.5px;color:var(--slate-400)">Pricing &middot; Payments &middot; Emails &middot; Bay Config &middot; Page Settings &middot; Finance Settings &middot; Branding &middot; Settings (admin-only)</span></div>
+    </div>
+    <div class="layer" style="background:rgba(13,148,136,0.10);border:1px solid rgba(13,148,136,0.25)">
+      <div class="layer-num" style="background:rgba(13,148,136,0.3);color:#2dd4bf">&#9679;</div>
+      <div><span style="font-size:11px;color:#2dd4bf;font-weight:700;letter-spacing:1px;text-transform:uppercase">Reports</span> &nbsp;<span style="font-size:12.5px;color:var(--slate-400)">Revenue &middot; Expense Reports &middot; P&amp;L &middot; Product Profitability &middot; GSTR-1</span></div>
+    </div>
+  </div>
+
+  <div class="note">Site admins see only their assigned cities. <code style="color:#7dd3fc">SiteAdminPermissionsCard</code> controls which report tabs are visible per site admin. Admin-only tabs (Settings, Role Manager) are hidden from site_admin role entirely.</div>
+  <div class="slide-num-badge">20 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 21 — LOYALTY SYSTEM
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-green" id="slide-21">
+  <div class="slide-tag">LOYALTY ENGINE</div>
+  <h2 class="slide-title">Loyalty <span>System</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card">
+      <h3>Earning</h3>
+      <ul>
+        <li><strong style="color:#e2e8f0">Event types:</strong> walkin, birdie_usage, eagle_usage, coaching, practice, renewal</li>
+        <li>Base rate × stacking multipliers from <code style="color:#7dd3fc;font-size:11px">multipliers</code> table</li>
+        <li><strong style="color:#e2e8f0">Multiplier conditions:</strong> off-peak (auto-detected from bay peak_start/end), coaching status, first-visit bonus, tier-based (eagle/birdie), renewal</li>
+        <li>Points credited via <code style="color:#7dd3fc;font-size:11px">calculate-loyalty-points</code> edge function</li>
+        <li><code style="color:#7dd3fc;font-size:11px">booking_id</code> FK on points_transactions enables atomic clawback on cancellation</li>
+        <li>Admin can manually gift rewards to any user</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Tiers &amp; Redemption</h3>
+      <ul>
+        <li><strong style="color:#c9a84c">Bronze</strong> (0–1,000) → <strong style="color:#94a3b8">Silver</strong> (1,000–5,000) → <strong style="color:#c9a84c">Gold</strong> (5,000–10,000) → <strong style="color:#e2e8f0">Platinum</strong> (10,000–25,000)</li>
+        <li><strong style="color:#e2e8f0">Milestones:</strong> bonus points at hours-logged thresholds (user_progress table)</li>
+        <li><strong style="color:#e2e8f0">Rewards catalogue:</strong> point cost, daily cap, usage-gate (unlock after X% plan hours used)</li>
+        <li><strong style="color:#e2e8f0">Auto-gifts:</strong> trigger_event rules (e.g. on signup) with max_per_user cap</li>
+        <li>process-auto-gifts edge function processes rules on each trigger event</li>
+        <li>gifted_rewards table tracks which rewards were auto-gifted to whom</li>
+      </ul>
+    </div>
+  </div>
+  <div class="slide-num-badge">21 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 22 — THIRD-PARTY INTEGRATIONS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-teal" id="slide-22">
+  <div class="slide-tag">INTEGRATIONS</div>
+  <h2 class="slide-title">Third-Party <span>Services</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card-teal">
+        <h3>Razorpay</h3>
+        <ul>
+          <li>Payment gateway: createOrder → checkout → webhook</li>
+          <li>Per-city API keys in <code style="color:#2dd4bf;font-size:11px">payment_gateways</code> table</li>
+          <li>Webhook secret: env var <code style="color:#2dd4bf;font-size:11px">RAZORPAY_WEBHOOK_SECRET</code></li>
+          <li>Test mode: <code style="color:#2dd4bf;font-size:11px">is_test_mode</code> flag per gateway</li>
+        </ul>
+      </div>
+      <div class="card-blue">
+        <h3>Google Calendar</h3>
+        <ul>
+          <li>Bay availability via calendar sync</li>
+          <li>Service account JWT flow</li>
+          <li>Slots fetched every 30 seconds (frontend refetch)</li>
+          <li><code style="color:#60a5fa;font-size:11px">calendar_email</code> per bay in bays table</li>
+        </ul>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card-gold">
+        <h3>Resend</h3>
+        <ul>
+          <li>Transactional email delivery</li>
+          <li>10+ HTML templates in send-notification-email</li>
+          <li>Email logs in <code style="color:#c9a84c;font-size:11px">email_log</code> table</li>
+          <li>User opt-out via <code style="color:#c9a84c;font-size:11px">email_preferences</code> table</li>
+        </ul>
+      </div>
+      <div class="card-purple">
+        <h3>Lovable AI (Gemini 2.5 Flash)</h3>
+        <ul>
+          <li>Bill / receipt OCR via scan-bill function</li>
+          <li>Admin-only endpoint (JWT + admin role)</li>
+          <li>File upload only — SSRF vector removed in April 2026</li>
+          <li>Extracts: vendor, GSTIN, line items, GST amounts</li>
+          <li>10 MB file size limit; MIME type validation</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num-badge">22 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 23 — DEVELOPER CONVENTIONS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="slide-23">
+  <div class="slide-tag">CONVENTIONS</div>
+  <h2 class="slide-title">Developer <span>Conventions</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card">
+      <h3>Frontend Patterns</h3>
+      <ul>
+        <li>Query hooks: <code style="color:#7dd3fc;font-size:11px">useQuery</code> + <code style="color:#7dd3fc;font-size:11px">.from('table').select('*')</code></li>
+        <li>Mutations: <code style="color:#7dd3fc;font-size:11px">useMutation</code> + <code style="color:#7dd3fc;font-size:11px">onSuccess invalidateQueries</code></li>
+        <li>Type cast for new tables: <code style="color:#7dd3fc;font-size:11px">supabase.from('new_table' as any)</code> — NOT <code style="color:#ff7b72;font-size:11px">(supabase as any).from()</code></li>
+        <li>Error handling: throw error from queryFn; React Query surfaces to UI</li>
+        <li>Zod forms: react-hook-form + zodResolver for all admin forms</li>
+        <li>Toast: <code style="color:#7dd3fc;font-size:11px">toast.success()</code> / <code style="color:#7dd3fc;font-size:11px">toast.error()</code> via sonner</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Edge Function Patterns</h3>
+      <ul>
+        <li>Zod schema parse at function entry; reject HTTP 400 on failure</li>
+        <li>Body size check: <code style="color:#7dd3fc;font-size:11px">contentLength &gt; MAX_BODY_BYTES</code> → HTTP 413</li>
+        <li>CORS: <code style="color:#7dd3fc;font-size:11px">Deno.env.get('ALLOWED_ORIGIN') || '*'</code></li>
+        <li>Error logging: <code style="color:#7dd3fc;font-size:11px">logJobFailure(adminClient, jobType, message, context)</code></li>
+        <li>Auth: <code style="color:#7dd3fc;font-size:11px">userClient.auth.getUser()</code> → verify role via <code style="color:#7dd3fc;font-size:11px">adminClient.rpc('has_role')</code></li>
+        <li>Rate limit check before any processing — fail fast pattern</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note">Bcrypt in Deno: <code style="color:#7dd3fc">deno.land/x/bcrypt@v0.4.1</code>. Zod in Deno: <code style="color:#7dd3fc">esm.sh/zod@3</code>. Rate limiting uses the <code style="color:#7dd3fc">rate_limit_attempts</code> DB table — not in-memory — so it survives function restarts and cold starts across all Deno isolates.</div>
+  <div class="slide-num-badge">23 / 24</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 24 — DEPLOYMENT
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-slate" id="slide-24">
+  <div class="slide-tag">DEPLOYMENT</div>
+  <h2 class="slide-title">Environment &amp; <span>Deployment</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card">
+      <h3>Required Environment Variables</h3>
+      <div class="code-block" style="margin-top:8px;font-size:11px">
+<span class="cm"># Frontend (.env)</span>
+<span class="key">VITE_SUPABASE_URL</span>=https://xxx.supabase.co
+<span class="key">VITE_SUPABASE_PUBLISHABLE_KEY</span>=eyJ...
+<span class="key">VITE_SUPABASE_PROJECT_ID</span>=xxx
+
+<span class="cm"># Supabase Secrets (supabase secrets set)</span>
+<span class="key">ALLOWED_ORIGIN</span>=https://yourdomain.com
+<span class="key">ADMIN_AUTH_PASSWORD</span>=&lt;strong-password&gt;
+<span class="key">RAZORPAY_SECRET_BANGALORE</span>=rzp_live_xxx
+<span class="key">RAZORPAY_WEBHOOK_SECRET</span>=whsec_xxx
+<span class="key">LOVABLE_API_KEY</span>=...
+<span class="key">RESEND_API_KEY</span>=...
+<span class="key">GOOGLE_SERVICE_ACCOUNT_KEY</span>=...</div>
+    </div>
+    <div class="card">
+      <h3>Post-Deploy Checklist</h3>
+      <ul>
+        <li>&#9633; Run all 9 April 2026 migrations (100001–100009)</li>
+        <li>&#9633; Set ALLOWED_ORIGIN to production domain</li>
+        <li>&#9633; Set ADMIN_AUTH_PASSWORD and run create-admin-user</li>
+        <li>&#9633; Add per-city <code style="color:#7dd3fc;font-size:11px">RAZORPAY_SECRET_*</code> env vars</li>
+        <li>&#9633; Register razorpay-webhook URL in Razorpay dashboard</li>
+        <li>&#9633; Uncomment DROP COLUMN api_secret in migration 100008</li>
+        <li>&#9633; Verify bcrypt password upgrade on first admin login</li>
+        <li>&#9633; Test webhook with Razorpay test event simulator</li>
+        <li>&#9633; Run <code style="color:#7dd3fc;font-size:11px">supabase gen types typescript</code> after migrations</li>
+        <li>&#9633; Deploy edge functions: <code style="color:#7dd3fc;font-size:11px">supabase functions deploy</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top:12px">Per-city Razorpay keys follow the pattern <code style="color:#7dd3fc">RAZORPAY_SECRET_&lt;CITY_SLUG&gt;</code> where CITY_SLUG is the computed column value from payment_gateways (e.g. BANGALORE, MUMBAI). Add one secret per city in Supabase Dashboard &gt; Edge Functions &gt; Secrets.</div>
+  <div class="slide-num-badge">24 / 24</div>
+</div>
+
+</div><!-- /slideshow -->
+
+<div id="nav">
+  <button class="nav-btn" onclick="goTo(current-1)">&#8592;</button>
+  <span class="slide-counter" id="slideCounter">1 / 24</span>
+  <button class="nav-btn" onclick="goTo(current+1)">&#8594;</button>
+</div>
+
+<script>
+let current = 1;
+const total = document.querySelectorAll('.slide').length;
+function goTo(n) {
+  const slides = document.querySelectorAll('.slide');
+  slides[current-1].classList.remove('active'); slides[current-1].classList.add('exit');
+  setTimeout(()=>{ slides[current-1].classList.remove('exit'); }, 300);
+  current = Math.max(1, Math.min(n, total));
+  slides[current-1].classList.add('active');
+  document.getElementById('slideCounter').textContent = current + ' / ' + total;
+  document.getElementById('progressBar').style.width = (current/total*100)+'%';
+}
+document.addEventListener('keydown', e => { if(e.key==='ArrowRight'||e.key==='ArrowDown') goTo(current+1); if(e.key==='ArrowLeft'||e.key==='ArrowUp') goTo(current-1); });
+document.addEventListener('DOMContentLoaded', ()=>{ document.getElementById('progressBar').style.width=(1/total*100)+'%'; document.getElementById('slideCounter').textContent='1 / '+total; });
+</script>
+</body>
+</html>

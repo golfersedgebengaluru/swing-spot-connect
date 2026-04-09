@@ -1,0 +1,1495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Golfer's Edge — Admin Guide</title>
+<style>
+  :root {
+    --green-dark: #1a3a2a;
+    --green-mid: #2d5a3d;
+    --green-light: #4a9060;
+    --gold: #c9a84c;
+    --gold-light: #e8c870;
+    --white: #ffffff;
+    --slate-800: #1e293b;
+    --slate-700: #334155;
+    --slate-600: #475569;
+    --slate-400: #94a3b8;
+    --slate-200: #e2e8f0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #0f1a12;
+    color: var(--white);
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ─── Slide Engine ─── */
+  .slideshow { width: 100vw; height: 100vh; position: relative; }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 40px 60px 52px;
+    opacity: 0;
+    transform: translateX(40px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .slide.active  { opacity: 1; transform: translateX(0); pointer-events: all; }
+  .slide.exit    { opacity: 0; transform: translateX(-40px); transition: opacity 0.28s ease, transform 0.28s ease; }
+
+  /* ─── Backgrounds ─── */
+  .bg-hero   { background: radial-gradient(ellipse at 30% 40%, #1a4a2a 0%, #0a1a0f 60%), linear-gradient(135deg,#0f2518 0%,#071010 100%); }
+  .bg-dark   { background: #0f1a12; }
+  .bg-slate  { background: linear-gradient(135deg,#0f172a 0%,#1e293b 100%); }
+  .bg-green  { background: linear-gradient(135deg,#1a3a2a 0%,#0f2518 100%); }
+  .bg-gold   { background: linear-gradient(135deg,#1a1400 0%,#2d2000 100%); }
+  .bg-teal   { background: linear-gradient(135deg,#042f2e 0%,#0d1a1a 100%); }
+  .bg-purple { background: linear-gradient(135deg,#1e0a3c 0%,#0f0820 100%); }
+  .bg-biz    { background: linear-gradient(135deg,#0c1f3a 0%,#0a1520 100%); }
+
+  /* ─── Typography ─── */
+  .slide-tag {
+    font-size: 11px; font-weight: 700; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--gold); margin-bottom: 10px; opacity: 0.85;
+  }
+  h1.hero-title {
+    font-size: 60px; font-weight: 800; line-height: 1.05;
+    background: linear-gradient(135deg,#ffffff 0%,#c9a84c 60%,#e8c870 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    margin-bottom: 18px; white-space: pre-line;
+  }
+  h2.slide-title { font-size: 34px; font-weight: 700; color: var(--white); margin-bottom: 6px; line-height: 1.15; }
+  h2.slide-title span { color: var(--gold); }
+  .slide-subtitle { font-size: 14px; color: var(--slate-400); margin-bottom: 20px; line-height: 1.65; max-width: 700px; }
+
+  /* ─── Grid ─── */
+  .grid-2   { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3   { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .grid-4   { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+
+  /* ─── Cards ─── */
+  .card        { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px 18px; }
+  .card-gold   { background: rgba(201,168,76,0.08);  border: 1px solid rgba(201,168,76,0.25);  border-radius: 12px; padding: 16px 18px; }
+  .card-green  { background: rgba(74,144,96,0.10);   border: 1px solid rgba(74,144,96,0.25);   border-radius: 12px; padding: 16px 18px; }
+  .card-blue   { background: rgba(59,130,246,0.08);  border: 1px solid rgba(59,130,246,0.25);  border-radius: 12px; padding: 16px 18px; }
+  .card-purple { background: rgba(139,92,246,0.08);  border: 1px solid rgba(139,92,246,0.25);  border-radius: 12px; padding: 16px 18px; }
+  .card-teal   { background: rgba(13,148,136,0.08);  border: 1px solid rgba(13,148,136,0.25);  border-radius: 12px; padding: 16px 18px; }
+  .card-sky    { background: rgba(14,165,233,0.08);  border: 1px solid rgba(14,165,233,0.25);  border-radius: 12px; padding: 16px 18px; }
+
+  .card h3, .card-gold h3, .card-green h3, .card-blue h3,
+  .card-purple h3, .card-teal h3, .card-sky h3 {
+    font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--white); letter-spacing: 0.3px;
+  }
+  .card ul, .card-gold ul, .card-green ul, .card-blue ul,
+  .card-purple ul, .card-teal ul, .card-sky ul { list-style: none; }
+  .card ul li, .card-gold ul li, .card-green ul li, .card-blue ul li,
+  .card-purple ul li, .card-teal ul li, .card-sky ul li {
+    font-size: 12px; color: var(--slate-400); padding: 3px 0;
+    display: flex; align-items: flex-start; gap: 7px; line-height: 1.45;
+  }
+  .card ul li::before, .card-gold ul li::before, .card-green ul li::before,
+  .card-blue ul li::before, .card-purple ul li::before, .card-teal ul li::before,
+  .card-sky ul li::before {
+    content: "›"; color: var(--gold); flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ─── Badges ─── */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+  .badge-green  { background: rgba(74,144,96,0.2);   color: #4CAF7A; border: 1px solid rgba(74,144,96,0.4); }
+  .badge-gold   { background: rgba(201,168,76,0.15); color: #c9a84c; border: 1px solid rgba(201,168,76,0.35); }
+  .badge-blue   { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+  .badge-teal   { background: rgba(13,148,136,0.15); color: #2dd4bf; border: 1px solid rgba(13,148,136,0.3); }
+  .badge-purple { background: rgba(139,92,246,0.15); color: #a78bfa; border: 1px solid rgba(139,92,246,0.3); }
+  .badge-orange { background: rgba(249,115,22,0.15); color: #fb923c; border: 1px solid rgba(249,115,22,0.3); }
+  .badge-sky    { background: rgba(14,165,233,0.15); color: #38bdf8; border: 1px solid rgba(14,165,233,0.3); }
+
+  /* ─── Tables ─── */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .data-table th { text-align: left; padding: 7px 11px; color: var(--gold); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid rgba(201,168,76,0.2); }
+  .data-table td { padding: 6px 11px; color: var(--slate-400); border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; line-height: 1.45; }
+  .data-table td:first-child { color: #7dd3fc; font-size: 12px; }
+  .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* ─── Note ─── */
+  .note {
+    font-size: 11.5px; color: var(--slate-400);
+    background: rgba(255,255,255,0.035); border-left: 2px solid var(--gold);
+    padding: 7px 13px; border-radius: 0 6px 6px 0; margin-top: 10px; line-height: 1.5;
+  }
+
+  /* ─── Stat boxes ─── */
+  .stat-box { text-align: center; padding: 16px 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; }
+  .stat-box .number { font-size: 28px; font-weight: 800; color: var(--gold); line-height: 1; }
+  .stat-box .label  { font-size: 11px; color: var(--slate-400); margin-top: 5px; letter-spacing: 0.5px; }
+
+  /* ─── Flow arrows (business) ─── */
+  .biz-flow { display: flex; align-items: center; gap: 0; margin: 8px 0 14px; flex-wrap: nowrap; }
+  .biz-step {
+    flex: 1; text-align: center; padding: 10px 6px;
+    border-radius: 8px; font-size: 11.5px; font-weight: 600; line-height: 1.35;
+    position: relative;
+  }
+  .biz-arrow { font-size: 16px; color: var(--slate-600); flex-shrink: 0; padding: 0 2px; }
+
+  /* ─── TOC items ─── */
+  .toc-item { display: flex; align-items: center; gap: 12px; padding: 7px 10px; border-radius: 8px; cursor: pointer; transition: background 0.18s; }
+  .toc-item:hover { background: rgba(255,255,255,0.04); }
+  .toc-num  { font-size: 11px; color: var(--gold); font-weight: 700; min-width: 22px; }
+  .toc-text { font-size: 12.5px; color: var(--slate-400); }
+  .toc-section { font-size: 10px; letter-spacing: 1.5px; color: var(--slate-600); text-transform: uppercase; padding: 9px 10px 3px; }
+
+  /* ─── Hero decoration ─── */
+  .hero-orb { position: absolute; border-radius: 50%; filter: blur(60px); pointer-events: none; }
+  .hero-tagline { font-size: 18px; color: rgba(255,255,255,0.62); max-width: 580px; line-height: 1.6; margin-bottom: 28px; }
+  .hero-meta { display: flex; gap: 20px; flex-wrap: wrap; }
+  .hero-meta-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--slate-400); }
+  .hero-meta-item .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green-light); }
+
+  /* ─── Progress & Nav ─── */
+  .progress-bar { position: fixed; top: 0; left: 0; height: 3px; background: linear-gradient(90deg,var(--green-light),var(--gold)); transition: width 0.4s ease; z-index: 200; }
+
+  #nav {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 14px;
+    background: rgba(0,0,0,0.65); backdrop-filter: blur(14px);
+    padding: 8px 18px; border-radius: 40px;
+    border: 1px solid rgba(255,255,255,0.1); z-index: 100;
+  }
+  .nav-btn {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.07);
+    color: var(--white); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 13px;
+    transition: all 0.18s;
+  }
+  .nav-btn:hover { background: rgba(201,168,76,0.22); border-color: var(--gold); }
+  .slide-counter { font-size: 12px; color: var(--slate-400); min-width: 52px; text-align: center; font-weight: 600; }
+
+  .slide-num-badge { position: absolute; top: 20px; right: 26px; font-size: 11px; color: rgba(255,255,255,0.18); letter-spacing: 1px; }
+
+  /* ─── Biz step colours ─── */
+  .step-green  { background: rgba(74,144,96,0.15);  border: 1px solid rgba(74,144,96,0.3); }
+  .step-gold   { background: rgba(201,168,76,0.12); border: 1px solid rgba(201,168,76,0.28); }
+  .step-teal   { background: rgba(13,148,136,0.12); border: 1px solid rgba(13,148,136,0.28); }
+  .step-blue   { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.28); }
+  .step-purple { background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.28); }
+
+  /* ─── Ordered list inside cards ─── */
+  .card ol, .card-gold ol, .card-green ol, .card-blue ol,
+  .card-purple ol, .card-teal ol, .card-sky ol {
+    list-style: none; counter-reset: step-counter;
+  }
+  .card ol li, .card-gold ol li, .card-green ol li, .card-blue ol li,
+  .card-purple ol li, .card-teal ol li, .card-sky ol li {
+    counter-increment: step-counter; font-size: 12px; color: var(--slate-400);
+    padding: 3px 0; display: flex; align-items: flex-start; gap: 8px; line-height: 1.45;
+  }
+  .card ol li::before, .card-gold ol li::before, .card-green ol li::before,
+  .card-blue ol li::before, .card-purple ol li::before, .card-teal ol li::before,
+  .card-sky ol li::before {
+    content: counter(step-counter);
+    color: var(--gold); font-weight: 700; font-size: 11px; flex-shrink: 0;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: rgba(201,168,76,0.12); border: 1px solid rgba(201,168,76,0.3);
+    display: flex; align-items: center; justify-content: center; margin-top: 1px;
+  }
+
+  /* ─── Small label ─── */
+  .field-label { font-size: 10.5px; color: var(--slate-600); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+<div class="slideshow" id="slideshow">
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 01 — WELCOME
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-hero active" id="slide-1">
+  <div class="hero-orb" style="width:520px;height:520px;top:-160px;right:-100px;background:rgba(74,144,96,0.13)"></div>
+  <div class="hero-orb" style="width:300px;height:300px;bottom:-60px;left:100px;background:rgba(201,168,76,0.07)"></div>
+
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;max-width:820px">
+    <div class="slide-tag">Admin Guide · Golfer's Edge</div>
+    <h1 class="hero-title">Admin
+Command Centre</h1>
+    <p class="hero-tagline">Everything you need to run your facility — bookings, invoicing, loyalty, reports, user management, and configuration.</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item"><div class="dot"></div> Bookings &amp; Walk-ins</div>
+      <div class="hero-meta-item"><div class="dot" style="background:#c9a84c"></div> Finance &amp; Invoicing</div>
+      <div class="hero-meta-item"><div class="dot" style="background:#2dd4bf"></div> Loyalty Engine</div>
+      <div class="hero-meta-item"><div class="dot" style="background:#a78bfa"></div> Reports &amp; Analytics</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:22px">
+    <span class="badge badge-green">For Admins</span>
+    <span class="badge badge-gold">Site Admins</span>
+    <span class="badge badge-teal">22 Slides</span>
+    <span class="badge badge-purple">EdgeCollective</span>
+  </div>
+  <div class="slide-num-badge">01 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 02 — TABLE OF CONTENTS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-slate" id="slide-2">
+  <div class="slide-tag">Contents</div>
+  <h2 class="slide-title">Admin Manual <span>Overview</span></h2>
+  <p class="slide-subtitle">Use ← → arrow keys or the nav buttons to move between slides. Click any item below to jump directly.</p>
+
+  <div class="grid-2" style="gap:0 32px;flex:1;align-items:start;margin-top:4px">
+    <div>
+      <div class="toc-section">Setup &amp; Access</div>
+      <div class="toc-item" onclick="goTo(3)"><span class="toc-num">03</span><span class="toc-text">Role System</span></div>
+      <div class="toc-item" onclick="goTo(4)"><span class="toc-num">04</span><span class="toc-text">Accessing Admin</span></div>
+      <div class="toc-section" style="margin-top:6px">Core Operations</div>
+      <div class="toc-item" onclick="goTo(5)"><span class="toc-num">05</span><span class="toc-text">Dashboard Tab</span></div>
+      <div class="toc-item" onclick="goTo(6)"><span class="toc-num">06</span><span class="toc-text">Walk-in Booking</span></div>
+      <div class="toc-item" onclick="goTo(7)"><span class="toc-num">07</span><span class="toc-text">Booking Logs</span></div>
+      <div class="toc-item" onclick="goTo(8)"><span class="toc-num">08</span><span class="toc-text">User Management</span></div>
+      <div class="toc-section" style="margin-top:6px">Configuration</div>
+      <div class="toc-item" onclick="goTo(9)"><span class="toc-num">09</span><span class="toc-text">Bay Configuration</span></div>
+      <div class="toc-item" onclick="goTo(10)"><span class="toc-num">10</span><span class="toc-text">Products &amp; Orders</span></div>
+    </div>
+    <div>
+      <div class="toc-section">Finance</div>
+      <div class="toc-item" onclick="goTo(11)"><span class="toc-num">11</span><span class="toc-text">Pricing &amp; Payments</span></div>
+      <div class="toc-item" onclick="goTo(12)"><span class="toc-num">12</span><span class="toc-text">EDGE Rewards</span></div>
+      <div class="toc-item" onclick="goTo(13)"><span class="toc-num">13</span><span class="toc-text">Sales &amp; Invoices</span></div>
+      <div class="toc-item" onclick="goTo(14)"><span class="toc-num">14</span><span class="toc-text">Expenses &amp; Vendors</span></div>
+      <div class="toc-item" onclick="goTo(15)"><span class="toc-num">15</span><span class="toc-text">Reports</span></div>
+      <div class="toc-section" style="margin-top:6px">Admin Tools</div>
+      <div class="toc-item" onclick="goTo(16)"><span class="toc-num">16</span><span class="toc-text">Email Templates</span></div>
+      <div class="toc-item" onclick="goTo(17)"><span class="toc-num">17</span><span class="toc-text">Events &amp; Pages</span></div>
+      <div class="toc-item" onclick="goTo(18)"><span class="toc-num">18</span><span class="toc-text">Branding &amp; Settings</span></div>
+      <div class="toc-item" onclick="goTo(19)"><span class="toc-num">19</span><span class="toc-text">Finance Settings</span></div>
+      <div class="toc-item" onclick="goTo(20)"><span class="toc-num">20</span><span class="toc-text">Role Manager</span></div>
+      <div class="toc-item" onclick="goTo(21)"><span class="toc-num">21</span><span class="toc-text">Security &amp; Audit</span></div>
+      <div class="toc-item" onclick="goTo(22)"><span class="toc-num">22</span><span class="toc-text">Quick Reference</span></div>
+    </div>
+  </div>
+  <div class="slide-num-badge">02 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 03 — ROLE SYSTEM
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-biz" id="slide-3">
+  <div class="slide-tag">Roles &amp; Permissions</div>
+  <h2 class="slide-title">Admin <span>Role System</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card-gold">
+      <h3>Admin (Full Access)</h3>
+      <ul>
+        <li><span>Access to ALL cities, ALL tabs, ALL reports.</span></li>
+        <li><span>Can manage roles — grant or revoke Admin and Site Admin.</span></li>
+        <li><span>Can access Settings and Page Settings tabs.</span></li>
+        <li><span>Can view and manage the complete audit log.</span></li>
+        <li><span>Only one or a few trusted people should hold this role.</span></li>
+      </ul>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <span class="badge badge-gold">All Cities</span>
+        <span class="badge badge-gold">All Reports</span>
+        <span class="badge badge-gold">Settings</span>
+        <span class="badge badge-gold">Role Manager</span>
+      </div>
+    </div>
+    <div class="card-teal">
+      <h3>Site Admin (City-Scoped)</h3>
+      <ul>
+        <li><span>Access to ASSIGNED cities only — sees only their location's data.</span></li>
+        <li><span>Cannot access: Settings, Page Settings, Role Manager.</span></li>
+        <li><span>Report access controlled by the Admin via SiteAdminPermissionsCard.</span></li>
+        <li><span>City selection is locked to their assigned cities.</span></li>
+        <li><span>Ideal for city managers and facility operators.</span></li>
+      </ul>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <span class="badge badge-teal">Assigned Cities</span>
+        <span class="badge badge-orange">No Settings</span>
+        <span class="badge badge-orange">No Role Manager</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+    <div class="card" style="flex:1;min-width:220px">
+      <h3>Permission Comparison</h3>
+      <table class="data-table" style="margin-top:4px">
+        <thead><tr><th>Capability</th><th>Admin</th><th>Site Admin</th></tr></thead>
+        <tbody>
+          <tr><td>Bookings / Walk-ins</td><td><span class="badge badge-green">Yes</span></td><td><span class="badge badge-green">Yes</span></td></tr>
+          <tr><td>Products &amp; Orders</td><td><span class="badge badge-green">Yes</span></td><td><span class="badge badge-green">Yes</span></td></tr>
+          <tr><td>Reports</td><td><span class="badge badge-green">All</span></td><td><span class="badge badge-gold">Controlled</span></td></tr>
+          <tr><td>Settings Tab</td><td><span class="badge badge-green">Yes</span></td><td><span class="badge badge-orange">No</span></td></tr>
+          <tr><td>Role Manager</td><td><span class="badge badge-green">Yes</span></td><td><span class="badge badge-orange">No</span></td></tr>
+          <tr><td>Audit Log</td><td><span class="badge badge-green">Yes</span></td><td><span class="badge badge-orange">No</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="note">Role assignment is rate-limited to 5 attempts per 15 minutes. Passwords are bcrypt-hashed. All role changes are audit-logged.</div>
+  <div class="slide-num-badge">03 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 04 — ACCESSING ADMIN
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="slide-4">
+  <div class="slide-tag">Access</div>
+  <h2 class="slide-title">Getting Into <span>the Admin Panel</span></h2>
+
+  <div class="biz-flow" style="margin-bottom:16px">
+    <div class="biz-step step-green">Log In</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step step-gold">Admin Auto-Redirect</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step step-teal">/admin</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step step-blue">Select City</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step step-green">Start Managing</div>
+  </div>
+
+  <div class="grid-2" style="flex:1;align-items:start">
+    <div class="card-teal">
+      <h3>First-Time Setup</h3>
+      <ol>
+        <li><span>An existing admin sets up your account at <strong style="color:#7dd3fc">/admin/setup</strong></span></li>
+        <li><span>You'll need the admin setup password — ask your system admin</span></li>
+        <li><span>Enter the password to claim the Admin role</span></li>
+        <li><span>You'll be redirected to the admin panel automatically</span></li>
+        <li><span>Change your password immediately in Settings</span></li>
+      </ol>
+      <div style="margin-top:12px">
+        <div class="field-label">Setup URL</div>
+        <div style="font-family:monospace;font-size:12px;color:#7dd3fc;background:rgba(14,165,233,0.06);padding:6px 10px;border-radius:6px;border:1px solid rgba(14,165,233,0.15)">/admin/setup</div>
+      </div>
+    </div>
+    <div class="card-gold">
+      <h3>Day-to-Day Access</h3>
+      <ul>
+        <li><span>Admins are auto-redirected to <strong style="color:#c9a84c">/admin</strong> on login</span></li>
+        <li><span>The sidebar shows all available sections for your role</span></li>
+        <li><span>The City Selector (top of sidebar) filters all data</span></li>
+        <li><span>Admins see "All Cities" option; site admins see only their assigned cities</span></li>
+        <li><span>SessionStorage remembers your last selected city across page reloads</span></li>
+      </ul>
+      <div style="margin-top:12px;padding:10px;background:rgba(201,168,76,0.06);border-radius:8px;border:1px solid rgba(201,168,76,0.15)">
+        <div style="font-size:11.5px;color:var(--slate-400);line-height:1.5">
+          Bookmark <span style="color:#c9a84c;font-family:monospace">/admin</span> for quick access.<br>
+          The sidebar collapses on smaller screens — use the hamburger icon.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">If you ever lose admin access, ask a co-admin to reinstate your role via Role Manager → Settings tab.</div>
+  <div class="slide-num-badge">04 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 05 — DASHBOARD TAB
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-green" id="slide-5">
+  <div class="slide-tag">Core · Dashboard</div>
+  <h2 class="slide-title">Admin <span>Dashboard</span></h2>
+
+  <div class="grid-3" style="margin-bottom:14px">
+    <div class="stat-box">
+      <div class="number">—</div>
+      <div class="label">Today's Bookings</div>
+    </div>
+    <div class="stat-box">
+      <div class="number">—</div>
+      <div class="label">Revenue Today</div>
+    </div>
+    <div class="stat-box">
+      <div class="number">—</div>
+      <div class="label">Active Members</div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="flex:1;align-items:start">
+    <div class="card-green">
+      <h3>What You See on the Dashboard</h3>
+      <ul>
+        <li><span>Overview of bookings for today and this week</span></li>
+        <li><span>Revenue summary — hours sold, walk-ins, shop orders</span></li>
+        <li><span>Recent bookings list with status badges</span></li>
+        <li><span>Member activity — new signups and recent visits</span></li>
+        <li><span>Quick navigation to most-used tabs</span></li>
+        <li><span>Pending items requiring action (e.g. coaching approvals)</span></li>
+      </ul>
+      <div style="margin-top:10px;display:flex;gap:7px;flex-wrap:wrap">
+        <span class="badge badge-green">Live Data</span>
+        <span class="badge badge-teal">City-Filtered</span>
+      </div>
+    </div>
+    <div class="card-teal">
+      <h3>City Filter Behaviour</h3>
+      <ul>
+        <li><span>All stats and lists respect the currently selected city</span></li>
+        <li><span>Switch cities using the selector at the top of the sidebar</span></li>
+        <li><span>"All Cities" view (Admin only) shows aggregate totals across all locations</span></li>
+        <li><span>Site Admins only see their assigned cities in the dropdown</span></li>
+      </ul>
+      <div style="margin-top:12px;padding:10px;background:rgba(13,148,136,0.07);border-radius:8px;border:1px solid rgba(13,148,136,0.15)">
+        <div style="font-size:11px;color:var(--slate-400);line-height:1.5">
+          <strong style="color:#2dd4bf">Tip:</strong> Use "All Cities" to get a bird's-eye view of the entire operation — then switch to a specific city to drill down.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num-badge">05 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 06 — WALK-IN BOOKING
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-biz" id="slide-6">
+  <div class="slide-tag">Core · Walk-In</div>
+  <h2 class="slide-title">Walk-in <span>Bookings</span></h2>
+
+  <div class="biz-flow">
+    <div class="biz-step step-green">Customer Arrives</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step step-teal">Walk-in Booking Tab</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step step-blue">Select Bay &amp; Slot</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step step-gold">Choose Payment</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step step-green">Invoice Generated</div>
+  </div>
+
+  <div class="grid-2" style="flex:1;align-items:start">
+    <div class="card-teal">
+      <h3>Creating a Walk-in Booking</h3>
+      <ol>
+        <li><span>Go to Walk-in Booking tab in the sidebar</span></li>
+        <li><span>Select city and bay from the dropdowns</span></li>
+        <li><span>Choose date and an available time slot</span></li>
+        <li><span>Select session type — Practice or Coaching</span></li>
+        <li><span>Enter customer details (member lookup or guest)</span></li>
+        <li><span>Choose payment method — see options on the right</span></li>
+        <li><span>Confirm — booking created, calendar event added automatically</span></li>
+      </ol>
+    </div>
+    <div class="card-gold">
+      <h3>Payment Options</h3>
+      <ul>
+        <li><span><strong style="color:#c9a84c">Online:</strong> Generate a Razorpay payment link for the customer</span></li>
+        <li><span><strong style="color:#c9a84c">Cash:</strong> Mark as cash payment — recorded immediately</span></li>
+        <li><span><strong style="color:#c9a84c">Card (POS):</strong> Mark as card terminal payment</span></li>
+        <li><span><strong style="color:#c9a84c">Advance:</strong> Deduct from customer's advance account balance</span></li>
+      </ul>
+      <div style="margin-top:12px;padding:10px;background:rgba(201,168,76,0.07);border-radius:8px;border:1px solid rgba(201,168,76,0.15)">
+        <div style="font-size:11.5px;color:var(--slate-400);line-height:1.5">
+          An invoice is automatically generated for every paid walk-in session. It appears immediately in Sales &amp; Invoices.
+        </div>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:7px;flex-wrap:wrap">
+        <span class="badge badge-green">Auto-Invoice</span>
+        <span class="badge badge-teal">Calendar Sync</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">Coaching walk-ins created by admin are auto-approved — admin-created bookings skip the member approval queue.</div>
+  <div class="slide-num-badge">06 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 07 — BOOKING LOGS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="slide-7">
+  <div class="slide-tag">Core · Booking Logs</div>
+  <h2 class="slide-title">Managing <span>Bookings</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card">
+      <h3>Viewing Bookings</h3>
+      <ul>
+        <li><span>Booking Logs tab shows all bookings for the selected city</span></li>
+        <li><span>Filters: date range, status, session type, bay, member</span></li>
+        <li><span>Columns: member name, bay, date/time, duration, session type, status, hours used</span></li>
+      </ul>
+      <div style="margin-top:12px">
+        <div class="field-label">Status Badges</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+          <span class="badge badge-green">Confirmed</span>
+          <span class="badge badge-gold">Pending</span>
+          <span class="badge badge-orange">Cancelled</span>
+          <span class="badge badge-blue">Coaching — Pending Approval</span>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <div class="field-label">Session Types</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+          <span class="badge badge-teal">Practice</span>
+          <span class="badge badge-purple">Coaching</span>
+          <span class="badge badge-sky">Walk-in</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-gold">
+      <h3>Admin Actions on Bookings</h3>
+      <ul>
+        <li><span><strong style="color:#c9a84c">Approve Coaching:</strong> Click Approve on any pending coaching booking</span></li>
+        <li><span><strong style="color:#c9a84c">Reject Coaching:</strong> Click Reject and provide a reason — member is notified by email</span></li>
+        <li><span><strong style="color:#c9a84c">Cancel Booking:</strong> Cancel any booking — atomic clawback of loyalty points, hours refunded in the same transaction</span></li>
+        <li><span><strong style="color:#c9a84c">Manual Override:</strong> Create a booking ignoring calendar conflicts (warning shown — use with care)</span></li>
+      </ul>
+      <div style="margin-top:12px;padding:10px;background:rgba(201,168,76,0.07);border-radius:8px;border:1px solid rgba(201,168,76,0.15)">
+        <div style="font-size:11.5px;color:var(--slate-400);line-height:1.5">
+          <strong style="color:#c9a84c">Cancellation is atomic:</strong> hours are refunded and loyalty points reversed in a single database transaction — no partial state.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">Cancelling a booking via admin panel uses the <code style="color:#7dd3fc;font-family:monospace">cancel_booking_with_clawback()</code> procedure — hours are refunded and loyalty points reversed in a single database transaction.</div>
+  <div class="slide-num-badge">07 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 08 — USER MANAGEMENT
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-slate" id="slide-8">
+  <div class="slide-tag">Users · Management</div>
+  <h2 class="slide-title">Users &amp; <span>Members</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card">
+      <h3>All Users Tab</h3>
+      <ul>
+        <li><span>Search by name, email, or phone number</span></li>
+        <li><span>View any user's profile: tier, points balance, hours remaining, booking history</span></li>
+      </ul>
+      <div style="margin-top:10px">
+        <div class="field-label">Actions Per User</div>
+        <ul style="margin-top:4px">
+          <li><span>Adjust hours balance — credit or deduct hours manually</span></li>
+          <li><span>Adjust points manually — with a reason note</span></li>
+          <li><span>View advance account balance and transaction history</span></li>
+          <li><span>Send a notification directly to the user</span></li>
+          <li><span>Promote to Site Admin via Role Manager</span></li>
+        </ul>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:7px;flex-wrap:wrap">
+        <span class="badge badge-green">Search</span>
+        <span class="badge badge-gold">Edit Hours</span>
+        <span class="badge badge-teal">Edit Points</span>
+      </div>
+    </div>
+    <div class="card-teal">
+      <h3>Members Tab</h3>
+      <ul>
+        <li><span>Members are users with <strong style="color:#2dd4bf">Eagle</strong> or <strong style="color:#2dd4bf">Birdie</strong> membership type</span></li>
+        <li><span>View membership tier, renewal date, coaching hours allocation</span></li>
+        <li><span>Manage advance account: deposit funds, view transaction history</span></li>
+        <li><span>Member type affects loyalty multipliers — eagle and birdie members earn bonus points</span></li>
+      </ul>
+      <div style="margin-top:12px">
+        <div class="field-label">Membership Tiers</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+          <span class="badge badge-gold">Eagle</span>
+          <span class="badge badge-teal">Birdie</span>
+          <span class="badge badge-blue">Standard</span>
+          <span class="badge badge-purple">Guest</span>
+        </div>
+      </div>
+      <div style="margin-top:12px;padding:10px;background:rgba(13,148,136,0.07);border-radius:8px;border:1px solid rgba(13,148,136,0.15)">
+        <div style="font-size:11.5px;color:var(--slate-400);line-height:1.5">
+          Advance accounts let members pre-load credit that can be used for walk-in payment — reduces friction at front-desk.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num-badge">08 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 09 — BAY CONFIGURATION
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-green" id="slide-9">
+  <div class="slide-tag">Config · Bays</div>
+  <h2 class="slide-title">Bay <span>Configuration</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card-green">
+      <h3>Bay Settings — Locations Tab</h3>
+      <div class="field-label" style="margin-top:4px">Per-Bay Configuration</div>
+      <ul>
+        <li><span>Name and city assignment</span></li>
+        <li><span>Calendar email — Google Calendar integration for slot availability</span></li>
+        <li><span>Open time / Close time — defines the bookable window for this bay</span></li>
+        <li><span>Peak start / Peak end — used for off-peak multiplier detection in loyalty</span></li>
+        <li><span>Coaching hours — hours deducted per coaching session</span></li>
+        <li><span>Coaching cancellation refund hours</span></li>
+        <li><span>Sort order — controls display order in the booking UI</span></li>
+      </ul>
+      <div style="margin-top:10px;display:flex;gap:7px;flex-wrap:wrap">
+        <span class="badge badge-green">Google Calendar</span>
+        <span class="badge badge-teal">Peak Hours</span>
+        <span class="badge badge-gold">Coaching Config</span>
+      </div>
+    </div>
+    <div class="card-gold">
+      <h3>Bay Pricing</h3>
+      <ul>
+        <li><span>Standard hourly rate for practice sessions</span></li>
+        <li><span>Peak rate — charged during peak hours</span></li>
+        <li><span>Off-peak rate — lower rate outside peak window</span></li>
+        <li><span>Coaching surcharge — added on top of hourly rate</span></li>
+      </ul>
+      <div style="margin-top:10px;padding:10px;background:rgba(201,168,76,0.07);border-radius:8px;border:1px solid rgba(201,168,76,0.15)">
+        <div style="font-size:11.5px;color:var(--slate-400);line-height:1.5">
+          Pricing is used for invoice generation and revenue tracking in reports. Changes take effect immediately for new bookings.
+        </div>
+      </div>
+      <div style="margin-top:10px">
+        <div class="field-label">Where Pricing Is Used</div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:6px">
+          <span class="badge badge-green">Walk-in Invoices</span>
+          <span class="badge badge-teal">Revenue Reports</span>
+          <span class="badge badge-gold">P&amp;L</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">The <code style="color:#7dd3fc;font-family:monospace">calendar_email</code> field must exactly match the Google Calendar associated with that bay's booking calendar — mismatches will cause slot availability errors.</div>
+  <div class="slide-num-badge">09 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 10 — PRODUCTS & ORDERS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-biz" id="slide-10">
+  <div class="slide-tag">Operations · Shop</div>
+  <h2 class="slide-title">Products &amp; <span>Orders</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card">
+      <h3>Products Tab</h3>
+      <ul>
+        <li><span>Add beverages and merchandise to the shop</span></li>
+        <li><span>Per product: name, description, price, category, type</span></li>
+        <li><span>Type: <span class="badge badge-teal" style="font-size:10px">beverage</span> or <span class="badge badge-gold" style="font-size:10px">merchandise</span></span></li>
+        <li><span>GST rate and HSN/SAC code for each product</span></li>
+        <li><span>In-stock toggle — hides out-of-stock items from members</span></li>
+        <li><span>Sort order for display sequence</span></li>
+        <li><span>City scope — products without a city are shown everywhere; city-scoped products appear only at that location</span></li>
+        <li><span>Product categories managed separately in the Product Categories card</span></li>
+      </ul>
+    </div>
+    <div class="card-teal">
+      <h3>Orders Tab</h3>
+      <ul>
+        <li><span>View all member shop orders for the selected city</span></li>
+        <li><span>Filter by city and date range</span></li>
+      </ul>
+      <div style="margin-top:10px">
+        <div class="field-label">Order Status Workflow</div>
+        <div style="display:flex;flex-direction:column;gap:7px;margin-top:8px">
+          <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(201,168,76,0.08);border-radius:7px;border:1px solid rgba(201,168,76,0.2)">
+            <span class="badge badge-gold" style="min-width:70px;text-align:center">Pending</span>
+            <span style="font-size:12px;color:var(--slate-400)">→ Click <strong style="color:#c9a84c">Preparing</strong></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(59,130,246,0.08);border-radius:7px;border:1px solid rgba(59,130,246,0.2)">
+            <span class="badge badge-blue" style="min-width:70px;text-align:center">Preparing</span>
+            <span style="font-size:12px;color:var(--slate-400)">→ Click <strong style="color:#60a5fa">Ready</strong></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(74,144,96,0.08);border-radius:7px;border:1px solid rgba(74,144,96,0.2)">
+            <span class="badge badge-green" style="min-width:70px;text-align:center">Ready</span>
+            <span style="font-size:12px;color:var(--slate-400)">→ Member collects → Click <strong style="color:#4CAF7A">Delivered</strong></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:rgba(74,144,96,0.05);border-radius:7px;border:1px solid rgba(74,144,96,0.12)">
+            <span class="badge badge-green" style="min-width:70px;text-align:center">Delivered</span>
+            <span style="font-size:12px;color:var(--slate-400)">Complete — revenue recorded</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">Each order creates a <code style="color:#7dd3fc;font-family:monospace">revenue_transaction</code> record automatically for financial reporting.</div>
+  <div class="slide-num-badge">10 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 11 — PRICING & PAYMENTS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="slide-11">
+  <div class="slide-tag">Config · Pricing &amp; Payments</div>
+  <h2 class="slide-title">Pricing &amp; <span>Payment Setup</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card">
+      <h3>Pricing Tab — Hour Packages</h3>
+      <ul>
+        <li><span>Configure hour package pricing per city</span></li>
+        <li><span>Each package: name, hours included, price, active toggle</span></li>
+        <li><span>Packages appear on the member Dashboard for purchase</span></li>
+        <li><span>Deactivated packages are hidden from members but retained in history</span></li>
+      </ul>
+      <div style="margin-top:12px">
+        <div class="field-label">Example Packages</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid rgba(255,255,255,0.06)">
+            <span style="font-size:12px;color:var(--slate-400)">Starter Pack — 10 hrs</span>
+            <span class="badge badge-green">Active</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid rgba(255,255,255,0.06)">
+            <span style="font-size:12px;color:var(--slate-400)">Pro Pack — 25 hrs</span>
+            <span class="badge badge-green">Active</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid rgba(255,255,255,0.06)">
+            <span style="font-size:12px;color:var(--slate-400)">Elite Pack — 50 hrs</span>
+            <span class="badge badge-gold">Your Choice</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-gold">
+      <h3>Payments Tab — Razorpay Configuration</h3>
+      <ul>
+        <li><span>Configure one Razorpay account per city</span></li>
+        <li><span><strong style="color:#c9a84c">API Key:</strong> Publishable key shown to frontend — safe to store in DB</span></li>
+        <li><span><strong style="color:#c9a84c">API Secret:</strong> Stored as <code style="font-family:monospace;color:#7dd3fc">RAZORPAY_SECRET_&lt;CITY&gt;</code> environment variable for security</span></li>
+        <li><span><strong style="color:#c9a84c">Webhook Secret:</strong> Registered in Razorpay dashboard, stored as env var</span></li>
+        <li><span><strong style="color:#c9a84c">Test Mode:</strong> Toggle for staging/testing — no real charges</span></li>
+      </ul>
+      <div style="margin-top:10px">
+        <div class="field-label">Offline Payment Methods</div>
+        <ul style="margin-top:4px">
+          <li><span>Add cash, card POS, cheque etc. as options for walk-in bookings</span></li>
+          <li><span>Each offline method can be renamed and toggled per city</span></li>
+        </ul>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:7px;flex-wrap:wrap">
+        <span class="badge badge-orange">Security-Critical</span>
+        <span class="badge badge-gold">Per City</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">Never enter fake API keys — payment failures will affect members. Use Test Mode during setup and staging. All gateway changes are logged in the audit log.</div>
+  <div class="slide-num-badge">11 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 12 — EDGE REWARDS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-gold" id="slide-12">
+  <div class="slide-tag">Loyalty · EDGE Rewards</div>
+  <h2 class="slide-title">EDGE Rewards <span>Programme</span></h2>
+  <p class="slide-subtitle">The EDGE Rewards tab has 7 sub-tabs covering the full lifecycle of the loyalty programme — from earning rules to redemption to gifting.</p>
+
+  <div class="grid-2" style="flex:1;align-items:start">
+    <div class="card-gold">
+      <h3>Configuration Sub-Tabs</h3>
+      <ul>
+        <li>
+          <span><strong style="color:#c9a84c">Catalogue:</strong> Create/edit redeemable rewards — name, description, point cost, availability, daily redemption cap, usage gate %</span>
+        </li>
+        <li>
+          <span><strong style="color:#c9a84c">Rules:</strong> Set earning rules per event type — walkin, coaching, practice, renewal. Base points per unit.</span>
+        </li>
+        <li>
+          <span><strong style="color:#c9a84c">Multipliers:</strong> Bonus multipliers — off-peak (auto from bay config), coaching, first-visit, tier-based (eagle/birdie), renewal</span>
+        </li>
+        <li>
+          <span><strong style="color:#c9a84c">Milestones:</strong> Bonus points at hours-logged thresholds — e.g. 10 hrs = 500 pts, 50 hrs = 2,000 pts</span>
+        </li>
+      </ul>
+      <div style="margin-top:10px;display:flex;gap:7px;flex-wrap:wrap">
+        <span class="badge badge-gold">Earning Rules</span>
+        <span class="badge badge-gold">Multipliers</span>
+        <span class="badge badge-gold">Milestones</span>
+        <span class="badge badge-gold">Catalogue</span>
+      </div>
+    </div>
+    <div class="card-teal">
+      <h3>Activity Sub-Tabs</h3>
+      <ul>
+        <li>
+          <span><strong style="color:#2dd4bf">Transactions:</strong> Full log of all point earn and redemption events across all users — filterable by user, type, date</span>
+        </li>
+        <li>
+          <span><strong style="color:#2dd4bf">Gifts:</strong> Send manual rewards to specific users; view auto-gift rule outcomes and delivery status</span>
+        </li>
+        <li>
+          <span><strong style="color:#2dd4bf">Auto-Gift Rules:</strong> Configure automatic gifts triggered by events — e.g. signup, first booking, tier upgrade</span>
+        </li>
+      </ul>
+      <div style="margin-top:12px;padding:10px;background:rgba(13,148,136,0.07);border-radius:8px;border:1px solid rgba(13,148,136,0.15)">
+        <div style="font-size:11.5px;color:var(--slate-400);line-height:1.5">
+          <strong style="color:#2dd4bf">Auto-gifts</strong> run on trigger events — a signup gift, for example, is sent immediately when a new user creates an account.
+        </div>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:7px;flex-wrap:wrap">
+        <span class="badge badge-teal">Transaction Log</span>
+        <span class="badge badge-teal">Manual Gifts</span>
+        <span class="badge badge-teal">Auto-Gifts</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">Points are only clawed back for cancelled bookings — rewards that have already been redeemed by a member are considered final and are not reversed.</div>
+  <div class="slide-num-badge">12 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 13 — SALES & INVOICES
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-biz" id="slide-13">
+  <div class="slide-tag">Finance · Invoices</div>
+  <h2 class="slide-title">Sales &amp; <span>Invoicing</span></h2>
+
+  <div class="biz-flow">
+    <div class="biz-step step-blue">Walk-in / Booking</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step step-teal">Create Invoice</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step step-green">Add Line Items</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step step-gold">GST Calculated</div>
+    <div class="biz-arrow">›</div>
+    <div class="biz-step step-green">Issue to Customer</div>
+  </div>
+
+  <div class="grid-2" style="flex:1;align-items:start">
+    <div class="card-teal">
+      <h3>Creating Invoices</h3>
+      <ul>
+        <li><span>Sales &amp; Invoices tab → Create Invoice button</span></li>
+        <li><span>Fill in: customer name, address, GSTIN (optional), city, invoice date</span></li>
+        <li><span>Add line items: description, quantity, unit price, GST rate, HSN/SAC code</span></li>
+        <li><span>GST rates: 0%, 5%, 12%, 18%, 28%</span></li>
+        <li><span>GST auto-calculated: CGST + SGST (intra-state) or IGST (inter-state)</span></li>
+        <li><span>Invoice number auto-generated from your configured prefix and sequence</span></li>
+      </ul>
+      <div style="margin-top:10px;display:flex;gap:7px;flex-wrap:wrap">
+        <span class="badge badge-teal">GST Auto-Calc</span>
+        <span class="badge badge-green">Auto-Numbered</span>
+      </div>
+    </div>
+    <div class="card-gold">
+      <h3>Invoice Management</h3>
+      <ul>
+        <li><span><strong style="color:#c9a84c">Status workflow:</strong> Draft → Issued → Paid / Cancelled</span></li>
+        <li><span><strong style="color:#c9a84c">Credit Notes:</strong> Issue credit notes against an existing invoice — reduces tax liability</span></li>
+        <li><span><strong style="color:#c9a84c">GSTR-1 Export:</strong> Download GST return data for any period from the Reports tab</span></li>
+        <li><span><strong style="color:#c9a84c">Invoice Settings:</strong> Configure legal name, GSTIN, address, state code, and invoice prefix per city in Finance Settings</span></li>
+      </ul>
+      <div style="margin-top:10px">
+        <div class="field-label">Invoice Status Badges</div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:6px">
+          <span class="badge badge-blue">Draft</span>
+          <span class="badge badge-teal">Issued</span>
+          <span class="badge badge-green">Paid</span>
+          <span class="badge badge-orange">Cancelled</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">GST profiles are configured per city in Finance Settings. Set your GSTIN and state code before issuing any GST invoices — the system will warn if this is missing.</div>
+  <div class="slide-num-badge">13 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 14 — EXPENSES & VENDORS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="slide-14">
+  <div class="slide-tag">Finance · Expenses</div>
+  <h2 class="slide-title">Expenses &amp; <span>Vendors</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card">
+      <h3>Expenses Tab</h3>
+      <ul>
+        <li><span>Record all facility operating expenses</span></li>
+        <li><span>Per expense: vendor, category, date, amount, GST rate, line items, notes</span></li>
+        <li><span>Use the <strong style="color:#7dd3fc">Bill Scanner</strong> (AI-powered OCR) to auto-fill expense details from a receipt photo</span></li>
+        <li><span>Expenses feed directly into P&amp;L reports and expense analytics</span></li>
+        <li><span>Attach supporting documents to each expense record</span></li>
+      </ul>
+      <div style="margin-top:12px;padding:10px;background:rgba(14,165,233,0.07);border-radius:8px;border:1px solid rgba(14,165,233,0.15)">
+        <div style="font-size:11px;color:var(--slate-400);line-height:1.5">
+          <strong style="color:#38bdf8">Bill Scanner:</strong> Uses Gemini 2.5 Flash AI to extract vendor name, GSTIN, line items, and GST amounts from a receipt photo. Always review before saving.
+        </div>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:7px;flex-wrap:wrap">
+        <span class="badge badge-sky">AI OCR</span>
+        <span class="badge badge-green">GST-Aware</span>
+        <span class="badge badge-gold">P&amp;L Feed</span>
+      </div>
+    </div>
+    <div class="card-gold">
+      <h3>Vendors &amp; Supporting Configuration</h3>
+      <ul>
+        <li>
+          <span><strong style="color:#c9a84c">Vendors Card:</strong> Maintain a list of regular suppliers with contact details, GSTIN, and default category</span>
+        </li>
+        <li>
+          <span><strong style="color:#c9a84c">Expense Categories:</strong> Create custom categories such as Staff &amp; Payroll, Utilities, Maintenance, Marketing, Consumables</span>
+        </li>
+        <li>
+          <span><strong style="color:#c9a84c">Units of Measure:</strong> Configure units for expense line items — e.g. bottles, hours, kg, units</span>
+        </li>
+      </ul>
+      <div style="margin-top:12px">
+        <div class="field-label">Typical Expense Categories</div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:6px">
+          <span class="badge badge-gold">Staff &amp; Payroll</span>
+          <span class="badge badge-teal">Utilities</span>
+          <span class="badge badge-blue">Maintenance</span>
+          <span class="badge badge-purple">Marketing</span>
+          <span class="badge badge-sky">Consumables</span>
+          <span class="badge badge-green">Rent</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">The Bill Scanner uses AI (Gemini 2.5 Flash) to extract vendor name, GSTIN, line items, and GST amounts from a photo. Review and confirm all fields before saving.</div>
+  <div class="slide-num-badge">14 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 15 — REPORTS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-slate" id="slide-15">
+  <div class="slide-tag">Reports</div>
+  <h2 class="slide-title">Reports &amp; <span>Analytics</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card">
+      <h3>Available Reports</h3>
+      <ul>
+        <li>
+          <span><strong style="color:#7dd3fc">Revenue Tab:</strong> Revenue transactions, breakdown by type — bookings, packages, shop, walk-ins — with date range and city filters</span>
+        </li>
+        <li>
+          <span><strong style="color:#7dd3fc">Expense Reports:</strong> Expenses by category and vendor with period comparison</span>
+        </li>
+        <li>
+          <span><strong style="color:#7dd3fc">P&amp;L View:</strong> Revenue vs Expenses for any period — net profit or loss</span>
+        </li>
+        <li>
+          <span><strong style="color:#7dd3fc">Product Profitability:</strong> Revenue vs COGS per product where cost is configured</span>
+        </li>
+        <li>
+          <span><strong style="color:#7dd3fc">GSTR-1:</strong> Tax return data export for the selected month — HSN summary, invoice list, B2B/B2C split</span>
+        </li>
+        <li>
+          <span><strong style="color:#7dd3fc">Advance Accounts:</strong> Pending advance balances per member</span>
+        </li>
+      </ul>
+    </div>
+    <div class="card-teal">
+      <h3>Access Control for Reports</h3>
+      <ul>
+        <li><span><strong style="color:#2dd4bf">Full Admin:</strong> Access to all report tabs without restriction</span></li>
+        <li><span><strong style="color:#2dd4bf">Site Admin:</strong> Report tab visibility is individually controlled by the Admin via Settings → Site Admin Permissions card</span></li>
+        <li><span>Admin can toggle visibility of each report tab independently per site admin</span></li>
+        <li><span>A site admin with no reports enabled will not see the Reports section at all</span></li>
+      </ul>
+      <div style="margin-top:12px">
+        <div class="field-label">Report Exports</div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:6px">
+          <span class="badge badge-teal">CSV Download</span>
+          <span class="badge badge-gold">GSTR-1 JSON</span>
+          <span class="badge badge-blue">Date Range Filter</span>
+        </div>
+      </div>
+      <div style="margin-top:10px;padding:10px;background:rgba(13,148,136,0.07);border-radius:8px;border:1px solid rgba(13,148,136,0.15)">
+        <div style="font-size:11.5px;color:var(--slate-400);line-height:1.5">
+          All reports respect the city filter — switch cities to see location-specific financials.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">GSTR-1 export is in JSON format compatible with the GST portal. Always verify with your CA before filing — the system generates the data, not legal advice.</div>
+  <div class="slide-num-badge">15 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 16 — EMAIL TEMPLATES
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-green" id="slide-16">
+  <div class="slide-tag">Operations · Email</div>
+  <h2 class="slide-title">Email Templates &amp; <span>Logs</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card">
+      <h3>Email Templates Editor</h3>
+      <ul>
+        <li><span>Go to Emails tab → Email Templates Editor</span></li>
+      </ul>
+      <div style="margin-top:10px">
+        <div class="field-label">Available Templates</div>
+        <div style="display:flex;flex-direction:column;gap:5px;margin-top:6px">
+          <div style="display:flex;gap:7px;flex-wrap:wrap">
+            <span class="badge badge-green" style="font-size:10px">booking_confirmed</span>
+            <span class="badge badge-teal" style="font-size:10px">coaching_pending</span>
+            <span class="badge badge-gold" style="font-size:10px">coaching_approved</span>
+          </div>
+          <div style="display:flex;gap:7px;flex-wrap:wrap">
+            <span class="badge badge-orange" style="font-size:10px">coaching_rejected</span>
+            <span class="badge badge-orange" style="font-size:10px">booking_cancelled</span>
+            <span class="badge badge-purple" style="font-size:10px">points_earned</span>
+          </div>
+          <div style="display:flex;gap:7px;flex-wrap:wrap">
+            <span class="badge badge-purple" style="font-size:10px">points_redeemed</span>
+            <span class="badge badge-sky" style="font-size:10px">league_update</span>
+            <span class="badge badge-blue" style="font-size:10px">low_hours_alert</span>
+          </div>
+        </div>
+      </div>
+      <ul style="margin-top:10px">
+        <li><span>Customise footer text and branding in each template</span></li>
+        <li><span>Use <code style="font-family:monospace;color:#7dd3fc">${variable_name}</code> placeholders — e.g. <code style="font-family:monospace;color:#4CAF7A">${display_name}</code>, <code style="font-family:monospace;color:#4CAF7A">${hours_remaining}</code></span></li>
+        <li><span>Preview rendered output before saving changes</span></li>
+      </ul>
+    </div>
+    <div class="card-gold">
+      <h3>Email Logs</h3>
+      <ul>
+        <li><span>Email Logs tab shows a full history of every notification sent</span></li>
+        <li><span>Filter by user, template type, or date range</span></li>
+        <li><span>Re-send failed emails manually from the log</span></li>
+      </ul>
+      <div style="margin-top:12px;padding:10px;background:rgba(201,168,76,0.07);border-radius:8px;border:1px solid rgba(201,168,76,0.15)">
+        <div style="font-size:11.5px;color:var(--slate-400);line-height:1.5">
+          <strong style="color:#c9a84c">Background Job Failures:</strong> If an email fails to send (e.g. network issue, invalid address), it appears in the failures log. Admins should review this regularly and mark resolved.
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:7px;flex-wrap:wrap">
+        <span class="badge badge-gold">Send History</span>
+        <span class="badge badge-orange">Failure Log</span>
+        <span class="badge badge-green">Re-send</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">Test emails can be sent directly from the Email Templates editor — always use this before changing a live template to verify the output looks correct.</div>
+  <div class="slide-num-badge">16 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 17 — EVENTS & PAGES
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-purple" id="slide-17">
+  <div class="slide-tag">Config · Content</div>
+  <h2 class="slide-title">Events &amp; <span>Page Management</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card-purple">
+      <h3>Events Tab</h3>
+      <ul>
+        <li><span>Create and manage tournaments, leagues, and social events</span></li>
+        <li><span>Per event: title, description, date, time, location, spots total, type, prize, price</span></li>
+        <li><span>Toggle events active/inactive without deleting them</span></li>
+        <li><span>Events appear on the member Events page automatically</span></li>
+        <li><span>Past events remain in the archive for reference</span></li>
+      </ul>
+      <div style="margin-top:12px">
+        <div class="field-label">Event Types</div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:6px">
+          <span class="badge badge-purple">Tournament</span>
+          <span class="badge badge-blue">League</span>
+          <span class="badge badge-teal">Social</span>
+          <span class="badge badge-gold">Coaching Clinic</span>
+          <span class="badge badge-green">Open Day</span>
+        </div>
+      </div>
+      <div style="margin-top:10px;padding:10px;background:rgba(139,92,246,0.07);border-radius:8px;border:1px solid rgba(139,92,246,0.18)">
+        <div style="font-size:11.5px;color:var(--slate-400);line-height:1.5">
+          Set <strong style="color:#a78bfa">spots total</strong> to limit registrations — the member app shows remaining spots in real time.
+        </div>
+      </div>
+    </div>
+    <div class="card-teal">
+      <h3>Pages Tab — Admin Only</h3>
+      <ul>
+        <li><span>Manage dynamic CMS content pages for the member portal</span></li>
+        <li><span>Each page: slug (URL path), title, content (rich text), visibility toggle</span></li>
+        <li><span>Pages appear at <code style="font-family:monospace;color:#2dd4bf">/page/:slug</code></span></li>
+        <li><span>Page visibility can be toggled without deleting content</span></li>
+        <li><span>Draft pages are invisible to members until published</span></li>
+      </ul>
+      <div style="margin-top:10px">
+        <div class="field-label">Common Page Uses</div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:6px">
+          <span class="badge badge-teal">/page/terms</span>
+          <span class="badge badge-teal">/page/about</span>
+          <span class="badge badge-teal">/page/faqs</span>
+          <span class="badge badge-teal">/page/rules</span>
+          <span class="badge badge-teal">/page/announcements</span>
+        </div>
+      </div>
+      <div style="margin-top:10px;padding:10px;background:rgba(13,148,136,0.07);border-radius:8px;border:1px solid rgba(13,148,136,0.15)">
+        <div style="font-size:11.5px;color:var(--slate-400);line-height:1.5">
+          <strong style="color:#2dd4bf">Pages Tab</strong> is visible to Admins only — Site Admins cannot manage CMS pages.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num-badge">17 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 18 — BRANDING & SETTINGS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="slide-18">
+  <div class="slide-tag">Config · Branding</div>
+  <h2 class="slide-title">Branding &amp; <span>Settings</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card">
+      <h3>Branding Settings Card</h3>
+      <ul>
+        <li><span>Club name — displayed throughout the app and in emails</span></li>
+        <li><span>Logo URL — shown in the header and email templates</span></li>
+        <li><span>Primary colour theme — applied globally to member-facing UI</span></li>
+        <li><span>City-specific custom footer text for outgoing emails</span></li>
+      </ul>
+      <div style="margin-top:12px;padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;border:1px solid rgba(255,255,255,0.07)">
+        <div style="font-size:11.5px;color:var(--slate-400);line-height:1.5">
+          Use a direct image URL for the logo (e.g. from your CDN or a public bucket). Changes appear on next page load for members.
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:7px;flex-wrap:wrap">
+        <span class="badge badge-blue">Club Name</span>
+        <span class="badge badge-gold">Logo</span>
+        <span class="badge badge-teal">Colours</span>
+        <span class="badge badge-green">Email Footer</span>
+      </div>
+    </div>
+    <div class="card-gold">
+      <h3>Settings Tab — Admin Only</h3>
+      <ul>
+        <li>
+          <span><strong style="color:#c9a84c">Admin Password:</strong> Change the admin setup password — must be 12+ characters, complex (upper, lower, number, symbol)</span>
+        </li>
+        <li>
+          <span><strong style="color:#c9a84c">Cancellation Window:</strong> Set how many hours before a session members can self-cancel (default 24 hours)</span>
+        </li>
+        <li>
+          <span><strong style="color:#c9a84c">Financial Years:</strong> Define fiscal year boundaries for P&amp;L and reporting period filtering</span>
+        </li>
+        <li>
+          <span><strong style="color:#c9a84c">Page Visibility:</strong> Toggle member-facing pages on or off — Rewards, Events, Community, Leaderboard</span>
+        </li>
+      </ul>
+      <div style="margin-top:10px;display:flex;gap:7px;flex-wrap:wrap">
+        <span class="badge badge-orange">Admin Only</span>
+        <span class="badge badge-gold">System-Wide</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">Settings tab is visible to Admins only — Site Admins cannot access it. Admin password changes are rate-limited and audit-logged.</div>
+  <div class="slide-num-badge">18 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 19 — FINANCE SETTINGS
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-gold" id="slide-19">
+  <div class="slide-tag">Config · Finance</div>
+  <h2 class="slide-title">Finance <span>Settings</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card-gold">
+      <h3>GST Profiles — Per City</h3>
+      <p style="font-size:12px;color:var(--slate-400);margin-bottom:10px;line-height:1.5">Set up one GST profile per city. Required for invoice generation and GSTR-1 export.</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="padding:7px 11px;background:rgba(201,168,76,0.07);border-radius:7px;border:1px solid rgba(201,168,76,0.15)">
+          <div class="field-label">Legal Business Name</div>
+          <div style="font-size:12px;color:var(--slate-400)">Exactly as registered with the GST authority</div>
+        </div>
+        <div style="padding:7px 11px;background:rgba(201,168,76,0.07);border-radius:7px;border:1px solid rgba(201,168,76,0.15)">
+          <div class="field-label">GSTIN</div>
+          <div style="font-size:12px;color:var(--slate-400)">15-character alphanumeric GST Identification Number</div>
+        </div>
+        <div style="padding:7px 11px;background:rgba(201,168,76,0.07);border-radius:7px;border:1px solid rgba(201,168,76,0.15)">
+          <div class="field-label">Registered Address &amp; State</div>
+          <div style="font-size:12px;color:var(--slate-400)">State code used to determine CGST+SGST vs IGST — e.g. Karnataka = 29</div>
+        </div>
+        <div style="padding:7px 11px;background:rgba(201,168,76,0.07);border-radius:7px;border:1px solid rgba(201,168,76,0.15)">
+          <div class="field-label">Invoice Prefix &amp; Start Number</div>
+          <div style="font-size:12px;color:var(--slate-400)">e.g. <code style="font-family:monospace">GE/BLR/2526/</code> + sequence starts at 001</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-teal">
+      <h3>Invoice Sequences</h3>
+      <ul>
+        <li><span>Invoice numbers are auto-incremented — no duplicates possible</span></li>
+        <li><span>Use <code style="font-family:monospace;color:#2dd4bf">recycled_invoice_numbers</code> if you need to fill sequence gaps</span></li>
+        <li><span>Financial year boundaries reset the sequence for the new FY automatically</span></li>
+        <li><span>Credit note prefix is configured separately from the main invoice prefix</span></li>
+      </ul>
+      <div style="margin-top:14px">
+        <div class="field-label">Example Invoice Number</div>
+        <div style="font-family:monospace;font-size:13px;color:#2dd4bf;background:rgba(13,148,136,0.08);padding:8px 12px;border-radius:7px;border:1px solid rgba(13,148,136,0.2);margin-top:6px">GE/BLR/2526/047</div>
+      </div>
+      <div style="margin-top:10px;padding:10px;background:rgba(13,148,136,0.07);border-radius:8px;border:1px solid rgba(13,148,136,0.15)">
+        <div style="font-size:11.5px;color:var(--slate-400);line-height:1.5">
+          Changing the invoice prefix mid-year is not recommended — consult your CA before doing so.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">Always verify your GSTIN is correct before issuing B2B invoices — an incorrect GSTIN can cause issues in your customer's GST reconciliation and ITC claims.</div>
+  <div class="slide-num-badge">19 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 20 — ROLE MANAGER
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-biz" id="slide-20">
+  <div class="slide-tag">Admin Only · Roles</div>
+  <h2 class="slide-title">Managing <span>User Roles</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card-teal">
+      <h3>Granting Roles</h3>
+      <ul>
+        <li><span>Navigate to Settings → Role Manager (Admin only)</span></li>
+        <li><span>To grant Admin: enter user's email, select Admin, click Grant</span></li>
+        <li><span>To grant Site Admin: enter email, select Site Admin, then assign the cities they should manage</span></li>
+        <li><span>City assignments are updated atomically — no partial state possible</span></li>
+      </ul>
+      <div style="margin-top:12px;padding:10px;background:rgba(13,148,136,0.07);border-radius:8px;border:1px solid rgba(13,148,136,0.15)">
+        <div style="font-size:11.5px;color:var(--slate-400);line-height:1.5">
+          After granting Site Admin, configure their report visibility in Settings → Site Admin Permissions Card so they see only the reports they need.
+        </div>
+      </div>
+    </div>
+    <div class="card-gold">
+      <h3>Revoking Roles</h3>
+      <ul>
+        <li><span>Click Revoke next to any user in the Role Manager list</span></li>
+        <li><span>You cannot revoke your own Admin role — safety check prevents accidental lockout</span></li>
+        <li><span>Revoking Site Admin also removes all their city assignments</span></li>
+        <li><span>All role changes are logged in the audit_log with timestamp and acting admin</span></li>
+      </ul>
+      <div style="margin-top:12px">
+        <div class="field-label">Rate Limiting</div>
+        <div style="padding:8px 12px;background:rgba(249,115,22,0.07);border-radius:7px;border:1px solid rgba(249,115,22,0.2);margin-top:6px">
+          <div style="font-size:12px;color:#fb923c">5 role change attempts per 15 minutes per IP/user</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:7px;flex-wrap:wrap">
+        <span class="badge badge-orange">Admin Only</span>
+        <span class="badge badge-gold">Audit Logged</span>
+        <span class="badge badge-teal">Atomic</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">Be careful granting the Admin role — admins have full system access including financial data, user management, and security settings. Prefer Site Admin for facility operators who only need city-level access.</div>
+  <div class="slide-num-badge">20 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 21 — SECURITY & AUDIT
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-purple" id="slide-21">
+  <div class="slide-tag">Security</div>
+  <h2 class="slide-title">Security &amp; <span>Audit Log</span></h2>
+
+  <div class="grid-2" style="flex:1;align-items:start;margin-top:10px">
+    <div class="card-purple">
+      <h3>Audit Log</h3>
+      <p style="font-size:12px;color:var(--slate-400);margin-bottom:10px;line-height:1.5">Every change to critical data is automatically recorded and immutable.</p>
+      <div class="field-label">Audited Tables</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:6px;margin-bottom:10px">
+        <span class="badge badge-purple">user_roles</span>
+        <span class="badge badge-purple">payment_gateways</span>
+        <span class="badge badge-purple">bay_pricing</span>
+        <span class="badge badge-purple">admin_config</span>
+        <span class="badge badge-purple">booking status</span>
+        <span class="badge badge-purple">invoices</span>
+      </div>
+      <ul>
+        <li><span>Each entry records: who changed it, what table, what record, old value, new value, timestamp</span></li>
+        <li><span>Accessible via Admin → Settings → Audit Log viewer</span></li>
+        <li><span>Immutable — no one can edit or delete audit entries, including admins</span></li>
+      </ul>
+    </div>
+    <div class="card-gold">
+      <h3>Background Job Failures</h3>
+      <ul>
+        <li><span>Async jobs (emails, loyalty points, calendar events) are continuously monitored</span></li>
+        <li><span>Any failure is logged to the <code style="font-family:monospace;color:#c9a84c">background_job_failures</code> table</span></li>
+        <li><span>Admins can view all unresolved failures in the Email Logs tab</span></li>
+        <li><span>Mark failures as resolved once investigated — keeps the queue clean</span></li>
+        <li><span>This ensures silent errors (e.g. a failed booking confirmation email) are never lost</span></li>
+      </ul>
+      <div style="margin-top:12px">
+        <div class="field-label">Security Protections</div>
+        <ul>
+          <li><span>Setup and password endpoints: 5 attempts / 15 min rate limit per IP</span></li>
+          <li><span>Passwords bcrypt-hashed — never stored in plain text</span></li>
+          <li><span>API secrets stored as environment variables, not in the database</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">Rate limiting protects the setup-admin and change-admin-password endpoints — 5 attempts per 15 minutes per IP. Exceeding this limit locks the endpoint temporarily.</div>
+  <div class="slide-num-badge">21 / 22</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SLIDE 22 — QUICK REFERENCE
+══════════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="slide-22">
+  <div class="slide-tag">Reference</div>
+  <h2 class="slide-title">Quick <span>Reference</span></h2>
+  <p class="slide-subtitle">Common admin tasks — where to go and what to remember.</p>
+
+  <div style="flex:1;overflow-y:auto;padding-bottom:4px;scrollbar-width:thin;scrollbar-color:rgba(201,168,76,0.25) transparent">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Task</th>
+          <th>Where to Go</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Create walk-in booking</td>
+          <td><span style="color:#7dd3fc">Walk-in Booking tab</span></td>
+          <td>Auto-generates an invoice on confirmation</td>
+        </tr>
+        <tr>
+          <td>Approve coaching session</td>
+          <td><span style="color:#7dd3fc">Booking Logs</span></td>
+          <td>Filter by Pending status to find approvals</td>
+        </tr>
+        <tr>
+          <td>Add new member hours</td>
+          <td><span style="color:#7dd3fc">All Users → adjust hours</span></td>
+          <td>Takes effect immediately for next booking</td>
+        </tr>
+        <tr>
+          <td>Configure bay calendar</td>
+          <td><span style="color:#7dd3fc">Locations (Bay Config)</span></td>
+          <td>Needs the Google Calendar email for that bay</td>
+        </tr>
+        <tr>
+          <td>Add new product</td>
+          <td><span style="color:#7dd3fc">Products tab</span></td>
+          <td>Set city scope for location-specific items</td>
+        </tr>
+        <tr>
+          <td>Change invoice GST settings</td>
+          <td><span style="color:#7dd3fc">Finance Settings → GST Profile</span></td>
+          <td>Per city — set before issuing invoices</td>
+        </tr>
+        <tr>
+          <td>Export GSTR-1</td>
+          <td><span style="color:#7dd3fc">Reports → GSTR-1 tab</span></td>
+          <td>Select month and download JSON</td>
+        </tr>
+        <tr>
+          <td>Send reward to member</td>
+          <td><span style="color:#7dd3fc">EDGE Rewards → Gifts tab</span></td>
+          <td>Manual gift — choose from rewards catalogue</td>
+        </tr>
+        <tr>
+          <td>Grant admin to user</td>
+          <td><span style="color:#7dd3fc">Settings → Role Manager</span></td>
+          <td>Admin only — changes are audit-logged</td>
+        </tr>
+        <tr>
+          <td>Change admin setup password</td>
+          <td><span style="color:#7dd3fc">Settings → Admin Password</span></td>
+          <td>12+ chars, must include upper, lower, number, symbol</td>
+        </tr>
+        <tr>
+          <td>View failed emails</td>
+          <td><span style="color:#7dd3fc">Email Logs → Background Failures</span></td>
+          <td>Review, resolve, and re-send as needed</td>
+        </tr>
+        <tr>
+          <td>Check audit trail</td>
+          <td><span style="color:#7dd3fc">Settings → Audit Log</span></td>
+          <td>Immutable — all admin writes recorded here</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+    <span class="badge badge-green">Golfer's Edge</span>
+    <span class="badge badge-gold">EdgeCollective</span>
+    <span class="badge badge-teal">Admin Guide</span>
+    <span class="badge badge-purple">v1.0</span>
+  </div>
+  <div class="slide-num-badge">22 / 22</div>
+</div>
+
+</div><!-- /slideshow -->
+
+<!-- ─── Bottom Nav ─── -->
+<div id="nav">
+  <button class="nav-btn" onclick="goTo(current-1)" title="Previous (← key)">&#8592;</button>
+  <span class="slide-counter" id="slideCounter">1 / 22</span>
+  <button class="nav-btn" onclick="goTo(current+1)" title="Next (→ key)">&#8594;</button>
+</div>
+
+<script>
+  let current = 1;
+  const total = document.querySelectorAll('.slide').length;
+
+  function goTo(n) {
+    const slides = document.querySelectorAll('.slide');
+    slides[current - 1].classList.remove('active');
+    slides[current - 1].classList.add('exit');
+    setTimeout(() => { slides[current - 1].classList.remove('exit'); }, 300);
+    current = Math.max(1, Math.min(n, total));
+    slides[current - 1].classList.add('active');
+    document.getElementById('slideCounter').textContent = current + ' / ' + total;
+    document.getElementById('progressBar').style.width = (current / total * 100) + '%';
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goTo(current + 1);
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   goTo(current - 1);
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('progressBar').style.width = (1 / total * 100) + '%';
+    document.getElementById('slideCounter').textContent = '1 / ' + total;
+  });
+</script>
+</body>
+</html>
