@@ -44,16 +44,14 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
   const monthEnd = format(endOfMonth(new Date(year, month - 1)), "yyyy-MM-dd");
 
   // Fetch GST profile
-  const { data: gstProfile } = await (supabase as any)
-    .from("gst_profiles")
+  const { data: gstProfile } = await supabase.from("gst_profiles" as any)
     .select("*")
     .eq("city", city)
     .maybeSingle();
   if (!gstProfile) throw new Error("GST profile not found for this city.");
 
   // Fetch invoices for the month
-  const { data: invoices, error: invErr } = await (supabase as any)
-    .from("invoices")
+  const { data: invoices, error: invErr } = await supabase.from("invoices" as any)
     .select("*")
     .eq("city", city)
     .gte("invoice_date", monthStart)
@@ -70,8 +68,7 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
     // Batch in chunks of 50
     for (let i = 0; i < invoiceIds.length; i += 50) {
       const chunk = invoiceIds.slice(i, i + 50);
-      const { data: items } = await (supabase as any)
-        .from("invoice_line_items")
+      const { data: items } = await supabase.from("invoice_line_items" as any)
         .select("*")
         .in("invoice_id", chunk);
       if (items) allLineItems = allLineItems.concat(items);

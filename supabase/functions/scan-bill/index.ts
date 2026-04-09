@@ -1,11 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') || '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
 const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions'
+const MAX_FILE_BYTES = 10 * 1024 * 1024 // 10 MB
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -51,29 +52,35 @@ Deno.serve(async (req) => {
 
     const formData = await req.formData()
     const file = formData.get('file') as File | null
-    const imageUrl = formData.get('image_url') as string | null
 
-    if (!file && !imageUrl) {
-      return new Response(JSON.stringify({ error: 'No file or image URL provided' }), {
+    // image_url is intentionally not supported — SSRF risk (external URL fetch)
+    if (!file) {
+      return new Response(JSON.stringify({ error: 'No file provided. Submit a file upload.' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    let imageContent: any
+    // Enforce file size limit
+    if (file.size > MAX_FILE_BYTES) {
+      return new Response(JSON.stringify({ error: 'File exceeds 10 MB limit' }), {
+        status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
 
-    if (file) {
-      const arrayBuffer = await file.arrayBuffer()
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
-      const mimeType = file.type || 'image/jpeg'
-      imageContent = {
-        type: 'image_url',
-        image_url: { url: `data:${mimeType};base64,${base64}` }
-      }
-    } else if (imageUrl) {
-      imageContent = {
-        type: 'image_url',
-        image_url: { url: imageUrl }
-      }
+    // Validate MIME type — only allow common image formats
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf']
+    const mimeType = file.type || 'image/jpeg'
+    if (!allowedMimes.includes(mimeType)) {
+      return new Response(JSON.stringify({ error: 'Unsupported file type' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    const arrayBuffer = await file.arrayBuffer()
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+    const imageContent = {
+      type: 'image_url',
+      image_url: { url: `data:${mimeType};base64,${base64}` }
     }
 
     const systemPrompt = `You are a bill/invoice data extraction assistant. Extract data from the uploaded bill/invoice image and return a structured JSON response.
@@ -89,12 +96,12 @@ Extract:
   - quantity: Quantity (number)
   - unit_price: Price per unit (number, excluding GST)
   - hsn_code: HSN code if visible
-  - sac_code: SAC code if visible  
+  - sac_code: SAC code if visible
   - gst_rate: GST percentage (number, e.g. 18)
   - amount: Total amount for this line (number, excluding GST)
 - subtotal: Sum before GST (number)
 - cgst_amount: CGST amount if shown (number)
-- sgst_amount: SGST amount if shown (number)  
+- sgst_amount: SGST amount if shown (number)
 - igst_amount: IGST amount if shown (number)
 - total: Grand total including GST (number)
 - suggested_category: Best matching category from: Staff & Payroll, Utilities, Maintenance & Repairs, Consumables & Supplies, Marketing, Misc, Other
@@ -125,8 +132,7 @@ Return ONLY valid JSON, no markdown or explanation.`
     })
 
     if (!aiResponse.ok) {
-      const errText = await aiResponse.text()
-      console.error('AI Gateway error:', errText)
+      console.error('AI Gateway error — HTTP', aiResponse.status)
       return new Response(JSON.stringify({ error: 'Failed to process bill image' }), {
         status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
@@ -150,7 +156,7 @@ Return ONLY valid JSON, no markdown or explanation.`
       if (jsonMatch) {
         parsed = JSON.parse(jsonMatch[1])
       } else {
-        return new Response(JSON.stringify({ error: 'Could not parse AI response', raw: content }), {
+        return new Response(JSON.stringify({ error: 'Could not parse AI response' }), {
           status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
@@ -161,8 +167,8 @@ Return ONLY valid JSON, no markdown or explanation.`
     })
 
   } catch (err) {
-    console.error('scan-bill error:', err)
-    return new Response(JSON.stringify({ error: err.message || 'Internal server error' }), {
+    console.error('scan-bill error:', (err as Error).message)
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }

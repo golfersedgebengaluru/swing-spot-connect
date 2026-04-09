@@ -1,11 +1,22 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://esm.sh/zod@3";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") || "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const MAX_BODY_BYTES = 10_000;
+
+const OrderSchema = z.object({
+  amount: z.number().positive("amount must be a positive number"),
+  currency: z.string().length(3).optional().default("INR"),
+  city: z.string().min(1).max(100),
+  booking_summary: z.record(z.unknown()).optional(),
+  receipt: z.string().max(40).optional(),
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -13,18 +24,28 @@ serve(async (req) => {
   }
 
   // This endpoint is public — guests (unauthenticated) must be able to create
-  // Razorpay orders.  The actual booking security is enforced later in
-  // calendar-sync (guest_booking / create_booking actions).
+  // Razorpay orders. The actual booking security is enforced in calendar-sync.
 
   try {
-    const { amount, currency, city, booking_summary, receipt } = await req.json();
+    // Enforce body size limit
+    const contentLength = Number(req.headers.get("content-length") || 0);
+    if (contentLength > MAX_BODY_BYTES) {
+      return new Response(JSON.stringify({ error: "Request body too large" }), {
+        status: 413,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    if (!amount || !city) {
-      return new Response(JSON.stringify({ error: "amount and city are required" }), {
+    const rawBody = await req.json();
+    const parsed = OrderSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: "Invalid request", details: parsed.error.issues }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const { amount, currency, city, booking_summary, receipt } = parsed.data;
 
     // Get Razorpay credentials for this city from payment_gateways table
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -33,7 +54,7 @@ serve(async (req) => {
 
     const { data: gateway, error: gwError } = await supabase
       .from("payment_gateways")
-      .select("api_key, api_secret, is_test_mode, is_active")
+      .select("api_key, api_secret, city_slug, is_test_mode, is_active")
       .eq("city", city)
       .eq("name", "razorpay")
       .eq("is_active", true)
@@ -47,7 +68,14 @@ serve(async (req) => {
     }
 
     const apiKey = (gateway.api_key || "").trim();
-    const apiSecret = (gateway.api_secret || "").trim();
+
+    // Prefer env var secret (RAZORPAY_SECRET_<CITY_SLUG>) over DB column.
+    // The DB column will be dropped once all cities have env vars configured.
+    const citySlug = (gateway.city_slug || city.toLowerCase().replace(/[^a-z0-9]/g, "_")).toUpperCase();
+    const apiSecret = (
+      Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) ||
+      (gateway.api_secret || "")
+    ).trim();
 
     if (!apiKey || !apiSecret) {
       return new Response(
@@ -56,15 +84,13 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Using Razorpay key: ${apiKey.substring(0, 12)}... (${apiKey.length} chars), secret: ${apiSecret.length} chars, test_mode: ${gateway.is_test_mode}`);
-
     // Create Razorpay order via their API
     const razorpayUrl = "https://api.razorpay.com/v1/orders";
     const auth = btoa(`${apiKey}:${apiSecret}`);
 
     const orderPayload = {
       amount: Math.round(amount * 100), // Razorpay expects paise
-      currency: currency || "INR",
+      currency,
       receipt: receipt || `rcpt_${Date.now()}`,
       notes: booking_summary || {},
     };
@@ -80,9 +106,9 @@ serve(async (req) => {
 
     if (!rzpRes.ok) {
       const errBody = await rzpRes.text();
-      console.error("Razorpay order creation failed:", errBody);
+      console.error("Razorpay order creation failed — HTTP", rzpRes.status);
       return new Response(
-        JSON.stringify({ error: "Failed to create Razorpay order", details: errBody }),
+        JSON.stringify({ error: "Failed to create Razorpay order" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -99,9 +125,9 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    console.error("Error:", err);
+    console.error("create-razorpay-order error:", (err as Error).message);
     return new Response(
-      JSON.stringify({ error: (err as Error).message || "Internal server error" }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

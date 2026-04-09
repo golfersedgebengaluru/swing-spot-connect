@@ -117,7 +117,7 @@ export function VendorsCard() {
     if (!rows.length) { toast({ title: "No valid rows", variant: "destructive" }); return; }
 
     try {
-      const { error } = await (supabase as any).from("vendors").insert(rows);
+      const { error } = await supabase.from("vendors" as any).insert(rows);
       if (error) throw error;
       toast({ title: `Imported ${rows.length} vendors` });
       // Refresh

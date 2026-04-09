@@ -73,8 +73,8 @@ export function useAllocatePoints() {
         if (updateErr) throw updateErr;
       } else {
         // Normal user — use atomic RPC
-        const { data, error: updateErr } = await (supabase as any)
-          .rpc("increment_user_points", { p_user_id: userId, p_delta: points });
+        const { data, error: updateErr } = await supabase
+          .rpc("increment_user_points" as any, { p_user_id: userId, p_delta: points });
         if (updateErr) throw updateErr;
         newTotal = data;
       }
@@ -156,8 +156,8 @@ export function useRedeemPoints() {
           .eq("id", userId);
         if (updateErr) throw updateErr;
       } else {
-        const { data, error: updateErr } = await (supabase as any)
-          .rpc("decrement_user_points_safe", { p_user_id: userId, p_delta: points });
+        const { data, error: updateErr } = await supabase
+          .rpc("decrement_user_points_safe" as any, { p_user_id: userId, p_delta: points });
         if (updateErr) throw new Error(updateErr.message);
         newTotal = data;
       }

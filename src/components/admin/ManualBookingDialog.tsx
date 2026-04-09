@@ -262,8 +262,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
           const sacCode = serviceProduct?.sac_code || "";
           const hsnCode = serviceProduct?.hsn_code || "";
 
-          const { data: gstProfile } = await (supabase as any)
-            .from("gst_profiles")
+          const { data: gstProfile } = await supabase.from("gst_profiles" as any)
             .select("state_code")
             .eq("city", selectedCity)
             .maybeSingle();

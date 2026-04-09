@@ -5,8 +5,7 @@ export function useUnitsOfMeasure() {
   return useQuery({
     queryKey: ["units_of_measure"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("units_of_measure")
+      const { data, error } = await supabase.from("units_of_measure" as any)
         .select("*")
         .order("sort_order");
       if (error) throw error;
@@ -19,7 +18,7 @@ export function useCreateUnit() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (name: string) => {
-      const { error } = await (supabase as any).from("units_of_measure").insert({ name });
+      const { error } = await supabase.from("units_of_measure" as any).insert({ name });
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["units_of_measure"] }),
@@ -30,7 +29,7 @@ export function useUpdateUnit() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, name }: { id: string; name: string }) => {
-      const { error } = await (supabase as any).from("units_of_measure").update({ name }).eq("id", id);
+      const { error } = await supabase.from("units_of_measure" as any).update({ name }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["units_of_measure"] }),
@@ -41,7 +40,7 @@ export function useDeleteUnit() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any).from("units_of_measure").delete().eq("id", id);
+      const { error } = await supabase.from("units_of_measure" as any).delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["units_of_measure"] }),

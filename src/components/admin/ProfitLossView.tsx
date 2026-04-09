@@ -34,8 +34,7 @@ function useRevenueForPeriod(city: string, startDate?: string, endDate?: string)
     queryKey: ["revenue_for_pl", city, startDate, endDate],
     enabled: !!city && !!startDate && !!endDate,
     queryFn: async () => {
-      let query = (supabase as any)
-        .from("revenue_transactions")
+      let query = supabase.from("revenue_transactions" as any)
         .select("amount, transaction_type")
         .eq("city", city)
         .eq("status", "confirmed");

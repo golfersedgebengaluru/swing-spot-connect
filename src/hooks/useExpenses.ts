@@ -61,8 +61,7 @@ export function useExpenses(filters?: ExpenseFilters) {
     queryKey: ["expenses", filters],
     enabled: !!filters?.city,
     queryFn: async () => {
-      let query = (supabase as any)
-        .from("expenses")
+      let query = supabase.from("expenses" as any)
         .select("*, vendors(name, gstin), expense_categories(name)", { count: "exact" })
         .order("expense_date", { ascending: false });
 
@@ -87,15 +86,13 @@ export function useExpenseWithItems(expenseId: string | null) {
     queryKey: ["expense", expenseId],
     enabled: !!expenseId,
     queryFn: async () => {
-      const { data: expense, error } = await (supabase as any)
-        .from("expenses")
+      const { data: expense, error } = await supabase.from("expenses" as any)
         .select("*, vendors(name, gstin), expense_categories(name)")
         .eq("id", expenseId)
         .single();
       if (error) throw error;
 
-      const { data: items, error: itemsErr } = await (supabase as any)
-        .from("expense_line_items")
+      const { data: items, error: itemsErr } = await supabase.from("expense_line_items" as any)
         .select("*")
         .eq("expense_id", expenseId)
         .order("sort_order");
@@ -134,8 +131,7 @@ export function useCreateExpense() {
       if (!expenseData.category_id) expenseData.category_id = null;
 
       const { data: user } = await supabase.auth.getUser();
-      const { data: expense, error } = await (supabase as any)
-        .from("expenses")
+      const { data: expense, error } = await supabase.from("expenses" as any)
         .insert({ ...expenseData, created_by: user?.user?.id || null })
         .select()
         .single();
@@ -157,8 +153,7 @@ export function useCreateExpense() {
           product_id: item.product_id || null,
           sort_order: idx,
         }));
-        const { error: liErr } = await (supabase as any)
-          .from("expense_line_items")
+        const { error: liErr } = await supabase.from("expense_line_items" as any)
           .insert(payload);
         if (liErr) throw liErr;
       }
@@ -177,14 +172,13 @@ export function useUpdateExpense() {
       if ('vendor_id' in updates && !updates.vendor_id) updates.vendor_id = null;
       if ('category_id' in updates && !updates.category_id) updates.category_id = null;
 
-      const { error } = await (supabase as any)
-        .from("expenses")
+      const { error } = await supabase.from("expenses" as any)
         .update(updates)
         .eq("id", id);
       if (error) throw error;
 
       if (line_items) {
-        await (supabase as any).from("expense_line_items").delete().eq("expense_id", id);
+        await supabase.from("expense_line_items" as any).delete().eq("expense_id", id);
         if (line_items.length) {
           const payload = line_items.map((item, idx) => ({
             expense_id: id,
@@ -201,8 +195,7 @@ export function useUpdateExpense() {
             product_id: item.product_id || null,
             sort_order: idx,
           }));
-          const { error: liErr } = await (supabase as any)
-            .from("expense_line_items")
+          const { error: liErr } = await supabase.from("expense_line_items" as any)
             .insert(payload);
           if (liErr) throw liErr;
         }
@@ -216,8 +209,7 @@ export function useDeleteExpense() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
-        .from("expenses")
+      const { error } = await supabase.from("expenses" as any)
         .delete()
         .eq("id", id);
       if (error) throw error;

@@ -33,8 +33,7 @@ export function useAdvanceTransactions(customerId?: string | null) {
     queryKey: ["advance_transactions", customerId],
     enabled: !!customerId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("advance_transactions")
+      const { data, error } = await supabase.from("advance_transactions" as any)
         .select("*")
         .eq("customer_id", customerId)
         .order("created_at", { ascending: false });
@@ -48,8 +47,7 @@ export function useAllAdvanceBalances(city?: string) {
   return useQuery({
     queryKey: ["advance_balances_all", city],
     queryFn: async () => {
-      let query = (supabase as any)
-        .from("advance_transactions")
+      let query = supabase.from("advance_transactions" as any)
         .select("customer_id, amount, transaction_type, created_at, city");
       if (city) query = query.eq("city", city);
       const { data, error } = await query;
@@ -90,8 +88,7 @@ export function useAddAdvanceCredit() {
   return useMutation({
     mutationFn: async (params: AddAdvanceCreditParams) => {
       const { data: userData } = await supabase.auth.getUser();
-      const { error } = await (supabase as any)
-        .from("advance_transactions")
+      const { error } = await supabase.from("advance_transactions" as any)
         .insert({
           customer_id: params.customerId,
           amount: params.amount,
@@ -132,8 +129,7 @@ export function useDrawdownAdvance() {
         throw new Error(`Insufficient advance balance. Available: ${Number(balance ?? 0)}`);
       }
       const { data: userData } = await supabase.auth.getUser();
-      const { error } = await (supabase as any)
-        .from("advance_transactions")
+      const { error } = await supabase.from("advance_transactions" as any)
         .insert({
           customer_id: params.customerId,
           amount: params.amount,

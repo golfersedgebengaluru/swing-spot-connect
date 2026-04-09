@@ -21,8 +21,7 @@ export function useVendors(city?: string) {
     queryKey: ["vendors", city],
     enabled: !!city,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("vendors")
+      const { data, error } = await supabase.from("vendors" as any)
         .select("*")
         .eq("city", city)
         .order("name");
@@ -36,8 +35,7 @@ export function useCreateVendor() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (vendor: Omit<Vendor, "id" | "created_at" | "updated_at">) => {
-      const { data, error } = await (supabase as any)
-        .from("vendors")
+      const { data, error } = await supabase.from("vendors" as any)
         .insert(vendor)
         .select()
         .single();
@@ -52,8 +50,7 @@ export function useUpdateVendor() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Vendor> & { id: string }) => {
-      const { error } = await (supabase as any)
-        .from("vendors")
+      const { error } = await supabase.from("vendors" as any)
         .update(updates)
         .eq("id", id);
       if (error) throw error;
@@ -66,8 +63,7 @@ export function useDeleteVendor() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
-        .from("vendors")
+      const { error } = await supabase.from("vendors" as any)
         .delete()
         .eq("id", id);
       if (error) throw error;

@@ -43,8 +43,7 @@ export function useAdmin() {
 
       // If site_admin, fetch assigned cities
       if (hasSiteAdmin && !hasAdmin) {
-        const { data: cities } = await (supabase as any)
-          .from("site_admin_cities")
+        const { data: cities } = await supabase.from("site_admin_cities" as any)
           .select("city")
           .eq("user_id", user.id);
         setAssignedCities((cities ?? []).map((c: any) => c.city));

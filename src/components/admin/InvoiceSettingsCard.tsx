@@ -272,8 +272,7 @@ export function InvoiceSettingsCard({ city }: Props) {
                     checked={coachNameRequired ?? false}
                     onCheckedChange={async (checked) => {
                       try {
-                        await (supabase as any)
-                          .from("admin_config")
+                        await supabase.from("admin_config" as any)
                           .upsert({ key: "coach_name_required", value: checked ? "true" : "false" }, { onConflict: "key" });
                         qc.invalidateQueries({ queryKey: ["admin_config", "coach_name_required"] });
                         toast({ title: checked ? "Coach name is now required" : "Coach name is now optional" });

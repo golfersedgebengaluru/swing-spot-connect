@@ -21,8 +21,7 @@ export function useGstProfile(city?: string) {
     queryKey: ["gst_profile", city],
     enabled: !!city,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("gst_profiles")
+      const { data, error } = await supabase.from("gst_profiles" as any)
         .select("*")
         .eq("city", city)
         .maybeSingle();
@@ -45,8 +44,7 @@ export function useSaveGstProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (profile: GstProfile) => {
-      const { error } = await (supabase as any)
-        .from("gst_profiles")
+      const { error } = await supabase.from("gst_profiles" as any)
         .upsert(
           {
             city: profile.city,
@@ -85,8 +83,7 @@ export function useInvoices(filters?: InvoiceFilters) {
   return useQuery({
     queryKey: ["invoices", filters],
     queryFn: async () => {
-      let query = (supabase as any)
-        .from("invoices")
+      let query = supabase.from("invoices" as any)
         .select("*", { count: "exact" })
         .order("created_at", { ascending: false });
 
@@ -115,15 +112,13 @@ export function useInvoiceWithItems(invoiceId: string | null) {
     queryKey: ["invoice", invoiceId],
     enabled: !!invoiceId,
     queryFn: async () => {
-      const { data: invoice, error } = await (supabase as any)
-        .from("invoices")
+      const { data: invoice, error } = await supabase.from("invoices" as any)
         .select("*")
         .eq("id", invoiceId)
         .single();
       if (error) throw error;
 
-      const { data: items, error: itemsError } = await (supabase as any)
-        .from("invoice_line_items")
+      const { data: items, error: itemsError } = await supabase.from("invoice_line_items" as any)
         .select("*")
         .eq("invoice_id", invoiceId)
         .order("sort_order");
@@ -132,22 +127,19 @@ export function useInvoiceWithItems(invoiceId: string | null) {
       // For booking invoices, fetch the linked booking via revenue_transaction
       let booking: any = null;
       if (invoice.invoice_category === "booking" && invoice.revenue_transaction_id) {
-        const { data: revTxn } = await (supabase as any)
-          .from("revenue_transactions")
+        const { data: revTxn } = await supabase.from("revenue_transactions" as any)
           .select("booking_id")
           .eq("id", invoice.revenue_transaction_id)
           .maybeSingle();
         if (revTxn?.booking_id) {
-          const { data: bookingData } = await (supabase as any)
-            .from("bookings")
+          const { data: bookingData } = await supabase.from("bookings" as any)
             .select("id, start_time, end_time, bay_id, session_type, coach_name")
             .eq("id", revTxn.booking_id)
             .maybeSingle();
           if (bookingData) {
             // Also fetch bay name
             if (bookingData.bay_id) {
-              const { data: bay } = await (supabase as any)
-                .from("bays")
+              const { data: bay } = await supabase.from("bays" as any)
                 .select("name")
                 .eq("id", bookingData.bay_id)
                 .maybeSingle();
@@ -208,8 +200,7 @@ export function useCreateInvoice() {
       if (!params.city) throw new Error("City is required for invoice generation.");
 
       // 1. Get per-city GST profile
-      const { data: gstProfile, error: gstErr } = await (supabase as any)
-        .from("gst_profiles")
+      const { data: gstProfile, error: gstErr } = await supabase.from("gst_profiles" as any)
         .select("*")
         .eq("city", params.city)
         .maybeSingle();
@@ -241,8 +232,7 @@ export function useCreateInvoice() {
       if (seqErr) throw seqErr;
 
       // 4. Create revenue transaction first (so we can link it)
-      const { data: revTxn, error: revErr } = await (supabase as any)
-        .from("revenue_transactions")
+      const { data: revTxn, error: revErr } = await supabase.from("revenue_transactions" as any)
         .insert({
           amount: params.total,
           user_id: params.customerUserId || null,
@@ -292,8 +282,7 @@ export function useCreateInvoice() {
         payment_status: params.paymentStatus || "paid",
       };
 
-      const { data: invoice, error: invErr } = await (supabase as any)
-        .from("invoices")
+      const { data: invoice, error: invErr } = await supabase.from("invoices" as any)
         .insert(invoicePayload)
         .select()
         .single();
@@ -317,8 +306,7 @@ export function useCreateInvoice() {
         sort_order: idx,
       }));
 
-      const { error: liErr } = await (supabase as any)
-        .from("invoice_line_items")
+      const { error: liErr } = await supabase.from("invoice_line_items" as any)
         .insert(lineItemsPayload);
       if (liErr) throw liErr;
 
@@ -334,8 +322,7 @@ export function useCreateInvoice() {
         let existingProfile = null;
         const normEmail = params.customerEmail ? params.customerEmail.trim().toLowerCase() : null;
         if (normEmail) {
-          const { data } = await (supabase as any)
-            .from("profiles")
+          const { data } = await supabase.from("profiles" as any)
             .select("id, user_id")
             .eq("email", normEmail)
             .maybeSingle();
@@ -343,8 +330,7 @@ export function useCreateInvoice() {
         }
         // Fallback: match by display_name + phone when no email provided
         if (!existingProfile && !normEmail && params.customerName) {
-          const q = (supabase as any)
-            .from("profiles")
+          const q = supabase.from("profiles" as any)
             .select("id, user_id")
             .eq("display_name", params.customerName);
           if (params.customerPhone) {
@@ -355,8 +341,7 @@ export function useCreateInvoice() {
         }
 
         if (!existingProfile) {
-          const { data: newProfile, error: profErr } = await (supabase as any)
-            .from("profiles")
+          const { data: newProfile, error: profErr } = await supabase.from("profiles" as any)
             .insert({
               display_name: params.customerName,
               email: params.customerEmail ? params.customerEmail.trim().toLowerCase() : null,
@@ -370,13 +355,13 @@ export function useCreateInvoice() {
           createdProfileId = newProfile.id;
 
           // Link invoice and revenue to the new profile
-          await (supabase as any).from("invoices").update({ customer_user_id: newProfile.id }).eq("id", invoice.id);
-          await (supabase as any).from("revenue_transactions").update({ user_id: newProfile.id }).eq("id", revTxn.id);
+          await supabase.from("invoices" as any).update({ customer_user_id: newProfile.id }).eq("id", invoice.id);
+          await supabase.from("revenue_transactions" as any).update({ user_id: newProfile.id }).eq("id", revTxn.id);
         } else {
           createdProfileId = existingProfile.id;
           const linkId = existingProfile.user_id || existingProfile.id;
-          await (supabase as any).from("invoices").update({ customer_user_id: linkId }).eq("id", invoice.id);
-          await (supabase as any).from("revenue_transactions").update({ user_id: linkId }).eq("id", revTxn.id);
+          await supabase.from("invoices" as any).update({ customer_user_id: linkId }).eq("id", invoice.id);
+          await supabase.from("revenue_transactions" as any).update({ user_id: linkId }).eq("id", revTxn.id);
         }
       }
 
@@ -416,16 +401,14 @@ export function useCreateInvoice() {
           bookingPayload.coach_name = params.bookingCoachName;
         }
 
-        const { data: booking, error: bookErr } = await (supabase as any)
-          .from("bookings")
+        const { data: booking, error: bookErr } = await supabase.from("bookings" as any)
           .insert(bookingPayload)
           .select()
           .single();
         if (bookErr) throw bookErr;
 
         // Link booking to revenue transaction
-        await (supabase as any)
-          .from("revenue_transactions")
+        await supabase.from("revenue_transactions" as any)
           .update({ booking_id: booking.id })
           .eq("id", revTxn.id);
       }
@@ -493,12 +476,12 @@ export function useUpdateInvoice() {
       if (invoiceFields.paymentStatus !== undefined) updatePayload.payment_status = invoiceFields.paymentStatus;
 
       if (Object.keys(updatePayload).length > 0) {
-        const { error } = await (supabase as any).from("invoices").update(updatePayload).eq("id", invoiceId);
+        const { error } = await supabase.from("invoices" as any).update(updatePayload).eq("id", invoiceId);
         if (error) throw error;
       }
 
       if (lineItems) {
-        await (supabase as any).from("invoice_line_items").delete().eq("invoice_id", invoiceId);
+        await supabase.from("invoice_line_items" as any).delete().eq("invoice_id", invoiceId);
         const payload = lineItems.map((item, idx) => ({
           invoice_id: invoiceId,
           item_name: item.itemName,
@@ -515,13 +498,12 @@ export function useUpdateInvoice() {
           product_id: item.productId || null,
           sort_order: idx,
         }));
-        const { error: liErr } = await (supabase as any).from("invoice_line_items").insert(payload);
+        const { error: liErr } = await supabase.from("invoice_line_items" as any).insert(payload);
         if (liErr) throw liErr;
       }
 
       // ── Sync changes to linked revenue_transactions record ──
-      const { data: invoice } = await (supabase as any)
-        .from("invoices")
+      const { data: invoice } = await supabase.from("invoices" as any)
         .select("revenue_transaction_id, total, payment_method, notes, invoice_number, customer_name")
         .eq("id", invoiceId)
         .maybeSingle();
@@ -541,8 +523,7 @@ export function useUpdateInvoice() {
         revUpdate.description = desc;
 
         if (Object.keys(revUpdate).length > 0) {
-          await (supabase as any)
-            .from("revenue_transactions")
+          await supabase.from("revenue_transactions" as any)
             .update(revUpdate)
             .eq("id", invoice.revenue_transaction_id);
         }
@@ -568,19 +549,16 @@ export function useCancelInvoice() {
     mutationFn: async (params: CancelInvoiceParams) => {
       const { invoiceId, disposition } = params;
 
-      await (supabase as any)
-        .from("invoices")
+      await supabase.from("invoices" as any)
         .update({ status: "cancelled" })
         .eq("id", invoiceId);
 
-      const { data: original } = await (supabase as any)
-        .from("invoices")
+      const { data: original } = await supabase.from("invoices" as any)
         .select("*")
         .eq("id", invoiceId)
         .single();
 
-      const { data: items } = await (supabase as any)
-        .from("invoice_line_items")
+      const { data: items } = await supabase.from("invoice_line_items" as any)
         .select("*")
         .eq("invoice_id", invoiceId);
 
@@ -600,8 +578,7 @@ export function useCancelInvoice() {
         p_start: 1,
       });
 
-      const { data: creditNote, error: cnErr } = await (supabase as any)
-        .from("invoices")
+      const { data: creditNote, error: cnErr } = await supabase.from("invoices" as any)
         .insert({
           invoice_number: cnNumber,
           invoice_date: new Date().toISOString().split("T")[0],
@@ -635,7 +612,7 @@ export function useCancelInvoice() {
       if (cnErr) throw cnErr;
 
       if (items?.length) {
-        await (supabase as any).from("invoice_line_items").insert(
+        await supabase.from("invoice_line_items" as any).insert(
           items.map((item: any) => ({
             invoice_id: creditNote.id,
             item_name: item.item_name,
@@ -658,8 +635,7 @@ export function useCancelInvoice() {
       // If parking as advance credit, create advance transaction
       if (disposition === "advance_credit" && original.customer_user_id && original.city) {
         const { data: userData } = await supabase.auth.getUser();
-        await (supabase as any)
-          .from("advance_transactions")
+        await supabase.from("advance_transactions" as any)
           .insert({
             customer_id: original.customer_user_id,
             amount: Number(original.total),
@@ -687,8 +663,7 @@ export function useDeleteInvoice() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (invoiceId: string) => {
-      const { data: invoice, error: fetchErr } = await (supabase as any)
-        .from("invoices")
+      const { data: invoice, error: fetchErr } = await supabase.from("invoices" as any)
         .select("*")
         .eq("id", invoiceId)
         .single();
@@ -700,7 +675,7 @@ export function useDeleteInvoice() {
       const prefix = parts.length >= 3 ? parts[0] : "INV";
 
       if (seqNumber && invoice.financial_year_id && invoice.business_gstin) {
-        await (supabase as any).from("recycled_invoice_numbers").insert({
+        await supabase.from("recycled_invoice_numbers" as any).insert({
           gstin: invoice.business_gstin,
           financial_year_id: invoice.financial_year_id,
           prefix,
@@ -709,8 +684,8 @@ export function useDeleteInvoice() {
         });
       }
 
-      await (supabase as any).from("invoice_line_items").delete().eq("invoice_id", invoiceId);
-      const { error: delErr } = await (supabase as any).from("invoices").delete().eq("id", invoiceId);
+      await supabase.from("invoice_line_items" as any).delete().eq("invoice_id", invoiceId);
+      const { error: delErr } = await supabase.from("invoices" as any).delete().eq("id", invoiceId);
       if (delErr) throw delErr;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["invoices"] }),
