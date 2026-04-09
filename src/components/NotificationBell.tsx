@@ -1,16 +1,28 @@
-import { Bell } from "lucide-react";
+import { Bell, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNotifications } from "@/hooks/useNotifications";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 
 export function NotificationBell() {
   const { data: notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+
+  const handleClick = (n: NonNullable<typeof notifications>[number]) => {
+    if (!n.is_read) markAsRead(n.id);
+    if (n.action_url) {
+      setOpen(false);
+      navigate(n.action_url);
+    }
+  };
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
@@ -40,14 +52,18 @@ export function NotificationBell() {
                   key={n.id}
                   className={cn(
                     "w-full px-4 py-3 text-left transition-colors hover:bg-muted/50",
-                    !n.is_read && "bg-primary/5"
+                    !n.is_read && "bg-primary/5",
+                    n.action_url && "cursor-pointer"
                   )}
-                  onClick={() => !n.is_read && markAsRead(n.id)}
+                  onClick={() => handleClick(n)}
                 >
                   <div className="flex items-start gap-2">
                     {!n.is_read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />}
-                    <div className={cn(!n.is_read ? "" : "ml-4")}>
-                      <p className="text-sm font-medium text-foreground">{n.title}</p>
+                    <div className={cn("flex-1", !n.is_read ? "" : "ml-4")}>
+                      <div className="flex items-center gap-1">
+                        <p className="text-sm font-medium text-foreground">{n.title}</p>
+                        {n.action_url && <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />}
+                      </div>
                       <p className="text-xs text-muted-foreground">{n.message}</p>
                       <p className="mt-1 text-xs text-muted-foreground/70">
                         {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}

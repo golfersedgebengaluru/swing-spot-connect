@@ -11,6 +11,7 @@ export interface Notification {
   type: string;
   is_read: boolean;
   created_at: string;
+  action_url: string | null;
 }
 
 export function useNotifications() {
