@@ -198,13 +198,14 @@ async function notifyAdmins(adminClient: any, adminIds: string[], template: stri
 }
 
 // Send in-app notification to all relevant admins/site-admins
-async function notifyAdminsInApp(adminClient: any, adminIds: string[], title: string, message: string) {
+async function notifyAdminsInApp(adminClient: any, adminIds: string[], title: string, message: string, actionUrl?: string) {
   for (const adminId of adminIds) {
     await adminClient.from("notifications").insert({
       user_id: adminId,
       title,
       message,
       type: "admin",
+      ...(actionUrl ? { action_url: actionUrl } : {}),
     });
   }
 }
@@ -1077,7 +1078,7 @@ Deno.serve(async (req) => {
         // Notify admins + site-admins
         const adminClient = createAdminClient();
         const notifyIds = await getAdminAndSiteAdminIds(adminClient, city);
-        await notifyAdminsInApp(adminClient, notifyIds, "📋 New Coaching Request", `${display_name || "A member"} has requested a coaching session at ${bayLabel} on ${formatDateTime(start_time, calTz)}. Please approve or reject.`);
+        await notifyAdminsInApp(adminClient, notifyIds, "📋 New Coaching Request", `${display_name || "A member"} has requested a coaching session at ${bayLabel} on ${formatDateTime(start_time, calTz)}. Please approve or reject.`, `/admin?tab=booking-logs&status=pending&type=coaching`);
 
         // Send pending coaching email to user
         try {

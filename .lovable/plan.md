@@ -1,35 +1,25 @@
+## Plan: Clickable Coaching Notifications
 
+### 1. Add `action_url` column to notifications table
+- Add nullable `action_url` text column to store the target route (e.g. `/admin?tab=booking-logs&bookingId=xyz`)
 
-## Make EdgeCollective Installable on Mobile (Add to Home Screen)
+### 2. Update notification creation (edge function)
+- In `send-notification-email` or wherever coaching request notifications are inserted, include the `action_url` pointing to the admin booking logs tab with the booking ID as a query param
 
-### What This Does
-Adds a web app manifest so users visiting `golfersedge.golf-collective.com` on their phone can tap "Add to Home Screen" and get a native-looking app icon — no app store needed. The app opens full-screen without a browser address bar.
+### 3. Update NotificationBell component
+- When a notification has an `action_url`, clicking it navigates (via `useNavigate`) to that URL instead of just marking as read
+- Mark as read on click as well
 
-### What You Need to Provide
-- A **square PNG icon**, ideally **512x512 pixels** (upload it in the chat)
+### 4. Update Admin Booking Logs tab
+- Read `bookingId` from URL query params
+- If present, auto-highlight or scroll to that booking and show the approve/reject actions
 
-### Implementation Steps
+### 5. Mobile friendly
+- Ensure the notification popover works well on mobile (already uses ScrollArea)
+- The booking logs tab already has responsive design per existing patterns
 
-1. **Copy the uploaded icon** to `public/` directory (e.g., `public/app-icon-512.png`)
-
-2. **Create `public/manifest.json`** with:
-   - `name`: "EdgeCollective - Golfer's Edge"
-   - `short_name`: "EdgeCollective"
-   - `start_url`: "/"
-   - `display`: "standalone"
-   - `background_color` and `theme_color` matching app branding
-   - Icon references at 192x192 and 512x512 sizes
-
-3. **Update `index.html`** to link the manifest:
-   - Add `<link rel="manifest" href="/manifest.json">`
-   - Add `<meta name="apple-mobile-web-app-capable" content="yes">`
-   - Add `<link rel="apple-touch-icon" href="/app-icon-512.png">`
-   - Add `<meta name="theme-color">` for the browser toolbar color
-
-### No Service Workers
-This is a lightweight manifest-only approach — no service workers, no offline caching, no interference with the Lovable preview. It simply makes the app installable.
-
-### How Users Install It
-- **iPhone**: Open the site in Safari → tap Share → "Add to Home Screen"
-- **Android**: Open in Chrome → tap the 3-dot menu → "Add to Home Screen" (or accept the install prompt)
-
+**Files to change:**
+- Migration: add `action_url` to `notifications`
+- `supabase/functions/send-notification-email/index.ts` — include action_url on coaching notifications
+- `src/components/NotificationBell.tsx` — navigate on click
+- `src/components/admin/AdminBookingLogsTab.tsx` — handle bookingId query param

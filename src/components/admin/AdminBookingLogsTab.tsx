@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -58,6 +59,7 @@ export function AdminBookingLogsTab() {
   const { toast } = useToast();
   const { selectedCity: globalCity } = useAdminCity();
   const { data: activeFY } = useActiveFinancialYear();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [cityFilter, setCityFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -69,6 +71,23 @@ export function AdminBookingLogsTab() {
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
   const [manualBookingOpen, setManualBookingOpen] = useState(false);
+
+  // Auto-apply filters from URL params (e.g. from notification click)
+  useEffect(() => {
+    const urlStatus = searchParams.get("status");
+    const urlType = searchParams.get("type");
+    if (urlStatus) {
+      setStatusFilter(urlStatus);
+      searchParams.delete("status");
+    }
+    if (urlType) {
+      setTypeFilter(urlType);
+      searchParams.delete("type");
+    }
+    if (urlStatus || urlType) {
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, []);
 
   const { isAdmin, assignedCities } = useAdmin();
   const { data: allCities = [] } = useAllCities();
