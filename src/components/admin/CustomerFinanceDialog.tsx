@@ -34,7 +34,7 @@ export function CustomerFinanceDialog({ open, onOpenChange, userId, displayName,
     queryKey: ["customer_lifetime_revenue", userId],
     enabled: !!userId,
     queryFn: async () => {
-      const { data } = await supabase.from("revenue_transactions" as any)
+      const { data } = await supabase.from("revenue_transactions")
         .select("amount")
         .eq("user_id", userId)
         .eq("status", "confirmed");
@@ -47,7 +47,7 @@ export function CustomerFinanceDialog({ open, onOpenChange, userId, displayName,
     queryKey: ["customer_credit_notes", userId],
     enabled: !!userId,
     queryFn: async () => {
-      const { data } = await supabase.from("invoices" as any)
+      const { data } = await supabase.from("invoices")
         .select("id, invoice_number, total, invoice_date, credit_note_disposition")
         .eq("customer_user_id", userId)
         .eq("invoice_type", "credit_note")
@@ -62,7 +62,7 @@ export function CustomerFinanceDialog({ open, onOpenChange, userId, displayName,
     queryKey: ["customer_invoice_history", userId],
     enabled: !!userId,
     queryFn: async () => {
-      const { data } = await supabase.from("invoices" as any)
+      const { data } = await supabase.from("invoices")
         .select("id, invoice_number, total, invoice_date, invoice_type, status, payment_method")
         .eq("customer_user_id", userId)
         .order("invoice_date", { ascending: false })

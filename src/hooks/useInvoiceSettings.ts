@@ -24,7 +24,7 @@ export function useGlobalInvoiceSettings() {
   return useQuery({
     queryKey: ["invoice_settings", "global"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("invoice_settings" as any)
+      const { data, error } = await supabase.from("invoice_settings")
         .select("*")
         .is("city", null)
         .maybeSingle();
@@ -40,7 +40,7 @@ export function useCityInvoiceSettings(city?: string) {
     queryKey: ["invoice_settings", "city", city],
     enabled: !!city,
     queryFn: async () => {
-      const { data, error } = await supabase.from("invoice_settings" as any)
+      const { data, error } = await supabase.from("invoice_settings")
         .select("*")
         .eq("city", city)
         .maybeSingle();
@@ -81,12 +81,12 @@ export function useSaveInvoiceSettings() {
       };
 
       if (settings.id) {
-        const { error } = await supabase.from("invoice_settings" as any)
+        const { error } = await supabase.from("invoice_settings")
           .update(payload)
           .eq("id", settings.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("invoice_settings" as any)
+        const { error } = await supabase.from("invoice_settings")
           .upsert(payload, { onConflict: "city" });
         if (error) throw error;
       }
@@ -102,7 +102,7 @@ export function useDeleteCityInvoiceSettings() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (city: string) => {
-      const { error } = await supabase.from("invoice_settings" as any)
+      const { error } = await supabase.from("invoice_settings")
         .delete()
         .eq("city", city);
       if (error) throw error;
