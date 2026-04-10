@@ -222,6 +222,23 @@ export function AddExpenseDialog({ open, onOpenChange, city, editExpense, duplic
             </div>
           </div>
 
+          {isEdit && (
+            <div>
+              <Label>Location</Label>
+              <Select value={reassignCity} onValueChange={setReassignCity}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Select location" /></SelectTrigger>
+                <SelectContent>
+                  {(allCities ?? []).map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {reassignCity && reassignCity !== city && (
+                <p className="text-xs text-amber-600 mt-1">⚠ This expense will be moved from "{city}" to "{reassignCity}"</p>
+              )}
+            </div>
+          )}
+
           <Separator />
 
           <div className="grid grid-cols-3 gap-3">
