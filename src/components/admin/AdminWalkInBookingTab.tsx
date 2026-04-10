@@ -152,7 +152,7 @@ export function AdminWalkInBookingTab() {
         const hsnCode = serviceProduct?.hsn_code || "";
 
         // Fetch per-city GST profile for GST type determination
-        const { data: gstProfile } = await supabase.from("gst_profiles" as any)
+        const { data: gstProfile } = await supabase.from("gst_profiles")
           .select("state_code, gstin")
           .eq("city", selectedCity)
           .maybeSingle();
