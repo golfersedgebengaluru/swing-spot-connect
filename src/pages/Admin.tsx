@@ -92,9 +92,21 @@ const tabComponents: Record<string, React.ComponentType<any>> = {
 };
 
 export default function Admin() {
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => {
+    const urlTab = searchParams.get("tab");
+    return urlTab && tabComponents[urlTab] ? urlTab : "dashboard";
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // React to URL ?tab= changes (e.g. from notification clicks)
+  useEffect(() => {
+    const urlTab = searchParams.get("tab");
+    if (urlTab && tabComponents[urlTab] && urlTab !== activeTab) {
+      setActiveTab(urlTab);
+    }
+  }, [searchParams]);
 
   const ActiveComponent = tabComponents[activeTab] ?? AdminDashboardTab;
 
