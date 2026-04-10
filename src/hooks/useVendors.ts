@@ -26,7 +26,7 @@ export function useVendors(city?: string) {
         .eq("city", city)
         .order("name");
       if (error) throw error;
-      return (data ?? []) as Vendor[];
+      return (data ?? []) as unknown as Vendor[];
     },
   });
 }
@@ -40,7 +40,7 @@ export function useCreateVendor() {
         .select()
         .single();
       if (error) throw error;
-      return data as Vendor;
+      return data as unknown as Vendor;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["vendors"] }),
   });

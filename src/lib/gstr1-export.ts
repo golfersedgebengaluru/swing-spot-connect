@@ -49,6 +49,7 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
     .eq("city", city)
     .maybeSingle();
   if (!gstProfile) throw new Error("GST profile not found for this city.");
+  const gst = gstProfile as unknown as { state_code: string; state: string };
 
   // Fetch invoices for the month
   const { data: invoices, error: invErr } = await supabase.from("invoices" as any)
@@ -59,7 +60,7 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
     .in("status", ["issued", "paid"])
     .order("invoice_date");
   if (invErr) throw invErr;
-  const allInvoices: Invoice[] = invoices ?? [];
+  const allInvoices: Invoice[] = (invoices ?? []) as unknown as Invoice[];
 
   // Fetch all line items for these invoices
   const invoiceIds = allInvoices.map((i) => i.id);
@@ -71,7 +72,7 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
       const { data: items } = await supabase.from("invoice_line_items" as any)
         .select("*")
         .in("invoice_id", chunk);
-      if (items) allLineItems = allLineItems.concat(items);
+      if (items) allLineItems = allLineItems.concat(items as unknown as LineItem[]);
     }
   }
 
@@ -95,7 +96,7 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
   // CDNUR: credit notes where original invoice did NOT have GSTIN
   const cdnurNotes = creditNotes.filter((cn) => !cn.customer_gstin);
 
-  const placeOfSupply = `${gstProfile.state_code}-${gstProfile.state}`;
+  const placeOfSupply = `${gst.state_code}-${gst.state}`;
 
   // ── B2B Sheet ──
   const b2bRows = b2bInvoices.map((inv) => ({

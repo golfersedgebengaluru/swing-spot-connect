@@ -137,15 +137,15 @@ export function useInvoiceWithItems(invoiceId: string | null) {
             .eq("id", revTxn.booking_id)
             .maybeSingle();
           if (bookingData) {
-            // Also fetch bay name
+            let bayName: string | null = null;
             if (bookingData.bay_id) {
               const { data: bay } = await supabase.from("bays")
                 .select("name")
                 .eq("id", bookingData.bay_id)
                 .maybeSingle();
-              bookingData.bay_name = bay?.name || null;
+              bayName = bay?.name || null;
             }
-            booking = bookingData;
+            booking = { ...bookingData, bay_name: bayName };
           }
         }
       }
@@ -221,14 +221,12 @@ export function useCreateInvoice() {
 
       // 3. Get next invoice number
       const { data: invoiceNumber, error: seqErr } = await supabase
-        "get_next_invoice_number" as any,
-        {
+        .rpc("get_next_invoice_number", {
           p_gstin: sequenceGstin,
           p_fy_id: fy.id,
           p_prefix: gstProfile.invoice_prefix || "INV",
           p_start: gstProfile.invoice_start_number || 1,
-        }
-      );
+        });
       if (seqErr) throw seqErr;
 
       // 4. Create revenue transaction first (so we can link it)
@@ -402,7 +400,7 @@ export function useCreateInvoice() {
         }
 
         const { data: booking, error: bookErr } = await supabase.from("bookings")
-          .insert(bookingPayload)
+          .insert(bookingPayload as any)
           .select()
           .single();
         if (bookErr) throw bookErr;
