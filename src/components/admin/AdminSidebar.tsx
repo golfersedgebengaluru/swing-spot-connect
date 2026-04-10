@@ -378,12 +378,19 @@ export function AdminSidebar({
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--admin-gold))] text-[hsl(var(--sidebar-background))] text-xs font-semibold">
                     {initials}
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-white">
                       {user?.email?.split("@")[0] ?? "Admin"}
                     </p>
                     <p className="text-xs text-white/40">{roleLabel}</p>
                   </div>
+                  <button
+                    onClick={async () => { await signOut(); navigate("/auth"); }}
+                    className="flex items-center justify-center rounded-md p-1.5 text-white/50 hover:bg-white/[0.08] hover:text-destructive min-h-[44px] min-w-[44px] touch-manipulation"
+                    title="Sign Out"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
             </div>
