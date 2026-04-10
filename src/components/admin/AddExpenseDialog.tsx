@@ -11,6 +11,7 @@ import { useVendors, useCreateVendor } from "@/hooks/useVendors";
 import { useExpenseCategories } from "@/hooks/useExpenseCategories";
 import { useCreateExpense, useUpdateExpense, type Expense } from "@/hooks/useExpenses";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
+import { useAllCities } from "@/hooks/useBookings";
 
 interface Props {
   open: boolean;
@@ -29,6 +30,7 @@ export function AddExpenseDialog({ open, onOpenChange, city, editExpense, duplic
   const currency = useDefaultCurrency();
   const { data: vendors } = useVendors(city);
   const { data: categories } = useExpenseCategories();
+  const { data: allCities } = useAllCities();
   const createExpense = useCreateExpense();
   const updateExpense = useUpdateExpense();
   const createVendor = useCreateVendor();
@@ -49,6 +51,7 @@ export function AddExpenseDialog({ open, onOpenChange, city, editExpense, duplic
   const [paymentMethod, setPaymentMethod] = useState("");
   const [paymentRef, setPaymentRef] = useState("");
   const [notes, setNotes] = useState("");
+  const [reassignCity, setReassignCity] = useState("");
 
   // Pre-fill when editing or duplicating
   useEffect(() => {
@@ -63,6 +66,7 @@ export function AddExpenseDialog({ open, onOpenChange, city, editExpense, duplic
       setPaymentMethod(prefill.payment_method || "");
       setPaymentRef(prefill.payment_reference || "");
       setNotes(prefill.notes || "");
+      setReassignCity(prefill.city || city);
     }
   }, [open, prefill]);
 
@@ -113,6 +117,7 @@ export function AddExpenseDialog({ open, onOpenChange, city, editExpense, duplic
       toast({ title: "Select payment method", variant: "destructive" }); return;
     }
 
+    const effectiveCity = isEdit ? (reassignCity || city) : city;
     const payload = {
       vendor_id: vendorId || null,
       expense_date: expenseDate,
@@ -124,7 +129,7 @@ export function AddExpenseDialog({ open, onOpenChange, city, editExpense, duplic
       total,
       payment_method: paymentMethod,
       payment_reference: paymentRef || undefined,
-      city,
+      city: effectiveCity,
       notes: notes || undefined,
     };
 
@@ -146,7 +151,7 @@ export function AddExpenseDialog({ open, onOpenChange, city, editExpense, duplic
   const resetForm = () => {
     setVendorId(null); setVendorSearch(""); setExpenseDate(new Date().toISOString().split("T")[0]);
     setCategoryId(""); setBaseAmount(""); setGstRate("0"); setPaymentMethod("");
-    setPaymentRef(""); setNotes(""); setShowQuickAdd(false);
+    setPaymentRef(""); setNotes(""); setShowQuickAdd(false); setReassignCity("");
   };
 
   const isSaving = createExpense.isPending || updateExpense.isPending;
