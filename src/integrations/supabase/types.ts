@@ -1529,6 +1529,48 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_events: {
+        Row: {
+          amount_paise: number | null
+          city: string | null
+          created_at: string
+          currency: string | null
+          event_type: string
+          id: string
+          processed: boolean
+          raw_payload: Json | null
+          razorpay_event_id: string
+          razorpay_order_id: string | null
+          razorpay_payment_id: string | null
+        }
+        Insert: {
+          amount_paise?: number | null
+          city?: string | null
+          created_at?: string
+          currency?: string | null
+          event_type?: string
+          id?: string
+          processed?: boolean
+          raw_payload?: Json | null
+          razorpay_event_id: string
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+        }
+        Update: {
+          amount_paise?: number | null
+          city?: string | null
+          created_at?: string
+          currency?: string | null
+          event_type?: string
+          id?: string
+          processed?: boolean
+          raw_payload?: Json | null
+          razorpay_event_id?: string
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+        }
+        Relationships: []
+      }
       payment_gateways: {
         Row: {
           api_key: string | null
@@ -1571,6 +1613,57 @@ export type Database = {
           name?: string
           sort_order?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      pending_purchases: {
+        Row: {
+          city: string
+          created_at: string
+          currency: string
+          error_message: string | null
+          hours_transaction_id: string | null
+          id: string
+          package_hours: number
+          package_label: string
+          package_price: number
+          razorpay_order_id: string
+          revenue_transaction_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          city: string
+          created_at?: string
+          currency?: string
+          error_message?: string | null
+          hours_transaction_id?: string | null
+          id?: string
+          package_hours: number
+          package_label?: string
+          package_price: number
+          razorpay_order_id: string
+          revenue_transaction_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          city?: string
+          created_at?: string
+          currency?: string
+          error_message?: string | null
+          hours_transaction_id?: string | null
+          id?: string
+          package_hours?: number
+          package_label?: string
+          package_price?: number
+          razorpay_order_id?: string
+          revenue_transaction_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -2109,6 +2202,19 @@ export type Database = {
         Args: { p_max_per_hour?: number; p_user_id: string }
         Returns: boolean
       }
+      complete_hour_purchase: {
+        Args: {
+          p_amount: number
+          p_city: string
+          p_currency: string
+          p_description: string
+          p_hours: number
+          p_order_id: string
+          p_payment_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       decrement_user_points_safe: {
         Args: { p_delta: number; p_user_id: string }
         Returns: number
@@ -2140,6 +2246,10 @@ export type Database = {
         Returns: number
       }
       is_admin_or_site_admin: { Args: { _user_id: string }; Returns: boolean }
+      upsert_member_hours: {
+        Args: { p_hours: number; p_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "site_admin" | "user"
