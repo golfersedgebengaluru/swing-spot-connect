@@ -49,6 +49,7 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
     .eq("city", city)
     .maybeSingle();
   if (!gstProfile) throw new Error("GST profile not found for this city.");
+  const gst = gstProfile as unknown as GstProfile;
 
   // Fetch invoices for the month
   const { data: invoices, error: invErr } = await supabase.from("invoices" as any)

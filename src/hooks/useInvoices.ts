@@ -137,15 +137,15 @@ export function useInvoiceWithItems(invoiceId: string | null) {
             .eq("id", revTxn.booking_id)
             .maybeSingle();
           if (bookingData) {
-            // Also fetch bay name
+            let bayName: string | null = null;
             if (bookingData.bay_id) {
               const { data: bay } = await supabase.from("bays")
                 .select("name")
                 .eq("id", bookingData.bay_id)
                 .maybeSingle();
-              bookingData.bay_name = bay?.name || null;
+              bayName = bay?.name || null;
             }
-            booking = bookingData;
+            booking = { ...bookingData, bay_name: bayName };
           }
         }
       }
