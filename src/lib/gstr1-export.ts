@@ -72,7 +72,7 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
       const { data: items } = await supabase.from("invoice_line_items" as any)
         .select("*")
         .in("invoice_id", chunk);
-      if (items) allLineItems = allLineItems.concat(items);
+      if (items) allLineItems = allLineItems.concat(items as unknown as LineItem[]);
     }
   }
 
@@ -96,7 +96,7 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
   // CDNUR: credit notes where original invoice did NOT have GSTIN
   const cdnurNotes = creditNotes.filter((cn) => !cn.customer_gstin);
 
-  const placeOfSupply = `${gstProfile.state_code}-${gstProfile.state}`;
+  const placeOfSupply = `${gst.state_code}-${gst.state}`;
 
   // ── B2B Sheet ──
   const b2bRows = b2bInvoices.map((inv) => ({
