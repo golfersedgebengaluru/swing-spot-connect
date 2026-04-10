@@ -178,7 +178,8 @@ export function AdminSidebar({
   collapsed,
   onToggleCollapse,
 }: AdminSidebarProps) {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const { role, isAdmin, isSiteAdmin } = useAdmin();
   const { data: permissions } = useSiteAdminPermissions();
   const { data: branding } = useBranding();
