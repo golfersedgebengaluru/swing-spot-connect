@@ -125,18 +125,30 @@ export default function Dashboard() {
           currency: pkg.currency || "INR",
           city,
           receipt: `hours_${pkg.hours}h_${Date.now()}`,
-          booking_summary: { type: "hour_package", hours: pkg.hours, label: pkg.label },
+          booking_summary: { type: "hour_package", hours: pkg.hours, label: pkg.label, user_id: user.id },
         },
       });
       if (orderRes.error || orderRes.data?.error) throw new Error(orderRes.data?.error || orderRes.error?.message || "Failed to create order");
 
       const { order_id, key_id, currency: rzpCurrency } = orderRes.data;
 
-      // 2. Load Razorpay
+      // 2. Record pending purchase BEFORE opening Razorpay
+      await supabase.from("pending_purchases").insert({
+        user_id: user.id,
+        razorpay_order_id: order_id,
+        package_hours: pkg.hours,
+        package_price: pkg.price,
+        package_label: pkg.label || `${pkg.hours}h Package`,
+        currency: pkg.currency || "INR",
+        city,
+        status: "pending",
+      });
+
+      // 3. Load Razorpay
       const loaded = await loadRazorpayScript();
       if (!loaded) throw new Error("Failed to load payment gateway");
 
-      // 3. Open checkout
+      // 4. Open checkout
       await new Promise<void>((resolve, reject) => {
         let settled = false;
         const finish = (fn: () => void) => { if (!settled) { settled = true; fn(); } };
@@ -148,52 +160,36 @@ export default function Dashboard() {
           name: "Golfer's Edge",
           description: `${pkg.hours}h Hour Package - ${pkg.label}`,
           order_id,
+          notes: { type: "hour_package", user_id: user.id, hours: String(pkg.hours), city },
           handler: async (response: any) => {
             try {
-              // Atomically credit hours — no read-then-write race condition
-              const { error: hoursErr } = await supabase
-                .rpc("upsert_member_hours" as any, { p_user_id: user.id, p_hours: pkg.hours });
-              if (hoursErr) throw hoursErr;
-
-              // Log the hours transaction
-              const { data: htxn, error: htxnErr } = await supabase
-                .from("hours_transactions")
-                .insert({
-                  user_id: user.id,
-                  type: "purchase",
-                  hours: pkg.hours,
-                  note: `Purchased ${pkg.hours}h package (₹${pkg.price})`,
-                })
-                .select("id")
-                .single();
-              if (htxnErr) throw htxnErr;
-
-              // Record the revenue transaction — must succeed or we throw
-              const { error: revErr } = await supabase.from("revenue_transactions").insert({
-                transaction_type: "payment" as any,
-                amount: pkg.price,
-                currency: pkg.currency || "INR",
-                user_id: user.id,
-                hours_transaction_id: htxn.id,
-                gateway_name: "razorpay",
-                gateway_order_ref: response.razorpay_order_id,
-                gateway_payment_ref: response.razorpay_payment_id,
-                description: `Hour package purchase - ${pkg.hours}h (${pkg.label})`,
-                status: "confirmed",
+              // Server-side atomic completion via RPC
+              const { error: rpcErr } = await supabase.functions.invoke("confirm-hour-purchase", {
+                body: {
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                },
               });
-              if (revErr) throw revErr;
+              if (rpcErr) throw new Error(rpcErr.message || "Failed to confirm purchase");
 
               queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
               queryClient.invalidateQueries({ queryKey: ["member_hours"] });
               finish(() => resolve());
             } catch (err) {
-              finish(() => reject(err instanceof Error ? err : new Error("Failed to credit hours")));
+              // Even if client-side confirm fails, the webhook will reconcile
+              console.error("Client-side confirm failed, webhook will reconcile:", err);
+              finish(() => resolve()); // Don't reject — payment succeeded
             }
           },
           theme: { color: "#16a34a" },
           modal: { ondismiss: () => finish(() => reject(new Error("Payment cancelled"))) },
         });
-        rzp.on("payment.failed", (r: any) => finish(() => reject(new Error(r?.error?.description || "Payment failed"))));
+        rzp.on("payment.failed", (r: any) => {
+          // Mark pending purchase as failed
+          supabase.from("pending_purchases").update({ status: "failed", error_message: r?.error?.description || "Payment failed" }).eq("razorpay_order_id", order_id);
+          finish(() => reject(new Error(r?.error?.description || "Payment failed")));
+        });
         setBuyingPkgId(null);
         rzp.open();
       });
