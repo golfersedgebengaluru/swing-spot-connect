@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // Razorpay webhook handler.
 // Verifies the HMAC-SHA256 signature using the webhook secret stored per-city
 // in payment_gateways.webhook_secret (or the RAZORPAY_WEBHOOK_SECRET env var as fallback).
-// On payment.captured, logs the event and updates the related booking/order status.
+// On payment.captured, logs the event, updates bookings/orders, AND reconciles hour purchases.
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
@@ -42,16 +42,13 @@ Deno.serve(async (req) => {
   const razorpayPaymentId = paymentEntity?.id as string | undefined;
   const amountPaise = paymentEntity?.amount as number | undefined;
   const currency = paymentEntity?.currency as string | undefined;
+  const notes = paymentEntity?.notes as Record<string, unknown> | undefined;
   const eventId = payload.account_id
     ? `${payload.account_id}_${payload.created_at}`
     : `${eventType}_${razorpayPaymentId}_${Date.now()}`;
 
   // Determine which webhook secret to use.
-  // Try per-city secret first (from payment_gateways table), then global env fallback.
-  // We attempt to find a gateway that matches the order_id prefix if city is in notes.
-  const notesCity = paymentEntity?.notes
-    ? ((paymentEntity.notes as Record<string, unknown>)?.city as string | undefined)
-    : undefined;
+  const notesCity = notes?.city as string | undefined;
 
   let webhookSecret: string | null = null;
 
@@ -139,8 +136,7 @@ Deno.serve(async (req) => {
 
   // Handle specific event types
   if (eventType === "payment.captured" && razorpayOrderId) {
-    // Mark any order/booking that carries this razorpay_order_id as payment_verified
-    // Orders table uses razorpay_order_id column if it exists; bookings use metadata
+    // --- Existing: Mark bookings/orders as paid ---
     await adminClient
       .from("orders")
       .update({ payment_status: "paid", razorpay_payment_id: razorpayPaymentId })
@@ -150,6 +146,54 @@ Deno.serve(async (req) => {
       .from("bookings")
       .update({ payment_status: "paid", razorpay_payment_id: razorpayPaymentId })
       .eq("razorpay_order_id", razorpayOrderId);
+
+    // --- NEW: Reconcile hour package purchases ---
+    const { data: pendingPurchase } = await adminClient
+      .from("pending_purchases")
+      .select("*")
+      .eq("razorpay_order_id", razorpayOrderId)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (pendingPurchase) {
+      console.log(`Webhook reconciling hour purchase for order ${razorpayOrderId}`);
+      try {
+        const description = `Purchased ${pendingPurchase.package_hours}h package (₹${pendingPurchase.package_price})`;
+        const { error: rpcErr } = await adminClient.rpc("complete_hour_purchase", {
+          p_user_id: pendingPurchase.user_id,
+          p_hours: pendingPurchase.package_hours,
+          p_amount: pendingPurchase.package_price,
+          p_currency: pendingPurchase.currency,
+          p_order_id: razorpayOrderId,
+          p_payment_id: razorpayPaymentId || "webhook_reconciled",
+          p_description: description,
+          p_city: pendingPurchase.city,
+        });
+
+        if (rpcErr) {
+          console.error("Webhook complete_hour_purchase failed:", rpcErr.message);
+          await adminClient.from("pending_purchases").update({
+            status: "webhook_error",
+            error_message: rpcErr.message,
+          }).eq("id", pendingPurchase.id);
+        } else {
+          console.log(`Webhook successfully reconciled purchase for user ${pendingPurchase.user_id}`);
+          
+          // Notify user
+          await adminClient.from("notifications").insert({
+            user_id: pendingPurchase.user_id,
+            title: "✅ Hours Credited",
+            message: `${pendingPurchase.package_hours} hours have been added to your balance.`,
+            type: "purchase",
+          });
+        }
+      } catch (reconcileErr) {
+        console.error("Webhook reconciliation error:", (reconcileErr as Error).message);
+      }
+    }
+
+    // Mark event as processed
+    await adminClient.from("payment_events").update({ processed: true }).eq("razorpay_event_id", eventId);
   }
 
   if (eventType === "payment.failed" && razorpayOrderId) {
@@ -164,6 +208,13 @@ Deno.serve(async (req) => {
       .update({ payment_status: "failed" })
       .eq("razorpay_order_id", razorpayOrderId)
       .eq("payment_status", "pending");
+
+    // Mark pending purchase as failed
+    await adminClient
+      .from("pending_purchases")
+      .update({ status: "failed", error_message: "Payment failed at gateway" })
+      .eq("razorpay_order_id", razorpayOrderId)
+      .eq("status", "pending");
   }
 
   return new Response(JSON.stringify({ status: "ok" }), {
