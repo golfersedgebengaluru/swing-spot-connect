@@ -221,14 +221,12 @@ export function useCreateInvoice() {
 
       // 3. Get next invoice number
       const { data: invoiceNumber, error: seqErr } = await supabase
-        "get_next_invoice_number" as any,
-        {
+        .rpc("get_next_invoice_number", {
           p_gstin: sequenceGstin,
           p_fy_id: fy.id,
           p_prefix: gstProfile.invoice_prefix || "INV",
           p_start: gstProfile.invoice_start_number || 1,
-        }
-      );
+        });
       if (seqErr) throw seqErr;
 
       // 4. Create revenue transaction first (so we can link it)
