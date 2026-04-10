@@ -49,7 +49,7 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
     .eq("city", city)
     .maybeSingle();
   if (!gstProfile) throw new Error("GST profile not found for this city.");
-  const gst = gstProfile as unknown as GstProfile;
+  const gst = gstProfile as unknown as { state_code: string; state: string };
 
   // Fetch invoices for the month
   const { data: invoices, error: invErr } = await supabase.from("invoices" as any)
@@ -60,7 +60,7 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
     .in("status", ["issued", "paid"])
     .order("invoice_date");
   if (invErr) throw invErr;
-  const allInvoices: Invoice[] = invoices ?? [];
+  const allInvoices: Invoice[] = (invoices ?? []) as unknown as Invoice[];
 
   // Fetch all line items for these invoices
   const invoiceIds = allInvoices.map((i) => i.id);

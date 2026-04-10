@@ -400,7 +400,7 @@ export function useCreateInvoice() {
         }
 
         const { data: booking, error: bookErr } = await supabase.from("bookings")
-          .insert(bookingPayload)
+          .insert(bookingPayload as any)
           .select()
           .single();
         if (bookErr) throw bookErr;
