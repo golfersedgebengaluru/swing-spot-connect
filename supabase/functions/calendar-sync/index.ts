@@ -1121,7 +1121,7 @@ Deno.serve(async (req) => {
         // Notify admins + site-admins
         const adminClient = createAdminClient();
         const notifyIds = await getAdminAndSiteAdminIds(adminClient, city);
-        await notifyAdminsInApp(adminClient, notifyIds, "📋 New Coaching Request", `${display_name || "A member"} has requested a coaching session at ${bayLabel} on ${formatDateTime(start_time, calTz)}. Please approve or reject.`, `/admin?tab=booking-logs&status=pending&type=coaching`);
+        await notifyAdminsInApp(adminClient, notifyIds, "📋 New Coaching Request", `${display_name || "A member"} has requested a coaching session at ${bayLabel} on ${formatDateTime(start_time, calTz)}. Please approve or reject.`, `/admin?tab=bookinglogs&status=pending&type=coaching`);
 
         // Send pending coaching email to user
         try {
