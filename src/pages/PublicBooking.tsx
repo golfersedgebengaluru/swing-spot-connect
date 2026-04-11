@@ -216,7 +216,7 @@ export default function PublicBooking() {
                   });
                   // Create revenue transaction for registered user payment
                   try {
-                    await supabase.from("revenue_transactions").insert({
+                     await supabase.from("revenue_transactions").insert({
                       transaction_type: "payment" as any,
                       amount: totalCost,
                       currency: currentPrice?.currency || "INR",
@@ -227,6 +227,7 @@ export default function PublicBooking() {
                       booking_id: (bookingResult as any)?.booking?.id || null,
                       description: `Payment - ${currentBay.name} · ${duration / 60}h ${sessionType}`,
                       status: "confirmed",
+                      city: selectedCity,
                     });
                   } catch (e) {
                     console.error("Failed to create revenue transaction:", e);

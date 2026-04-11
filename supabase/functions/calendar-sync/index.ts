@@ -6,29 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// ─── Background job failure logger ─────────────────────────────────────────
-// Persists non-fatal errors to background_job_failures so admins can review them.
-async function logJobFailure(
-  adminClient: ReturnType<typeof createClient>,
-  jobType: string,
-  errorMessage: string,
-  context: Record<string, unknown> = {},
-  entityType?: string,
-  entityId?: string
-): Promise<void> {
-  try {
-    await adminClient.from("background_job_failures").insert({
-      job_type: jobType,
-      entity_type: entityType ?? null,
-      entity_id: entityId ?? null,
-      error_message: String(errorMessage).slice(0, 2000),
-      context,
-    });
-  } catch {
-    // Last resort: if even the failure logging fails, just console.error
-    console.error(`[logJobFailure] could not persist failure for ${jobType}:`, errorMessage);
-  }
-}
+// Job failure logging is handled via console.error throughout the function
 
 // Google Calendar API helpers
 async function getAccessToken(serviceAccountKey: any): Promise<string> {
