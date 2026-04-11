@@ -32,7 +32,7 @@ describe("useCurrency", () => {
 
   it("can be imported without errors", async () => {
     const mod = await import("@/hooks/useCurrency");
-    expect(mod.useCurrency).toBeDefined();
+    expect(mod.useDefaultCurrency).toBeDefined();
   });
 });
 

@@ -19,7 +19,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-const { usePoints } = await import("@/hooks/usePoints");
+const { usePointsTransactions } = await import("@/hooks/usePoints");
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -29,7 +29,7 @@ function createWrapper() {
     React.createElement(QueryClientProvider, { client: queryClient }, children);
 }
 
-describe("usePoints", () => {
+describe("usePointsTransactions", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("fetches points transactions for the user", async () => {
@@ -44,7 +44,7 @@ describe("usePoints", () => {
     };
     mockFrom.mockReturnValue(chain);
 
-    const { result } = renderHook(() => usePoints(), { wrapper: createWrapper() });
+    const { result } = renderHook(() => usePointsTransactions("user-123"), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toHaveLength(2);
   });
