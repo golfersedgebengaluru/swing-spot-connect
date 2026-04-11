@@ -516,27 +516,7 @@ export default function PublicBooking() {
                     <CardTitle className="text-base">Available Slots</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {!user ? (
-                      <div className="text-center py-8">
-                        <p className="text-muted-foreground mb-3">Sign in to see real-time availability, or pick a preferred time</p>
-                         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                          {generateTimeSlots(currentBay.open_time, currentBay.close_time, selectedDate).map((slot) => {
-                            const isSelected = selectedSlot === slot;
-                            return (
-                              <Button
-                                key={slot}
-                                variant={isSelected ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => setSelectedSlot(slot)}
-                                className={cn("text-xs", isSelected && "ring-2 ring-primary")}
-                              >
-                                {format(new Date(slot), "h:mm a")}
-                              </Button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : loadingSlots ? (
+                    {loadingSlots ? (
                       <div className="flex justify-center py-8">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                       </div>
