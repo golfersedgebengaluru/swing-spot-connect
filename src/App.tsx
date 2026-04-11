@@ -27,7 +27,15 @@ const PageView = lazy(() => import("./pages/PageView"));
 const Profile = lazy(() => import("./pages/Profile"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30 * 1000,     // 30 seconds
+      gcTime: 5 * 60 * 1000,    // 5 minutes
+      refetchOnWindowFocus: true,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

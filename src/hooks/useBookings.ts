@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -180,10 +181,7 @@ export function useCreateBooking() {
       queryClient.invalidateQueries({ queryKey: ["available_slots"] });
       queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
       queryClient.invalidateQueries({ queryKey: ["member_hours"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
-      queryClient.invalidateQueries({ queryKey: ["hours_transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["points_transactions"] });
     },
   });
 }
@@ -206,12 +204,7 @@ export function useCancelBooking() {
       queryClient.invalidateQueries({ queryKey: ["all_bookings"] });
       queryClient.invalidateQueries({ queryKey: ["available_slots"] });
       queryClient.invalidateQueries({ queryKey: ["member_hours"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
-      queryClient.invalidateQueries({ queryKey: ["hours_transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["revenue_transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["revenue_summary"] });
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
     },
   });
 }
@@ -312,12 +305,7 @@ export function useAdminCancelBooking() {
       queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
       queryClient.invalidateQueries({ queryKey: ["available_slots"] });
       queryClient.invalidateQueries({ queryKey: ["member_hours"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
-      queryClient.invalidateQueries({ queryKey: ["hours_transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["revenue_transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["revenue_summary"] });
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
     },
   });
 }
@@ -352,6 +340,28 @@ export function useMyBookings() {
 }
 
 export function useAllBookings() {
+  const queryClient = useQueryClient();
+
+  // Realtime subscription for live updates
+  useEffect(() => {
+    const channel = supabase
+      .channel("bookings-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bookings" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["all_bookings"] });
+          queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
+          queryClient.invalidateQueries({ queryKey: ["available_slots"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ["all_bookings"],
     queryFn: async () => {
@@ -365,15 +375,12 @@ export function useAllBookings() {
         .from("profiles")
         .select("id, user_id, display_name, email, user_type");
 
-      // Dual-key map: index by both user_id (auth ID) and profile id (primary key)
-      // so admin-registered / guest users without auth accounts are found too
       const profileMap = new Map<string, any>();
       for (const p of profiles ?? []) {
         if (p.user_id) profileMap.set(p.user_id, p);
         profileMap.set(p.id, p);
       }
 
-      // Get bay names
       const bayIds = [...new Set((bookings ?? []).map((b: any) => b.bay_id).filter(Boolean))];
       let bayMap = new Map<string, string>();
       if (bayIds.length > 0) {
