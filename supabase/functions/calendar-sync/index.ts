@@ -1085,7 +1085,7 @@ Deno.serve(async (req) => {
         }
       } else {
         // Pending coaching notification
-        await supabase.from("notifications").insert({
+        await adminClient.from("notifications").insert({
           user_id: bookingUserId,
           title: "🕐 Coaching Pending Approval",
           message: `Your coaching session at ${bayLabel} on ${formatDateTime(start_time, calTz)} is awaiting admin approval.`,
