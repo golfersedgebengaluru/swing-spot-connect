@@ -857,7 +857,7 @@ Deno.serve(async (req) => {
       }
 
       // Check no overlap with existing bookings for this specific bay (both confirmed and pending block slots)
-      const overlapQuery = supabase
+      const overlapQuery = adminClient
         .from("bookings")
         .select("*")
         .in("status", ["confirmed", "pending"])
@@ -904,12 +904,11 @@ Deno.serve(async (req) => {
       };
       if (bay_id) bookingInsert.bay_id = bay_id;
 
-      const { data: booking, error: bookingError } = await supabase.from("bookings").insert(bookingInsert).select().single();
+      const { data: booking, error: bookingError } = await adminClient.from("bookings").insert(bookingInsert).select().single();
       if (bookingError) throw bookingError;
 
-      // Deduct hours only for instant bookings that were NOT paid via gateway — use admin client to bypass RLS
+      // Deduct hours only for instant bookings that were NOT paid via gateway
       if (!needsApproval && !paidViaGateway) {
-        const adminClient = createAdminClient();
 
         const { data: hours } = await adminClient
           .from("member_hours")
