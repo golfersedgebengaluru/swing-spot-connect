@@ -197,7 +197,7 @@ export function useCancelBooking() {
         body: { action: "cancel_booking", booking_id: bookingId },
       });
 
-      if (res.error) throw new Error(res.error.message || "Cancellation failed");
+      if (res.error) { let em = "Cancellation failed"; try { const b = await (res.error as any).context?.json?.(); em = b?.error || res.error.message || em; } catch { em = res.error.message || em; } throw new Error(em); }
       if (res.data?.error) throw new Error(res.data.error);
       return res.data;
     },
@@ -225,7 +225,7 @@ export function useApproveBooking() {
       const res = await supabase.functions.invoke("calendar-sync", {
         body: { action: "approve_booking", booking_id: bookingId },
       });
-      if (res.error) throw new Error(res.error.message || "Approval failed");
+      if (res.error) { let em = "Approval failed"; try { const b = await (res.error as any).context?.json?.(); em = b?.error || res.error.message || em; } catch { em = res.error.message || em; } throw new Error(em); }
       if (res.data?.error) throw new Error(res.data.error);
 
       // Award coaching loyalty points on approval (non-blocking)
@@ -281,7 +281,7 @@ export function useRejectBooking() {
       const res = await supabase.functions.invoke("calendar-sync", {
         body: { action: "reject_booking", booking_id: bookingId, reject_message: rejectMessage || "" },
       });
-      if (res.error) throw new Error(res.error.message || "Rejection failed");
+      if (res.error) { let em = "Rejection failed"; try { const b = await (res.error as any).context?.json?.(); em = b?.error || res.error.message || em; } catch { em = res.error.message || em; } throw new Error(em); }
       if (res.data?.error) throw new Error(res.data.error);
       return res.data;
     },
@@ -303,7 +303,7 @@ export function useAdminCancelBooking() {
       const res = await supabase.functions.invoke("calendar-sync", {
         body: { action: "admin_cancel_booking", booking_id: bookingId },
       });
-      if (res.error) throw new Error(res.error.message || "Cancellation failed");
+      if (res.error) { let em = "Cancellation failed"; try { const b = await (res.error as any).context?.json?.(); em = b?.error || res.error.message || em; } catch { em = res.error.message || em; } throw new Error(em); }
       if (res.data?.error) throw new Error(res.data.error);
       return res.data;
     },
