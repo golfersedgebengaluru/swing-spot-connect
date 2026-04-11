@@ -1031,7 +1031,6 @@ Deno.serve(async (req) => {
         }
       } else if (paidViaGateway && !needsApproval) {
         // Gateway-paid booking — no hours deduction, just notifications
-        const adminClient = createAdminClient();
 
         await adminClient.from("notifications").insert({
           user_id: bookingUserId,
