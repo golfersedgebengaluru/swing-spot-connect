@@ -768,15 +768,17 @@ Deno.serve(async (req) => {
       const dayEnd = new Date(`${date}T${close_time}:00${offset}`).getTime();
       const slots: { time: string; available: boolean }[] = [];
 
-      // Calculate earliest bookable slot: next :00 or :30 strictly after now
+      // Calculate earliest bookable slot: next :00 or :30 strictly after now (in UTC)
+      // We work entirely in UTC millis — dayStart/dayEnd are already correct UTC timestamps
       const now = Date.now();
+      // Round "now" up to the next :00 or :30 boundary (in real UTC time)
       const nowDate = new Date(now);
-      const mins = nowDate.getMinutes();
+      const utcMins = nowDate.getUTCMinutes();
       let earliest: number;
-      if (mins < 30) {
-        earliest = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate(), nowDate.getHours(), 30, 0, 0).getTime();
+      if (utcMins < 30) {
+        earliest = Date.UTC(nowDate.getUTCFullYear(), nowDate.getUTCMonth(), nowDate.getUTCDate(), nowDate.getUTCHours(), 30, 0, 0);
       } else {
-        earliest = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate(), nowDate.getHours() + 1, 0, 0, 0).getTime();
+        earliest = Date.UTC(nowDate.getUTCFullYear(), nowDate.getUTCMonth(), nowDate.getUTCDate(), nowDate.getUTCHours() + 1, 0, 0, 0);
       }
 
       for (let t = dayStart; t < dayEnd; t += 30 * 60 * 1000) {
