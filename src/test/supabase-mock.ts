@@ -28,10 +28,10 @@ export function createQueryMock(resolvedData: any = [], resolvedError: any = nul
 }
 
 // Mock the supabase client module
-export function mockSupabase(overrides: Record<string, any> = {}) {
+export function mockSupabase(overrides: Record<string, any> = {}): any {
   const fromMocks: Record<string, any> = {};
 
-  const mock = {
+  const mock: any = {
     from: vi.fn((table: string) => {
       if (fromMocks[table]) return fromMocks[table];
       return createQueryMock();
@@ -55,7 +55,6 @@ export function mockSupabase(overrides: Record<string, any> = {}) {
     ...overrides,
   };
 
-  // Helper to set specific table mock
   mock._mockTable = (table: string, queryMock: any) => {
     fromMocks[table] = queryMock;
   };
