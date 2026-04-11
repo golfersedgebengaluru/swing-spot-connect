@@ -80,7 +80,13 @@ export default function Bookings() {
 
   const endTime = useMemo(() => {
     if (!selectedSlot) return null;
-    return new Date(new Date(selectedSlot).getTime() + duration * 60 * 1000).toISOString();
+    const end = new Date(new Date(selectedSlot).getTime() + duration * 60 * 1000);
+    const y = end.getFullYear();
+    const m = String(end.getMonth() + 1).padStart(2, "0");
+    const day = String(end.getDate()).padStart(2, "0");
+    const hh = String(end.getHours()).padStart(2, "0");
+    const mm = String(end.getMinutes()).padStart(2, "0");
+    return `${y}-${m}-${day}T${hh}:${mm}:00`;
   }, [selectedSlot, duration]);
 
   if (!authLoading && !user) return <Navigate to="/auth" />;
