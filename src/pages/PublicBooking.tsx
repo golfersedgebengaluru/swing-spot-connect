@@ -714,20 +714,3 @@ export default function PublicBooking() {
     </div>
   );
 }
-
-/** Generate time slots from open/close for guest view */
-function generateTimeSlots(openTime: string, closeTime: string, date: Date): string[] {
-  const slots: string[] = [];
-  const [oh, om] = openTime.split(":").map(Number);
-  const [ch, cm] = closeTime.split(":").map(Number);
-  const dateStr = format(date, "yyyy-MM-dd");
-
-  let h = oh, m = om;
-  while (h < ch || (h === ch && m < cm)) {
-    const timeStr = `${dateStr}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
-    slots.push(new Date(timeStr).toISOString());
-    m += 30;
-    if (m >= 60) { h++; m = 0; }
-  }
-  return slots;
-}
