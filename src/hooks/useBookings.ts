@@ -394,30 +394,16 @@ export function useUserHoursBalance() {
     queryKey: ["user_hours_balance", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      // Derive all values from transactions as the single source of truth
-      const { data: txns, error } = await supabase
-        .from("hours_transactions")
-        .select("type, hours")
-        .eq("user_id", user!.id);
+      // Read directly from member_hours as the single source of truth
+      const { data, error } = await supabase
+        .from("member_hours")
+        .select("hours_purchased, hours_used")
+        .eq("user_id", user!.id)
+        .maybeSingle();
       if (error) throw error;
 
-      let purchased = 0;
-      let used = 0;
-
-      for (const t of txns ?? []) {
-        if (t.type === "purchase" || t.type === "credit") {
-          purchased += Number(t.hours);
-        } else if (t.type === "adjustment" || t.type === "refund") {
-          // Adjustments and refunds reduce the used total
-          used -= Number(t.hours);
-        } else {
-          // deduction
-          used += Number(t.hours);
-        }
-      }
-
-      // Ensure used doesn't go negative from adjustments
-      used = Math.max(0, used);
+      const purchased = data?.hours_purchased ?? 0;
+      const used = data?.hours_used ?? 0;
       const remaining = purchased - used;
 
       return { purchased, used, remaining };
