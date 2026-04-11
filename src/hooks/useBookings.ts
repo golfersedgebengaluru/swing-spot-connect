@@ -181,10 +181,7 @@ export function useCreateBooking() {
       queryClient.invalidateQueries({ queryKey: ["available_slots"] });
       queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
       queryClient.invalidateQueries({ queryKey: ["member_hours"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
-      queryClient.invalidateQueries({ queryKey: ["hours_transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["points_transactions"] });
     },
   });
 }
@@ -207,12 +204,7 @@ export function useCancelBooking() {
       queryClient.invalidateQueries({ queryKey: ["all_bookings"] });
       queryClient.invalidateQueries({ queryKey: ["available_slots"] });
       queryClient.invalidateQueries({ queryKey: ["member_hours"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
-      queryClient.invalidateQueries({ queryKey: ["hours_transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["revenue_transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["revenue_summary"] });
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
     },
   });
 }
@@ -313,12 +305,7 @@ export function useAdminCancelBooking() {
       queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
       queryClient.invalidateQueries({ queryKey: ["available_slots"] });
       queryClient.invalidateQueries({ queryKey: ["member_hours"] });
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
-      queryClient.invalidateQueries({ queryKey: ["hours_transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["revenue_transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["revenue_summary"] });
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
     },
   });
 }
