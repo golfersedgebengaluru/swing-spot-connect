@@ -110,7 +110,9 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
     const endMins = startMins + duration;
     return availableSlots.some((slot) => {
       if (slot.available) return false;
-      const [h, m] = slot.time.split(":").map(Number);
+      const slotDate = new Date(slot.time);
+      const h = slotDate.getHours();
+      const m = slotDate.getMinutes();
       const slotStart = h * 60 + m;
       const slotEnd = slotStart + 30; // slots are 30-min intervals
       return slotStart < endMins && slotEnd > startMins;
@@ -118,9 +120,9 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
   }, [availableSlots, selectedDate, startHour, startMinute, duration]);
 
   const handleSlotClick = useCallback((time: string) => {
-    const [h, m] = time.split(":");
-    setStartHour(h);
-    setStartMinute(m);
+    const d = new Date(time);
+    setStartHour(String(d.getHours()).padStart(2, "0"));
+    setStartMinute(String(d.getMinutes()).padStart(2, "0"));
   }, []);
 
   const playerSessionType = numPlayers === 1 ? "individual" : numPlayers === 2 ? "couple" : "group";
@@ -625,7 +627,8 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
                 ) : availableSlots && availableSlots.length > 0 ? (
                   <div className="flex flex-wrap gap-1.5">
                     {availableSlots.map((slot) => {
-                      const isSelected = slot.time === `${startHour}:${startMinute}`;
+                      const slotD = new Date(slot.time);
+                      const isSelected = String(slotD.getHours()).padStart(2, "0") === startHour && String(slotD.getMinutes()).padStart(2, "0") === startMinute;
                       return (
                         <button
                           key={slot.time}
@@ -641,7 +644,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
                           )}
                           disabled={!slot.available}
                         >
-                          {slot.time}
+                          {(() => { const sd = new Date(slot.time); return `${String(sd.getHours()).padStart(2, "0")}:${String(sd.getMinutes()).padStart(2, "0")}`; })()}
                         </button>
                       );
                     })}
