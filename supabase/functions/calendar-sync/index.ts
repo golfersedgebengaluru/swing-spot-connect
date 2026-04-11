@@ -6,29 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// ─── Background job failure logger ─────────────────────────────────────────
-// Persists non-fatal errors to background_job_failures so admins can review them.
-async function logJobFailure(
-  adminClient: ReturnType<typeof createClient>,
-  jobType: string,
-  errorMessage: string,
-  context: Record<string, unknown> = {},
-  entityType?: string,
-  entityId?: string
-): Promise<void> {
-  try {
-    await adminClient.from("background_job_failures").insert({
-      job_type: jobType,
-      entity_type: entityType ?? null,
-      entity_id: entityId ?? null,
-      error_message: String(errorMessage).slice(0, 2000),
-      context,
-    });
-  } catch {
-    // Last resort: if even the failure logging fails, just console.error
-    console.error(`[logJobFailure] could not persist failure for ${jobType}:`, errorMessage);
-  }
-}
+// Job failure logging is handled via console.error throughout the function
 
 // Google Calendar API helpers
 async function getAccessToken(serviceAccountKey: any): Promise<string> {
@@ -217,7 +195,6 @@ async function notifyAdmins(adminClient: any, adminIds: string[], template: stri
       });
     } catch (e) {
       console.error(`Failed to send admin email to ${adminId}:`, (e as Error).message);
-      await logJobFailure(adminClient, "email", (e as Error).message, { admin_id: adminId, template });
     }
   }
 }
@@ -402,7 +379,6 @@ async function reverseRevenueAndInvoice(adminClient: any, bookingId: string) {
     console.log(`Revenue reversed and credit note ${cnNumber} generated for booking ${bookingId}`);
   } catch (e) {
     console.error("reverseRevenueAndInvoice failed:", (e as Error).message);
-    await logJobFailure(adminClient, "revenue_reversal", (e as Error).message, { booking_id: bookingId }, "booking", bookingId);
   }
 }
 
@@ -660,7 +636,6 @@ Deno.serve(async (req) => {
         });
       } catch (e) {
         console.error("Failed to create revenue transaction for guest:", (e as Error).message);
-        await logJobFailure(adminClient, "revenue_transaction", (e as Error).message, { context: "guest_booking" });
       }
 
       // Get timezone once for notifications (reuse cached access token if available)
@@ -691,7 +666,6 @@ Deno.serve(async (req) => {
         });
       } catch (e) {
         console.error("Failed to notify admins about guest booking:", (e as Error).message);
-        await logJobFailure(adminClient, "email", (e as Error).message, { context: "guest_booking_admin_notification" });
       }
 
       // Send confirmation email to the guest
@@ -720,7 +694,6 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error("Failed to send guest confirmation email:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "guest_booking_confirmation" });
         }
       }
 
@@ -846,8 +819,11 @@ Deno.serve(async (req) => {
       // Get bay config for coaching mode
       let coachingMode = "instant";
       let coachingHours = 1;
+      // Use adminClient for hours check and booking insert to avoid RLS issues with user_id_override
+      const adminClient = createAdminClient();
+
       if (bay_id) {
-        const { data: bayData } = await supabase.from("bays").select("coaching_mode, coaching_hours").eq("id", bay_id).single();
+        const { data: bayData } = await adminClient.from("bays").select("coaching_mode, coaching_hours").eq("id", bay_id).single();
         if (bayData) {
           coachingMode = bayData.coaching_mode || "instant";
           coachingHours = bayData.coaching_hours || 1;
@@ -860,11 +836,11 @@ Deno.serve(async (req) => {
 
       // Only check/deduct balance for non-pending, non-gateway-paid bookings
       if (!needsApproval && !paidViaGateway) {
-        const { data: hours } = await supabase
+        const { data: hours } = await adminClient
           .from("member_hours")
           .select("*")
           .eq("user_id", bookingUserId)
-          .single();
+          .maybeSingle();
 
         const remaining = (hours?.hours_purchased ?? 0) - (hours?.hours_used ?? 0);
         if (remaining < hoursNeeded) {
@@ -876,7 +852,7 @@ Deno.serve(async (req) => {
       }
 
       // Check no overlap with existing bookings for this specific bay (both confirmed and pending block slots)
-      const overlapQuery = supabase
+      const overlapQuery = adminClient
         .from("bookings")
         .select("*")
         .in("status", ["confirmed", "pending"])
@@ -923,12 +899,11 @@ Deno.serve(async (req) => {
       };
       if (bay_id) bookingInsert.bay_id = bay_id;
 
-      const { data: booking, error: bookingError } = await supabase.from("bookings").insert(bookingInsert).select().single();
+      const { data: booking, error: bookingError } = await adminClient.from("bookings").insert(bookingInsert).select().single();
       if (bookingError) throw bookingError;
 
-      // Deduct hours only for instant bookings that were NOT paid via gateway — use admin client to bypass RLS
+      // Deduct hours only for instant bookings that were NOT paid via gateway
       if (!needsApproval && !paidViaGateway) {
-        const adminClient = createAdminClient();
 
         const { data: hours } = await adminClient
           .from("member_hours")
@@ -963,7 +938,6 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error("Failed to create revenue transaction for hours deduction:", (e as Error).message);
-          await logJobFailure(adminClient, "revenue_transaction", (e as Error).message, { booking_id: booking.id }, "booking", booking.id);
         }
 
         const remaining = (hours?.hours_purchased ?? 0) - (hours?.hours_used ?? 0) - hoursNeeded;
@@ -1009,7 +983,6 @@ Deno.serve(async (req) => {
             });
           } catch (e) {
             console.error("Failed to send low hours alert email:", (e as Error).message);
-            await logJobFailure(adminClient, "email", (e as Error).message, { context: "low_hours_alert" });
           }
         }
         // Send confirmed booking email
@@ -1036,7 +1009,6 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error("Failed to send booking confirmation email:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "booking_confirmation" });
         }
 
         // Notify admins + site-admins about new confirmed booking
@@ -1056,11 +1028,9 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error("Failed to notify admins about new booking:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "admin_new_booking_notification" });
         }
       } else if (paidViaGateway && !needsApproval) {
         // Gateway-paid booking — no hours deduction, just notifications
-        const adminClient = createAdminClient();
 
         await adminClient.from("notifications").insert({
           user_id: bookingUserId,
@@ -1093,7 +1063,6 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error("Failed to send booking confirmation email:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "booking_confirmation" });
         }
 
         // Notify admins + site-admins about new confirmed booking
@@ -1113,11 +1082,10 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error("Failed to notify admins about new booking:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "admin_new_booking_notification" });
         }
       } else {
         // Pending coaching notification
-        await supabase.from("notifications").insert({
+        await adminClient.from("notifications").insert({
           user_id: bookingUserId,
           title: "🕐 Coaching Pending Approval",
           message: `Your coaching session at ${bayLabel} on ${formatDateTime(start_time, calTz)} is awaiting admin approval.`,
@@ -1125,7 +1093,6 @@ Deno.serve(async (req) => {
         });
 
         // Notify admins + site-admins
-        const adminClient = createAdminClient();
         const notifyIds = await getAdminAndSiteAdminIds(adminClient, city);
         await notifyAdminsInApp(adminClient, notifyIds, "📋 New Coaching Request", `${display_name || "A member"} has requested a coaching session at ${bayLabel} on ${formatDateTime(start_time, calTz)}. Please approve or reject.`, `/admin?tab=bookinglogs&status=pending&type=coaching`);
 
@@ -1152,7 +1119,6 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error("Failed to send pending coaching email:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "coaching_pending_notification" });
         }
 
         // Send coaching request email to admins + site-admins
@@ -1262,7 +1228,6 @@ Deno.serve(async (req) => {
         });
       } catch (e) {
         console.error("Failed to create revenue transaction for coaching approval:", (e as Error).message);
-        await logJobFailure(adminClient, "revenue_transaction", (e as Error).message, { context: "coaching_approval" });
       }
 
       // Update calendar event title
@@ -1320,7 +1285,6 @@ Deno.serve(async (req) => {
         });
       } catch (e) {
         console.error("Failed to send approval email:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "coaching_approval_email" });
       }
 
       return new Response(JSON.stringify({ success: true }), {
@@ -1412,7 +1376,6 @@ Deno.serve(async (req) => {
         });
       } catch (e) {
         console.error("Failed to send rejection email:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "coaching_rejection_email" });
       }
 
       return new Response(JSON.stringify({ success: true }), {
@@ -1548,7 +1511,6 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error("Failed to create revenue refund transaction:", (e as Error).message);
-          await logJobFailure(adminClient, "revenue_transaction", (e as Error).message, { context: "cancellation_refund" });
         }
       }
 
@@ -1606,7 +1568,6 @@ Deno.serve(async (req) => {
         });
       } catch (e) {
         console.error("Failed to send cancellation email:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "cancellation_email" });
       }
 
       return new Response(JSON.stringify({ success: true }), {
@@ -1711,7 +1672,6 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error("Failed to create revenue refund transaction:", (e as Error).message);
-          await logJobFailure(adminClient, "revenue_transaction", (e as Error).message, { context: "cancellation_refund" });
         }
       }
 
@@ -1741,8 +1701,7 @@ Deno.serve(async (req) => {
             data: { bay: bayName, city: booking.city, date: formatDate(booking.start_time, calTz), time: formatTime(booking.start_time, calTz), duration: `${booking.duration_minutes} min`, hours_refunded: hoursRefunded },
           }),
         });
-      } catch (e) { console.error("Failed to send cancellation email:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "cancellation_email" }); }
+      } catch (e) { console.error("Failed to send cancellation email:", (e as Error).message); }
 
       // Notify other admins + site-admins about the admin cancellation
       try {
@@ -1760,8 +1719,7 @@ Deno.serve(async (req) => {
           hours_refunded: hoursRefunded,
           cancelled_by: "admin",
         });
-      } catch (e) { console.error("Failed to notify admins about admin cancellation:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "admin_cancellation_notification" }); }
+      } catch (e) { console.error("Failed to notify admins about admin cancellation:", (e as Error).message); }
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
