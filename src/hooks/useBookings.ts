@@ -42,10 +42,6 @@ export function useAvailableSlots(
     queryKey: ["available_slots", calendarEmail, date],
     enabled: !!calendarEmail && !!date && !!openTime && !!closeTime,
     queryFn: async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      if (!token) throw new Error("Not authenticated");
-
       const res = await supabase.functions.invoke("calendar-sync", {
         body: {
           action: "list_slots",

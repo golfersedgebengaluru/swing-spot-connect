@@ -68,7 +68,7 @@ export default function PublicBooking() {
 
   const dateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined;
 
-  // Only fetch slots if user is logged in (needs auth for calendar-sync)
+  // Fetch real-time slots for ALL users (including guests)
   const { data: slots, isLoading: loadingSlots } = useAvailableSlots(
     currentBay?.calendar_email,
     dateStr,
@@ -516,27 +516,7 @@ export default function PublicBooking() {
                     <CardTitle className="text-base">Available Slots</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {!user ? (
-                      <div className="text-center py-8">
-                        <p className="text-muted-foreground mb-3">Sign in to see real-time availability, or pick a preferred time</p>
-                         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                          {generateTimeSlots(currentBay.open_time, currentBay.close_time, selectedDate).map((slot) => {
-                            const isSelected = selectedSlot === slot;
-                            return (
-                              <Button
-                                key={slot}
-                                variant={isSelected ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => setSelectedSlot(slot)}
-                                className={cn("text-xs", isSelected && "ring-2 ring-primary")}
-                              >
-                                {format(new Date(slot), "h:mm a")}
-                              </Button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : loadingSlots ? (
+                    {loadingSlots ? (
                       <div className="flex justify-center py-8">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                       </div>
@@ -733,21 +713,4 @@ export default function PublicBooking() {
       <Footer />
     </div>
   );
-}
-
-/** Generate time slots from open/close for guest view */
-function generateTimeSlots(openTime: string, closeTime: string, date: Date): string[] {
-  const slots: string[] = [];
-  const [oh, om] = openTime.split(":").map(Number);
-  const [ch, cm] = closeTime.split(":").map(Number);
-  const dateStr = format(date, "yyyy-MM-dd");
-
-  let h = oh, m = om;
-  while (h < ch || (h === ch && m < cm)) {
-    const timeStr = `${dateStr}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
-    slots.push(new Date(timeStr).toISOString());
-    m += 30;
-    if (m >= 60) { h++; m = 0; }
-  }
-  return slots;
 }

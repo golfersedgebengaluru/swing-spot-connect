@@ -744,33 +744,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-    if (authError || !authUser) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const userId = authUser.id;
-
-    const accessToken = await getAccessToken(serviceAccountKey);
-
+    // list_slots is a read-only action that does NOT require authentication
+    // so that public/guest users can see real-time availability
     if (action === "list_slots") {
       const { calendar_email, date, open_time, close_time } = params;
+      const accessToken = await getAccessToken(serviceAccountKey);
 
       // Get the calendar's actual timezone
       const calTz = await getCalendarTimezone(accessToken, calendar_email);
@@ -796,10 +774,8 @@ Deno.serve(async (req) => {
       const mins = nowDate.getMinutes();
       let earliest: number;
       if (mins < 30) {
-        // Round up to :30
         earliest = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate(), nowDate.getHours(), 30, 0, 0).getTime();
       } else {
-        // Round up to next :00
         earliest = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate(), nowDate.getHours() + 1, 0, 0, 0).getTime();
       }
 
@@ -817,6 +793,34 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // All other actions require authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+    if (authError || !authUser) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userId = authUser.id;
+
+    const accessToken = await getAccessToken(serviceAccountKey);
+
+    // list_slots is handled above (before auth check) — this block is intentionally removed
 
     if (action === "create_booking") {
       const { calendar_email, start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type, payment_method, user_id_override } = params;
