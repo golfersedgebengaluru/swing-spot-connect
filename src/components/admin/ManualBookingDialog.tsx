@@ -224,7 +224,11 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             payment_method: "hours",
           },
         });
-        if (res.error) throw new Error(res.error.message || "Booking failed");
+        if (res.error) {
+          let errorMsg = "Booking failed";
+          try { const body = await (res.error as any).context?.json?.(); errorMsg = body?.error || res.error.message || errorMsg; } catch { errorMsg = res.error.message || errorMsg; }
+          throw new Error(errorMsg);
+        }
         if (res.data?.error) throw new Error(res.data.error);
       } else {
         // Manual payment → guest_booking flow (creates revenue transaction)
@@ -250,7 +254,11 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             user_id_override: customerUserId || undefined,
           },
         });
-        if (res.error) throw new Error(res.error.message || "Booking failed");
+        if (res.error) {
+          let errorMsg = "Booking failed";
+          try { const body = await (res.error as any).context?.json?.(); errorMsg = body?.error || res.error.message || errorMsg; } catch { errorMsg = res.error.message || errorMsg; }
+          throw new Error(errorMsg);
+        }
         if (res.data?.error) throw new Error(res.data.error);
 
         // Generate invoice
