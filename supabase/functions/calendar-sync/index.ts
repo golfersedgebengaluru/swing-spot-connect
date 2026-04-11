@@ -744,6 +744,57 @@ Deno.serve(async (req) => {
       );
     }
 
+    // list_slots is a read-only action that does NOT require authentication
+    // so that public/guest users can see real-time availability
+    if (action === "list_slots") {
+      const { calendar_email, date, open_time, close_time } = params;
+      const accessToken = await getAccessToken(serviceAccountKey);
+
+      // Get the calendar's actual timezone
+      const calTz = await getCalendarTimezone(accessToken, calendar_email);
+      const offset = getUtcOffsetForTz(`${date}T${open_time}:00`, calTz);
+
+      const timeMin = `${date}T${open_time}:00${offset}`;
+      const timeMax = `${date}T${close_time}:00${offset}`;
+
+      const events = await listEvents(accessToken, calendar_email, timeMin, timeMax);
+
+      const busy: { start: number; end: number }[] = events.map((e: any) => ({
+        start: new Date(e.start.dateTime || e.start.date).getTime(),
+        end: new Date(e.end.dateTime || e.end.date).getTime(),
+      }));
+
+      const dayStart = new Date(`${date}T${open_time}:00${offset}`).getTime();
+      const dayEnd = new Date(`${date}T${close_time}:00${offset}`).getTime();
+      const slots: { time: string; available: boolean }[] = [];
+
+      // Calculate earliest bookable slot: next :00 or :30 strictly after now
+      const now = Date.now();
+      const nowDate = new Date(now);
+      const mins = nowDate.getMinutes();
+      let earliest: number;
+      if (mins < 30) {
+        earliest = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate(), nowDate.getHours(), 30, 0, 0).getTime();
+      } else {
+        earliest = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate(), nowDate.getHours() + 1, 0, 0, 0).getTime();
+      }
+
+      for (let t = dayStart; t < dayEnd; t += 30 * 60 * 1000) {
+        const slotEnd = t + 30 * 60 * 1000;
+        const isBusy = busy.some((b) => t < b.end && slotEnd > b.start);
+        const isPast = t < earliest;
+        slots.push({
+          time: new Date(t).toISOString(),
+          available: !isBusy && !isPast,
+        });
+      }
+
+      return new Response(JSON.stringify({ slots }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // All other actions require authentication
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {

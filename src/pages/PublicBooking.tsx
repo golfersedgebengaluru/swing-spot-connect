@@ -68,7 +68,7 @@ export default function PublicBooking() {
 
   const dateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined;
 
-  // Only fetch slots if user is logged in (needs auth for calendar-sync)
+  // Fetch real-time slots for ALL users (including guests)
   const { data: slots, isLoading: loadingSlots } = useAvailableSlots(
     currentBay?.calendar_email,
     dateStr,
