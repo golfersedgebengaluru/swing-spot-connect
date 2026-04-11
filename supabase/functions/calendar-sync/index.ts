@@ -1701,7 +1701,7 @@ Deno.serve(async (req) => {
             data: { bay: bayName, city: booking.city, date: formatDate(booking.start_time, calTz), time: formatTime(booking.start_time, calTz), duration: `${booking.duration_minutes} min`, hours_refunded: hoursRefunded },
           }),
         });
-      } catch (e) { console.error("Failed to send cancellation email:", (e as Error).message);
+      } catch (e) { console.error("Failed to send cancellation email:", (e as Error).message); }
 
       // Notify other admins + site-admins about the admin cancellation
       try {
@@ -1719,7 +1719,7 @@ Deno.serve(async (req) => {
           hours_refunded: hoursRefunded,
           cancelled_by: "admin",
         });
-      } catch (e) { console.error("Failed to notify admins about admin cancellation:", (e as Error).message);
+      } catch (e) { console.error("Failed to notify admins about admin cancellation:", (e as Error).message); }
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
