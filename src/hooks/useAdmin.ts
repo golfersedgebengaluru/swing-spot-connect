@@ -23,18 +23,12 @@ export function useAdmin() {
     }
 
     const checkAdmin = async () => {
-      // Check admin role
-      const { data: adminData } = await supabase.rpc("has_role", {
-        _user_id: user.id,
-        _role: "admin",
-      });
+      // Check both roles in parallel
+      const [{ data: adminData }, { data: siteAdminData }] = await Promise.all([
+        supabase.rpc("has_role", { _user_id: user.id, _role: "admin" }),
+        supabase.rpc("has_role", { _user_id: user.id, _role: "site_admin" as any }),
+      ]);
       const hasAdmin = adminData === true;
-
-      // Check site_admin role
-      const { data: siteAdminData } = await supabase.rpc("has_role", {
-        _user_id: user.id,
-        _role: "site_admin" as any,
-      });
       const hasSiteAdmin = siteAdminData === true;
 
       setIsAdmin(hasAdmin);
