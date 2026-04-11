@@ -353,6 +353,28 @@ export function useMyBookings() {
 }
 
 export function useAllBookings() {
+  const queryClient = useQueryClient();
+
+  // Realtime subscription for live updates
+  useEffect(() => {
+    const channel = supabase
+      .channel("bookings-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bookings" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["all_bookings"] });
+          queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
+          queryClient.invalidateQueries({ queryKey: ["available_slots"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ["all_bookings"],
     queryFn: async () => {
@@ -366,15 +388,12 @@ export function useAllBookings() {
         .from("profiles")
         .select("id, user_id, display_name, email, user_type");
 
-      // Dual-key map: index by both user_id (auth ID) and profile id (primary key)
-      // so admin-registered / guest users without auth accounts are found too
       const profileMap = new Map<string, any>();
       for (const p of profiles ?? []) {
         if (p.user_id) profileMap.set(p.user_id, p);
         profileMap.set(p.id, p);
       }
 
-      // Get bay names
       const bayIds = [...new Set((bookings ?? []).map((b: any) => b.bay_id).filter(Boolean))];
       let bayMap = new Map<string, string>();
       if (bayIds.length > 0) {
