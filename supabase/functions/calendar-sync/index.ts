@@ -195,7 +195,6 @@ async function notifyAdmins(adminClient: any, adminIds: string[], template: stri
       });
     } catch (e) {
       console.error(`Failed to send admin email to ${adminId}:`, (e as Error).message);
-      await logJobFailure(adminClient, "email", (e as Error).message, { admin_id: adminId, template });
     }
   }
 }
@@ -380,7 +379,6 @@ async function reverseRevenueAndInvoice(adminClient: any, bookingId: string) {
     console.log(`Revenue reversed and credit note ${cnNumber} generated for booking ${bookingId}`);
   } catch (e) {
     console.error("reverseRevenueAndInvoice failed:", (e as Error).message);
-    await logJobFailure(adminClient, "revenue_reversal", (e as Error).message, { booking_id: bookingId }, "booking", bookingId);
   }
 }
 
@@ -638,7 +636,6 @@ Deno.serve(async (req) => {
         });
       } catch (e) {
         console.error("Failed to create revenue transaction for guest:", (e as Error).message);
-        await logJobFailure(adminClient, "revenue_transaction", (e as Error).message, { context: "guest_booking" });
       }
 
       // Get timezone once for notifications (reuse cached access token if available)
@@ -669,7 +666,6 @@ Deno.serve(async (req) => {
         });
       } catch (e) {
         console.error("Failed to notify admins about guest booking:", (e as Error).message);
-        await logJobFailure(adminClient, "email", (e as Error).message, { context: "guest_booking_admin_notification" });
       }
 
       // Send confirmation email to the guest
@@ -698,7 +694,6 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error("Failed to send guest confirmation email:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "guest_booking_confirmation" });
         }
       }
 
@@ -943,7 +938,6 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error("Failed to create revenue transaction for hours deduction:", (e as Error).message);
-          await logJobFailure(adminClient, "revenue_transaction", (e as Error).message, { booking_id: booking.id }, "booking", booking.id);
         }
 
         const remaining = (hours?.hours_purchased ?? 0) - (hours?.hours_used ?? 0) - hoursNeeded;
@@ -989,7 +983,6 @@ Deno.serve(async (req) => {
             });
           } catch (e) {
             console.error("Failed to send low hours alert email:", (e as Error).message);
-            await logJobFailure(adminClient, "email", (e as Error).message, { context: "low_hours_alert" });
           }
         }
         // Send confirmed booking email
@@ -1016,7 +1009,6 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error("Failed to send booking confirmation email:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "booking_confirmation" });
         }
 
         // Notify admins + site-admins about new confirmed booking
@@ -1036,7 +1028,6 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error("Failed to notify admins about new booking:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "admin_new_booking_notification" });
         }
       } else if (paidViaGateway && !needsApproval) {
         // Gateway-paid booking — no hours deduction, just notifications
@@ -1073,7 +1064,6 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error("Failed to send booking confirmation email:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "booking_confirmation" });
         }
 
         // Notify admins + site-admins about new confirmed booking
@@ -1093,7 +1083,6 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error("Failed to notify admins about new booking:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "admin_new_booking_notification" });
         }
       } else {
         // Pending coaching notification
@@ -1132,7 +1121,6 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error("Failed to send pending coaching email:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "coaching_pending_notification" });
         }
 
         // Send coaching request email to admins + site-admins
@@ -1242,7 +1230,6 @@ Deno.serve(async (req) => {
         });
       } catch (e) {
         console.error("Failed to create revenue transaction for coaching approval:", (e as Error).message);
-        await logJobFailure(adminClient, "revenue_transaction", (e as Error).message, { context: "coaching_approval" });
       }
 
       // Update calendar event title
@@ -1300,7 +1287,6 @@ Deno.serve(async (req) => {
         });
       } catch (e) {
         console.error("Failed to send approval email:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "coaching_approval_email" });
       }
 
       return new Response(JSON.stringify({ success: true }), {
@@ -1392,7 +1378,6 @@ Deno.serve(async (req) => {
         });
       } catch (e) {
         console.error("Failed to send rejection email:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "coaching_rejection_email" });
       }
 
       return new Response(JSON.stringify({ success: true }), {
@@ -1528,7 +1513,6 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error("Failed to create revenue refund transaction:", (e as Error).message);
-          await logJobFailure(adminClient, "revenue_transaction", (e as Error).message, { context: "cancellation_refund" });
         }
       }
 
@@ -1586,7 +1570,6 @@ Deno.serve(async (req) => {
         });
       } catch (e) {
         console.error("Failed to send cancellation email:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "cancellation_email" });
       }
 
       return new Response(JSON.stringify({ success: true }), {
@@ -1691,7 +1674,6 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error("Failed to create revenue refund transaction:", (e as Error).message);
-          await logJobFailure(adminClient, "revenue_transaction", (e as Error).message, { context: "cancellation_refund" });
         }
       }
 
@@ -1722,7 +1704,6 @@ Deno.serve(async (req) => {
           }),
         });
       } catch (e) { console.error("Failed to send cancellation email:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "cancellation_email" }); }
 
       // Notify other admins + site-admins about the admin cancellation
       try {
@@ -1741,7 +1722,6 @@ Deno.serve(async (req) => {
           cancelled_by: "admin",
         });
       } catch (e) { console.error("Failed to notify admins about admin cancellation:", (e as Error).message);
-          await logJobFailure(adminClient, "email", (e as Error).message, { context: "admin_cancellation_notification" }); }
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
