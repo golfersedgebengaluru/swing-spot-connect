@@ -824,8 +824,11 @@ Deno.serve(async (req) => {
       // Get bay config for coaching mode
       let coachingMode = "instant";
       let coachingHours = 1;
+      // Use adminClient for hours check and booking insert to avoid RLS issues with user_id_override
+      const adminClient = createAdminClient();
+
       if (bay_id) {
-        const { data: bayData } = await supabase.from("bays").select("coaching_mode, coaching_hours").eq("id", bay_id).single();
+        const { data: bayData } = await adminClient.from("bays").select("coaching_mode, coaching_hours").eq("id", bay_id).single();
         if (bayData) {
           coachingMode = bayData.coaching_mode || "instant";
           coachingHours = bayData.coaching_hours || 1;
@@ -838,11 +841,11 @@ Deno.serve(async (req) => {
 
       // Only check/deduct balance for non-pending, non-gateway-paid bookings
       if (!needsApproval && !paidViaGateway) {
-        const { data: hours } = await supabase
+        const { data: hours } = await adminClient
           .from("member_hours")
           .select("*")
           .eq("user_id", bookingUserId)
-          .single();
+          .maybeSingle();
 
         const remaining = (hours?.hours_purchased ?? 0) - (hours?.hours_used ?? 0);
         if (remaining < hoursNeeded) {
