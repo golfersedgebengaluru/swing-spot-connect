@@ -52,7 +52,11 @@ export function useAvailableSlots(
         },
       });
 
-      if (res.error) throw new Error(res.error.message || "Failed to fetch slots");
+      if (res.error) {
+        let errorMsg = "Failed to fetch slots";
+        try { const body = await (res.error as any).context?.json?.(); errorMsg = body?.error || res.error.message || errorMsg; } catch { errorMsg = res.error.message || errorMsg; }
+        throw new Error(errorMsg);
+      }
       return res.data.slots as { time: string; available: boolean }[];
     },
     ...options,
@@ -115,7 +119,11 @@ export function useCreateBooking() {
         },
       });
 
-      if (res.error) throw new Error(res.error.message || "Booking failed");
+      if (res.error) {
+        let errorMsg = "Booking failed";
+        try { const body = await (res.error as any).context?.json?.(); errorMsg = body?.error || res.error.message || errorMsg; } catch { errorMsg = res.error.message || errorMsg; }
+        throw new Error(errorMsg);
+      }
       if (res.data?.error) throw new Error(res.data.error);
 
       // Award loyalty points for member usage (non-blocking)
