@@ -439,8 +439,7 @@ export default function Dashboard() {
               <CardContent className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {activePackages.map((pkg: any) => {
-                    const isPkgCouponApplied = couponPkgId === pkg.id && appliedCoupon;
-                    const pkgDiscount = isPkgCouponApplied ? couponDiscount : 0;
+                    const pkgDiscount = appliedCoupon ? calculateDiscount(appliedCoupon, pkg.price) : 0;
                     const pkgFinal = Math.max(0, pkg.price - pkgDiscount);
                     return (
                       <div
