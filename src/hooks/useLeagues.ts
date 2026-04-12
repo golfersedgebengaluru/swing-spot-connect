@@ -7,10 +7,15 @@ import type {
   LeagueScore,
   LeagueBranding,
   LeagueAuditLog,
+  LeagueBayBooking,
+  LeagueBayBlock,
+  BayAvailabilityResponse,
   CreateLeagueRequest,
   UpdateLeagueRequest,
   SubmitScoreRequest,
   UpdateBrandingRequest,
+  CreateBayBookingRequest,
+  RescheduleBayBookingRequest,
 } from "@/types/league";
 import { useToast } from "@/hooks/use-toast";
 
