@@ -242,6 +242,11 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
           )}
         </TabsContent>
 
+        {/* Bay Scheduling */}
+        <TabsContent value="scheduling">
+          <BaySchedulingPanel league={league} tenantId={league.tenant_id} />
+        </TabsContent>
+
         {/* Scores */}
         <TabsContent value="scores">
           {(!scores || scores.length === 0) ? (
