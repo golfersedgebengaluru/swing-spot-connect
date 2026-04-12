@@ -303,6 +303,20 @@ export default function PublicBooking() {
           rzp.open();
         });
 
+        // Redeem coupon if applied
+        if (appliedCoupon?.coupon_id) {
+          try {
+            await redeemCoupon.mutateAsync({
+              coupon_id: appliedCoupon.coupon_id,
+              discount_applied: couponDiscount,
+            });
+          } catch {
+            // Non-blocking
+          }
+        }
+
+        setAppliedCoupon(null);
+        setCouponDiscount(0);
         setBookingComplete(true);
         toast({ title: "Booking Confirmed!", description: "Payment processed successfully." });
       }
