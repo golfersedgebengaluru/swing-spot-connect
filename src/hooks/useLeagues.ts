@@ -46,6 +46,15 @@ export function useTenants() {
   });
 }
 
+// ── Tenant Bays (bays from the tenant's linked city) ────────
+export function useTenantBays(tenantId: string | null) {
+  return useQuery<{ id: string; name: string; city: string; is_active: boolean }[]>({
+    queryKey: ["league-tenant-bays", tenantId],
+    queryFn: () => invoke(`/bays?tenant_id=${tenantId}`, "GET"),
+    enabled: !!tenantId,
+  });
+}
+
 export function useCreateTenant() {
   const qc = useQueryClient();
   const { toast } = useToast();

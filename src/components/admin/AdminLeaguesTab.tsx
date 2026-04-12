@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAllCities } from "@/hooks/useBookings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +27,7 @@ import {
   useLeagueBranding,
   useUpdateBranding,
   useLeagueAuditLog,
+  useTenantBays,
 } from "@/hooks/useLeagues";
 import type { League, LeagueFormat, LeagueStatus, Tenant } from "@/types/league";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +49,7 @@ function CreateTenantDialog() {
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
   const createTenant = useCreateTenant();
+  const { data: cities, isLoading: citiesLoading } = useAllCities();
 
   const handleCreate = () => {
     if (!name || !city) return;
@@ -64,8 +67,18 @@ function CreateTenantDialog() {
         <DialogHeader><DialogTitle>Create Tenant</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <div><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Franchise name" /></div>
-          <div><Label>City</Label><Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City" /></div>
-          <Button onClick={handleCreate} disabled={createTenant.isPending} className="w-full">
+          <div>
+            <Label>City</Label>
+            <Select value={city} onValueChange={setCity}>
+              <SelectTrigger><SelectValue placeholder={citiesLoading ? "Loading cities…" : "Select a city"} /></SelectTrigger>
+              <SelectContent>
+                {(cities || []).map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button onClick={handleCreate} disabled={createTenant.isPending || !city} className="w-full">
             {createTenant.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Create
           </Button>
         </div>
@@ -79,12 +92,14 @@ function CreateLeagueDialog({ tenantId }: { tenantId: string }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [format, setFormat] = useState<LeagueFormat>("stroke_play");
+  const [venueId, setVenueId] = useState<string>("");
   const createLeague = useCreateLeague(tenantId);
+  const { data: bays } = useTenantBays(tenantId);
 
   const handleCreate = () => {
     if (!name) return;
-    createLeague.mutate({ name, format }, {
-      onSuccess: () => { setOpen(false); setName(""); },
+    createLeague.mutate({ name, format, venue_id: venueId || undefined }, {
+      onSuccess: () => { setOpen(false); setName(""); setVenueId(""); },
     });
   };
 
@@ -108,6 +123,19 @@ function CreateLeagueDialog({ tenantId }: { tenantId: string }) {
               </SelectContent>
             </Select>
           </div>
+          {bays && bays.length > 0 && (
+            <div>
+              <Label>Venue (Bay)</Label>
+              <Select value={venueId} onValueChange={setVenueId}>
+                <SelectTrigger><SelectValue placeholder="Select a venue" /></SelectTrigger>
+                <SelectContent>
+                  {bays.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <Button onClick={handleCreate} disabled={createLeague.isPending} className="w-full">
             {createLeague.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Create
           </Button>
