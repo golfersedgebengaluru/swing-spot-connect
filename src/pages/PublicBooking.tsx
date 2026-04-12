@@ -94,6 +94,7 @@ export default function PublicBooking() {
   }, [selectedCity, bayPricing, selectedDate, sessionType]);
 
   const totalCost = currentPrice ? currentPrice.price_per_hour * (duration / 60) : 0;
+  const finalBookingTotal = Math.max(0, totalCost - couponDiscount);
 
   const endTime = useMemo(() => {
     if (!selectedSlot) return null;
