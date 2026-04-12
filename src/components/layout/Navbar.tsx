@@ -16,6 +16,7 @@ const allNavLinks = [
   { href: "/events", label: "Events", visibilityKey: "page_events_visible" },
   { href: "/community", label: "Community", visibilityKey: "page_community_visible" },
   { href: "/shop", label: "Shop", visibilityKey: "page_shop_visible" },
+  { href: "/leagues", label: "Leagues", visibilityKey: null },
   { href: "/rewards", label: "Rewards", visibilityKey: "page_rewards_visible" },
 ];
 

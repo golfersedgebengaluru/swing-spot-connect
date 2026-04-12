@@ -24,6 +24,7 @@ const Bookings = lazy(() => import("./pages/Bookings"));
 const PublicBooking = lazy(() => import("./pages/PublicBooking"));
 const MyBookings = lazy(() => import("./pages/MyBookings"));
 const PageView = lazy(() => import("./pages/PageView"));
+const Leagues = lazy(() => import("./pages/Leagues"));
 const Profile = lazy(() => import("./pages/Profile"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -59,6 +60,7 @@ const App = () => (
               <Route path="/bookings" element={<ErrorBoundary><Bookings /></ErrorBoundary>} />
               <Route path="/my-bookings" element={<ErrorBoundary><MyBookings /></ErrorBoundary>} />
               <Route path="/profile" element={<ErrorBoundary><Profile /></ErrorBoundary>} />
+              <Route path="/leagues" element={<ErrorBoundary><Leagues /></ErrorBoundary>} />
               <Route path="/admin/setup" element={<ErrorBoundary><AdminSetup /></ErrorBoundary>} />
               <Route path="/admin" element={<ErrorBoundary><AdminRoute><Admin /></AdminRoute></ErrorBoundary>} />
               <Route path="/page/:slug" element={<ErrorBoundary><PageView /></ErrorBoundary>} />

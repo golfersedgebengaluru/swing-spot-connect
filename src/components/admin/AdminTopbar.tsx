@@ -31,6 +31,7 @@ const tabTitles: Record<string, string> = {
   products: "Products",
   rewards: "Rewards",
   edgerewards: "EDGE Rewards",
+  leagues: "Leagues",
   members: "Members",
   allusers: "All Users",
   pages: "Page Settings",
