@@ -54,7 +54,7 @@ serve(async (req) => {
 
     const { data: gateway, error: gwError } = await supabase
       .from("payment_gateways")
-      .select("api_key, api_secret, city_slug, is_test_mode, is_active")
+      .select("api_key, api_secret, city, is_test_mode, is_active")
       .eq("city", city)
       .eq("name", "razorpay")
       .eq("is_active", true)
