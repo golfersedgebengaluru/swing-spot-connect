@@ -152,7 +152,8 @@ export default function PublicBooking() {
         toast({ title: "Booking Confirmed!", description: "Hours have been deducted from your balance." });
       } else {
         // Payment flow via Razorpay
-        if (totalCost <= 0) {
+        const amountToCharge = finalBookingTotal;
+        if (amountToCharge <= 0) {
           toast({ title: "Error", description: "Price not available for this selection.", variant: "destructive" });
           setIsProcessing(false);
           return;
@@ -161,7 +162,7 @@ export default function PublicBooking() {
         // 1. Create Razorpay order via edge function
         const orderRes = await supabase.functions.invoke("create-razorpay-order", {
           body: {
-            amount: totalCost,
+            amount: amountToCharge,
             currency: currentPrice?.currency || "INR",
             city: selectedCity,
             receipt: `booking_${Date.now()}`,
