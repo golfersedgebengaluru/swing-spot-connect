@@ -123,7 +123,7 @@ export default function Dashboard() {
       return;
     }
     setBuyingPkgId(pkg.id);
-    const pkgDiscount = (couponPkgId === pkg.id && appliedCoupon) ? couponDiscount : 0;
+    const pkgDiscount = appliedCoupon ? calculateDiscount(appliedCoupon, pkg.price) : 0;
     const amountToCharge = Math.max(0, pkg.price - pkgDiscount);
     try {
       // 1. Create Razorpay order
