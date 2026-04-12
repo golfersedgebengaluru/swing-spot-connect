@@ -23,15 +23,26 @@ import {
 } from "@/hooks/useCoupons";
 import { format } from "date-fns";
 
-const emptyCoupon = {
+interface CouponForm {
+  code: string;
+  discount_type: "percentage" | "fixed";
+  discount_value: number;
+  expires_at: string;
+  max_total_uses: number | null;
+  max_uses_per_user: number | null;
+  is_active: boolean;
+  city: string | null;
+}
+
+const emptyCoupon: CouponForm = {
   code: "",
-  discount_type: "percentage" as const,
+  discount_type: "percentage",
   discount_value: 0,
   expires_at: "",
-  max_total_uses: null as number | null,
-  max_uses_per_user: null as number | null,
+  max_total_uses: null,
+  max_uses_per_user: null,
   is_active: true,
-  city: null as string | null,
+  city: null,
 };
 
 export function AdminCouponsTab() {
