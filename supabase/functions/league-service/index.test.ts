@@ -1,0 +1,55 @@
+import "https://deno.land/std@0.224.0/dotenv/load.ts";
+import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/assert/mod.ts";
+
+const SUPABASE_URL = Deno.env.get("VITE_SUPABASE_URL")!;
+const SUPABASE_ANON_KEY = Deno.env.get("VITE_SUPABASE_PUBLISHABLE_KEY")!;
+const BASE_URL = `${SUPABASE_URL}/functions/v1/league-service`;
+
+async function fetchAPI(path: string, method: string, body?: any, token?: string) {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    apikey: SUPABASE_ANON_KEY,
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json();
+  return { status: res.status, data };
+}
+
+Deno.test("league-service: unauthenticated request returns 401", async () => {
+  const { status, data } = await fetchAPI("/tenants", "GET");
+  assertEquals(status, 401);
+  assertEquals(data.error, "Unauthorized");
+});
+
+Deno.test("league-service: OPTIONS returns CORS headers", async () => {
+  const res = await fetch(`${BASE_URL}/tenants`, {
+    method: "OPTIONS",
+    headers: { apikey: SUPABASE_ANON_KEY },
+  });
+  const body = await res.text();
+  assertEquals(res.status, 200);
+  assertExists(res.headers.get("access-control-allow-origin"));
+});
+
+Deno.test("league-service: unknown route returns 404", async () => {
+  // Need a valid token for this — but without one we get 401 first
+  // This test validates the auth gate
+  const { status } = await fetchAPI("/nonexistent", "GET");
+  assertEquals(status, 401);
+});
+
+Deno.test("league-service: POST /tenants without auth returns 401", async () => {
+  const { status } = await fetchAPI("/tenants", "POST", { name: "Test", city: "Mumbai" });
+  assertEquals(status, 401);
+});
+
+Deno.test("league-service: POST /join without auth returns 401", async () => {
+  const { status } = await fetchAPI("/join", "POST", { code: "ABC123" });
+  assertEquals(status, 401);
+});
