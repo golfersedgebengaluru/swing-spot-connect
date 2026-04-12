@@ -7,8 +7,17 @@ import {
   MapPin,
   Gift,
   ShoppingBag,
-  
+  Trophy,
   CreditCard,
+  Mail,
+  Award,
+  BarChart3,
+  ChevronRight,
+  PanelLeftClose,
+  X,
+  Receipt,
+  LogOut,
+} from "lucide-react";
   Mail,
   Award,
   BarChart3,
@@ -42,6 +51,7 @@ const coreItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "walkin", label: "Walk-in Booking", icon: CalendarDays },
   { id: "bookinglogs", label: "Bookings", icon: CalendarDays },
+  { id: "leagues", label: "Leagues", icon: Trophy },
   { id: "edgerewards", label: "EDGE Rewards", icon: Award },
 ];
 
