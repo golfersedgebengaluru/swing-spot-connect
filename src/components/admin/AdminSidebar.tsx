@@ -18,15 +18,6 @@ import {
   Receipt,
   LogOut,
 } from "lucide-react";
-  Mail,
-  Award,
-  BarChart3,
-  ChevronRight,
-  PanelLeftClose,
-  X,
-  Receipt,
-  LogOut,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/useAdmin";
