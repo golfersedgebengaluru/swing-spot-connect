@@ -163,7 +163,7 @@ export default function Dashboard() {
 
         const rzp = new (window as any).Razorpay({
           key: key_id,
-          amount: Math.round(pkg.price * 100),
+          amount: Math.round(amountToCharge * 100),
           currency: rzpCurrency || "INR",
           name: "Golfer's Edge",
           description: `${pkg.hours}h Hour Package - ${pkg.label}`,
@@ -201,6 +201,21 @@ export default function Dashboard() {
         setBuyingPkgId(null);
         rzp.open();
       });
+
+      // Redeem coupon if applied
+      if (pkgDiscount > 0 && appliedCoupon?.coupon_id) {
+        try {
+          await redeemCoupon.mutateAsync({
+            coupon_id: appliedCoupon.coupon_id,
+            discount_applied: pkgDiscount,
+          });
+        } catch {
+          // Non-blocking
+        }
+        setAppliedCoupon(null);
+        setCouponDiscount(0);
+        setCouponPkgId(null);
+      }
 
       toast({ title: "Hours Purchased!", description: `${pkg.hours} hours have been added to your balance.` });
     } catch (err: any) {
