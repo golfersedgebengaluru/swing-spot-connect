@@ -1220,6 +1220,130 @@ export type Database = {
           },
         ]
       }
+      league_bay_blocks: {
+        Row: {
+          bay_id: string
+          blocked_by: string
+          blocked_from: string
+          blocked_to: string
+          created_at: string
+          id: string
+          reason: string | null
+          tenant_id: string
+        }
+        Insert: {
+          bay_id: string
+          blocked_by: string
+          blocked_from: string
+          blocked_to: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+          tenant_id: string
+        }
+        Update: {
+          bay_id?: string
+          blocked_by?: string
+          blocked_from?: string
+          blocked_to?: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_bay_blocks_bay_id_fkey"
+            columns: ["bay_id"]
+            isOneToOne: false
+            referencedRelation: "bays"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_bay_blocks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_bay_bookings: {
+        Row: {
+          bay_id: string
+          booked_by: string
+          booking_method: string
+          created_at: string
+          duration_minutes: number
+          id: string
+          league_id: string
+          max_players: number
+          notes: string | null
+          players: string[]
+          scheduled_at: string
+          scheduled_end: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          bay_id: string
+          booked_by: string
+          booking_method?: string
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          league_id: string
+          max_players?: number
+          notes?: string | null
+          players?: string[]
+          scheduled_at: string
+          scheduled_end: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          bay_id?: string
+          booked_by?: string
+          booking_method?: string
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          league_id?: string
+          max_players?: number
+          notes?: string | null
+          players?: string[]
+          scheduled_at?: string
+          scheduled_end?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_bay_bookings_bay_id_fkey"
+            columns: ["bay_id"]
+            isOneToOne: false
+            referencedRelation: "bays"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_bay_bookings_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_bay_bookings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       league_branding: {
         Row: {
           created_at: string
