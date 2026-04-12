@@ -174,7 +174,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
 
         {/* Join Codes */}
         <TabsContent value="codes" className="space-y-4">
-          <Button size="sm" onClick={() => createCode.mutate()} disabled={createCode.isPending}>
+          <Button size="sm" onClick={() => createCode.mutate({})} disabled={createCode.isPending}>
             <Plus className="h-4 w-4 mr-1" /> Generate Code
           </Button>
           {codesLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
