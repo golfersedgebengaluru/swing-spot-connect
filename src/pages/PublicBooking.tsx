@@ -206,7 +206,7 @@ export default function PublicBooking() {
 
           const options = {
             key: key_id,
-            amount: Math.round(totalCost * 100),
+            amount: Math.round(amountToCharge * 100),
             currency: rzpCurrency || "INR",
             name: "Golfer's Edge",
             description: `${currentBay.name} · ${duration / 60}h ${sessionType}`,
@@ -231,7 +231,7 @@ export default function PublicBooking() {
                   try {
                      await supabase.from("revenue_transactions").insert({
                       transaction_type: "payment" as any,
-                      amount: totalCost,
+                      amount: amountToCharge,
                       currency: currentPrice?.currency || "INR",
                       user_id: user.id,
                       gateway_name: "razorpay",
