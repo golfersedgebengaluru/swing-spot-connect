@@ -39,6 +39,10 @@ export default function Dashboard() {
   const { data: hourPackages, isLoading: loadingPackages } = useHourPackages();
   const { data: profile } = useUserProfile();
   const [buyingPkgId, setBuyingPkgId] = useState<string | null>(null);
+  const redeemCoupon = useRedeemCoupon();
+  const [appliedCoupon, setAppliedCoupon] = useState<ValidateCouponResult | null>(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponPkgId, setCouponPkgId] = useState<string | null>(null);
   const { data: visibility } = usePageVisibility();
   const userCity = profile?.preferred_city;
   const { data: coachingHoursPerSession } = useQuery({

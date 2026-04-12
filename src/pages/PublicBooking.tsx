@@ -35,6 +35,9 @@ export default function PublicBooking() {
   const { data: balance } = useUserHoursBalance();
   const { data: bayPricing } = useBayPricing();
   const createBooking = useCreateBooking();
+  const redeemCoupon = useRedeemCoupon();
+  const [appliedCoupon, setAppliedCoupon] = useState<ValidateCouponResult | null>(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
 
   const [step, setStep] = useState<Step>("select");
   const [selectedCity, setSelectedCity] = useState("");
