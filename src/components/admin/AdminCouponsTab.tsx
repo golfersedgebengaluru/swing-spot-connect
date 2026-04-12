@@ -57,7 +57,7 @@ export function AdminCouponsTab() {
     setEditing(c);
     setForm({
       code: c.code,
-      discount_type: c.discount_type,
+      discount_type: c.discount_type as "percentage" | "fixed",
       discount_value: c.discount_value,
       expires_at: c.expires_at ? c.expires_at.slice(0, 16) : "",
       max_total_uses: c.max_total_uses,
