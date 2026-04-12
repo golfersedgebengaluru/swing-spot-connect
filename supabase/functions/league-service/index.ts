@@ -97,19 +97,11 @@ interface Route {
   action: string
   leagueId?: string
   subResource?: string
+  bookingId?: string
 }
 
 function parseRoute(url: URL): Route {
-  // Expected paths: /league-service/<action>
-  // /league-service/leagues
-  // /league-service/leagues/<id>
-  // /league-service/leagues/<id>/join-codes
-  // /league-service/leagues/<id>/scores
-  // /league-service/leagues/<id>/branding
-  // /league-service/join
-  // /league-service/tenants
   const segments = url.pathname.split('/').filter(Boolean)
-  // segments[0] = 'league-service'
   const resource = segments[1] || ''
 
   if (resource === 'join') return { action: 'join' }
@@ -120,6 +112,10 @@ function parseRoute(url: URL): Route {
     const subResource = segments[3]
     if (!leagueId) return { action: 'leagues' }
     if (!subResource) return { action: 'league-detail', leagueId }
+    // /leagues/:id/bay-bookings/:bookingId
+    if (subResource === 'bay-bookings' && segments[4]) {
+      return { action: 'league-bay-booking-detail', leagueId, subResource, bookingId: segments[4] }
+    }
     return { action: `league-${subResource}`, leagueId, subResource }
   }
   return { action: 'unknown' }
