@@ -27,6 +27,7 @@ import {
   useLeagueBranding,
   useUpdateBranding,
   useLeagueAuditLog,
+  useTenantBays,
 } from "@/hooks/useLeagues";
 import type { League, LeagueFormat, LeagueStatus, Tenant } from "@/types/league";
 import { useToast } from "@/hooks/use-toast";
@@ -91,12 +92,14 @@ function CreateLeagueDialog({ tenantId }: { tenantId: string }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [format, setFormat] = useState<LeagueFormat>("stroke_play");
+  const [venueId, setVenueId] = useState<string>("");
   const createLeague = useCreateLeague(tenantId);
+  const { data: bays } = useTenantBays(tenantId);
 
   const handleCreate = () => {
     if (!name) return;
-    createLeague.mutate({ name, format }, {
-      onSuccess: () => { setOpen(false); setName(""); },
+    createLeague.mutate({ name, format, venue_id: venueId || undefined }, {
+      onSuccess: () => { setOpen(false); setName(""); setVenueId(""); },
     });
   };
 
@@ -120,6 +123,19 @@ function CreateLeagueDialog({ tenantId }: { tenantId: string }) {
               </SelectContent>
             </Select>
           </div>
+          {bays && bays.length > 0 && (
+            <div>
+              <Label>Venue (Bay)</Label>
+              <Select value={venueId} onValueChange={setVenueId}>
+                <SelectTrigger><SelectValue placeholder="Select a venue" /></SelectTrigger>
+                <SelectContent>
+                  {bays.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <Button onClick={handleCreate} disabled={createLeague.isPending} className="w-full">
             {createLeague.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Create
           </Button>
