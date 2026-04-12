@@ -359,6 +359,96 @@ export type Database = {
         }
         Relationships: []
       }
+      coupon_redemptions: {
+        Row: {
+          coupon_id: string
+          created_at: string
+          discount_applied: number
+          id: string
+          order_id: string | null
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          coupon_id: string
+          created_at?: string
+          discount_applied?: number
+          id?: string
+          order_id?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          coupon_id?: string
+          created_at?: string
+          discount_applied?: number
+          id?: string
+          order_id?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_redemptions_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupons: {
+        Row: {
+          city: string | null
+          code: string
+          created_at: string
+          discount_type: string
+          discount_value: number
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          max_total_uses: number | null
+          max_uses_per_user: number | null
+          total_used: number
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          code: string
+          created_at?: string
+          discount_type?: string
+          discount_value?: number
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_total_uses?: number | null
+          max_uses_per_user?: number | null
+          total_used?: number
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          code?: string
+          created_at?: string
+          discount_type?: string
+          discount_value?: number
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_total_uses?: number | null
+          max_uses_per_user?: number | null
+          total_used?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       earn_methods: {
         Row: {
           created_at: string
@@ -2775,6 +2865,10 @@ export type Database = {
       upsert_member_hours: {
         Args: { p_hours: number; p_user_id: string }
         Returns: undefined
+      }
+      validate_coupon: {
+        Args: { p_code: string; p_session_id?: string; p_user_id?: string }
+        Returns: Json
       }
     }
     Enums: {
