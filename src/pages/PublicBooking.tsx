@@ -23,6 +23,8 @@ import { useBayPricing } from "@/hooks/usePricing";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { CouponInput } from "@/components/shop/CouponInput";
+import { ValidateCouponResult, calculateDiscount, useRedeemCoupon } from "@/hooks/useCoupons";
 
 type Step = "select" | "payment" | "confirm";
 

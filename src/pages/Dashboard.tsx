@@ -19,6 +19,8 @@ import { EmailPreferencesCard } from "@/components/EmailPreferencesCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { CouponInput } from "@/components/shop/CouponInput";
+import { ValidateCouponResult, calculateDiscount, useRedeemCoupon } from "@/hooks/useCoupons";
 
 export default function Dashboard() {
   const { user } = useAuth();
