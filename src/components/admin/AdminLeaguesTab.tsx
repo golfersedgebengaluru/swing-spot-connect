@@ -48,6 +48,7 @@ function CreateTenantDialog() {
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
   const createTenant = useCreateTenant();
+  const { data: cities, isLoading: citiesLoading } = useAllCities();
 
   const handleCreate = () => {
     if (!name || !city) return;
@@ -65,8 +66,18 @@ function CreateTenantDialog() {
         <DialogHeader><DialogTitle>Create Tenant</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <div><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Franchise name" /></div>
-          <div><Label>City</Label><Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="City" /></div>
-          <Button onClick={handleCreate} disabled={createTenant.isPending} className="w-full">
+          <div>
+            <Label>City</Label>
+            <Select value={city} onValueChange={setCity}>
+              <SelectTrigger><SelectValue placeholder={citiesLoading ? "Loading cities…" : "Select a city"} /></SelectTrigger>
+              <SelectContent>
+                {(cities || []).map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button onClick={handleCreate} disabled={createTenant.isPending || !city} className="w-full">
             {createTenant.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Create
           </Button>
         </div>
