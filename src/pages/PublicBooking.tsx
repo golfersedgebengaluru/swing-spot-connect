@@ -617,13 +617,56 @@ export default function PublicBooking() {
                   <div className="flex justify-between"><span className="text-muted-foreground">Duration</span><span className="font-medium">{duration / 60}h</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Type</span><span className="font-medium capitalize">{sessionType}</span></div>
                   {currentPrice && (
-                    <div className="flex justify-between border-t pt-2 mt-2">
-                      <span className="font-medium">Total</span>
-                      <span className="font-bold text-primary">₹{totalCost.toLocaleString()}</span>
-                    </div>
+                    <>
+                      {couponDiscount > 0 && (
+                        <>
+                          <div className="flex justify-between border-t pt-2 mt-2">
+                            <span className="text-muted-foreground">Subtotal</span>
+                            <span className="font-medium">₹{totalCost.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-primary">
+                            <span>Coupon Discount</span>
+                            <span>−₹{couponDiscount.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-medium">Total</span>
+                            <span className="font-bold text-primary">₹{finalBookingTotal.toLocaleString()}</span>
+                          </div>
+                        </>
+                      )}
+                      {couponDiscount === 0 && (
+                        <div className="flex justify-between border-t pt-2 mt-2">
+                          <span className="font-medium">Total</span>
+                          <span className="font-bold text-primary">₹{totalCost.toLocaleString()}</span>
+                        </div>
+                      )}
+                    </>
                   )}
                 </CardContent>
               </Card>
+
+              {/* Coupon Code */}
+              {paymentMethod === "pay" && totalCost > 0 && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Coupon Code</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CouponInput
+                      orderTotal={totalCost}
+                      appliedCoupon={appliedCoupon}
+                      onApply={(result, discount) => {
+                        setAppliedCoupon(result);
+                        setCouponDiscount(discount);
+                      }}
+                      onRemove={() => {
+                        setAppliedCoupon(null);
+                        setCouponDiscount(0);
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Guest Info (if not logged in) */}
               {isGuest && (
@@ -705,7 +748,7 @@ export default function PublicBooking() {
                     <div className="flex-1">
                       <p className="font-medium text-foreground">Pay Now</p>
                       <p className="text-sm text-muted-foreground">
-                        {totalCost > 0 ? `₹${totalCost.toLocaleString()}` : "Price TBD"} · Razorpay / UPI / Card
+                        {finalBookingTotal > 0 ? `₹${finalBookingTotal.toLocaleString()}` : "Price TBD"} · Razorpay / UPI / Card
                       </p>
                     </div>
                   </button>
@@ -728,7 +771,7 @@ export default function PublicBooking() {
                 ) : paymentMethod === "hours" ? (
                   `Confirm & Deduct ${hoursNeeded}h`
                 ) : (
-                  `Pay ₹${totalCost.toLocaleString()} & Book`
+                  `Pay ₹${finalBookingTotal.toLocaleString()} & Book`
                 )}
               </Button>
 
