@@ -196,6 +196,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
       <Tabs defaultValue="codes">
         <TabsList>
           <TabsTrigger value="codes">Join Codes</TabsTrigger>
+          <TabsTrigger value="scheduling"><Calendar className="h-3.5 w-3.5 mr-1" />Bay Scheduling</TabsTrigger>
           <TabsTrigger value="scores">Scores ({scores?.length || 0})</TabsTrigger>
           {tenant.sponsorship_enabled && <TabsTrigger value="branding">Branding</TabsTrigger>}
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
