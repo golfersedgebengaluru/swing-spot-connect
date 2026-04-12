@@ -489,12 +489,9 @@ export default function Dashboard() {
                     setCouponPkgId(null);
                   }}
                 />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
               </CardContent>
             </Card>
+          )}
           )}
 
 
