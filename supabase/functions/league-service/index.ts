@@ -114,6 +114,7 @@ function parseRoute(url: URL): Route {
 
   if (resource === 'join') return { action: 'join' }
   if (resource === 'tenants') return { action: 'tenants' }
+  if (resource === 'bays') return { action: 'bays' }
   if (resource === 'leagues') {
     const leagueId = segments[2]
     const subResource = segments[3]
@@ -170,6 +171,11 @@ Deno.serve(async (req) => {
         if (!isAdmin) return err('Only site admins can create tenants', 403)
         const body = await req.json()
         if (!body.name || !body.city) return err('name and city are required')
+
+        // Validate city exists in bays
+        const { data: bayCheck } = await supabase.from('bays').select('city').eq('city', body.city).limit(1)
+        if (!bayCheck || bayCheck.length === 0) return err('City not found in the system')
+
         const { data, error } = await supabase.from('tenants').insert({
           name: body.name,
           city: body.city,
@@ -577,6 +583,27 @@ Deno.serve(async (req) => {
         return json(result)
       }
       return err('Method not allowed', 405)
+    }
+
+    // ── BAYS (for tenant's city) ──────────────────────────
+    if (route.action === 'bays' && method === 'GET') {
+      const tenantId = url.searchParams.get('tenant_id')
+      if (!tenantId) return err('tenant_id query param required')
+
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (!role) return err('No access to this tenant', 403)
+
+      const { data: tenant } = await supabase.from('tenants').select('city').eq('id', tenantId).single()
+      if (!tenant?.city) return json([])
+
+      const { data: bays, error } = await supabase
+        .from('bays')
+        .select('id, name, city, is_active')
+        .eq('city', tenant.city)
+        .eq('is_active', true)
+        .order('sort_order')
+      if (error) return err(error.message, 500)
+      return json(bays)
     }
 
     return err('Not found', 404)
