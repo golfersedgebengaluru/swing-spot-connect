@@ -1163,6 +1163,354 @@ export type Database = {
           },
         ]
       }
+      league_audit_log: {
+        Row: {
+          action: string
+          actor_id: string
+          actor_role: string
+          after_data: Json | null
+          before_data: Json | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          league_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          actor_role: string
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          league_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          actor_role?: string
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          league_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_audit_log_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_audit_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_branding: {
+        Row: {
+          created_at: string
+          id: string
+          league_id: string
+          logo_url: string | null
+          placement_slots: Json
+          sponsor_logo_url: string | null
+          sponsor_name: string | null
+          sponsor_url: string | null
+          updated_at: string
+          valid_from: string | null
+          valid_to: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          league_id: string
+          logo_url?: string | null
+          placement_slots?: Json
+          sponsor_logo_url?: string | null
+          sponsor_name?: string | null
+          sponsor_url?: string | null
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          league_id?: string
+          logo_url?: string | null
+          placement_slots?: Json
+          sponsor_logo_url?: string | null
+          sponsor_name?: string | null
+          sponsor_url?: string | null
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_branding_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: true
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_join_codes: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          id: string
+          league_id: string
+          max_uses: number
+          revoked_at: string | null
+          use_count: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          league_id: string
+          max_uses?: number
+          revoked_at?: string | null
+          use_count?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          league_id?: string
+          max_uses?: number
+          revoked_at?: string | null
+          use_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_join_codes_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_players: {
+        Row: {
+          id: string
+          joined_at: string
+          joined_via_code_id: string | null
+          league_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          joined_via_code_id?: string | null
+          league_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          joined_via_code_id?: string | null
+          league_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_players_joined_via_code_id_fkey"
+            columns: ["joined_via_code_id"]
+            isOneToOne: false
+            referencedRelation: "league_join_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_players_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_roles: {
+        Row: {
+          created_at: string
+          id: string
+          league_id: string | null
+          role: Database["public"]["Enums"]["league_role_type"]
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          league_id?: string | null
+          role: Database["public"]["Enums"]["league_role_type"]
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          league_id?: string | null
+          role?: Database["public"]["Enums"]["league_role_type"]
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_roles_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_roles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_scores: {
+        Row: {
+          confirmed_at: string | null
+          created_at: string
+          hole_scores: Json
+          id: string
+          league_id: string
+          method: Database["public"]["Enums"]["score_entry_method"]
+          photo_url: string | null
+          player_id: string
+          round_number: number
+          submitted_by: string
+          tenant_id: string
+          total_score: number | null
+          updated_at: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          created_at?: string
+          hole_scores?: Json
+          id?: string
+          league_id: string
+          method?: Database["public"]["Enums"]["score_entry_method"]
+          photo_url?: string | null
+          player_id: string
+          round_number?: number
+          submitted_by: string
+          tenant_id: string
+          total_score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          created_at?: string
+          hole_scores?: Json
+          id?: string
+          league_id?: string
+          method?: Database["public"]["Enums"]["score_entry_method"]
+          photo_url?: string | null
+          player_id?: string
+          round_number?: number
+          submitted_by?: string
+          tenant_id?: string
+          total_score?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_scores_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_scores_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leagues: {
+        Row: {
+          created_at: string
+          created_by: string
+          format: Database["public"]["Enums"]["league_format"]
+          id: string
+          name: string
+          score_entry_method: Database["public"]["Enums"]["score_entry_method"]
+          season_end: string | null
+          season_start: string | null
+          status: Database["public"]["Enums"]["league_status"]
+          tenant_id: string
+          updated_at: string
+          venue_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          format?: Database["public"]["Enums"]["league_format"]
+          id?: string
+          name: string
+          score_entry_method?: Database["public"]["Enums"]["score_entry_method"]
+          season_end?: string | null
+          season_start?: string | null
+          status?: Database["public"]["Enums"]["league_status"]
+          tenant_id: string
+          updated_at?: string
+          venue_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          format?: Database["public"]["Enums"]["league_format"]
+          id?: string
+          name?: string
+          score_entry_method?: Database["public"]["Enums"]["score_entry_method"]
+          season_end?: string | null
+          season_start?: string | null
+          status?: Database["public"]["Enums"]["league_status"]
+          tenant_id?: string
+          updated_at?: string
+          venue_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leagues_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       loyalty_bonuses: {
         Row: {
           bonus_type: string
@@ -2106,6 +2454,39 @@ export type Database = {
         }
         Relationships: []
       }
+      tenants: {
+        Row: {
+          city: string
+          config: Json
+          created_at: string
+          default_logo_url: string | null
+          id: string
+          name: string
+          sponsorship_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          city: string
+          config?: Json
+          created_at?: string
+          default_logo_url?: string | null
+          id?: string
+          name: string
+          sponsorship_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          city?: string
+          config?: Json
+          created_at?: string
+          default_logo_url?: string | null
+          id?: string
+          name?: string
+          sponsorship_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       units_of_measure: {
         Row: {
           created_at: string
@@ -2230,8 +2611,25 @@ export type Database = {
         }
         Returns: string
       }
+      get_user_tenant_ids: { Args: { _user_id: string }; Returns: string[] }
       has_city_access: {
         Args: { _city: string; _user_id: string }
+        Returns: boolean
+      }
+      has_league_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["league_role_type"]
+          _tenant_id: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      has_league_role_for_league: {
+        Args: {
+          _league_id: string
+          _role: Database["public"]["Enums"]["league_role_type"]
+          _user_id: string
+        }
         Returns: boolean
       }
       has_role: {
@@ -2246,6 +2644,10 @@ export type Database = {
         Returns: number
       }
       is_admin_or_site_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_franchise_or_site_admin: {
+        Args: { _tenant_id: string; _user_id: string }
+        Returns: boolean
+      }
       upsert_member_hours: {
         Args: { p_hours: number; p_user_id: string }
         Returns: undefined
@@ -2253,6 +2655,16 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "site_admin" | "user"
+      league_format:
+        | "stroke_play"
+        | "match_play"
+        | "stableford"
+        | "scramble"
+        | "best_ball"
+        | "skins"
+      league_role_type: "franchise_admin" | "league_admin" | "player"
+      league_status: "draft" | "active" | "completed" | "archived"
+      score_entry_method: "photo_ocr" | "manual" | "api" | "not_set"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2381,6 +2793,17 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "site_admin", "user"],
+      league_format: [
+        "stroke_play",
+        "match_play",
+        "stableford",
+        "scramble",
+        "best_ball",
+        "skins",
+      ],
+      league_role_type: ["franchise_admin", "league_admin", "player"],
+      league_status: ["draft", "active", "completed", "archived"],
+      score_entry_method: ["photo_ocr", "manual", "api", "not_set"],
     },
   },
 } as const
