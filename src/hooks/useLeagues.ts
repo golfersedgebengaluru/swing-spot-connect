@@ -235,7 +235,7 @@ export function useLeagueAuditLog(tenantId: string | null, leagueId?: string) {
       if (leagueId) query = query.eq("league_id", leagueId);
       const { data, error } = await query;
       if (error) throw error;
-      return (data || []) as LeagueAuditLog[];
+      return (data || []) as unknown as LeagueAuditLog[];
     },
     enabled: !!tenantId,
   });
