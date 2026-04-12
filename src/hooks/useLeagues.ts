@@ -254,3 +254,124 @@ export function useLeagueAuditLog(tenantId: string | null, leagueId?: string) {
     enabled: !!tenantId,
   });
 }
+
+// ── Bay Availability ─────────────────────────────────────────
+export function useBayAvailability(leagueId: string | null, date: string | null) {
+  return useQuery<BayAvailabilityResponse>({
+    queryKey: ["league-bay-availability", leagueId, date],
+    queryFn: () => invoke(`/leagues/${leagueId}/bay-availability?date=${date}`, "GET"),
+    enabled: !!leagueId && !!date,
+  });
+}
+
+// ── Bay Bookings ─────────────────────────────────────────────
+export function useBayBookings(leagueId: string | null, date?: string) {
+  return useQuery<LeagueBayBooking[]>({
+    queryKey: ["league-bay-bookings", leagueId, date],
+    queryFn: () => {
+      let path = `/leagues/${leagueId}/bay-bookings`;
+      if (date) path += `?date=${date}`;
+      return invoke(path, "GET");
+    },
+    enabled: !!leagueId,
+  });
+}
+
+export function useCreateBayBooking(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (body: CreateBayBookingRequest) =>
+      invoke(`/leagues/${leagueId}/bay-bookings`, "POST", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-bay-bookings", leagueId] });
+      qc.invalidateQueries({ queryKey: ["league-bay-availability", leagueId] });
+      toast({ title: "Bay booked successfully" });
+    },
+    onError: (e: Error) => toast({ title: "Booking failed", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useJoinBayBooking(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (bookingId: string) =>
+      invoke(`/leagues/${leagueId}/bay-bookings/${bookingId}?action=join`, "POST", {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-bay-bookings", leagueId] });
+      qc.invalidateQueries({ queryKey: ["league-bay-availability", leagueId] });
+      toast({ title: "Joined bay booking" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useCancelBayBooking(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (bookingId: string) =>
+      invoke(`/leagues/${leagueId}/bay-bookings/${bookingId}?action=cancel`, "POST", {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-bay-bookings", leagueId] });
+      qc.invalidateQueries({ queryKey: ["league-bay-availability", leagueId] });
+      toast({ title: "Booking cancelled" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useRescheduleBayBooking(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ bookingId, body }: { bookingId: string; body: RescheduleBayBookingRequest }) =>
+      invoke(`/leagues/${leagueId}/bay-bookings/${bookingId}`, "PATCH", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-bay-bookings", leagueId] });
+      qc.invalidateQueries({ queryKey: ["league-bay-availability", leagueId] });
+      toast({ title: "Booking rescheduled" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+// ── Bay Blocks ───────────────────────────────────────────────
+export function useBayBlocks(leagueId: string | null) {
+  return useQuery<LeagueBayBlock[]>({
+    queryKey: ["league-bay-blocks", leagueId],
+    queryFn: () => invoke(`/leagues/${leagueId}/bay-blocks`, "GET"),
+    enabled: !!leagueId,
+  });
+}
+
+export function useCreateBayBlock(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (body: { bay_id: string; blocked_from: string; blocked_to: string; reason?: string }) =>
+      invoke(`/leagues/${leagueId}/bay-blocks`, "POST", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-bay-blocks", leagueId] });
+      qc.invalidateQueries({ queryKey: ["league-bay-availability", leagueId] });
+      toast({ title: "Bay blocked" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useRemoveBayBlock(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (blockId: string) =>
+      invoke(`/leagues/${leagueId}/bay-blocks?block_id=${blockId}`, "DELETE"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-bay-blocks", leagueId] });
+      qc.invalidateQueries({ queryKey: ["league-bay-availability", leagueId] });
+      toast({ title: "Block removed" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
