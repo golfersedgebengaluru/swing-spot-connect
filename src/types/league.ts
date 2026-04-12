@@ -113,6 +113,44 @@ export interface LeagueRole {
   created_at: string;
 }
 
+// ── Bay Booking ──────────────────────────────────────────────
+export interface LeagueBayBooking {
+  id: string;
+  league_id: string;
+  bay_id: string;
+  tenant_id: string;
+  scheduled_at: string;
+  scheduled_end: string;
+  duration_minutes: number;
+  booked_by: string;
+  booking_method: 'player_self' | 'admin_assigned';
+  status: 'confirmed' | 'cancelled';
+  players: string[];
+  max_players: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Bay Block ────────────────────────────────────────────────
+export interface LeagueBayBlock {
+  id: string;
+  bay_id: string;
+  tenant_id: string;
+  blocked_from: string;
+  blocked_to: string;
+  reason: string | null;
+  blocked_by: string;
+  created_at: string;
+}
+
+// ── Bay Availability Response ────────────────────────────────
+export interface BayAvailabilityResponse {
+  bays: { id: string; name: string; city: string; is_active: boolean; open_time: string; close_time: string }[];
+  bookings: { bay_id: string; scheduled_at: string; scheduled_end: string; players: string[]; max_players: number }[];
+  blocks: { bay_id: string; blocked_from: string; blocked_to: string }[];
+}
+
 // ── API request/response helpers ─────────────────────────────
 export interface CreateLeagueRequest {
   name: string;
@@ -149,4 +187,21 @@ export interface UpdateBrandingRequest {
   placement_slots?: string[];
   valid_from?: string;
   valid_to?: string;
+}
+
+export interface CreateBayBookingRequest {
+  bay_id: string;
+  scheduled_at: string;
+  duration_minutes?: number;
+  booking_method?: 'player_self' | 'admin_assigned';
+  players?: string[];
+  max_players?: number;
+  notes?: string;
+}
+
+export interface RescheduleBayBookingRequest {
+  scheduled_at: string;
+  duration_minutes?: number;
+  bay_id?: string;
+  notes?: string;
 }

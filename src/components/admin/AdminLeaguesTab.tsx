@@ -12,7 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon } from "lucide-react";
+import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar } from "lucide-react";
+import { BaySchedulingPanel } from "@/components/admin/league/BaySchedulingPanel";
 import { format } from "date-fns";
 import {
   useTenants,
@@ -195,6 +196,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
       <Tabs defaultValue="codes">
         <TabsList>
           <TabsTrigger value="codes">Join Codes</TabsTrigger>
+          <TabsTrigger value="scheduling"><Calendar className="h-3.5 w-3.5 mr-1" />Bay Scheduling</TabsTrigger>
           <TabsTrigger value="scores">Scores ({scores?.length || 0})</TabsTrigger>
           {tenant.sponsorship_enabled && <TabsTrigger value="branding">Branding</TabsTrigger>}
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
@@ -238,6 +240,11 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
               </TableBody>
             </Table>
           )}
+        </TabsContent>
+
+        {/* Bay Scheduling */}
+        <TabsContent value="scheduling">
+          <BaySchedulingPanel league={league} tenantId={league.tenant_id} />
         </TabsContent>
 
         {/* Scores */}

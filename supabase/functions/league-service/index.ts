@@ -97,19 +97,11 @@ interface Route {
   action: string
   leagueId?: string
   subResource?: string
+  bookingId?: string
 }
 
 function parseRoute(url: URL): Route {
-  // Expected paths: /league-service/<action>
-  // /league-service/leagues
-  // /league-service/leagues/<id>
-  // /league-service/leagues/<id>/join-codes
-  // /league-service/leagues/<id>/scores
-  // /league-service/leagues/<id>/branding
-  // /league-service/join
-  // /league-service/tenants
   const segments = url.pathname.split('/').filter(Boolean)
-  // segments[0] = 'league-service'
   const resource = segments[1] || ''
 
   if (resource === 'join') return { action: 'join' }
@@ -120,6 +112,10 @@ function parseRoute(url: URL): Route {
     const subResource = segments[3]
     if (!leagueId) return { action: 'leagues' }
     if (!subResource) return { action: 'league-detail', leagueId }
+    // /leagues/:id/bay-bookings/:bookingId
+    if (subResource === 'bay-bookings' && segments[4]) {
+      return { action: 'league-bay-booking-detail', leagueId, subResource, bookingId: segments[4] }
+    }
     return { action: `league-${subResource}`, leagueId, subResource }
   }
   return { action: 'unknown' }
@@ -604,6 +600,351 @@ Deno.serve(async (req) => {
         .order('sort_order')
       if (error) return err(error.message, 500)
       return json(bays)
+    }
+
+    // ── BAY BOOKINGS ─────────────────────────────────────────
+    if (route.action === 'league-bay-bookings' && route.leagueId) {
+      const { data: league } = await supabase.from('leagues').select('tenant_id, venue_id, status').eq('id', route.leagueId).single()
+      if (!league) return err('League not found', 404)
+      const tenantId = league.tenant_id
+
+      // GET: list bookings for this league, optionally filtered by date
+      if (method === 'GET') {
+        const role = await getUserLeagueRole(supabase, user.id, tenantId)
+        if (!role) return err('No access', 403)
+
+        const dateParam = url.searchParams.get('date') // YYYY-MM-DD
+        let query = supabase
+          .from('league_bay_bookings')
+          .select('*')
+          .eq('league_id', route.leagueId)
+          .eq('status', 'confirmed')
+          .order('scheduled_at')
+
+        if (dateParam) {
+          query = query
+            .gte('scheduled_at', `${dateParam}T00:00:00Z`)
+            .lt('scheduled_at', `${dateParam}T23:59:59Z`)
+        }
+
+        const { data, error } = await query
+        if (error) return err(error.message, 500)
+
+        // Strip player details for non-admin roles (privacy)
+        if (role === 'player') {
+          const sanitized = (data || []).map((b: any) => ({
+            ...b,
+            players: b.players?.map(() => 'player'), // hide UUIDs
+            booked_by: b.booked_by === user.id ? b.booked_by : 'hidden',
+          }))
+          return json(sanitized)
+        }
+        return json(data)
+      }
+
+      // POST: create a booking
+      if (method === 'POST') {
+        if (league.status !== 'active') return err('League is not active')
+
+        const role = await getUserLeagueRole(supabase, user.id, tenantId)
+        if (!role) return err('No access', 403)
+
+        const body = await req.json()
+        if (!body.bay_id || !body.scheduled_at) return err('bay_id and scheduled_at are required')
+
+        const durationMinutes = body.duration_minutes || 60
+        const scheduledAt = new Date(body.scheduled_at)
+        const scheduledEnd = new Date(scheduledAt.getTime() + durationMinutes * 60000)
+
+        // Validate bay belongs to tenant's city
+        const { data: tenant } = await supabase.from('tenants').select('city').eq('id', tenantId).single()
+        const { data: bay } = await supabase.from('bays').select('id, city').eq('id', body.bay_id).single()
+        if (!bay || bay.city !== tenant?.city) return err('Bay not available for this tenant')
+
+        // If league has venue_id, enforce it
+        if (league.venue_id && bay.id !== league.venue_id) {
+          return err('Bay is not the designated venue for this league')
+        }
+
+        // Check for blocks
+        const { data: blocks } = await supabase
+          .from('league_bay_blocks')
+          .select('id')
+          .eq('bay_id', body.bay_id)
+          .eq('tenant_id', tenantId)
+          .lt('blocked_from', scheduledEnd.toISOString())
+          .gt('blocked_to', scheduledAt.toISOString())
+          .limit(1)
+        if (blocks && blocks.length > 0) return err('Bay is blocked during this time')
+
+        const isAdmin = role !== 'player'
+        const bookingMethod = isAdmin && body.booking_method === 'admin_assigned' ? 'admin_assigned' : 'player_self'
+        const players = body.players || [user.id]
+        const maxPlayers = body.max_players || 4
+
+        if (players.length > maxPlayers) return err('Too many players for this slot')
+
+        // Insert — DB exclusion constraint prevents double-booking
+        const { data: booking, error: bErr } = await supabase.from('league_bay_bookings').insert({
+          league_id: route.leagueId,
+          bay_id: body.bay_id,
+          tenant_id: tenantId,
+          scheduled_at: scheduledAt.toISOString(),
+          scheduled_end: scheduledEnd.toISOString(),
+          duration_minutes: durationMinutes,
+          booked_by: user.id,
+          booking_method: bookingMethod,
+          players,
+          max_players: maxPlayers,
+          notes: body.notes ?? null,
+        }).select().single()
+
+        if (bErr) {
+          if (bErr.message?.includes('no_overlapping_bay_bookings')) {
+            return err('This bay is already booked for the selected time', 409)
+          }
+          return err(bErr.message, 500)
+        }
+
+        await audit(supabase, tenantId, route.leagueId, user.id, role!, 'BayBookingCreated', 'league_bay_booking', booking.id, null, booking)
+
+        // Notification for the booker
+        await supabase.from('notifications').insert({
+          user_id: user.id,
+          title: 'Bay Booking Confirmed',
+          message: `Your bay booking is confirmed for ${scheduledAt.toLocaleDateString()}.`,
+          type: 'league',
+        })
+
+        return json(booking, 201)
+      }
+
+      return err('Method not allowed', 405)
+    }
+
+    // ── BAY BOOKING DETAIL (join / cancel / reschedule) ────
+    if (route.action === 'league-bay-booking-detail' && route.leagueId && route.bookingId) {
+      const { data: booking } = await supabase.from('league_bay_bookings').select('*').eq('id', route.bookingId).single()
+      if (!booking) return err('Booking not found', 404)
+      if (booking.league_id !== route.leagueId) return err('Booking not in this league', 400)
+
+      const tenantId = booking.tenant_id
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (!role) return err('No access', 403)
+      const isAdmin = role !== 'player'
+
+      // POST /leagues/:id/bay-bookings/:bookingId?action=join
+      // POST /leagues/:id/bay-bookings/:bookingId?action=cancel
+      // PATCH /leagues/:id/bay-bookings/:bookingId (reschedule — admin only)
+      if (method === 'POST') {
+        const actionParam = url.searchParams.get('action')
+
+        if (actionParam === 'join') {
+          if (booking.status !== 'confirmed') return err('Booking is cancelled')
+          if (booking.players.includes(user.id)) return err('Already in this booking')
+          if (booking.players.length >= booking.max_players) return err('Booking is full')
+
+          const updatedPlayers = [...booking.players, user.id]
+          const { data: updated, error } = await supabase
+            .from('league_bay_bookings')
+            .update({ players: updatedPlayers })
+            .eq('id', route.bookingId)
+            .select().single()
+          if (error) return err(error.message, 500)
+
+          await audit(supabase, tenantId, route.leagueId, user.id, role!, 'PlayerJoinedBayBooking', 'league_bay_booking', route.bookingId, booking, updated)
+          return json(updated)
+        }
+
+        if (actionParam === 'cancel') {
+          // Players can only cancel own bookings; admins can cancel any
+          if (!isAdmin && booking.booked_by !== user.id) return err('Can only cancel own bookings', 403)
+          if (booking.status === 'cancelled') return err('Already cancelled')
+
+          const { data: updated, error } = await supabase
+            .from('league_bay_bookings')
+            .update({ status: 'cancelled' })
+            .eq('id', route.bookingId)
+            .select().single()
+          if (error) return err(error.message, 500)
+
+          await audit(supabase, tenantId, route.leagueId, user.id, role!, isAdmin ? 'AdminCancelledBayBooking' : 'PlayerCancelledBayBooking', 'league_bay_booking', route.bookingId, booking, updated)
+
+          // Notify affected players (without exposing personal details)
+          for (const playerId of booking.players) {
+            if (playerId === user.id) continue
+            await supabase.from('notifications').insert({
+              user_id: playerId,
+              title: 'Bay Booking Cancelled',
+              message: isAdmin
+                ? 'An admin has cancelled your bay booking. Please check your schedule.'
+                : 'A bay booking you were part of has been cancelled.',
+              type: 'league',
+            })
+          }
+
+          return json(updated)
+        }
+
+        return err('Unknown action. Use ?action=join or ?action=cancel')
+      }
+
+      // PATCH: reschedule (admin only)
+      if (method === 'PATCH') {
+        if (!isAdmin) return err('Only admins can reschedule', 403)
+        if (booking.status === 'cancelled') return err('Cannot reschedule cancelled booking')
+
+        const body = await req.json()
+        if (!body.scheduled_at) return err('scheduled_at is required')
+
+        const newStart = new Date(body.scheduled_at)
+        const duration = body.duration_minutes || booking.duration_minutes
+        const newEnd = new Date(newStart.getTime() + duration * 60000)
+
+        // Cancel old, create new (to respect exclusion constraint)
+        await supabase.from('league_bay_bookings').update({ status: 'cancelled' }).eq('id', route.bookingId)
+
+        const { data: newBooking, error: nErr } = await supabase.from('league_bay_bookings').insert({
+          league_id: route.leagueId,
+          bay_id: body.bay_id || booking.bay_id,
+          tenant_id: tenantId,
+          scheduled_at: newStart.toISOString(),
+          scheduled_end: newEnd.toISOString(),
+          duration_minutes: duration,
+          booked_by: user.id,
+          booking_method: 'admin_assigned',
+          players: booking.players,
+          max_players: booking.max_players,
+          notes: body.notes ?? booking.notes,
+        }).select().single()
+
+        if (nErr) {
+          // Revert cancel if new booking fails
+          await supabase.from('league_bay_bookings').update({ status: 'confirmed' }).eq('id', route.bookingId)
+          if (nErr.message?.includes('no_overlapping_bay_bookings')) {
+            return err('New time slot conflicts with existing booking', 409)
+          }
+          return err(nErr.message, 500)
+        }
+
+        await audit(supabase, tenantId, route.leagueId, user.id, role!, 'AdminRescheduledBayBooking', 'league_bay_booking', newBooking.id, booking, newBooking)
+
+        // Notify players
+        for (const playerId of booking.players) {
+          await supabase.from('notifications').insert({
+            user_id: playerId,
+            title: 'Bay Booking Rescheduled',
+            message: 'An admin has rescheduled your bay booking. Please check your updated schedule.',
+            type: 'league',
+          })
+        }
+
+        return json(newBooking)
+      }
+
+      return err('Method not allowed', 405)
+    }
+
+    // ── BAY AVAILABILITY ──────────────────────────────────────
+    if (route.action === 'league-bay-availability' && route.leagueId) {
+      const { data: league } = await supabase.from('leagues').select('tenant_id, venue_id').eq('id', route.leagueId).single()
+      if (!league) return err('League not found', 404)
+      const tenantId = league.tenant_id
+
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (!role) return err('No access', 403)
+
+      const dateParam = url.searchParams.get('date')
+      if (!dateParam) return err('date query param required (YYYY-MM-DD)')
+
+      // Get tenant's bays
+      const { data: tenant } = await supabase.from('tenants').select('city').eq('id', tenantId).single()
+      let bayQuery = supabase.from('bays').select('id, name, city, is_active, open_time, close_time').eq('city', tenant?.city || '').eq('is_active', true)
+      if (league.venue_id) bayQuery = bayQuery.eq('id', league.venue_id)
+      const { data: bays } = await bayQuery
+
+      if (!bays || bays.length === 0) return json([])
+
+      const bayIds = bays.map((b: any) => b.id)
+
+      // Get existing bookings for the date
+      const { data: bookings } = await supabase
+        .from('league_bay_bookings')
+        .select('bay_id, scheduled_at, scheduled_end, players, max_players')
+        .in('bay_id', bayIds)
+        .eq('status', 'confirmed')
+        .gte('scheduled_at', `${dateParam}T00:00:00Z`)
+        .lt('scheduled_at', `${dateParam}T23:59:59Z`)
+
+      // Get blocks
+      const { data: blocksList } = await supabase
+        .from('league_bay_blocks')
+        .select('bay_id, blocked_from, blocked_to')
+        .in('bay_id', bayIds)
+        .eq('tenant_id', tenantId)
+        .lt('blocked_from', `${dateParam}T23:59:59Z`)
+        .gt('blocked_to', `${dateParam}T00:00:00Z`)
+
+      return json({
+        bays,
+        bookings: bookings || [],
+        blocks: blocksList || [],
+      })
+    }
+
+    // ── BAY BLOCKS (admin) ────────────────────────────────────
+    if (route.action === 'league-bay-blocks' && route.leagueId) {
+      const { data: league } = await supabase.from('leagues').select('tenant_id').eq('id', route.leagueId).single()
+      if (!league) return err('League not found', 404)
+      const tenantId = league.tenant_id
+
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (!role || role === 'player') return err('Insufficient permissions', 403)
+
+      if (method === 'GET') {
+        const { data, error } = await supabase
+          .from('league_bay_blocks')
+          .select('*')
+          .eq('tenant_id', tenantId)
+          .order('blocked_from')
+        if (error) return err(error.message, 500)
+        return json(data)
+      }
+
+      if (method === 'POST') {
+        const body = await req.json()
+        if (!body.bay_id || !body.blocked_from || !body.blocked_to) {
+          return err('bay_id, blocked_from, blocked_to are required')
+        }
+
+        const { data: block, error } = await supabase.from('league_bay_blocks').insert({
+          bay_id: body.bay_id,
+          tenant_id: tenantId,
+          blocked_from: body.blocked_from,
+          blocked_to: body.blocked_to,
+          reason: body.reason ?? null,
+          blocked_by: user.id,
+        }).select().single()
+
+        if (error) return err(error.message, 500)
+
+        await audit(supabase, tenantId, route.leagueId, user.id, role!, 'BayBlocked', 'league_bay_block', block.id, null, block)
+        return json(block, 201)
+      }
+
+      if (method === 'DELETE') {
+        const blockId = url.searchParams.get('block_id')
+        if (!blockId) return err('block_id query param required')
+
+        const { data: before } = await supabase.from('league_bay_blocks').select('*').eq('id', blockId).single()
+        const { error } = await supabase.from('league_bay_blocks').delete().eq('id', blockId)
+        if (error) return err(error.message, 500)
+
+        await audit(supabase, tenantId, route.leagueId, user.id, role!, 'BayUnblocked', 'league_bay_block', blockId, before, null)
+        return json({ success: true })
+      }
+
+      return err('Method not allowed', 405)
     }
 
     return err('Not found', 404)
