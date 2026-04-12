@@ -492,7 +492,6 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           )}
-          )}
 
 
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
