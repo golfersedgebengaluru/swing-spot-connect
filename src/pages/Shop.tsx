@@ -276,9 +276,33 @@ export default function Shop() {
               </div>
             ))}
             <Separator />
+            <CouponInput
+              orderTotal={cartTotal}
+              appliedCoupon={appliedCoupon}
+              onApply={(result, discount) => {
+                setAppliedCoupon(result);
+                setCouponDiscount(discount);
+              }}
+              onRemove={() => {
+                setAppliedCoupon(null);
+                setCouponDiscount(0);
+              }}
+            />
+            {couponDiscount > 0 && (
+              <>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Subtotal</span>
+                  <span>{formatCurrency(cartTotal)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-primary">
+                  <span>Coupon Discount</span>
+                  <span>−{formatCurrency(couponDiscount)}</span>
+                </div>
+              </>
+            )}
             <div className="flex justify-between font-semibold">
               <span>Total</span>
-              <span>{formatCurrency(cartTotal)}</span>
+              <span>{formatCurrency(finalTotal)}</span>
             </div>
             <p className="text-xs text-muted-foreground">Staff will bring your order to your bay.</p>
           </div>
