@@ -349,7 +349,7 @@ export default function PublicBooking() {
                 <p><span className="font-medium">Bay:</span> {currentBay?.name}</p>
                 <p><span className="font-medium">Time:</span> {selectedSlot && format(new Date(selectedSlot), "h:mm a")} – {endTime && format(new Date(endTime), "h:mm a")}</p>
                 <p><span className="font-medium">Duration:</span> {duration / 60}h</p>
-                <p><span className="font-medium">Paid via:</span> {paymentMethod === "hours" ? "Bay Hours" : `₹${totalCost.toLocaleString()}`}</p>
+                <p><span className="font-medium">Paid via:</span> {paymentMethod === "hours" ? "Bay Hours" : `₹${finalBookingTotal.toLocaleString()}`}</p>
               </div>
               <div className="mt-6 flex flex-col gap-2">
                 {user ? (
