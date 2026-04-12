@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { ShoppingCart, Plus, Coffee, Wine, Beer, Loader2, Minus, Trash2, ClipboardList } from "lucide-react";
+import { CouponInput } from "@/components/shop/CouponInput";
+import { ValidateCouponResult, calculateDiscount, useRedeemCoupon } from "@/hooks/useCoupons";
 import { useToast } from "@/hooks/use-toast";
 import { useProducts } from "@/hooks/useProducts";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
@@ -32,8 +34,11 @@ export default function Shop() {
   const { data: profile } = useUserProfile();
   const createOrder = useCreateOrder();
   const { data: myOrders } = useMyOrders();
+  const redeemCoupon = useRedeemCoupon();
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<ValidateCouponResult | null>(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
 
   const addToCart = (item: { id: string; name: string; price: number }) => {
     setCart((prev) => {
@@ -58,14 +63,33 @@ export default function Shop() {
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const isLoading = loadingBev || loadingMerch;
 
+  const finalTotal = Math.max(0, cartTotal - couponDiscount);
+
   const handlePlaceOrder = async () => {
     try {
-      await createOrder.mutateAsync({
+      const order = await createOrder.mutateAsync({
         items: cart,
-        total_price: cartTotal,
+        total_price: finalTotal,
         city: profile?.preferred_city ?? undefined,
+        note: appliedCoupon ? `Coupon: ${appliedCoupon.code} (-${couponDiscount})` : undefined,
       });
+
+      // Redeem coupon if applied
+      if (appliedCoupon?.coupon_id) {
+        try {
+          await redeemCoupon.mutateAsync({
+            coupon_id: appliedCoupon.coupon_id,
+            order_id: order.id,
+            discount_applied: couponDiscount,
+          });
+        } catch {
+          // Non-blocking: order is placed, redemption tracking failed
+        }
+      }
+
       setCart([]);
+      setAppliedCoupon(null);
+      setCouponDiscount(0);
       setCheckoutOpen(false);
       toast({ title: "Order placed!", description: "Staff will bring your order to your bay." });
     } catch (err: any) {
@@ -252,9 +276,33 @@ export default function Shop() {
               </div>
             ))}
             <Separator />
+            <CouponInput
+              orderTotal={cartTotal}
+              appliedCoupon={appliedCoupon}
+              onApply={(result, discount) => {
+                setAppliedCoupon(result);
+                setCouponDiscount(discount);
+              }}
+              onRemove={() => {
+                setAppliedCoupon(null);
+                setCouponDiscount(0);
+              }}
+            />
+            {couponDiscount > 0 && (
+              <>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Subtotal</span>
+                  <span>{formatCurrency(cartTotal)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-primary">
+                  <span>Coupon Discount</span>
+                  <span>−{formatCurrency(couponDiscount)}</span>
+                </div>
+              </>
+            )}
             <div className="flex justify-between font-semibold">
               <span>Total</span>
-              <span>{formatCurrency(cartTotal)}</span>
+              <span>{formatCurrency(finalTotal)}</span>
             </div>
             <p className="text-xs text-muted-foreground">Staff will bring your order to your bay.</p>
           </div>

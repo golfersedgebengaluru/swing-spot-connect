@@ -7,6 +7,7 @@ import {
   MapPin,
   Gift,
   ShoppingBag,
+  Ticket,
   Trophy,
   CreditCard,
   Mail,
@@ -55,6 +56,7 @@ const operationsItems = [
   { id: "salesinvoices", label: "Sales & Invoices", icon: Receipt },
   { id: "expenses", label: "Expenses", icon: Receipt },
   { id: "products", label: "Products", icon: ShoppingBag },
+  { id: "coupons", label: "Coupons", icon: Ticket },
 ];
 
 const configItems = [

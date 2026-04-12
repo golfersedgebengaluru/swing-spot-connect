@@ -25,6 +25,7 @@ import { AdminFinanceTab } from "@/components/admin/AdminFinanceTab";
 import { AdminSalesInvoicesTab } from "@/components/admin/AdminSalesInvoicesTab";
 import { AdminExpensesTab } from "@/components/admin/AdminExpensesTab";
 import { AdminLeaguesTab } from "@/components/admin/AdminLeaguesTab";
+import { AdminCouponsTab } from "@/components/admin/AdminCouponsTab";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminTopbar, getTabTitle } from "@/components/admin/AdminTopbar";
 import { AdminCityProvider, useAdminCity } from "@/contexts/AdminCityContext";
@@ -76,6 +77,7 @@ const tabComponents: Record<string, React.ComponentType<any>> = {
   rewards: AdminRewardsTab,
   edgerewards: AdminEdgeRewardsTab,
   leagues: AdminLeaguesTab,
+  coupons: AdminCouponsTab,
   members: AdminMembersTab,
   allusers: AdminAllUsersTab,
   pages: AdminPagesTab,
