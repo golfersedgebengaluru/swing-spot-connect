@@ -23,6 +23,8 @@ import { useBayPricing } from "@/hooks/usePricing";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { CouponInput } from "@/components/shop/CouponInput";
+import { ValidateCouponResult, calculateDiscount, useRedeemCoupon } from "@/hooks/useCoupons";
 
 type Step = "select" | "payment" | "confirm";
 
@@ -33,6 +35,9 @@ export default function PublicBooking() {
   const { data: balance } = useUserHoursBalance();
   const { data: bayPricing } = useBayPricing();
   const createBooking = useCreateBooking();
+  const redeemCoupon = useRedeemCoupon();
+  const [appliedCoupon, setAppliedCoupon] = useState<ValidateCouponResult | null>(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
 
   const [step, setStep] = useState<Step>("select");
   const [selectedCity, setSelectedCity] = useState("");
@@ -89,6 +94,7 @@ export default function PublicBooking() {
   }, [selectedCity, bayPricing, selectedDate, sessionType]);
 
   const totalCost = currentPrice ? currentPrice.price_per_hour * (duration / 60) : 0;
+  const finalBookingTotal = Math.max(0, totalCost - couponDiscount);
 
   const endTime = useMemo(() => {
     if (!selectedSlot) return null;
@@ -146,7 +152,8 @@ export default function PublicBooking() {
         toast({ title: "Booking Confirmed!", description: "Hours have been deducted from your balance." });
       } else {
         // Payment flow via Razorpay
-        if (totalCost <= 0) {
+        const amountToCharge = finalBookingTotal;
+        if (amountToCharge <= 0) {
           toast({ title: "Error", description: "Price not available for this selection.", variant: "destructive" });
           setIsProcessing(false);
           return;
@@ -155,7 +162,7 @@ export default function PublicBooking() {
         // 1. Create Razorpay order via edge function
         const orderRes = await supabase.functions.invoke("create-razorpay-order", {
           body: {
-            amount: totalCost,
+            amount: amountToCharge,
             currency: currentPrice?.currency || "INR",
             city: selectedCity,
             receipt: `booking_${Date.now()}`,
@@ -199,7 +206,7 @@ export default function PublicBooking() {
 
           const options = {
             key: key_id,
-            amount: Math.round(totalCost * 100),
+            amount: Math.round(amountToCharge * 100),
             currency: rzpCurrency || "INR",
             name: "Golfer's Edge",
             description: `${currentBay.name} · ${duration / 60}h ${sessionType}`,
@@ -224,7 +231,7 @@ export default function PublicBooking() {
                   try {
                      await supabase.from("revenue_transactions").insert({
                       transaction_type: "payment" as any,
-                      amount: totalCost,
+                      amount: amountToCharge,
                       currency: currentPrice?.currency || "INR",
                       user_id: user.id,
                       gateway_name: "razorpay",
@@ -296,6 +303,20 @@ export default function PublicBooking() {
           rzp.open();
         });
 
+        // Redeem coupon if applied
+        if (appliedCoupon?.coupon_id) {
+          try {
+            await redeemCoupon.mutateAsync({
+              coupon_id: appliedCoupon.coupon_id,
+              discount_applied: couponDiscount,
+            });
+          } catch {
+            // Non-blocking
+          }
+        }
+
+        setAppliedCoupon(null);
+        setCouponDiscount(0);
         setBookingComplete(true);
         toast({ title: "Booking Confirmed!", description: "Payment processed successfully." });
       }
@@ -328,7 +349,7 @@ export default function PublicBooking() {
                 <p><span className="font-medium">Bay:</span> {currentBay?.name}</p>
                 <p><span className="font-medium">Time:</span> {selectedSlot && format(new Date(selectedSlot), "h:mm a")} – {endTime && format(new Date(endTime), "h:mm a")}</p>
                 <p><span className="font-medium">Duration:</span> {duration / 60}h</p>
-                <p><span className="font-medium">Paid via:</span> {paymentMethod === "hours" ? "Bay Hours" : `₹${totalCost.toLocaleString()}`}</p>
+                <p><span className="font-medium">Paid via:</span> {paymentMethod === "hours" ? "Bay Hours" : `₹${finalBookingTotal.toLocaleString()}`}</p>
               </div>
               <div className="mt-6 flex flex-col gap-2">
                 {user ? (
@@ -596,13 +617,56 @@ export default function PublicBooking() {
                   <div className="flex justify-between"><span className="text-muted-foreground">Duration</span><span className="font-medium">{duration / 60}h</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Type</span><span className="font-medium capitalize">{sessionType}</span></div>
                   {currentPrice && (
-                    <div className="flex justify-between border-t pt-2 mt-2">
-                      <span className="font-medium">Total</span>
-                      <span className="font-bold text-primary">₹{totalCost.toLocaleString()}</span>
-                    </div>
+                    <>
+                      {couponDiscount > 0 && (
+                        <>
+                          <div className="flex justify-between border-t pt-2 mt-2">
+                            <span className="text-muted-foreground">Subtotal</span>
+                            <span className="font-medium">₹{totalCost.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-primary">
+                            <span>Coupon Discount</span>
+                            <span>−₹{couponDiscount.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-medium">Total</span>
+                            <span className="font-bold text-primary">₹{finalBookingTotal.toLocaleString()}</span>
+                          </div>
+                        </>
+                      )}
+                      {couponDiscount === 0 && (
+                        <div className="flex justify-between border-t pt-2 mt-2">
+                          <span className="font-medium">Total</span>
+                          <span className="font-bold text-primary">₹{totalCost.toLocaleString()}</span>
+                        </div>
+                      )}
+                    </>
                   )}
                 </CardContent>
               </Card>
+
+              {/* Coupon Code */}
+              {paymentMethod === "pay" && totalCost > 0 && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Coupon Code</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CouponInput
+                      orderTotal={totalCost}
+                      appliedCoupon={appliedCoupon}
+                      onApply={(result, discount) => {
+                        setAppliedCoupon(result);
+                        setCouponDiscount(discount);
+                      }}
+                      onRemove={() => {
+                        setAppliedCoupon(null);
+                        setCouponDiscount(0);
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Guest Info (if not logged in) */}
               {isGuest && (
@@ -684,7 +748,7 @@ export default function PublicBooking() {
                     <div className="flex-1">
                       <p className="font-medium text-foreground">Pay Now</p>
                       <p className="text-sm text-muted-foreground">
-                        {totalCost > 0 ? `₹${totalCost.toLocaleString()}` : "Price TBD"} · Razorpay / UPI / Card
+                        {finalBookingTotal > 0 ? `₹${finalBookingTotal.toLocaleString()}` : "Price TBD"} · Razorpay / UPI / Card
                       </p>
                     </div>
                   </button>
@@ -707,7 +771,7 @@ export default function PublicBooking() {
                 ) : paymentMethod === "hours" ? (
                   `Confirm & Deduct ${hoursNeeded}h`
                 ) : (
-                  `Pay ₹${totalCost.toLocaleString()} & Book`
+                  `Pay ₹${finalBookingTotal.toLocaleString()} & Book`
                 )}
               </Button>
 

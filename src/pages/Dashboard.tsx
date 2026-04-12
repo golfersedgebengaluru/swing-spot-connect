@@ -19,6 +19,8 @@ import { EmailPreferencesCard } from "@/components/EmailPreferencesCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { CouponInput } from "@/components/shop/CouponInput";
+import { ValidateCouponResult, calculateDiscount, useRedeemCoupon } from "@/hooks/useCoupons";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -37,6 +39,10 @@ export default function Dashboard() {
   const { data: hourPackages, isLoading: loadingPackages } = useHourPackages();
   const { data: profile } = useUserProfile();
   const [buyingPkgId, setBuyingPkgId] = useState<string | null>(null);
+  const redeemCoupon = useRedeemCoupon();
+  const [appliedCoupon, setAppliedCoupon] = useState<ValidateCouponResult | null>(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponPkgId, setCouponPkgId] = useState<string | null>(null);
   const { data: visibility } = usePageVisibility();
   const userCity = profile?.preferred_city;
   const { data: coachingHoursPerSession } = useQuery({
@@ -117,11 +123,13 @@ export default function Dashboard() {
       return;
     }
     setBuyingPkgId(pkg.id);
+    const pkgDiscount = appliedCoupon ? calculateDiscount(appliedCoupon, pkg.price) : 0;
+    const amountToCharge = Math.max(0, pkg.price - pkgDiscount);
     try {
       // 1. Create Razorpay order
       const orderRes = await supabase.functions.invoke("create-razorpay-order", {
         body: {
-          amount: pkg.price,
+          amount: amountToCharge,
           currency: pkg.currency || "INR",
           city,
           receipt: `hours_${pkg.hours}h_${Date.now()}`,
@@ -155,7 +163,7 @@ export default function Dashboard() {
 
         const rzp = new (window as any).Razorpay({
           key: key_id,
-          amount: Math.round(pkg.price * 100),
+          amount: Math.round(amountToCharge * 100),
           currency: rzpCurrency || "INR",
           name: "Golfer's Edge",
           description: `${pkg.hours}h Hour Package - ${pkg.label}`,
@@ -193,6 +201,21 @@ export default function Dashboard() {
         setBuyingPkgId(null);
         rzp.open();
       });
+
+      // Redeem coupon if applied
+      if (pkgDiscount > 0 && appliedCoupon?.coupon_id) {
+        try {
+          await redeemCoupon.mutateAsync({
+            coupon_id: appliedCoupon.coupon_id,
+            discount_applied: pkgDiscount,
+          });
+        } catch {
+          // Non-blocking
+        }
+        setAppliedCoupon(null);
+        setCouponDiscount(0);
+        setCouponPkgId(null);
+      }
 
       toast({ title: "Hours Purchased!", description: `${pkg.hours} hours have been added to your balance.` });
     } catch (err: any) {
@@ -413,32 +436,58 @@ export default function Dashboard() {
                   Buy Hours
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {activePackages.map((pkg: any) => (
-                    <div
-                      key={pkg.id}
-                      className="relative rounded-xl p-5 transition-all hover:shadow-lg bg-card shadow-sm"
-                    >
-                      {pkg.hours === 25 && (
-                        <Badge className="absolute -top-2.5 right-3 bg-golf-gold/20 text-admin-gold-dark hover:bg-golf-gold/20 text-xs">
-                          Birdie Member
-                        </Badge>
-                      )}
-                      <p className="font-display text-3xl font-bold text-foreground">{pkg.hours}h</p>
-                      <p className="text-sm text-muted-foreground mt-1">{pkg.label}</p>
-                      <p className="font-display text-xl font-bold text-primary mt-3">₹{pkg.price.toLocaleString()}</p>
-                      <Button
-                        className="w-full mt-4"
-                        variant={pkg.hours === 25 ? "default" : "outline"}
-                        onClick={() => handleBuyHours(pkg)}
-                        disabled={buyingPkgId === pkg.id}
+                  {activePackages.map((pkg: any) => {
+                    const pkgDiscount = appliedCoupon ? calculateDiscount(appliedCoupon, pkg.price) : 0;
+                    const pkgFinal = Math.max(0, pkg.price - pkgDiscount);
+                    return (
+                      <div
+                        key={pkg.id}
+                        className="relative rounded-xl p-5 transition-all hover:shadow-lg bg-card shadow-sm"
                       >
-                        {buyingPkgId === pkg.id ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</> : "Buy Now"}
-                      </Button>
-                    </div>
-                  ))}
+                        {pkg.hours === 25 && (
+                          <Badge className="absolute -top-2.5 right-3 bg-golf-gold/20 text-admin-gold-dark hover:bg-golf-gold/20 text-xs">
+                            Birdie Member
+                          </Badge>
+                        )}
+                        <p className="font-display text-3xl font-bold text-foreground">{pkg.hours}h</p>
+                        <p className="text-sm text-muted-foreground mt-1">{pkg.label}</p>
+                        {pkgDiscount > 0 ? (
+                          <div className="mt-3">
+                            <p className="text-sm text-muted-foreground line-through">₹{pkg.price.toLocaleString()}</p>
+                            <p className="font-display text-xl font-bold text-primary">₹{pkgFinal.toLocaleString()}</p>
+                          </div>
+                        ) : (
+                          <p className="font-display text-xl font-bold text-primary mt-3">₹{pkg.price.toLocaleString()}</p>
+                        )}
+                        <Button
+                          className="w-full mt-4"
+                          variant={pkg.hours === 25 ? "default" : "outline"}
+                          onClick={() => handleBuyHours(pkg)}
+                          disabled={buyingPkgId === pkg.id}
+                        >
+                          {buyingPkgId === pkg.id ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</> : "Buy Now"}
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </div>
+                <CouponInput
+                  orderTotal={activePackages[0]?.price ?? 0}
+                  appliedCoupon={appliedCoupon}
+                  onApply={(result, discount) => {
+                    setAppliedCoupon(result);
+                    setCouponDiscount(discount);
+                    // Apply to the first package by default; actual discount recalculated per package at purchase time
+                    setCouponPkgId(null);
+                  }}
+                  onRemove={() => {
+                    setAppliedCoupon(null);
+                    setCouponDiscount(0);
+                    setCouponPkgId(null);
+                  }}
+                />
               </CardContent>
             </Card>
           )}
