@@ -581,8 +581,9 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
                             type="number"
                             min={1}
                             className="w-16 h-7 text-right text-xs"
-                            value={lineItems[idx].quantity}
-                            onChange={(e) => updateLineItem(idx, "quantity", Number(e.target.value) || 1)}
+                            value={lineItems[idx].quantity || ""}
+                            onChange={(e) => updateLineItem(idx, "quantity", e.target.value === "" ? 0 : Number(e.target.value))}
+                            onBlur={() => { if (!lineItems[idx].quantity) updateLineItem(idx, "quantity", 1); }}
                           />
                         </td>
                         <td className="py-2 px-2">
@@ -591,8 +592,8 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
                             min={0}
                             step="0.01"
                             className="w-24 h-7 text-right text-xs"
-                            value={lineItems[idx].unitPrice}
-                            onChange={(e) => updateLineItem(idx, "unitPrice", Number(e.target.value) || 0)}
+                            value={lineItems[idx].unitPrice || ""}
+                            onChange={(e) => updateLineItem(idx, "unitPrice", e.target.value === "" ? 0 : Number(e.target.value))}
                           />
                         </td>
                         <td className="py-2 px-2 text-right text-xs">{item.gstRate}%</td>
@@ -728,8 +729,8 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
                     type="number"
                     min={0}
                     step="0.01"
-                    value={amountPaid}
-                    onChange={(e) => setAmountPaid(Number(e.target.value) || 0)}
+                    value={amountPaid || ""}
+                    onChange={(e) => setAmountPaid(e.target.value === "" ? 0 : Number(e.target.value))}
                     className="mt-1"
                   />
                 </div>

@@ -414,7 +414,8 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
                             </td>
                             <td className="py-2 px-2">
                               <Input type="number" min={1} className="w-16 h-7 text-right text-xs" value={lineItems[idx].quantity || ""}
-                                onChange={(e) => updateLineItem(idx, "quantity", Number(e.target.value) || 1)} />
+                                onChange={(e) => updateLineItem(idx, "quantity", e.target.value === "" ? 0 : Number(e.target.value))}
+                                onBlur={() => { if (!lineItems[idx].quantity) updateLineItem(idx, "quantity", 1); }} />
                             </td>
                             <td className="py-2 px-2">
                               <Input type="number" min={0} step="0.01" className="w-24 h-7 text-right text-xs" value={lineItems[idx].unitPrice || ""}
