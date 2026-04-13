@@ -12,6 +12,8 @@ import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBays, useAvailableSlots, useCreateBooking, useUserHoursBalance, useUserProfile, useUpdatePreferredCity, useCities } from "@/hooks/useBookings";
+import { useBayHolidays } from "@/hooks/useBayHolidays";
+import { isDateBlocked, getBlockedReason } from "@/lib/bay-schedule-utils";
 import { useToast } from "@/hooks/use-toast";
 import { Navigate } from "react-router-dom";
 
@@ -46,6 +48,24 @@ export default function Bookings() {
   const currentBay = cityBays.find((b: any) => b.id === effectiveBayId);
 
   const dateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined;
+
+  // Holiday data for the current city
+  const { data: holidays = [] } = useBayHolidays(effectiveCity);
+  const weeklyOffDays: number[] = currentBay?.weekly_off_days ?? [];
+
+  // Check if selected date is blocked
+  const selectedDateBlocked = selectedDate && currentBay
+    ? isDateBlocked(selectedDate, weeklyOffDays, holidays, currentBay.id)
+    : false;
+  const blockedReason = selectedDate && currentBay
+    ? getBlockedReason(selectedDate, weeklyOffDays, holidays, currentBay.id)
+    : null;
+
+  const disableDate = (date: Date) => {
+    if (date < today || date > maxDate) return true;
+    if (!currentBay) return false;
+    return isDateBlocked(date, weeklyOffDays, holidays, currentBay.id);
+  };
 
   const { data: slots, isLoading: loadingSlots } = useAvailableSlots(
     currentBay?.calendar_email,
@@ -296,7 +316,7 @@ export default function Bookings() {
                         mode="single"
                         selected={selectedDate}
                         onSelect={(d) => { setSelectedDate(d); setSelectedSlot(null); }}
-                        disabled={(date) => date < today || date > maxDate}
+                        disabled={disableDate}
                         initialFocus
                         className={cn("p-3 pointer-events-auto")}
                       />

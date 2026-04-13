@@ -8,7 +8,10 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { MapPin, Plus, Pencil, Trash2, Loader2, LayoutGrid } from "lucide-react";
+import { WeeklyOffEditor, HolidayEditor, PeakHoursEditor } from "./BayScheduleEditors";
+import { getDayShort } from "@/lib/bay-schedule-utils";
 import { useBays } from "@/hooks/useBookings";
 import { CURRENCIES, getCurrencySymbol } from "@/lib/currencies";
 import { supabase } from "@/integrations/supabase/client";
@@ -194,7 +197,10 @@ export function BayConfigTab() {
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {bay.open_time} – {bay.close_time} · Peak: {bay.peak_start || "17:00"}–{bay.peak_end || "21:00"} · {bay.calendar_email || "No calendar"} · Coaching: {bay.coaching_hours}h
+                        {bay.open_time} – {bay.close_time} · {bay.calendar_email || "No calendar"} · Coaching: {bay.coaching_hours}h
+                        {bay.weekly_off_days?.length > 0 && (
+                          <> · Off: {bay.weekly_off_days.map((d: number) => getDayShort(d)).join(", ")}</>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -208,6 +214,10 @@ export function BayConfigTab() {
                   </div>
                 </div>
               ))}
+
+              {/* City-level schedule management */}
+              <Separator className="my-4" />
+              <HolidayEditor city={city} />
             </CardContent>
           </Card>
         );
@@ -249,7 +259,7 @@ export function BayConfigTab() {
                   <Input type="time" value={editing.peak_end} onChange={(e) => setEditing({ ...editing, peak_end: e.target.value })} />
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground -mt-2">Bookings outside peak hours earn off-peak loyalty multipliers.</p>
+              <p className="text-xs text-muted-foreground -mt-2">Peak hours are now managed per-bay via the schedule editors below.</p>
               <div>
                 <Label>Coaching Mode</Label>
                 <Select value={editing.coaching_mode} onValueChange={(v) => setEditing({ ...editing, coaching_mode: v })}>
@@ -306,6 +316,16 @@ export function BayConfigTab() {
                   <Label>Active</Label>
                 </div>
               </div>
+              {/* Schedule Editors (only for existing bays) */}
+              {editing.id && (
+                <>
+                  <Separator />
+                  <WeeklyOffEditor bayId={editing.id} city={editing.city} weeklyOffDays={(editing as any).weekly_off_days ?? []} />
+                  <Separator />
+                  <PeakHoursEditor bayId={editing.id} />
+                </>
+              )}
+
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" onClick={() => { setEditing(null); setIsNew(false); }}>Cancel</Button>
                 <Button onClick={handleSave} disabled={!editing.name || !editing.city}>Save</Button>

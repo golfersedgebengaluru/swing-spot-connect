@@ -20,6 +20,8 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBays, useAvailableSlots, useCreateBooking, useUserHoursBalance, useCities } from "@/hooks/useBookings";
 import { useBayPricing } from "@/hooks/usePricing";
+import { useBayHolidays } from "@/hooks/useBayHolidays";
+import { isDateBlocked } from "@/lib/bay-schedule-utils";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -114,6 +116,16 @@ export default function PublicBooking() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const maxDate = addDays(today, 30);
+
+  // Holiday data for selected city
+  const { data: holidays = [] } = useBayHolidays(selectedCity);
+  const weeklyOffDays: number[] = currentBay?.weekly_off_days ?? [];
+
+  const disableDate = (date: Date) => {
+    if (date < today || date > maxDate) return true;
+    if (!currentBay) return false;
+    return isDateBlocked(date, weeklyOffDays, holidays, currentBay.id);
+  };
 
   // Load Razorpay script
   const loadRazorpayScript = (): Promise<boolean> => {
@@ -467,7 +479,7 @@ export default function PublicBooking() {
                         mode="single"
                         selected={selectedDate}
                         onSelect={(d) => { setSelectedDate(d); setSelectedSlot(null); }}
-                        disabled={(date) => date < today || date > maxDate}
+                        disabled={disableDate}
                         initialFocus
                         className="p-3 pointer-events-auto"
                       />

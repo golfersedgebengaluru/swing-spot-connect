@@ -166,6 +166,79 @@ export type Database = {
         }
         Relationships: []
       }
+      bay_holidays: {
+        Row: {
+          bay_id: string | null
+          city: string
+          created_at: string
+          holiday_date: string
+          id: string
+          label: string
+        }
+        Insert: {
+          bay_id?: string | null
+          city: string
+          created_at?: string
+          holiday_date: string
+          id?: string
+          label?: string
+        }
+        Update: {
+          bay_id?: string | null
+          city?: string
+          created_at?: string
+          holiday_date?: string
+          id?: string
+          label?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bay_holidays_bay_id_fkey"
+            columns: ["bay_id"]
+            isOneToOne: false
+            referencedRelation: "bays"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bay_peak_hours: {
+        Row: {
+          bay_id: string
+          created_at: string
+          day_of_week: number | null
+          id: string
+          peak_end: string
+          peak_start: string
+          sort_order: number
+        }
+        Insert: {
+          bay_id: string
+          created_at?: string
+          day_of_week?: number | null
+          id?: string
+          peak_end: string
+          peak_start: string
+          sort_order?: number
+        }
+        Update: {
+          bay_id?: string
+          created_at?: string
+          day_of_week?: number | null
+          id?: string
+          peak_end?: string
+          peak_start?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bay_peak_hours_bay_id_fkey"
+            columns: ["bay_id"]
+            isOneToOne: false
+            referencedRelation: "bays"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bay_pricing: {
         Row: {
           city: string
@@ -231,6 +304,7 @@ export type Database = {
           peak_start: string | null
           sort_order: number
           updated_at: string
+          weekly_off_days: number[]
         }
         Insert: {
           calendar_email?: string | null
@@ -249,6 +323,7 @@ export type Database = {
           peak_start?: string | null
           sort_order?: number
           updated_at?: string
+          weekly_off_days?: number[]
         }
         Update: {
           calendar_email?: string | null
@@ -267,6 +342,7 @@ export type Database = {
           peak_start?: string | null
           sort_order?: number
           updated_at?: string
+          weekly_off_days?: number[]
         }
         Relationships: []
       }
