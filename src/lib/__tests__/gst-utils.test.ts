@@ -36,11 +36,11 @@ describe("validateGSTIN", () => {
   });
 
   it("validates a correct GSTIN with checksum", () => {
-    // Known valid GSTIN: 29AABCU9603R1ZM (Karnataka)
-    const result = validateGSTIN("29AABCU9603R1ZM");
+    // Known valid GSTIN: 27AAPFU0939F1ZV (Maharashtra)
+    const result = validateGSTIN("27AAPFU0939F1ZV");
     expect(result.valid).toBe(true);
-    expect(result.stateCode).toBe("29");
-    expect(result.stateName).toBe("Karnataka");
+    expect(result.stateCode).toBe("27");
+    expect(result.stateName).toBe("Maharashtra");
   });
 
   it("rejects GSTIN with wrong checksum", () => {
