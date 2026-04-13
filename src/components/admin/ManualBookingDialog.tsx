@@ -156,12 +156,69 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
     setIsSearching(true);
     try {
       const q = searchQuery.trim().toLowerCase();
-      const { data } = await supabase
+
+      // Search regular profiles
+      const { data: profileData } = await supabase
         .from("profiles")
         .select("id, user_id, display_name, email, phone, user_type")
         .or(`display_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`)
         .limit(10);
-      setSearchResults(data ?? []);
+
+      // Search league players by league name, tenant name, or player name
+      const { data: leaguePlayers } = await supabase
+        .from("league_players" as any)
+        .select(`
+          id,
+          user_id,
+          leagues!inner(name, tenant_id, tenants:tenant_id(name))
+        `)
+        .limit(20);
+
+      // Build league player results that match search query
+      const leagueResults: any[] = [];
+      const seenUserIds = new Set((profileData ?? []).map((p: any) => p.user_id || p.id));
+
+      if (leaguePlayers) {
+        for (const lp of leaguePlayers as any[]) {
+          const leagueName = lp.leagues?.name ?? "";
+          const tenantName = lp.leagues?.tenants?.name ?? "";
+          const tag = `${tenantName} - ${leagueName}`;
+
+          if (
+            !tag.toLowerCase().includes(q) &&
+            !leagueName.toLowerCase().includes(q) &&
+            !tenantName.toLowerCase().includes(q)
+          ) continue;
+
+          if (seenUserIds.has(lp.user_id)) {
+            // Augment existing profile result with league tag
+            const existing = (profileData ?? []).find(
+              (p: any) => (p.user_id || p.id) === lp.user_id
+            );
+          if (existing && !(existing as any).league_tag) {
+            (existing as any).league_tag = `League: ${tag}`;
+            }
+            continue;
+          }
+
+          // Fetch profile for this league player
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("id, user_id, display_name, email, phone, user_type")
+            .eq("user_id", lp.user_id)
+            .single();
+
+          if (profile) {
+            seenUserIds.add(lp.user_id);
+            leagueResults.push({
+              ...profile,
+              league_tag: `League: ${tag}`,
+            });
+          }
+        }
+      }
+
+      setSearchResults([...(profileData ?? []), ...leagueResults]);
     } finally {
       setIsSearching(false);
     }
@@ -492,6 +549,9 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
                         <div className="font-medium">{p.display_name || "Unnamed"}</div>
                         <div className="text-xs text-muted-foreground">
                           {p.email} {p.phone && `· ${p.phone}`}
+                          {p.league_tag && (
+                            <Badge variant="secondary" className="ml-2 text-[10px]">{p.league_tag}</Badge>
+                          )}
                           <Badge variant="outline" className="ml-2 text-[10px]">{p.user_type}</Badge>
                         </div>
                       </button>
