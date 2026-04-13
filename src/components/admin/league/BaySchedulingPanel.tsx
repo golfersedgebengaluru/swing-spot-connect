@@ -56,7 +56,7 @@ export function BaySchedulingPanel({ league, tenantId }: Props) {
         <Button
           size="sm"
           onClick={() => navigate("/admin?tab=walk-in")}
-          disabled={league.status !== "active"}
+          disabled={false}
         >
           <Plus className="h-4 w-4 mr-1" /> Book Bay
         </Button>
