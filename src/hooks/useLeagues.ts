@@ -25,8 +25,8 @@ async function invoke(path: string, method: string, body?: any) {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error("Not authenticated");
 
-  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-  const url = `https://${projectId}.supabase.co/functions/v1/${FUNCTION_NAME}${path}`;
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const url = `${supabaseUrl}/functions/v1/${FUNCTION_NAME}${path}`;
 
   const res = await fetch(url, {
     method,
