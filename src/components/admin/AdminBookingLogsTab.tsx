@@ -76,6 +76,7 @@ export function AdminBookingLogsTab() {
   useEffect(() => {
     const urlStatus = searchParams.get("status");
     const urlType = searchParams.get("type");
+    const openMB = searchParams.get("openManualBooking");
     if (urlStatus) {
       setStatusFilter(urlStatus);
       searchParams.delete("status");
@@ -84,7 +85,11 @@ export function AdminBookingLogsTab() {
       setTypeFilter(urlType);
       searchParams.delete("type");
     }
-    if (urlStatus || urlType) {
+    if (openMB) {
+      setManualBookingOpen(true);
+      searchParams.delete("openManualBooking");
+    }
+    if (urlStatus || urlType || openMB) {
       setSearchParams(searchParams, { replace: true });
     }
   }, []);
