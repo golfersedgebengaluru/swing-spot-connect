@@ -7,16 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, Ban, Calendar, Clock, Users, X, RefreshCw } from "lucide-react";
+import { Loader2, Ban, Calendar, Clock, Users, X, Plus } from "lucide-react";
 import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
 import {
   useBayAvailability,
   useBayBookings,
-  useCreateBayBooking,
   useCancelBayBooking,
-  useJoinBayBooking,
-  useRescheduleBayBooking,
   useBayBlocks,
   useCreateBayBlock,
   useRemoveBayBlock,
@@ -32,6 +29,7 @@ interface Props {
 export function BaySchedulingPanel({ league, tenantId }: Props) {
   const today = format(new Date(), "yyyy-MM-dd");
   const [selectedDate, setSelectedDate] = useState(today);
+  const navigate = useNavigate();
 
   const { data: availability, isLoading: availLoading } = useBayAvailability(league.id, selectedDate);
   const { data: bookings, isLoading: bookingsLoading } = useBayBookings(league.id, selectedDate);
@@ -55,7 +53,13 @@ export function BaySchedulingPanel({ league, tenantId }: Props) {
             className="w-[180px]"
           />
         </div>
-        <CreateBookingDialog league={league} tenantId={tenantId} bays={bays || []} defaultDate={selectedDate} />
+        <Button
+          size="sm"
+          onClick={() => navigate("/admin?tab=walk-in")}
+          disabled={league.status !== "active"}
+        >
+          <Plus className="h-4 w-4 mr-1" /> Book Bay
+        </Button>
         <BlockBayDialog league={league} bays={bays || []} />
       </div>
 
@@ -191,114 +195,6 @@ export function BaySchedulingPanel({ league, tenantId }: Props) {
         </>
       )}
     </div>
-  );
-}
-
-// ── Create Booking Dialog ────────────────────────────────────
-function CreateBookingDialog({
-  league,
-  tenantId,
-  bays,
-  defaultDate,
-}: {
-  league: League;
-  tenantId: string;
-  bays: { id: string; name: string }[];
-  defaultDate: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [bayId, setBayId] = useState("");
-  const [time, setTime] = useState("10:00");
-  const [duration, setDuration] = useState("60");
-  const [maxPlayers, setMaxPlayers] = useState("4");
-  const [notes, setNotes] = useState("");
-  const createBooking = useCreateBayBooking(league.id);
-
-  const handleCreate = () => {
-    if (!bayId) return;
-    const scheduledAt = new Date(`${defaultDate}T${time}:00`).toISOString();
-    createBooking.mutate(
-      {
-        bay_id: bayId,
-        scheduled_at: scheduledAt,
-        duration_minutes: parseInt(duration),
-        max_players: parseInt(maxPlayers),
-        booking_method: "admin_assigned",
-        notes: notes || undefined,
-      },
-      {
-        onSuccess: () => {
-          setOpen(false);
-          setBayId("");
-          setNotes("");
-        },
-      }
-    );
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" disabled={league.status !== "active"}>
-          <Plus className="h-4 w-4 mr-1" /> Book Bay
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Book a Bay</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label>Bay</Label>
-            <Select value={bayId} onValueChange={setBayId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select bay" />
-              </SelectTrigger>
-              <SelectContent>
-                {bays.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>
-                    {b.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Time</Label>
-              <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-            </div>
-            <div>
-              <Label>Duration (min)</Label>
-              <Select value={duration} onValueChange={setDuration}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[30, 60, 90, 120].map((d) => (
-                    <SelectItem key={d} value={String(d)}>
-                      {d} min
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div>
-            <Label>Max Players</Label>
-            <Input type="number" min={1} max={8} value={maxPlayers} onChange={(e) => setMaxPlayers(e.target.value)} />
-          </div>
-          <div>
-            <Label>Notes</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes" rows={2} />
-          </div>
-          <Button onClick={handleCreate} disabled={createBooking.isPending || !bayId} className="w-full">
-            {createBooking.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Create Booking
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }
 
