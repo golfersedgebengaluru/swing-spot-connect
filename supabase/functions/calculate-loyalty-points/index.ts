@@ -38,21 +38,69 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 0. Auto-detect off-peak if not explicitly provided
+    // 0. Auto-detect off-peak using bay_peak_hours table
     let isOffPeak = event.is_off_peak;
-    if (isOffPeak === undefined && event.city && event.booking_start_time) {
-      const { data: bayConfig } = await supabase
-        .from("bays")
-        .select("peak_start, peak_end")
-        .eq("city", event.city)
-        .eq("is_active", true)
-        .limit(1)
-        .single();
+    if (isOffPeak === undefined && event.booking_start_time) {
+      const bookingTime = new Date(event.booking_start_time);
+      const dayOfWeek = bookingTime.getDay(); // 0=Sun..6=Sat
+      const timeStr = bookingTime.toTimeString().slice(0, 5); // "HH:MM"
 
-      if (bayConfig?.peak_start && bayConfig?.peak_end) {
-        const bookingTime = new Date(event.booking_start_time);
-        const timeStr = bookingTime.toTimeString().slice(0, 5); // "HH:MM"
-        isOffPeak = timeStr < bayConfig.peak_start || timeStr >= bayConfig.peak_end;
+      // Try to find peak hours from bay_peak_hours table
+      // First try day-specific, then fall back to defaults (day_of_week IS NULL)
+      let peakWindows: { peak_start: string; peak_end: string }[] = [];
+
+      if (event.metadata?.booking_id) {
+        // Get bay_id from booking
+        const { data: booking } = await supabase
+          .from("bookings")
+          .select("bay_id")
+          .eq("id", event.metadata.booking_id)
+          .single();
+
+        if (booking?.bay_id) {
+          // First try day-specific peak hours
+          const { data: dayPeaks } = await supabase
+            .from("bay_peak_hours")
+            .select("peak_start, peak_end")
+            .eq("bay_id", booking.bay_id)
+            .eq("day_of_week", dayOfWeek);
+
+          if (dayPeaks && dayPeaks.length > 0) {
+            peakWindows = dayPeaks;
+          } else {
+            // Fall back to defaults
+            const { data: defaultPeaks } = await supabase
+              .from("bay_peak_hours")
+              .select("peak_start, peak_end")
+              .eq("bay_id", booking.bay_id)
+              .is("day_of_week", null);
+
+            peakWindows = defaultPeaks || [];
+          }
+        }
+      }
+
+      // Legacy fallback: use bays table peak_start/peak_end if no bay_peak_hours found
+      if (peakWindows.length === 0 && event.city) {
+        const { data: bayConfig } = await supabase
+          .from("bays")
+          .select("peak_start, peak_end")
+          .eq("city", event.city)
+          .eq("is_active", true)
+          .limit(1)
+          .single();
+
+        if (bayConfig?.peak_start && bayConfig?.peak_end) {
+          peakWindows = [{ peak_start: bayConfig.peak_start, peak_end: bayConfig.peak_end }];
+        }
+      }
+
+      if (peakWindows.length > 0) {
+        // Off-peak means NOT within any peak window
+        const withinPeak = peakWindows.some(
+          (w) => timeStr >= w.peak_start && timeStr < w.peak_end
+        );
+        isOffPeak = !withinPeak;
       }
     }
 
