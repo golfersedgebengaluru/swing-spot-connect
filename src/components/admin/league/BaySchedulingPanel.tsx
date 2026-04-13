@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Ban, Calendar, Clock, Users, X, Plus } from "lucide-react";
 import { format } from "date-fns";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   useBayAvailability,
   useBayBookings,
@@ -30,6 +30,7 @@ export function BaySchedulingPanel({ league, tenantId }: Props) {
   const today = format(new Date(), "yyyy-MM-dd");
   const [selectedDate, setSelectedDate] = useState(today);
   const navigate = useNavigate();
+  const [, setSearchParams] = useSearchParams();
 
   const { data: availability, isLoading: availLoading } = useBayAvailability(league.id, selectedDate);
   const { data: bookings, isLoading: bookingsLoading } = useBayBookings(league.id, selectedDate);
@@ -55,8 +56,7 @@ export function BaySchedulingPanel({ league, tenantId }: Props) {
         </div>
         <Button
           size="sm"
-          onClick={() => navigate("/admin?tab=walkin")}
-          disabled={false}
+          onClick={() => setSearchParams({ tab: "walkin" })}
         >
           <Plus className="h-4 w-4 mr-1" /> Book Bay
         </Button>
