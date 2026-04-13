@@ -195,8 +195,8 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             const existing = (profileData ?? []).find(
               (p: any) => (p.user_id || p.id) === lp.user_id
             );
-            if (existing && !existing.league_tag) {
-              existing.league_tag = `League: ${tag}`;
+          if (existing && !(existing as any).league_tag) {
+            (existing as any).league_tag = `League: ${tag}`;
             }
             continue;
           }
