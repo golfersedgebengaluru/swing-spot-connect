@@ -56,7 +56,7 @@ export function BaySchedulingPanel({ league, tenantId }: Props) {
         </div>
         <Button
           size="sm"
-          onClick={() => setSearchParams({ tab: "walkin" })}
+          onClick={() => setSearchParams({ tab: "bookinglogs", openManualBooking: "1" })}
         >
           <Plus className="h-4 w-4 mr-1" /> Book Bay
         </Button>
