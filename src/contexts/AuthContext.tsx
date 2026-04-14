@@ -77,30 +77,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
   const [phoneMissing, setPhoneMissing] = useState(false);
   const phoneCheckedRef = useRef<string | null>(null);
+  const autoGiftFiredRef = useRef<Set<string>>(new Set());
+  const hadSessionRef = useRef(false);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, nextSession) => {
-        setSession(nextSession);
-        setUser(nextSession?.user ?? null);
-        setLoading(false);
-
-        // Trigger auto-gifts on first sign-up
-        if (event === "SIGNED_IN" && nextSession?.user) {
-          supabase.functions.invoke("process-auto-gifts", {
-            body: { user_id: nextSession.user.id, trigger_event: "signup" },
-          }).catch((err) => console.error("Auto-gift error:", err));
-        }
-
-        if (!nextSession?.user) {
-          setProfileCheck({ needed: false, displayName: "", email: "" });
-          setPhoneMissing(false);
-          phoneCheckedRef.current = null;
-        }
-      }
-    );
-
+    // Get the initial session first so we know if this is a restore
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      if (initialSession?.user) {
+        hadSessionRef.current = true;
+      }
       setSession(initialSession);
       setUser(initialSession?.user ?? null);
       setLoading(false);
@@ -111,6 +96,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         phoneCheckedRef.current = null;
       }
     });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, nextSession) => {
+        setSession(nextSession);
+        setUser(nextSession?.user ?? null);
+        setLoading(false);
+
+        // Only fire auto-gifts on a genuine fresh sign-in, not session restores
+        if (
+          event === "SIGNED_IN" &&
+          nextSession?.user &&
+          !hadSessionRef.current &&
+          !autoGiftFiredRef.current.has(nextSession.user.id)
+        ) {
+          autoGiftFiredRef.current.add(nextSession.user.id);
+          supabase.functions.invoke("process-auto-gifts", {
+            body: { user_id: nextSession.user.id, trigger_event: "signup" },
+          }).catch((err) => console.error("Auto-gift error:", err));
+        }
+
+        // After first SIGNED_IN event, mark that we have a session
+        if (event === "SIGNED_IN") {
+          hadSessionRef.current = true;
+        }
+
+        if (!nextSession?.user) {
+          setProfileCheck({ needed: false, displayName: "", email: "" });
+          setPhoneMissing(false);
+          phoneCheckedRef.current = null;
+          hadSessionRef.current = false;
+        }
+      }
+    );
 
     return () => subscription.unsubscribe();
   }, []);
