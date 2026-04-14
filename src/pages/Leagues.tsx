@@ -250,7 +250,7 @@ function Leaderboard({ leagueId, league }: { leagueId: string; league: League })
           {ranked.map((s, i) => (
             <TableRow key={s.id}>
               <TableCell className="font-bold">{i + 1}</TableCell>
-              <TableCell className="font-mono text-xs">{s.player_id.slice(0, 8)}</TableCell>
+              <TableCell>{(s as any).player_name || s.player_id.slice(0, 8)}</TableCell>
               <TableCell className="font-semibold">{s.total_score ?? "—"}</TableCell>
               <TableCell>{s.round_number}</TableCell>
             </TableRow>
