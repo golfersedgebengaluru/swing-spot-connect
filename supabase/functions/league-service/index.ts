@@ -1076,6 +1076,158 @@ Deno.serve(async (req) => {
       return err('Method not allowed', 405)
     }
 
+    // ── ROUNDS ────────────────────────────────────────────────
+    if (route.action === 'league-rounds' && route.leagueId) {
+      const { data: league } = await supabase.from('leagues').select('tenant_id').eq('id', route.leagueId).single()
+      if (!league) return err('League not found', 404)
+      const tenantId = league.tenant_id
+
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (!role) return err('No access', 403)
+
+      if (method === 'GET') {
+        const { data, error } = await supabase
+          .from('league_rounds')
+          .select('*')
+          .eq('league_id', route.leagueId)
+          .order('round_number')
+        if (error) return err(error.message, 500)
+        return json(data)
+      }
+
+      if (method === 'POST') {
+        if (role === 'player') return err('Insufficient permissions', 403)
+        const body = await req.json()
+        if (!body.name || !body.start_date || !body.end_date) return err('name, start_date, end_date are required')
+
+        // Auto-assign round_number
+        const { data: existing } = await supabase
+          .from('league_rounds')
+          .select('round_number')
+          .eq('league_id', route.leagueId)
+          .order('round_number', { ascending: false })
+          .limit(1)
+        const nextRound = (existing && existing.length > 0) ? existing[0].round_number + 1 : 1
+
+        const { data, error } = await supabase.from('league_rounds').insert({
+          league_id: route.leagueId,
+          tenant_id: tenantId,
+          round_number: body.round_number || nextRound,
+          name: body.name,
+          description: body.description ?? null,
+          start_date: body.start_date,
+          end_date: body.end_date,
+        }).select().single()
+        if (error) return err(error.message, 500)
+
+        await audit(supabase, tenantId, route.leagueId, user.id, role!, 'RoundCreated', 'league_round', data.id, null, data)
+        return json(data, 201)
+      }
+
+      return err('Method not allowed', 405)
+    }
+
+    // ── ROUND DETAIL (update / delete) ────────────────────────
+    if (route.action === 'league-round-detail' && route.leagueId && route.subId) {
+      const { data: round } = await supabase.from('league_rounds').select('*, leagues!inner(tenant_id)').eq('id', route.subId).single()
+      if (!round) return err('Round not found', 404)
+      const tenantId = (round as any).leagues.tenant_id
+
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (!role || role === 'player') return err('Insufficient permissions', 403)
+
+      if (method === 'PATCH') {
+        const body = await req.json()
+        const updates: Record<string, any> = {}
+        for (const key of ['name', 'description', 'start_date', 'end_date', 'round_number']) {
+          if (body[key] !== undefined) updates[key] = body[key]
+        }
+        const { data, error } = await supabase.from('league_rounds').update(updates).eq('id', route.subId).select().single()
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId!, user.id, role!, 'RoundUpdated', 'league_round', route.subId, round, data)
+        return json(data)
+      }
+
+      if (method === 'DELETE') {
+        const { error } = await supabase.from('league_rounds').delete().eq('id', route.subId)
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId!, user.id, role!, 'RoundDeleted', 'league_round', route.subId, round, null)
+        return json({ success: true })
+      }
+
+      return err('Method not allowed', 405)
+    }
+
+    // ── ROUND COMPETITIONS ────────────────────────────────────
+    if (route.action === 'league-round-competitions' && route.leagueId && route.subId) {
+      const { data: round } = await supabase.from('league_rounds').select('*, leagues!inner(tenant_id)').eq('id', route.subId).single()
+      if (!round) return err('Round not found', 404)
+      const tenantId = (round as any).leagues.tenant_id
+
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (!role) return err('No access', 403)
+
+      if (method === 'GET') {
+        const { data, error } = await supabase
+          .from('league_competitions')
+          .select('*')
+          .eq('round_id', route.subId)
+          .order('sort_order')
+        if (error) return err(error.message, 500)
+        return json(data)
+      }
+
+      if (method === 'POST') {
+        if (role === 'player') return err('Insufficient permissions', 403)
+        const body = await req.json()
+        if (!body.name) return err('name is required')
+
+        const { data, error } = await supabase.from('league_competitions').insert({
+          round_id: route.subId,
+          league_id: route.leagueId,
+          tenant_id: tenantId,
+          name: body.name,
+          description: body.description ?? null,
+          points_config: body.points_config ?? [],
+          sort_order: body.sort_order ?? 0,
+        }).select().single()
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId, user.id, role!, 'CompetitionCreated', 'league_competition', data.id, null, data)
+        return json(data, 201)
+      }
+
+      if (method === 'PATCH') {
+        const compId = url.searchParams.get('competition_id')
+        if (!compId) return err('competition_id query param required')
+        if (role === 'player') return err('Insufficient permissions', 403)
+
+        const body = await req.json()
+        const updates: Record<string, any> = {}
+        for (const key of ['name', 'description', 'points_config', 'sort_order']) {
+          if (body[key] !== undefined) updates[key] = body[key]
+        }
+        const { data: before } = await supabase.from('league_competitions').select('*').eq('id', compId).single()
+        const { data, error } = await supabase.from('league_competitions').update(updates).eq('id', compId).select().single()
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId, user.id, role!, 'CompetitionUpdated', 'league_competition', compId, before, data)
+        return json(data)
+      }
+
+      if (method === 'DELETE') {
+        const compId = url.searchParams.get('competition_id')
+        if (!compId) return err('competition_id query param required')
+        if (role === 'player') return err('Insufficient permissions', 403)
+
+        const { data: before } = await supabase.from('league_competitions').select('*').eq('id', compId).single()
+        const { error } = await supabase.from('league_competitions').delete().eq('id', compId)
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId, user.id, role!, 'CompetitionDeleted', 'league_competition', compId, before, null)
+        return json({ success: true })
+      }
+
+      return err('Method not allowed', 405)
+    }
+
     return err('Not found', 404)
   } catch (e) {
     console.error('League service error:', e)
