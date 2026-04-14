@@ -117,6 +117,10 @@ function parseRoute(url: URL): Route {
     if (subResource === 'bay-bookings' && segments[4]) {
       return { action: 'league-bay-booking-detail', leagueId, subResource, bookingId: segments[4] }
     }
+    // /leagues/:id/players/:playerId
+    if (subResource === 'players' && segments[4]) {
+      return { action: 'league-player-detail', leagueId, subResource, bookingId: segments[4] }
+    }
     return { action: `league-${subResource}`, leagueId, subResource }
   }
   return { action: 'unknown' }
