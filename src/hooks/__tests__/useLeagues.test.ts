@@ -485,15 +485,20 @@ describe("League query staleTime optimisation", () => {
   it("all useQuery hooks should include staleTime", async () => {
     const source = await import("../useLeagues?raw");
     const code = (source as any).default ?? source;
-    const queryBlocks = code.split("useQuery");
-    // First element is before first useQuery – skip it
-    for (let i = 1; i < queryBlocks.length; i++) {
-      const block = queryBlocks[i];
-      const configEnd = block.indexOf("});");
+    // Match useQuery<...>({ ... }) blocks – each should contain staleTime
+    const pattern = /useQuery<[^>]*>\(\{/g;
+    let match;
+    let count = 0;
+    while ((match = pattern.exec(code)) !== null) {
+      count++;
+      const start = match.index;
+      const configEnd = code.indexOf("});", start);
       if (configEnd === -1) continue;
-      const config = block.slice(0, configEnd);
+      const config = code.slice(start, configEnd);
       expect(config).toContain("staleTime");
     }
+    // Ensure we actually checked some queries
+    expect(count).toBeGreaterThanOrEqual(10);
   });
 });
 
