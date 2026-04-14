@@ -131,8 +131,12 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
     if (!selectedCity || !bayPricing || !selectedDate) return null;
     const isWeekend = [0, 6].includes(selectedDate.getDay());
     const dayType = isWeekend ? "weekend" : "weekday";
+    if (sessionType === "coaching") {
+      // Use coaching rate from bay_pricing (e.g. coaching_60)
+      return bayPricing.find((p: any) => p.city === selectedCity && p.day_type === dayType && p.session_type.includes("coaching")) ?? null;
+    }
     return bayPricing.find((p: any) => p.city === selectedCity && p.day_type === dayType && p.session_type === playerSessionType) ?? null;
-  }, [selectedCity, bayPricing, selectedDate, playerSessionType]);
+  }, [selectedCity, bayPricing, selectedDate, playerSessionType, sessionType]);
 
   const totalCost = currentPrice ? currentPrice.price_per_hour * (duration / 60) : 0;
 
@@ -773,7 +777,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
               </div>
             </div>
 
-            {currentPrice && (
+            {currentPrice && paymentMode !== "hours" && (
               <p className="text-sm text-muted-foreground">
                 ₹{currentPrice.price_per_hour}/hr · Total: <span className="font-medium text-foreground">₹{totalCost.toLocaleString()}</span>
               </p>
