@@ -1560,6 +1560,67 @@ export type Database = {
           },
         ]
       }
+      league_competitions: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          league_id: string
+          name: string
+          points_config: Json
+          round_id: string
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          league_id: string
+          name: string
+          points_config?: Json
+          round_id: string
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          league_id?: string
+          name?: string
+          points_config?: Json
+          round_id?: string
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_competitions_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_competitions_round_id_fkey"
+            columns: ["round_id"]
+            isOneToOne: false
+            referencedRelation: "league_rounds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_competitions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       league_join_codes: {
         Row: {
           code: string
@@ -1678,6 +1739,60 @@ export type Database = {
           },
           {
             foreignKeyName: "league_roles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_rounds: {
+        Row: {
+          created_at: string
+          description: string | null
+          end_date: string
+          id: string
+          league_id: string
+          name: string
+          round_number: number
+          start_date: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          end_date: string
+          id?: string
+          league_id: string
+          name: string
+          round_number: number
+          start_date: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          end_date?: string
+          id?: string
+          league_id?: string
+          name?: string
+          round_number?: number
+          start_date?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_rounds_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_rounds_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
