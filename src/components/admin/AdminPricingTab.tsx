@@ -25,10 +25,14 @@ function BayPricingSection() {
   const { data: bays } = useBays();
   const { data: allProducts } = useAllProducts();
   const upsert = useUpsertBayPricing();
+  const deletePricing = useDeleteBayPricing();
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [serviceEdits, setServiceEdits] = useState<Record<string, string | null>>({});
   const [selectedCity, setSelectedCity] = useState<string>("");
   const { selectedCity: globalCity } = useAdminCity();
+  const [showAdd, setShowAdd] = useState(false);
+  const [newSessionKey, setNewSessionKey] = useState("");
+  const [newSessionLabel, setNewSessionLabel] = useState("");
 
   const services = useMemo(() =>
     (allProducts ?? []).filter((p: any) => p.item_type === "service"),
@@ -45,15 +49,27 @@ function BayPricingSection() {
 
   const effectiveCity = globalCity || selectedCity || cities[0] || "";
 
+  // Derive session types dynamically from existing pricing data for this city
+  const cityPricing = useMemo(() =>
+    (pricing ?? []).filter((p: any) => p.city === effectiveCity),
+    [pricing, effectiveCity]
+  );
+
+  const sessionTypes = useMemo(() => {
+    const seen = new Map<string, string>();
+    cityPricing.forEach((p: any) => {
+      if (!seen.has(p.session_type)) seen.set(p.session_type, p.label);
+    });
+    return Array.from(seen.entries()).map(([key, label]) => ({ key, label }));
+  }, [cityPricing]);
+
   const pricingMap = useMemo(() => {
     const map: Record<string, any> = {};
-    (pricing ?? [])
-      .filter((p: any) => p.city === effectiveCity)
-      .forEach((p: any) => {
-        map[`${p.day_type}_${p.session_type}`] = p;
-      });
+    cityPricing.forEach((p: any) => {
+      map[`${p.day_type}_${p.session_type}`] = p;
+    });
     return map;
-  }, [pricing, effectiveCity]);
+  }, [cityPricing]);
 
   const getKey = (day: string, session: string) => `${day}_${session}`;
 
@@ -64,7 +80,6 @@ function BayPricingSection() {
   };
 
   const getServiceId = (session: string) => {
-    // Service is linked per session type (same across day types for a city)
     const weekdayKey = `weekday_${session}`;
     if (serviceEdits[session] !== undefined) return serviceEdits[session];
     return pricingMap[weekdayKey]?.service_product_id ?? null;
@@ -81,7 +96,7 @@ function BayPricingSection() {
   const handleSave = async () => {
     const promises: Promise<void>[] = [];
     for (const day of DAY_TYPES) {
-      for (const session of SESSION_TYPES) {
+      for (const session of sessionTypes) {
         const k = getKey(day.key, session.key);
         const priceChanged = edits[k] !== undefined;
         const serviceChanged = serviceEdits[session.key] !== undefined;
@@ -119,6 +134,51 @@ function BayPricingSection() {
     }
   };
 
+  const handleAddSession = async () => {
+    const key = newSessionKey.trim().toLowerCase().replace(/\s+/g, "_");
+    const label = newSessionLabel.trim();
+    if (!key || !label) {
+      toast({ title: "Missing fields", description: "Both key and label are required.", variant: "destructive" });
+      return;
+    }
+    if (sessionTypes.some((s) => s.key === key)) {
+      toast({ title: "Duplicate", description: "This session type already exists.", variant: "destructive" });
+      return;
+    }
+    try {
+      await Promise.all(
+        DAY_TYPES.map((d) =>
+          upsert.mutateAsync({
+            city: effectiveCity,
+            day_type: d.key,
+            session_type: key,
+            label,
+            price_per_hour: 0,
+            currency: "INR",
+          })
+        )
+      );
+      setNewSessionKey("");
+      setNewSessionLabel("");
+      setShowAdd(false);
+      toast({ title: "Added", description: `Session type "${label}" created.` });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleDeleteSession = async (sessionKey: string) => {
+    const idsToDelete = cityPricing
+      .filter((p: any) => p.session_type === sessionKey)
+      .map((p: any) => p.id);
+    try {
+      await Promise.all(idsToDelete.map((id: string) => deletePricing.mutateAsync(id)));
+      toast({ title: "Deleted", description: "Session pricing removed." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
   const hasChanges = Object.keys(edits).length > 0 || Object.keys(serviceEdits).length > 0;
 
   if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
@@ -126,9 +186,14 @@ function BayPricingSection() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <IndianRupee className="h-4 w-4" /> Bay Session Pricing
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <IndianRupee className="h-4 w-4" /> Bay Session Pricing
+          </CardTitle>
+          <Button size="sm" variant="outline" onClick={() => setShowAdd(!showAdd)}>
+            <Plus className="h-4 w-4 mr-1" /> Add Session Type
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {cities.length > 1 && (
@@ -147,9 +212,25 @@ function BayPricingSection() {
           </div>
         )}
 
-        {effectiveCity && (
+        {showAdd && (
+          <div className="flex flex-col sm:flex-row items-end gap-3 p-3 rounded-lg border border-dashed border-border">
+            <div className="flex-1 space-y-1">
+              <Label className="text-xs">Key (e.g. "family")</Label>
+              <Input value={newSessionKey} onChange={(e) => setNewSessionKey(e.target.value)} placeholder="family" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <Label className="text-xs">Display Label</Label>
+              <Input value={newSessionLabel} onChange={(e) => setNewSessionLabel(e.target.value)} placeholder="Family / 4+ Pax" />
+            </div>
+            <Button size="sm" onClick={handleAddSession} disabled={upsert.isPending}>
+              {upsert.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
+            </Button>
+          </div>
+        )}
+
+        {effectiveCity && sessionTypes.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[600px]">
+            <table className="w-full text-sm min-w-[650px]">
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left py-2 px-3 text-muted-foreground font-medium">Session Type</th>
@@ -157,10 +238,11 @@ function BayPricingSection() {
                   {DAY_TYPES.map((d) => (
                     <th key={d.key} className="text-left py-2 px-3 text-muted-foreground font-medium">{d.label} (₹/hr)</th>
                   ))}
+                  <th className="py-2 px-3 w-10"></th>
                 </tr>
               </thead>
               <tbody>
-                {SESSION_TYPES.map((session) => {
+                {sessionTypes.map((session) => {
                   const linkedId = getServiceId(session.key);
                   const linkedService = linkedId ? serviceMap[linkedId] : null;
                   return (
@@ -201,12 +283,37 @@ function BayPricingSection() {
                           />
                         </td>
                       ))}
+                      <td className="py-2 px-3">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete "{session.label}"?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will remove all pricing rows for this session type in {effectiveCity}. This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteSession(session.key)}>Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
+        )}
+
+        {effectiveCity && sessionTypes.length === 0 && (
+          <p className="text-sm text-muted-foreground py-4 text-center">No session pricing configured. Click "Add Session Type" to get started.</p>
         )}
 
         {services.length === 0 && (
