@@ -428,3 +428,105 @@ export function useRemoveBayBlock(leagueId: string) {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 }
+
+// ── Rounds ──────────────────────────────────────────────────
+export function useLeagueRounds(leagueId: string | null) {
+  return useQuery<LeagueRound[]>({
+    queryKey: ["league-rounds", leagueId],
+    queryFn: () => invoke(`/leagues/${leagueId}/rounds`, "GET"),
+    enabled: !!leagueId,
+  });
+}
+
+export function useCreateRound(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (body: CreateRoundRequest) =>
+      invoke(`/leagues/${leagueId}/rounds`, "POST", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-rounds", leagueId] });
+      toast({ title: "Round created" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useUpdateRound(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ roundId, body }: { roundId: string; body: UpdateRoundRequest }) =>
+      invoke(`/leagues/${leagueId}/rounds/${roundId}`, "PATCH", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-rounds", leagueId] });
+      toast({ title: "Round updated" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useDeleteRound(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (roundId: string) =>
+      invoke(`/leagues/${leagueId}/rounds/${roundId}`, "DELETE"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-rounds", leagueId] });
+      toast({ title: "Round deleted" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+// ── Competitions ────────────────────────────────────────────
+export function useRoundCompetitions(leagueId: string | null, roundId: string | null) {
+  return useQuery<LeagueCompetition[]>({
+    queryKey: ["league-competitions", leagueId, roundId],
+    queryFn: () => invoke(`/leagues/${leagueId}/rounds/${roundId}/competitions`, "GET"),
+    enabled: !!leagueId && !!roundId,
+  });
+}
+
+export function useCreateCompetition(leagueId: string, roundId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (body: CreateCompetitionRequest) =>
+      invoke(`/leagues/${leagueId}/rounds/${roundId}/competitions`, "POST", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-competitions", leagueId, roundId] });
+      toast({ title: "Competition created" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useUpdateCompetition(leagueId: string, roundId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ competitionId, body }: { competitionId: string; body: UpdateCompetitionRequest }) =>
+      invoke(`/leagues/${leagueId}/rounds/${roundId}/competitions?competition_id=${competitionId}`, "PATCH", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-competitions", leagueId, roundId] });
+      toast({ title: "Competition updated" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useDeleteCompetition(leagueId: string, roundId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (competitionId: string) =>
+      invoke(`/leagues/${leagueId}/rounds/${roundId}/competitions?competition_id=${competitionId}`, "DELETE"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-competitions", leagueId, roundId] });
+      toast({ title: "Competition deleted" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
