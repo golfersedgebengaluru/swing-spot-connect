@@ -99,6 +99,7 @@ interface Route {
   leagueId?: string
   subResource?: string
   bookingId?: string
+  subId?: string
 }
 
 function parseRoute(url: URL): Route {
@@ -120,6 +121,14 @@ function parseRoute(url: URL): Route {
     // /leagues/:id/players/:playerId
     if (subResource === 'players' && segments[4]) {
       return { action: 'league-player-detail', leagueId, subResource, bookingId: segments[4] }
+    }
+    // /leagues/:id/rounds/:roundId/competitions
+    if (subResource === 'rounds' && segments[4] && segments[5] === 'competitions') {
+      return { action: 'league-round-competitions', leagueId, subResource, subId: segments[4] }
+    }
+    // /leagues/:id/rounds/:roundId
+    if (subResource === 'rounds' && segments[4]) {
+      return { action: 'league-round-detail', leagueId, subResource, subId: segments[4] }
     }
     return { action: `league-${subResource}`, leagueId, subResource }
   }
