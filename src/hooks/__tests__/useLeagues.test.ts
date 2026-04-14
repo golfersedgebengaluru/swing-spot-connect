@@ -9,10 +9,14 @@ import type {
   LeagueScore,
   LeagueJoinCode,
   LeagueBranding,
+  LeagueRound,
+  LeagueCompetition,
   CreateLeagueRequest,
   UpdateLeagueRequest,
   SubmitScoreRequest,
   UpdateBrandingRequest,
+  CreateRoundRequest,
+  CreateCompetitionRequest,
 } from "@/types/league";
 
 describe("League types", () => {
