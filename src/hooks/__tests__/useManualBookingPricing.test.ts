@@ -113,14 +113,13 @@ describe("Manual Booking pricing lookup", () => {
 
   describe("Price display visibility", () => {
     it("price should be hidden when payment mode is hours", () => {
-      // This tests the condition: paymentMode !== "hours"
-      const paymentMode = "hours";
+      const paymentMode: string = "hours";
       const shouldShowPrice = paymentMode !== "hours";
       expect(shouldShowPrice).toBe(false);
     });
 
     it("price should be shown when payment mode is manual", () => {
-      const paymentMode = "manual";
+      const paymentMode: string = "manual";
       const shouldShowPrice = paymentMode !== "hours";
       expect(shouldShowPrice).toBe(true);
     });
