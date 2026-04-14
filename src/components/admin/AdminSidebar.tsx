@@ -214,10 +214,10 @@ export function AdminSidebar({
     }
   };
 
-  const sidebarWidth = collapsed ? "w-14" : "w-[220px]";
+  const sidebarWidth = collapsed ? "w-14 max-w-14" : "w-[220px] max-w-[220px]";
 
   const sidebarContent = (
-    <div className="flex h-full flex-col bg-[hsl(var(--sidebar-background))]">
+    <div className="flex h-full flex-col overflow-hidden bg-[hsl(var(--sidebar-background))]">
       {/* Header */}
       <div className="flex h-[52px] items-center justify-between px-3 border-b border-white/10">
         {!collapsed && (
@@ -322,7 +322,7 @@ export function AdminSidebar({
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "hidden lg:flex shrink-0 h-screen sticky top-0 transition-all duration-200",
+          "hidden lg:flex shrink-0 h-screen sticky top-0 transition-all duration-200 overflow-hidden",
           sidebarWidth
         )}
       >
