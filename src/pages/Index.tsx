@@ -10,7 +10,7 @@ import { CTASection } from "@/components/home/CTASection";
 import { BookingHeroSection } from "@/components/home/BookingHeroSection";
 import { BookingCTASection } from "@/components/home/BookingCTASection";
 import { useLandingMode } from "@/hooks/useLandingMode";
-import { Loader2 } from "lucide-react";
+
 
 const Index = () => {
   const { user, loading } = useAuth();
