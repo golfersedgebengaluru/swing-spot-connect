@@ -12,7 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown } from "lucide-react";
 import { BaySchedulingPanel } from "@/components/admin/league/BaySchedulingPanel";
 import { format } from "date-fns";
 import {
@@ -241,14 +242,15 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
   const [sponsorName, setSponsorName] = useState(branding?.sponsor_name || "");
   const [sponsorUrl, setSponsorUrl] = useState(branding?.sponsor_url || "");
 
-  const nextStatus: Record<string, LeagueStatus | null> = {
-    draft: "active",
-    active: "completed",
-    completed: "archived",
-    archived: null,
+  // Bidirectional status transitions
+  const statusTransitions: Record<LeagueStatus, LeagueStatus[]> = {
+    draft: ["active"],
+    active: ["draft", "completed"],
+    completed: ["active", "archived"],
+    archived: ["completed"],
   };
 
-  const next = nextStatus[league.status];
+  const availableTransitions = statusTransitions[league.status] || [];
 
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -265,10 +267,21 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge status={league.status} />
-          {next && (
-            <Button size="sm" variant="outline" onClick={() => updateLeague.mutate({ status: next })} disabled={updateLeague.isPending}>
-              → {next}
-            </Button>
+          {availableTransitions.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" disabled={updateLeague.isPending}>
+                  Change Status <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {availableTransitions.map((s) => (
+                  <DropdownMenuItem key={s} onClick={() => updateLeague.mutate({ status: s })}>
+                    → {s}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>
@@ -390,7 +403,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
               <TableBody>
                 {scores.map((s) => (
                   <TableRow key={s.id}>
-                    <TableCell className="font-mono text-xs">{s.player_id.slice(0, 8)}</TableCell>
+                    <TableCell className="text-sm">{(s as any).player_name || s.player_id.slice(0, 8)}</TableCell>
                     <TableCell>{s.round_number}</TableCell>
                     <TableCell className="font-semibold">{s.total_score ?? "—"}</TableCell>
                     <TableCell><Badge variant="secondary">{s.method}</Badge></TableCell>
