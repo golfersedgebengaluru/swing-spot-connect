@@ -170,6 +170,53 @@ export function useJoinLeague() {
   });
 }
 
+// ── Players ─────────────────────────────────────────────────
+export interface LeaguePlayerWithProfile {
+  id: string;
+  league_id: string;
+  user_id: string;
+  joined_via_code_id: string | null;
+  joined_at: string;
+  display_name: string | null;
+  email: string | null;
+}
+
+export function useLeaguePlayers(leagueId: string | null) {
+  return useQuery<LeaguePlayerWithProfile[]>({
+    queryKey: ["league-players", leagueId],
+    queryFn: () => invoke(`/leagues/${leagueId}/players`, "GET"),
+    enabled: !!leagueId,
+  });
+}
+
+export function useAddLeaguePlayer(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (userId: string) =>
+      invoke(`/leagues/${leagueId}/players`, "POST", { user_id: userId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-players", leagueId] });
+      toast({ title: "Player added to league" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useRemoveLeaguePlayer(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (playerId: string) =>
+      invoke(`/leagues/${leagueId}/players?player_id=${playerId}`, "DELETE"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-players", leagueId] });
+      toast({ title: "Player removed from league" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
 // ── Scores ───────────────────────────────────────────────────
 export function useLeagueScores(leagueId: string | null, round?: number) {
   return useQuery<LeagueScore[]>({
