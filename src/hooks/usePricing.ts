@@ -53,6 +53,17 @@ export function useHourPackages() {
   });
 }
 
+export function useDeleteBayPricing() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("bay_pricing").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["bay_pricing"] }),
+  });
+}
+
 export function useUpdateHourPackage() {
   const qc = useQueryClient();
   return useMutation({
