@@ -205,3 +205,61 @@ export interface RescheduleBayBookingRequest {
   bay_id?: string;
   notes?: string;
 }
+
+// ── League Round ─────────────────────────────────────────────
+export interface LeagueRound {
+  id: string;
+  league_id: string;
+  tenant_id: string;
+  round_number: number;
+  name: string;
+  description: string | null;
+  start_date: string;
+  end_date: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateRoundRequest {
+  name: string;
+  description?: string;
+  start_date: string;
+  end_date: string;
+  round_number?: number;
+}
+
+export interface UpdateRoundRequest {
+  name?: string;
+  description?: string;
+  start_date?: string;
+  end_date?: string;
+  round_number?: number;
+}
+
+// ── League Competition ───────────────────────────────────────
+export interface LeagueCompetition {
+  id: string;
+  round_id: string;
+  league_id: string;
+  tenant_id: string;
+  name: string;
+  description: string | null;
+  points_config: { position: number; points: number }[];
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateCompetitionRequest {
+  name: string;
+  description?: string;
+  points_config?: { position: number; points: number }[];
+  sort_order?: number;
+}
+
+export interface UpdateCompetitionRequest {
+  name?: string;
+  description?: string;
+  points_config?: { position: number; points: number }[];
+  sort_order?: number;
+}

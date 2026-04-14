@@ -9,6 +9,8 @@ import type {
   LeagueAuditLog,
   LeagueBayBooking,
   LeagueBayBlock,
+  LeagueRound,
+  LeagueCompetition,
   BayAvailabilityResponse,
   CreateLeagueRequest,
   UpdateLeagueRequest,
@@ -16,6 +18,10 @@ import type {
   UpdateBrandingRequest,
   CreateBayBookingRequest,
   RescheduleBayBookingRequest,
+  CreateRoundRequest,
+  UpdateRoundRequest,
+  CreateCompetitionRequest,
+  UpdateCompetitionRequest,
 } from "@/types/league";
 import { useToast } from "@/hooks/use-toast";
 
