@@ -214,7 +214,7 @@ export function AdminSidebar({
     }
   };
 
-  const sidebarWidth = collapsed ? "w-14" : "w-[220px]";
+  const sidebarWidth = collapsed ? "w-14 max-w-14" : "w-[220px] max-w-[220px]";
 
   const sidebarContent = (
     <div className="flex h-full flex-col bg-[hsl(var(--sidebar-background))]">
