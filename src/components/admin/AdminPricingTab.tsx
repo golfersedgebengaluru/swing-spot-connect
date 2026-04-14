@@ -6,18 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Save, IndianRupee, Package, Link2 } from "lucide-react";
+import { Loader2, Save, IndianRupee, Package, Link2, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useBayPricing, useUpsertBayPricing, useHourPackages, useUpdateHourPackage } from "@/hooks/usePricing";
+import { useBayPricing, useUpsertBayPricing, useDeleteBayPricing, useHourPackages, useUpdateHourPackage } from "@/hooks/usePricing";
 import { useBays, useAllCities } from "@/hooks/useBookings";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useAllProducts } from "@/hooks/useProducts";
-
-const SESSION_TYPES = [
-  { key: "individual", label: "Individual / Single" },
-  { key: "couple", label: "Couple / 2 Pax" },
-  { key: "group", label: "Group / 3-6 Pax" },
-];
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const DAY_TYPES = [
   { key: "weekday", label: "Weekday" },
