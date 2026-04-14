@@ -13,7 +13,8 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown, ChevronRight, Edit, ListOrdered } from "lucide-react";
 import { BaySchedulingPanel } from "@/components/admin/league/BaySchedulingPanel";
 import { format } from "date-fns";
 import {
@@ -33,9 +34,17 @@ import {
   useLeaguePlayers,
   useAddLeaguePlayer,
   useRemoveLeaguePlayer,
+  useLeagueRounds,
+  useCreateRound,
+  useUpdateRound,
+  useDeleteRound,
+  useRoundCompetitions,
+  useCreateCompetition,
+  useUpdateCompetition,
+  useDeleteCompetition,
 } from "@/hooks/useLeagues";
 import { supabase } from "@/integrations/supabase/client";
-import type { League, LeagueFormat, LeagueStatus, Tenant } from "@/types/league";
+import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition } from "@/types/league";
 import { useToast } from "@/hooks/use-toast";
 
 // ── Status badge ─────────────────────────────────────────────
@@ -225,6 +234,214 @@ function AddPlayerDialog({ leagueId }: { leagueId: string }) {
   );
 }
 
+// ── Competition Editor ────────────────────────────────────────
+function CompetitionEditor({ leagueId, round }: { leagueId: string; round: LeagueRound }) {
+  const { data: competitions, isLoading } = useRoundCompetitions(leagueId, round.id);
+  const createComp = useCreateCompetition(leagueId, round.id);
+  const updateComp = useUpdateCompetition(leagueId, round.id);
+  const deleteComp = useDeleteCompetition(leagueId, round.id);
+  const [showAdd, setShowAdd] = useState(false);
+  const [compName, setCompName] = useState("");
+  const [compDesc, setCompDesc] = useState("");
+  const [pointsEntries, setPointsEntries] = useState<{ position: number; points: number }[]>([
+    { position: 1, points: 10 }, { position: 2, points: 7 }, { position: 3, points: 5 },
+  ]);
+
+  const addPointsRow = () => setPointsEntries((prev) => [...prev, { position: prev.length + 1, points: 0 }]);
+  const removePointsRow = (i: number) => setPointsEntries((prev) => prev.filter((_, idx) => idx !== i));
+  const updatePointsRow = (i: number, field: "position" | "points", val: number) =>
+    setPointsEntries((prev) => prev.map((r, idx) => idx === i ? { ...r, [field]: val } : r));
+
+  const handleCreate = () => {
+    if (!compName.trim()) return;
+    createComp.mutate({ name: compName, description: compDesc || undefined, points_config: pointsEntries }, {
+      onSuccess: () => { setShowAdd(false); setCompName(""); setCompDesc(""); setPointsEntries([{ position: 1, points: 10 }, { position: 2, points: 7 }, { position: 3, points: 5 }]); },
+    });
+  };
+
+  if (isLoading) return <Loader2 className="h-4 w-4 animate-spin" />;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-muted-foreground">Competitions</p>
+        <Button size="sm" variant="outline" onClick={() => setShowAdd(!showAdd)}>
+          <Plus className="h-3.5 w-3.5 mr-1" /> Add Competition
+        </Button>
+      </div>
+
+      {showAdd && (
+        <div className="border rounded-md p-3 space-y-3 bg-muted/30">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div><Label>Name</Label><Input value={compName} onChange={(e) => setCompName(e.target.value)} placeholder="e.g. Longest Drive" /></div>
+            <div><Label>Description</Label><Input value={compDesc} onChange={(e) => setCompDesc(e.target.value)} placeholder="Optional" /></div>
+          </div>
+          <div>
+            <Label>Points by Position</Label>
+            <div className="space-y-1 mt-1">
+              {pointsEntries.map((pe, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-xs w-8 text-muted-foreground">#{pe.position}</span>
+                  <Input type="number" className="w-20 h-8" value={pe.points} onChange={(e) => updatePointsRow(i, "points", Number(e.target.value))} />
+                  <span className="text-xs text-muted-foreground">pts</span>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => removePointsRow(i)}><Trash2 className="h-3 w-3" /></Button>
+                </div>
+              ))}
+              <Button size="sm" variant="ghost" onClick={addPointsRow}><Plus className="h-3 w-3 mr-1" /> Position</Button>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={handleCreate} disabled={createComp.isPending}>
+              {createComp.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}Save
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setShowAdd(false)}>Cancel</Button>
+          </div>
+        </div>
+      )}
+
+      {(!competitions || competitions.length === 0) ? (
+        <p className="text-xs text-muted-foreground">No competitions configured for this round.</p>
+      ) : (
+        <div className="space-y-2">
+          {competitions.map((comp) => (
+            <div key={comp.id} className="border rounded-md p-3 bg-background">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">{comp.name}</p>
+                  {comp.description && <p className="text-xs text-muted-foreground">{comp.description}</p>}
+                </div>
+                <Button size="icon" variant="ghost" onClick={() => deleteComp.mutate(comp.id)} disabled={deleteComp.isPending}>
+                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                </Button>
+              </div>
+              {comp.points_config && (comp.points_config as any[]).length > 0 && (
+                <div className="flex gap-3 mt-2 flex-wrap">
+                  {(comp.points_config as any[]).map((pc: any, i: number) => (
+                    <Badge key={i} variant="secondary" className="text-xs">#{pc.position}: {pc.points}pts</Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Rounds Panel ─────────────────────────────────────────────
+function RoundsPanel({ league }: { league: League }) {
+  const { data: rounds, isLoading } = useLeagueRounds(league.id);
+  const createRound = useCreateRound(league.id);
+  const updateRound = useUpdateRound(league.id);
+  const deleteRound = useDeleteRound(league.id);
+  const [showAdd, setShowAdd] = useState(false);
+  const [expandedRound, setExpandedRound] = useState<string | null>(null);
+  const [newRound, setNewRound] = useState({ name: "", description: "", start_date: "", end_date: "" });
+  const [editingRound, setEditingRound] = useState<string | null>(null);
+  const [editData, setEditData] = useState({ name: "", description: "", start_date: "", end_date: "" });
+
+  const handleCreate = () => {
+    if (!newRound.name || !newRound.start_date || !newRound.end_date) return;
+    createRound.mutate(newRound, {
+      onSuccess: () => { setShowAdd(false); setNewRound({ name: "", description: "", start_date: "", end_date: "" }); },
+    });
+  };
+
+  const startEdit = (r: LeagueRound) => {
+    setEditingRound(r.id);
+    setEditData({ name: r.name, description: r.description || "", start_date: r.start_date, end_date: r.end_date });
+  };
+
+  const saveEdit = (roundId: string) => {
+    updateRound.mutate({ roundId, body: editData }, {
+      onSuccess: () => setEditingRound(null),
+    });
+  };
+
+  if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>;
+
+  return (
+    <div className="space-y-4">
+      <Button size="sm" onClick={() => setShowAdd(!showAdd)}>
+        <Plus className="h-4 w-4 mr-1" /> Add Round
+      </Button>
+
+      {showAdd && (
+        <div className="border rounded-md p-4 space-y-3 bg-muted/30">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div><Label>Round Name</Label><Input value={newRound.name} onChange={(e) => setNewRound({ ...newRound, name: e.target.value })} placeholder="e.g. Week 1" /></div>
+            <div><Label>Description</Label><Input value={newRound.description} onChange={(e) => setNewRound({ ...newRound, description: e.target.value })} placeholder="Optional" /></div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div><Label>Start Date</Label><Input type="date" value={newRound.start_date} onChange={(e) => setNewRound({ ...newRound, start_date: e.target.value })} /></div>
+            <div><Label>End Date</Label><Input type="date" value={newRound.end_date} onChange={(e) => setNewRound({ ...newRound, end_date: e.target.value })} /></div>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={handleCreate} disabled={createRound.isPending}>
+              {createRound.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}Create Round
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setShowAdd(false)}>Cancel</Button>
+          </div>
+        </div>
+      )}
+
+      {(!rounds || rounds.length === 0) ? (
+        <p className="text-sm text-muted-foreground py-4">No rounds configured. Add rounds to structure the league schedule.</p>
+      ) : (
+        <div className="space-y-2">
+          {rounds.map((r) => (
+            <div key={r.id} className="border rounded-md">
+              <div
+                className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/30"
+                onClick={() => setExpandedRound(expandedRound === r.id ? null : r.id)}
+              >
+                <div className="flex items-center gap-2">
+                  <ChevronRight className={`h-4 w-4 transition-transform ${expandedRound === r.id ? "rotate-90" : ""}`} />
+                  <div>
+                    <span className="font-medium text-sm">Round {r.round_number}: {r.name}</span>
+                    <p className="text-xs text-muted-foreground">{r.start_date} → {r.end_date}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <Button size="icon" variant="ghost" onClick={() => startEdit(r)}><Edit className="h-3.5 w-3.5" /></Button>
+                  <Button size="icon" variant="ghost" onClick={() => deleteRound.mutate(r.id)} disabled={deleteRound.isPending}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+
+              {editingRound === r.id && (
+                <div className="px-3 pb-3 space-y-3 border-t bg-muted/20">
+                  <div className="grid gap-3 sm:grid-cols-2 pt-3">
+                    <div><Label>Name</Label><Input value={editData.name} onChange={(e) => setEditData({ ...editData, name: e.target.value })} /></div>
+                    <div><Label>Description</Label><Input value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} /></div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div><Label>Start Date</Label><Input type="date" value={editData.start_date} onChange={(e) => setEditData({ ...editData, start_date: e.target.value })} /></div>
+                    <div><Label>End Date</Label><Input type="date" value={editData.end_date} onChange={(e) => setEditData({ ...editData, end_date: e.target.value })} /></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => saveEdit(r.id)} disabled={updateRound.isPending}>Save</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditingRound(null)}>Cancel</Button>
+                  </div>
+                </div>
+              )}
+
+              {expandedRound === r.id && editingRound !== r.id && (
+                <div className="px-3 pb-3 border-t pt-3">
+                  {r.description && <p className="text-sm text-muted-foreground mb-3">{r.description}</p>}
+                  <CompetitionEditor leagueId={league.id} round={r} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── League Detail Panel ──────────────────────────────────────
 function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
   const updateLeague = useUpdateLeague(league.id);
@@ -289,6 +506,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
       <Tabs defaultValue="players">
         <TabsList>
           <TabsTrigger value="players"><Users className="h-3.5 w-3.5 mr-1" />Players ({players?.length || 0})</TabsTrigger>
+          <TabsTrigger value="rounds"><ListOrdered className="h-3.5 w-3.5 mr-1" />Rounds</TabsTrigger>
           <TabsTrigger value="codes">Join Codes</TabsTrigger>
           <TabsTrigger value="scheduling"><Calendar className="h-3.5 w-3.5 mr-1" />Bay Scheduling</TabsTrigger>
           <TabsTrigger value="scores">Scores ({scores?.length || 0})</TabsTrigger>
@@ -337,6 +555,11 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
               </TableBody>
             </Table>
           )}
+        </TabsContent>
+
+        {/* Rounds */}
+        <TabsContent value="rounds">
+          <RoundsPanel league={league} />
         </TabsContent>
 
         {/* Join Codes */}
