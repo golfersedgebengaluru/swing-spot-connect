@@ -21,7 +21,7 @@ function useAdminDashboardStats(cityFilter: string) {
       const monthStart = startOfMonth(now).toISOString();
       const monthEnd = endOfMonth(now).toISOString();
 
-      // --- Total confirmed bookings this month ---
+      // Build all independent queries
       let totalBookingsQuery = supabase
         .from("bookings")
         .select("id", { count: "exact", head: true })
@@ -29,17 +29,13 @@ function useAdminDashboardStats(cityFilter: string) {
         .gte("start_time", monthStart)
         .lte("start_time", monthEnd);
       if (cityFilter) totalBookingsQuery = totalBookingsQuery.eq("city", cityFilter);
-      const { count: totalBookings } = await totalBookingsQuery;
 
-      // --- Members count (birdie + coaching only) ---
       let membersQuery = supabase
         .from("profiles")
         .select("id", { count: "exact", head: true })
         .in("user_type", ["birdie", "coaching"]);
       if (cityFilter) membersQuery = membersQuery.eq("preferred_city", cityFilter);
-      const { count: memberCount } = await membersQuery;
 
-      // --- Revenue this month (from revenue_transactions) ---
       let revenueQuery = supabase
         .from("revenue_transactions")
         .select("amount, transaction_type")
@@ -47,14 +43,7 @@ function useAdminDashboardStats(cityFilter: string) {
         .gte("created_at", monthStart)
         .lte("created_at", monthEnd);
       if (cityFilter) revenueQuery = revenueQuery.eq("city", cityFilter);
-      const { data: revData } = await revenueQuery;
 
-      const revenue = (revData ?? []).reduce((sum, t) => {
-        if (t.transaction_type === "refund") return sum - (t.amount ?? 0);
-        return sum + (t.amount ?? 0);
-      }, 0);
-
-      // --- Hours sold this month (from confirmed bookings) ---
       let hoursQuery = supabase
         .from("bookings")
         .select("duration_minutes")
@@ -62,14 +51,7 @@ function useAdminDashboardStats(cityFilter: string) {
         .gte("start_time", monthStart)
         .lte("start_time", monthEnd);
       if (cityFilter) hoursQuery = hoursQuery.eq("city", cityFilter);
-      const { data: hoursData } = await hoursQuery;
 
-      const hoursSold = (hoursData ?? []).reduce(
-        (sum, b) => sum + (b.duration_minutes ?? 0),
-        0
-      ) / 60;
-
-      // --- Upcoming 5 confirmed bookings ---
       let upcomingQuery = supabase
         .from("bookings")
         .select("id, status, start_time, end_time, bay_id, user_id, duration_minutes, session_type, city")
@@ -78,45 +60,63 @@ function useAdminDashboardStats(cityFilter: string) {
         .order("start_time", { ascending: true })
         .limit(5);
       if (cityFilter) upcomingQuery = upcomingQuery.eq("city", cityFilter);
-      const { data: bookingsData } = await upcomingQuery;
 
-      // Get bay names
-      const bayIds = [...new Set((bookingsData ?? []).map((b) => b.bay_id).filter(Boolean))];
-      let baysMap: Record<string, string> = {};
-      if (bayIds.length > 0) {
-        const { data: bays } = await supabase.from("bays").select("id, name").in("id", bayIds);
-        baysMap = Object.fromEntries((bays ?? []).map((b) => [b.id, b.name]));
-      }
-
-      // Get user names
-      const userIds = [...new Set((bookingsData ?? []).map((b) => b.user_id).filter(Boolean))];
-      let usersMap: Record<string, string> = {};
-      if (userIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, user_id, display_name, email");
-        const dualMap = new Map<string, string>();
-        for (const p of profiles ?? []) {
-          const name = p.display_name || p.email || "Unknown";
-          if (p.user_id) dualMap.set(p.user_id, name);
-          dualMap.set(p.id, name);
-        }
-        usersMap = Object.fromEntries(
-          userIds.map((uid) => [uid, dualMap.get(uid) || "Unknown"])
-        );
-      }
-
-      // --- Top 5 members by points (birdie + coaching only) ---
       let topQuery = supabase
         .from("profiles")
         .select("id, display_name, email, points, tier, total_rounds, user_id, preferred_city")
         .in("user_type", ["birdie", "coaching"])
         .order("points", { ascending: false })
-        .limit(50);
+        .limit(5);
       if (cityFilter) topQuery = topQuery.eq("preferred_city", cityFilter);
-      const { data: topData } = await topQuery;
 
-      const topMembers = (topData ?? []).slice(0, 5);
+      // Execute ALL independent queries in parallel
+      const [
+        { count: totalBookings },
+        { count: memberCount },
+        { data: revData },
+        { data: hoursData },
+        { data: bookingsData },
+        { data: topMembers },
+      ] = await Promise.all([
+        totalBookingsQuery,
+        membersQuery,
+        revenueQuery,
+        hoursQuery,
+        upcomingQuery,
+        topQuery,
+      ]);
+
+      const revenue = (revData ?? []).reduce((sum, t) => {
+        if (t.transaction_type === "refund") return sum - (t.amount ?? 0);
+        return sum + (t.amount ?? 0);
+      }, 0);
+
+      const hoursSold = (hoursData ?? []).reduce(
+        (sum, b) => sum + (b.duration_minutes ?? 0),
+        0
+      ) / 60;
+
+      // Resolve bay names and user names in parallel (dependent on bookingsData)
+      const bayIds = [...new Set((bookingsData ?? []).map((b) => b.bay_id).filter(Boolean))];
+      const userIds = [...new Set((bookingsData ?? []).map((b) => b.user_id).filter(Boolean))];
+
+      const [baysMap, usersMap] = await Promise.all([
+        bayIds.length > 0
+          ? supabase.from("bays").select("id, name").in("id", bayIds).then(({ data }) =>
+              Object.fromEntries((data ?? []).map((b) => [b.id, b.name]))
+            )
+          : Promise.resolve({} as Record<string, string>),
+        userIds.length > 0
+          ? supabase.from("profiles").select("id, user_id, display_name, email").in("user_id", userIds).then(({ data }) => {
+              const m: Record<string, string> = {};
+              for (const p of data ?? []) {
+                const name = p.display_name || p.email || "Unknown";
+                if (p.user_id) m[p.user_id] = name;
+              }
+              return m;
+            })
+          : Promise.resolve({} as Record<string, string>),
+      ]);
 
       return {
         totalBookings: totalBookings ?? 0,
@@ -128,7 +128,7 @@ function useAdminDashboardStats(cityFilter: string) {
           bayName: b.bay_id ? baysMap[b.bay_id] ?? "Bay" : "Bay",
           userName: usersMap[b.user_id] ?? "Unknown",
         })),
-        topMembers,
+        topMembers: topMembers ?? [],
       };
     },
     refetchInterval: 30000,
