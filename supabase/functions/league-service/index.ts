@@ -464,7 +464,26 @@ Deno.serve(async (req) => {
         if (roundNumber) query = query.eq('round_number', parseInt(roundNumber))
         const { data, error } = await query
         if (error) return err(error.message, 500)
-        return json(data)
+
+        // Enrich with player names from profiles
+        const playerIds = [...new Set((data || []).map((s: any) => s.player_id))]
+        let profileMap: Record<string, string> = {}
+        if (playerIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('user_id, display_name')
+            .in('user_id', playerIds)
+          if (profiles) {
+            profileMap = Object.fromEntries(profiles.map((p: any) => [p.user_id, p.display_name || '']))
+          }
+        }
+
+        const enriched = (data || []).map((s: any) => ({
+          ...s,
+          player_name: profileMap[s.player_id] || null,
+        }))
+
+        return json(enriched)
       }
 
       if (method === 'POST') {
