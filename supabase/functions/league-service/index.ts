@@ -316,9 +316,9 @@ Deno.serve(async (req) => {
         if (body.status) {
           const transitions: Record<string, string[]> = {
             draft: ['active'],
-            active: ['completed'],
-            completed: ['archived'],
-            archived: [],
+            active: ['draft', 'completed'],
+            completed: ['active', 'archived'],
+            archived: ['completed'],
           }
           if (!transitions[league.status]?.includes(body.status)) {
             return err(`Cannot transition from ${league.status} to ${body.status}`)
