@@ -144,6 +144,7 @@ export default function Bookings() {
   };
 
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const maxDate = addDays(today, 30);
 
   return (
