@@ -557,6 +557,11 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
           )}
         </TabsContent>
 
+        {/* Rounds */}
+        <TabsContent value="rounds">
+          <RoundsPanel league={league} />
+        </TabsContent>
+
         {/* Join Codes */}
         <TabsContent value="codes" className="space-y-4">
           <Button size="sm" onClick={() => createCode.mutate({})} disabled={createCode.isPending}>
