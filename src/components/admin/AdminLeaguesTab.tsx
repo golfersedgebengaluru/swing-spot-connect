@@ -13,7 +13,8 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown, ChevronRight, Edit, ListOrdered } from "lucide-react";
 import { BaySchedulingPanel } from "@/components/admin/league/BaySchedulingPanel";
 import { format } from "date-fns";
 import {
@@ -33,9 +34,17 @@ import {
   useLeaguePlayers,
   useAddLeaguePlayer,
   useRemoveLeaguePlayer,
+  useLeagueRounds,
+  useCreateRound,
+  useUpdateRound,
+  useDeleteRound,
+  useRoundCompetitions,
+  useCreateCompetition,
+  useUpdateCompetition,
+  useDeleteCompetition,
 } from "@/hooks/useLeagues";
 import { supabase } from "@/integrations/supabase/client";
-import type { League, LeagueFormat, LeagueStatus, Tenant } from "@/types/league";
+import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition } from "@/types/league";
 import { useToast } from "@/hooks/use-toast";
 
 // ── Status badge ─────────────────────────────────────────────
