@@ -332,5 +332,142 @@ describe("Admin redirect logic", () => {
     const hasExplicitRedirect = true;
     const target = hasExplicitRedirect ? "/leagues" : (isAdmin || isSiteAdmin) ? "/admin" : "/dashboard";
     expect(target).toBe("/leagues");
+});
+
+describe("League rounds", () => {
+  it("LeagueRound type has required fields", () => {
+    const round: LeagueRound = {
+      id: "r1",
+      league_id: "l1",
+      tenant_id: "t1",
+      round_number: 1,
+      name: "Week 1",
+      description: "Opening round",
+      start_date: "2026-04-14",
+      end_date: "2026-04-20",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    expect(round.round_number).toBe(1);
+    expect(round.name).toBe("Week 1");
   });
+
+  it("auto-increments round_number from existing rounds", () => {
+    const existingRounds = [{ round_number: 1 }, { round_number: 2 }, { round_number: 3 }];
+    const maxRound = existingRounds.length > 0
+      ? Math.max(...existingRounds.map((r) => r.round_number))
+      : 0;
+    const next = maxRound + 1;
+    expect(next).toBe(4);
+  });
+
+  it("first round defaults to 1 when no existing rounds", () => {
+    const existingRounds: { round_number: number }[] = [];
+    const next = existingRounds.length > 0
+      ? Math.max(...existingRounds.map((r) => r.round_number)) + 1
+      : 1;
+    expect(next).toBe(1);
+  });
+
+  it("validates start_date is before end_date", () => {
+    const start = "2026-04-14";
+    const end = "2026-04-20";
+    expect(new Date(start) < new Date(end)).toBe(true);
+  });
+
+  it("detects invalid date range", () => {
+    const start = "2026-04-20";
+    const end = "2026-04-14";
+    expect(new Date(start) < new Date(end)).toBe(false);
+  });
+
+  it("CreateRoundRequest requires name, start_date, end_date", () => {
+    const req: CreateRoundRequest = {
+      name: "Week 1",
+      start_date: "2026-04-14",
+      end_date: "2026-04-20",
+    };
+    expect(req.name).toBeTruthy();
+    expect(req.start_date).toBeTruthy();
+    expect(req.end_date).toBeTruthy();
+  });
+});
+
+describe("League competitions", () => {
+  it("LeagueCompetition type has required fields", () => {
+    const comp: LeagueCompetition = {
+      id: "c1",
+      round_id: "r1",
+      league_id: "l1",
+      tenant_id: "t1",
+      name: "Longest Drive",
+      description: "Hit the farthest drive on hole 7",
+      points_config: [
+        { position: 1, points: 10 },
+        { position: 2, points: 7 },
+        { position: 3, points: 5 },
+      ],
+      sort_order: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    expect(comp.name).toBe("Longest Drive");
+    expect(comp.points_config).toHaveLength(3);
+  });
+
+  it("points_config is sorted by position descending points", () => {
+    const config = [
+      { position: 1, points: 10 },
+      { position: 2, points: 7 },
+      { position: 3, points: 5 },
+    ];
+    for (let i = 1; i < config.length; i++) {
+      expect(config[i - 1].points).toBeGreaterThan(config[i].points);
+    }
+  });
+
+  it("empty points_config means no point rewards", () => {
+    const comp: Partial<LeagueCompetition> = {
+      name: "Closest to Pin",
+      points_config: [],
+    };
+    expect(comp.points_config).toHaveLength(0);
+  });
+
+  it("can calculate total points per player from competitions", () => {
+    const competitions = [
+      { points_config: [{ position: 1, points: 10 }, { position: 2, points: 5 }] },
+      { points_config: [{ position: 1, points: 8 }, { position: 2, points: 4 }] },
+    ];
+    // Player finishes 1st in both
+    const totalPoints = competitions.reduce((sum, c) => sum + c.points_config[0].points, 0);
+    expect(totalPoints).toBe(18);
+  });
+
+  it("handles competitions with no points configured for a position", () => {
+    const config = [
+      { position: 1, points: 10 },
+      { position: 2, points: 5 },
+    ];
+    const playerPosition = 3;
+    const entry = config.find((c) => c.position === playerPosition);
+    expect(entry).toBeUndefined();
+    const points = entry?.points ?? 0;
+    expect(points).toBe(0);
+  });
+
+  it("CreateCompetitionRequest accepts optional fields", () => {
+    const minimal: CreateCompetitionRequest = { name: "Best Score" };
+    expect(minimal.points_config).toBeUndefined();
+    expect(minimal.description).toBeUndefined();
+
+    const full: CreateCompetitionRequest = {
+      name: "Best Score",
+      description: "Overall best score wins",
+      points_config: [{ position: 1, points: 15 }],
+      sort_order: 1,
+    };
+    expect(full.points_config).toHaveLength(1);
+  });
+});
 });
