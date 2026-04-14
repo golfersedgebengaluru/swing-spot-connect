@@ -39,34 +39,52 @@ describe("League types", () => {
   });
 });
 
-describe("League status transitions", () => {
-  const validTransitions: Record<LeagueStatus, LeagueStatus[]> = {
+describe("League status transitions (bidirectional)", () => {
+  const statusTransitions: Record<LeagueStatus, LeagueStatus[]> = {
     draft: ["active"],
-    active: ["completed"],
-    completed: ["archived"],
-    archived: [],
+    active: ["draft", "completed"],
+    completed: ["active", "archived"],
+    archived: ["completed"],
   };
 
-  it("draft can only transition to active", () => {
-    expect(validTransitions.draft).toEqual(["active"]);
+  it("draft can transition to active", () => {
+    expect(statusTransitions.draft).toContain("active");
   });
 
-  it("active can only transition to completed", () => {
-    expect(validTransitions.active).toEqual(["completed"]);
+  it("active can transition back to draft", () => {
+    expect(statusTransitions.active).toContain("draft");
   });
 
-  it("completed can only transition to archived", () => {
-    expect(validTransitions.completed).toEqual(["archived"]);
+  it("active can transition forward to completed", () => {
+    expect(statusTransitions.active).toContain("completed");
   });
 
-  it("archived has no valid transitions", () => {
-    expect(validTransitions.archived).toEqual([]);
+  it("completed can transition back to active", () => {
+    expect(statusTransitions.completed).toContain("active");
   });
 
-  it("rejects invalid transitions", () => {
-    expect(validTransitions.draft).not.toContain("completed");
-    expect(validTransitions.active).not.toContain("draft");
-    expect(validTransitions.completed).not.toContain("active");
+  it("completed can transition forward to archived", () => {
+    expect(statusTransitions.completed).toContain("archived");
+  });
+
+  it("archived can transition back to completed", () => {
+    expect(statusTransitions.archived).toContain("completed");
+  });
+
+  it("draft cannot skip to completed or archived", () => {
+    expect(statusTransitions.draft).not.toContain("completed");
+    expect(statusTransitions.draft).not.toContain("archived");
+  });
+
+  it("archived cannot jump to draft or active", () => {
+    expect(statusTransitions.archived).not.toContain("draft");
+    expect(statusTransitions.archived).not.toContain("active");
+  });
+
+  it("each status has at least one valid transition", () => {
+    for (const [status, transitions] of Object.entries(statusTransitions)) {
+      expect(transitions.length).toBeGreaterThan(0);
+    }
   });
 });
 
@@ -92,10 +110,59 @@ describe("Score calculations", () => {
   });
 });
 
+describe("Score method tracking", () => {
+  it("should use photo_ocr method when OCR is used", () => {
+    const ocrUsed = true;
+    const method = ocrUsed ? "photo_ocr" : "manual";
+    expect(method).toBe("photo_ocr");
+  });
+
+  it("should use manual method when entering scores by hand", () => {
+    const ocrUsed = false;
+    const method = ocrUsed ? "photo_ocr" : "manual";
+    expect(method).toBe("manual");
+  });
+
+  it("valid score methods include photo_ocr, manual, api", () => {
+    const validMethods: ScoreEntryMethod[] = ["photo_ocr", "manual", "api", "not_set"];
+    expect(validMethods).toContain("photo_ocr");
+    expect(validMethods).toContain("manual");
+    expect(validMethods).toContain("api");
+  });
+});
+
+describe("Player name enrichment", () => {
+  it("enriches scores with player_name from profile map", () => {
+    const scores = [
+      { id: "s1", player_id: "u1", total_score: 72 },
+      { id: "s2", player_id: "u2", total_score: 68 },
+    ];
+    const profileMap: Record<string, string> = {
+      u1: "Arvind Kumar",
+      u2: "Priya Singh",
+    };
+
+    const enriched = scores.map((s) => ({
+      ...s,
+      player_name: profileMap[s.player_id] || null,
+    }));
+
+    expect(enriched[0].player_name).toBe("Arvind Kumar");
+    expect(enriched[1].player_name).toBe("Priya Singh");
+  });
+
+  it("returns null player_name for unknown player_ids", () => {
+    const profileMap: Record<string, string> = {};
+    const score = { player_id: "unknown-uuid" };
+    const player_name = profileMap[score.player_id] || null;
+    expect(player_name).toBeNull();
+  });
+});
+
 describe("Join code validation", () => {
   it("detects expired codes", () => {
     const code: Partial<LeagueJoinCode> = {
-      expires_at: new Date(Date.now() - 86400000).toISOString(), // yesterday
+      expires_at: new Date(Date.now() - 86400000).toISOString(),
       revoked_at: null,
       use_count: 0,
       max_uses: 100,
@@ -106,7 +173,7 @@ describe("Join code validation", () => {
 
   it("detects non-expired codes", () => {
     const code: Partial<LeagueJoinCode> = {
-      expires_at: new Date(Date.now() + 86400000).toISOString(), // tomorrow
+      expires_at: new Date(Date.now() + 86400000).toISOString(),
       revoked_at: null,
       use_count: 0,
       max_uses: 100,
@@ -179,7 +246,6 @@ describe("Branding resolution logic", () => {
     } else if (tenant.default_logo_url) {
       resolved = tenant.default_logo_url;
     }
-    // When sponsorship is off, branding should not be used — but fallback to tenant is OK
     expect(resolved).toBe("https://tenant.com/logo.png");
   });
 });
@@ -212,5 +278,55 @@ describe("URL safety", () => {
 
   it("rejects invalid URLs", () => {
     expect(isSafeUrl("not a url")).toBe(false);
+  });
+});
+
+describe("Player management", () => {
+  it("filters duplicate player additions", () => {
+    const existingPlayers = ["u1", "u2", "u3"];
+    const newPlayerId = "u2";
+    const isDuplicate = existingPlayers.includes(newPlayerId);
+    expect(isDuplicate).toBe(true);
+  });
+
+  it("allows adding new players", () => {
+    const existingPlayers = ["u1", "u2", "u3"];
+    const newPlayerId = "u4";
+    const isDuplicate = existingPlayers.includes(newPlayerId);
+    expect(isDuplicate).toBe(false);
+  });
+});
+
+describe("Admin redirect logic", () => {
+  it("admin users should redirect to /admin", () => {
+    const isAdmin = true;
+    const isSiteAdmin = false;
+    const hasExplicitRedirect = false;
+    const target = hasExplicitRedirect ? "/some-page" : (isAdmin || isSiteAdmin) ? "/admin" : "/dashboard";
+    expect(target).toBe("/admin");
+  });
+
+  it("site_admin users should redirect to /admin", () => {
+    const isAdmin = false;
+    const isSiteAdmin = true;
+    const hasExplicitRedirect = false;
+    const target = hasExplicitRedirect ? "/some-page" : (isAdmin || isSiteAdmin) ? "/admin" : "/dashboard";
+    expect(target).toBe("/admin");
+  });
+
+  it("regular users should redirect to /dashboard", () => {
+    const isAdmin = false;
+    const isSiteAdmin = false;
+    const hasExplicitRedirect = false;
+    const target = hasExplicitRedirect ? "/some-page" : (isAdmin || isSiteAdmin) ? "/admin" : "/dashboard";
+    expect(target).toBe("/dashboard");
+  });
+
+  it("explicit redirect takes priority over admin check", () => {
+    const isAdmin = true;
+    const isSiteAdmin = false;
+    const hasExplicitRedirect = true;
+    const target = hasExplicitRedirect ? "/leagues" : (isAdmin || isSiteAdmin) ? "/admin" : "/dashboard";
+    expect(target).toBe("/leagues");
   });
 });

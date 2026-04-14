@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Trophy, LogIn, Plus, Camera } from "lucide-react";
+import { Loader2, Trophy, LogIn, Plus, Camera, Upload } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import { format } from "date-fns";
 import {
@@ -74,6 +74,7 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
   const [scores, setScores] = useState<number[]>(Array(18).fill(0));
   const [roundNumber, setRoundNumber] = useState(1);
   const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrUsed, setOcrUsed] = useState(false);
   const submitScore = useSubmitScore(leagueId);
   const { toast } = useToast();
 
@@ -86,14 +87,12 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
   const handleSubmit = () => {
     const activeScores = scores.slice(0, holeCount);
     submitScore.mutate(
-      { round_number: roundNumber, hole_scores: activeScores, method: "manual" },
-      { onSuccess: () => { setOpen(false); setScores(Array(18).fill(0)); } }
+      { round_number: roundNumber, hole_scores: activeScores, method: ocrUsed ? "photo_ocr" : "manual" },
+      { onSuccess: () => { setOpen(false); setScores(Array(18).fill(0)); setOcrUsed(false); } }
     );
   };
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processFile = async (file: File) => {
     setOcrLoading(true);
     try {
       const reader = new FileReader();
@@ -106,6 +105,7 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
         if (data.hole_scores) {
           setScores(data.hole_scores);
           setHoleCount(data.hole_scores.length);
+          setOcrUsed(true);
           toast({ title: `OCR extracted ${data.hole_scores.length} holes`, description: `Confidence: ${Math.round((data.confidence || 0) * 100)}%` });
         }
         setOcrLoading(false);
@@ -118,6 +118,16 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
     }
   };
 
+  const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) await processFile(file);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) await processFile(file);
+  };
+
   const total = scores.slice(0, holeCount).reduce((s, v) => s + v, 0);
 
   return (
@@ -128,13 +138,28 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Submit Score</DialogTitle></DialogHeader>
         <div className="space-y-4">
-          {/* Photo OCR */}
-          <div className="border-2 border-dashed rounded-lg p-4 text-center">
-            <label className="cursor-pointer flex flex-col items-center gap-2">
-              {ocrLoading ? <Loader2 className="h-8 w-8 animate-spin text-primary" /> : <Camera className="h-8 w-8 text-muted-foreground" />}
-              <span className="text-sm text-muted-foreground">{ocrLoading ? "Processing..." : "Upload scorecard photo for auto-fill"}</span>
-              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoUpload} disabled={ocrLoading} />
-            </label>
+          {/* Photo / Upload OCR */}
+          <div className="border-2 border-dashed rounded-lg p-4">
+            {ocrLoading ? (
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="text-sm text-muted-foreground">Processing scorecard...</span>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
+                <label className="cursor-pointer flex items-center gap-2 px-4 py-2 rounded-md border bg-background hover:bg-muted transition-colors">
+                  <Camera className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">Take Photo</span>
+                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoCapture} />
+                </label>
+                <label className="cursor-pointer flex items-center gap-2 px-4 py-2 rounded-md border bg-background hover:bg-muted transition-colors">
+                  <Upload className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">Upload Image</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                </label>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground text-center mt-2">Upload or photograph your scorecard for auto-fill</p>
           </div>
 
           <div className="flex gap-4">
@@ -225,7 +250,7 @@ function Leaderboard({ leagueId, league }: { leagueId: string; league: League })
           {ranked.map((s, i) => (
             <TableRow key={s.id}>
               <TableCell className="font-bold">{i + 1}</TableCell>
-              <TableCell className="font-mono text-xs">{s.player_id.slice(0, 8)}</TableCell>
+              <TableCell>{(s as any).player_name || s.player_id.slice(0, 8)}</TableCell>
               <TableCell className="font-semibold">{s.total_score ?? "—"}</TableCell>
               <TableCell>{s.round_number}</TableCell>
             </TableRow>

@@ -29,9 +29,30 @@ export default function Auth() {
 
   const redirectTo = searchParams.get("redirect") || "/dashboard";
 
+  // Check if user is admin and redirect accordingly
   useEffect(() => {
-    if (user) navigate(redirectTo);
-  }, [user, navigate, redirectTo]);
+    if (!user) return;
+
+    const checkAdminAndRedirect = async () => {
+      // If there's an explicit redirect param, use it
+      if (searchParams.get("redirect")) {
+        navigate(searchParams.get("redirect")!);
+        return;
+      }
+
+      // Check if user has admin role
+      const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
+      const { data: isSiteAdmin } = await supabase.rpc("has_role", { _user_id: user.id, _role: "site_admin" as any });
+
+      if (isAdmin === true || isSiteAdmin === true) {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
+    };
+
+    checkAdminAndRedirect();
+  }, [user, navigate, searchParams]);
 
   useEffect(() => {
     setIsSignUp(searchParams.get("mode") === "signup");
