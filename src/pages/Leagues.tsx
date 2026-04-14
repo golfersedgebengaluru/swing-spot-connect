@@ -74,6 +74,7 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
   const [scores, setScores] = useState<number[]>(Array(18).fill(0));
   const [roundNumber, setRoundNumber] = useState(1);
   const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrUsed, setOcrUsed] = useState(false);
   const submitScore = useSubmitScore(leagueId);
   const { toast } = useToast();
 
