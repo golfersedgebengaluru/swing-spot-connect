@@ -850,6 +850,102 @@ Deno.serve(async (req) => {
       return err('Method not allowed', 405)
     }
 
+    // ── PLAYERS (list / add / remove) ───────────────────────
+    if (route.action === 'league-players' && route.leagueId) {
+      const { data: league } = await supabase.from('leagues').select('tenant_id').eq('id', route.leagueId).single()
+      if (!league) return err('League not found', 404)
+      const tenantId = league.tenant_id
+
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (!role || role === 'player') return err('Insufficient permissions', 403)
+
+      // GET: list players with profile info
+      if (method === 'GET') {
+        const { data: players, error: pErr } = await supabase
+          .from('league_players')
+          .select('id, league_id, user_id, joined_via_code_id, joined_at')
+          .eq('league_id', route.leagueId)
+          .order('joined_at')
+        if (pErr) return err(pErr.message, 500)
+
+        // Resolve profile info for each player
+        const userIds = (players || []).map((p: any) => p.user_id)
+        let profiles: any[] = []
+        if (userIds.length > 0) {
+          const { data: profs } = await supabase
+            .from('profiles')
+            .select('user_id, display_name, email')
+            .in('user_id', userIds)
+          profiles = profs || []
+        }
+
+        const profileMap = new Map(profiles.map((p: any) => [p.user_id, p]))
+        const enriched = (players || []).map((p: any) => ({
+          ...p,
+          display_name: profileMap.get(p.user_id)?.display_name || null,
+          email: profileMap.get(p.user_id)?.email || null,
+        }))
+
+        return json(enriched)
+      }
+
+      // POST: admin adds a player by user_id
+      if (method === 'POST') {
+        const body = await req.json()
+        if (!body.user_id) return err('user_id is required')
+
+        // Check if already a member
+        const { data: existing } = await supabase
+          .from('league_players')
+          .select('id')
+          .eq('league_id', route.leagueId)
+          .eq('user_id', body.user_id)
+          .maybeSingle()
+        if (existing) return err('User is already a member of this league')
+
+        const { data: player, error: jErr } = await supabase.from('league_players').insert({
+          league_id: route.leagueId,
+          user_id: body.user_id,
+        }).select().single()
+        if (jErr) return err(jErr.message, 500)
+
+        // Assign player role if not already present
+        await supabase.from('league_roles').upsert({
+          user_id: body.user_id,
+          tenant_id: tenantId,
+          league_id: route.leagueId,
+          role: 'player',
+        }, { onConflict: 'user_id,tenant_id,league_id,role' })
+
+        await audit(supabase, tenantId, route.leagueId, user.id, role!, 'AdminAddedPlayer', 'league_player', player.id, null, player)
+        return json(player, 201)
+      }
+
+      // DELETE: admin removes a player
+      if (method === 'DELETE') {
+        const playerId = url.searchParams.get('player_id')
+        if (!playerId) return err('player_id query param required')
+
+        const { data: before } = await supabase.from('league_players').select('*').eq('id', playerId).eq('league_id', route.leagueId).single()
+        if (!before) return err('Player not found in this league', 404)
+
+        const { error: delErr } = await supabase.from('league_players').delete().eq('id', playerId)
+        if (delErr) return err(delErr.message, 500)
+
+        // Also remove league-specific role
+        await supabase.from('league_roles').delete()
+          .eq('user_id', before.user_id)
+          .eq('tenant_id', tenantId)
+          .eq('league_id', route.leagueId)
+          .eq('role', 'player')
+
+        await audit(supabase, tenantId, route.leagueId, user.id, role!, 'AdminRemovedPlayer', 'league_player', playerId, before, null)
+        return json({ success: true })
+      }
+
+      return err('Method not allowed', 405)
+    }
+
     // ── BAY AVAILABILITY ──────────────────────────────────────
     if (route.action === 'league-bay-availability' && route.leagueId) {
       const { data: league } = await supabase.from('leagues').select('tenant_id, venue_id').eq('id', route.leagueId).single()
