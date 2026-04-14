@@ -55,6 +55,7 @@ export function useTenants() {
   return useQuery<Tenant[]>({
     queryKey: ["league-tenants"],
     queryFn: () => invoke("/tenants", "GET"),
+    staleTime: LEAGUE_STALE_TIME,
   });
 }
 
@@ -64,6 +65,7 @@ export function useTenantBays(tenantId: string | null) {
     queryKey: ["league-tenant-bays", tenantId],
     queryFn: () => invoke(`/bays?tenant_id=${tenantId}`, "GET"),
     enabled: !!tenantId,
+    staleTime: LEAGUE_STALE_TIME,
   });
 }
 
@@ -87,6 +89,7 @@ export function useLeagues(tenantId: string | null) {
     queryKey: ["leagues", tenantId],
     queryFn: () => invoke(`/leagues?tenant_id=${tenantId}`, "GET"),
     enabled: !!tenantId,
+    staleTime: LEAGUE_STALE_TIME,
   });
 }
 
@@ -95,6 +98,7 @@ export function useLeague(leagueId: string | null) {
     queryKey: ["league", leagueId],
     queryFn: () => invoke(`/leagues/${leagueId}`, "GET"),
     enabled: !!leagueId,
+    staleTime: LEAGUE_STALE_TIME,
   });
 }
 
@@ -133,6 +137,7 @@ export function useJoinCodes(leagueId: string | null) {
     queryKey: ["league-join-codes", leagueId],
     queryFn: () => invoke(`/leagues/${leagueId}/join-codes`, "GET"),
     enabled: !!leagueId,
+    staleTime: LEAGUE_STALE_TIME,
   });
 }
 
@@ -193,6 +198,7 @@ export function useLeaguePlayers(leagueId: string | null) {
     queryKey: ["league-players", leagueId],
     queryFn: () => invoke(`/leagues/${leagueId}/players`, "GET"),
     enabled: !!leagueId,
+    staleTime: LEAGUE_STALE_TIME,
   });
 }
 
@@ -271,6 +277,7 @@ export function useLeagueBranding(leagueId: string | null) {
     queryKey: ["league-branding", leagueId],
     queryFn: () => invoke(`/leagues/${leagueId}/branding`, "GET"),
     enabled: !!leagueId,
+    staleTime: LEAGUE_STALE_TIME,
   });
 }
 
@@ -306,6 +313,7 @@ export function useLeagueAuditLog(tenantId: string | null, leagueId?: string) {
       return (data || []) as unknown as LeagueAuditLog[];
     },
     enabled: !!tenantId,
+    staleTime: LEAGUE_STALE_TIME,
   });
 }
 
@@ -315,6 +323,7 @@ export function useBayAvailability(leagueId: string | null, date: string | null)
     queryKey: ["league-bay-availability", leagueId, date],
     queryFn: () => invoke(`/leagues/${leagueId}/bay-availability?date=${date}`, "GET"),
     enabled: !!leagueId && !!date,
+    staleTime: LEAGUE_STALE_TIME,
   });
 }
 
@@ -328,6 +337,7 @@ export function useBayBookings(leagueId: string | null, date?: string) {
       return invoke(path, "GET");
     },
     enabled: !!leagueId,
+    staleTime: LEAGUE_STALE_TIME,
   });
 }
 
@@ -397,6 +407,7 @@ export function useBayBlocks(leagueId: string | null) {
     queryKey: ["league-bay-blocks", leagueId],
     queryFn: () => invoke(`/leagues/${leagueId}/bay-blocks`, "GET"),
     enabled: !!leagueId,
+    staleTime: LEAGUE_STALE_TIME,
   });
 }
 
@@ -436,6 +447,7 @@ export function useLeagueRounds(leagueId: string | null) {
     queryKey: ["league-rounds", leagueId],
     queryFn: () => invoke(`/leagues/${leagueId}/rounds`, "GET"),
     enabled: !!leagueId,
+    staleTime: LEAGUE_STALE_TIME,
   });
 }
 
@@ -487,6 +499,7 @@ export function useRoundCompetitions(leagueId: string | null, roundId: string | 
     queryKey: ["league-competitions", leagueId, roundId],
     queryFn: () => invoke(`/leagues/${leagueId}/rounds/${roundId}/competitions`, "GET"),
     enabled: !!leagueId && !!roundId,
+    staleTime: LEAGUE_STALE_TIME,
   });
 }
 
