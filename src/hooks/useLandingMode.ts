@@ -15,5 +15,6 @@ export function useLandingMode() {
       return (data?.value as LandingMode) || "community";
     },
     staleTime: 5 * 60 * 1000,
+    placeholderData: "community" as LandingMode,
   });
 }
