@@ -29,7 +29,11 @@ import {
   useUpdateBranding,
   useLeagueAuditLog,
   useTenantBays,
+  useLeaguePlayers,
+  useAddLeaguePlayer,
+  useRemoveLeaguePlayer,
 } from "@/hooks/useLeagues";
+import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant } from "@/types/league";
 import { useToast } from "@/hooks/use-toast";
 
