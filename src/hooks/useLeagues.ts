@@ -240,6 +240,7 @@ export function useLeagueScores(leagueId: string | null, round?: number) {
       return invoke(path, "GET");
     },
     enabled: !!leagueId,
+    staleTime: LEAGUE_STALE_TIME,
   });
 }
 
