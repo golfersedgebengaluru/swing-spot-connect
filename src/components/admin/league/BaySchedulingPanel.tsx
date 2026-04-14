@@ -72,44 +72,44 @@ export function BaySchedulingPanel({ league, tenantId }: Props) {
           {/* Availability overview */}
           {availability && availability.bays.length > 0 && (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {availability.bays.map((bay) => {
-                const bayBookings = availability.bookings.filter((b) => b.bay_id === bay.id);
-                const bayBlocks = availability.blocks.filter((b) => b.bay_id === bay.id);
-                return (
-                  <Card key={bay.id} className="border">
-                    <CardHeader className="pb-2 pt-3 px-4">
-                      <CardTitle className="text-sm font-medium flex items-center justify-between">
-                        {bay.name}
-                        <span className="text-xs text-muted-foreground font-normal">
-                          {bay.open_time}–{bay.close_time}
-                        </span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-3 space-y-1">
-                      {bayBookings.length === 0 && bayBlocks.length === 0 ? (
-                        <p className="text-xs text-green-600">Available all day</p>
-                      ) : (
-                        <>
-                          {bayBookings.map((b, i) => (
-                            <div key={i} className="flex items-center gap-1 text-xs">
-                              <Clock className="h-3 w-3 text-primary" />
-                              <span>{format(new Date(b.scheduled_at), "HH:mm")}–{format(new Date(b.scheduled_end), "HH:mm")}</span>
-                              <Users className="h-3 w-3 ml-1" />
-                              <span>{b.players.length}/{b.max_players}</span>
-                            </div>
-                          ))}
-                          {bayBlocks.map((b, i) => (
-                            <div key={`bl-${i}`} className="flex items-center gap-1 text-xs text-destructive">
-                              <Ban className="h-3 w-3" />
-                              <span>{format(new Date(b.blocked_from), "HH:mm")}–{format(new Date(b.blocked_to), "HH:mm")} Blocked</span>
-                            </div>
-                          ))}
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
+              {availability.bays
+                .filter((bay) => {
+                  const bayBookings = availability.bookings.filter((b) => b.bay_id === bay.id);
+                  const bayBlocks = availability.blocks.filter((b) => b.bay_id === bay.id);
+                  return bayBookings.length > 0 || bayBlocks.length > 0;
+                })
+                .map((bay) => {
+                  const bayBookings = availability.bookings.filter((b) => b.bay_id === bay.id);
+                  const bayBlocks = availability.blocks.filter((b) => b.bay_id === bay.id);
+                  return (
+                    <Card key={bay.id} className="border">
+                      <CardHeader className="pb-2 pt-3 px-4">
+                        <CardTitle className="text-sm font-medium flex items-center justify-between">
+                          {bay.name}
+                          <span className="text-xs text-muted-foreground font-normal">
+                            {bay.open_time}–{bay.close_time}
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="px-4 pb-3 space-y-1">
+                        {bayBookings.map((b, i) => (
+                          <div key={i} className="flex items-center gap-1 text-xs">
+                            <Clock className="h-3 w-3 text-primary" />
+                            <span>{format(new Date(b.scheduled_at), "HH:mm")}–{format(new Date(b.scheduled_end), "HH:mm")}</span>
+                            <Users className="h-3 w-3 ml-1" />
+                            <span>{b.players.length}/{b.max_players}</span>
+                          </div>
+                        ))}
+                        {bayBlocks.map((b, i) => (
+                          <div key={`bl-${i}`} className="flex items-center gap-1 text-xs text-destructive">
+                            <Ban className="h-3 w-3" />
+                            <span>{format(new Date(b.blocked_from), "HH:mm")}–{format(new Date(b.blocked_to), "HH:mm")} Blocked</span>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
             </div>
           )}
 

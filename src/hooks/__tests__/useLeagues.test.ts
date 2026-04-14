@@ -469,5 +469,54 @@ describe("League competitions", () => {
     };
     expect(full.points_config).toHaveLength(1);
   });
+  });
 });
+
+// ── Performance & UI optimisation tests ─────────────────────
+
+describe("League query staleTime optimisation", () => {
+  it("should define LEAGUE_STALE_TIME constant set to 30s", async () => {
+    const source = await import("../useLeagues?raw");
+    const code = (source as any).default ?? source;
+    expect(code).toContain("LEAGUE_STALE_TIME");
+    expect(code).toContain("30_000");
+  });
+
+  it("all useQuery hooks should include staleTime", async () => {
+    const source = await import("../useLeagues?raw");
+    const code = (source as any).default ?? source;
+    // Match useQuery<...>({ ... }) blocks – each should contain staleTime
+    const pattern = /useQuery<[^>]*>\(\{/g;
+    let match;
+    let count = 0;
+    while ((match = pattern.exec(code)) !== null) {
+      count++;
+      const start = match.index;
+      const configEnd = code.indexOf("});", start);
+      if (configEnd === -1) continue;
+      const config = code.slice(start, configEnd);
+      expect(config).toContain("staleTime");
+    }
+    // Ensure we actually checked some queries
+    expect(count).toBeGreaterThanOrEqual(10);
+  });
+});
+
+describe("BaySchedulingPanel hides empty bays", () => {
+  it("should not show 'Available all day' text", async () => {
+    const source = await import(
+      "../../components/admin/league/BaySchedulingPanel?raw"
+    );
+    const code = (source as any).default ?? source;
+    expect(code).not.toContain("Available all day");
+  });
+
+  it("should filter bays to only show those with bookings or blocks", async () => {
+    const source = await import(
+      "../../components/admin/league/BaySchedulingPanel?raw"
+    );
+    const code = (source as any).default ?? source;
+    expect(code).toContain(".filter(");
+    expect(code).toContain("bayBookings.length > 0 || bayBlocks.length > 0");
+  });
 });
