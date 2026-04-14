@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar } from "lucide-react";
+import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search } from "lucide-react";
 import { BaySchedulingPanel } from "@/components/admin/league/BaySchedulingPanel";
 import { format } from "date-fns";
 import {
@@ -29,7 +29,11 @@ import {
   useUpdateBranding,
   useLeagueAuditLog,
   useTenantBays,
+  useLeaguePlayers,
+  useAddLeaguePlayer,
+  useRemoveLeaguePlayer,
 } from "@/hooks/useLeagues";
+import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant } from "@/types/league";
 import { useToast } from "@/hooks/use-toast";
 
@@ -146,6 +150,80 @@ function CreateLeagueDialog({ tenantId }: { tenantId: string }) {
   );
 }
 
+// ── Add Player Dialog ────────────────────────────────────────
+function AddPlayerDialog({ leagueId }: { leagueId: string }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<{ user_id: string; display_name: string; email: string }[]>([]);
+  const [searching, setSearching] = useState(false);
+  const addPlayer = useAddLeaguePlayer(leagueId);
+
+  const handleSearch = async () => {
+    if (!search.trim()) return;
+    setSearching(true);
+    try {
+      const { data } = await supabase
+        .from("profiles")
+        .select("user_id, display_name, email")
+        .not("user_id", "is", null)
+        .or(`display_name.ilike.%${search}%,email.ilike.%${search}%`)
+        .limit(10);
+      setResults((data || []).filter((p) => p.user_id) as any);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleAdd = (userId: string) => {
+    addPlayer.mutate(userId, {
+      onSuccess: () => {
+        setResults((prev) => prev.filter((p) => p.user_id !== userId));
+      },
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setSearch(""); setResults([]); } }}>
+      <DialogTrigger asChild>
+        <Button size="sm"><UserPlus className="h-4 w-4 mr-1" /> Add Player</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Add Player to League</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name or email"
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            />
+            <Button onClick={handleSearch} disabled={searching} size="sm">
+              {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            </Button>
+          </div>
+          {results.length > 0 ? (
+            <div className="divide-y max-h-[300px] overflow-y-auto">
+              {results.map((p) => (
+                <div key={p.user_id} className="flex items-center justify-between py-2">
+                  <div>
+                    <p className="text-sm font-medium">{p.display_name || "Unnamed"}</p>
+                    <p className="text-xs text-muted-foreground">{p.email}</p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => handleAdd(p.user_id)} disabled={addPlayer.isPending}>
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : search && !searching ? (
+            <p className="text-sm text-muted-foreground text-center py-4">No users found</p>
+          ) : null}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── League Detail Panel ──────────────────────────────────────
 function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
   const updateLeague = useUpdateLeague(league.id);
@@ -153,6 +231,8 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
   const createCode = useCreateJoinCode(league.id);
   const revokeCode = useRevokeJoinCode(league.id);
   const { data: scores } = useLeagueScores(league.id);
+  const { data: players, isLoading: playersLoading } = useLeaguePlayers(league.id);
+  const removePlayer = useRemoveLeaguePlayer(league.id);
   const { data: branding } = useLeagueBranding(tenant.sponsorship_enabled ? league.id : null);
   const updateBranding = useUpdateBranding(league.id);
   const { data: auditLogs } = useLeagueAuditLog(league.tenant_id, league.id);
@@ -193,14 +273,58 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
         </div>
       </div>
 
-      <Tabs defaultValue="codes">
+      <Tabs defaultValue="players">
         <TabsList>
+          <TabsTrigger value="players"><Users className="h-3.5 w-3.5 mr-1" />Players ({players?.length || 0})</TabsTrigger>
           <TabsTrigger value="codes">Join Codes</TabsTrigger>
           <TabsTrigger value="scheduling"><Calendar className="h-3.5 w-3.5 mr-1" />Bay Scheduling</TabsTrigger>
           <TabsTrigger value="scores">Scores ({scores?.length || 0})</TabsTrigger>
           {tenant.sponsorship_enabled && <TabsTrigger value="branding">Branding</TabsTrigger>}
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
+
+        {/* Players */}
+        <TabsContent value="players" className="space-y-4">
+          <AddPlayerDialog leagueId={league.id} />
+          {playersLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (!players || players.length === 0) ? (
+            <p className="text-sm text-muted-foreground py-4">No players yet. Add players or share a join code.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Joined</TableHead>
+                  <TableHead>Method</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {players.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell className="font-medium">{p.display_name || "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{p.email || "—"}</TableCell>
+                    <TableCell>{format(new Date(p.joined_at), "PP")}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{p.joined_via_code_id ? "Join Code" : "Admin Added"}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => removePlayer.mutate(p.id)}
+                        disabled={removePlayer.isPending}
+                        title="Remove player"
+                      >
+                        <UserMinus className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </TabsContent>
 
         {/* Join Codes */}
         <TabsContent value="codes" className="space-y-4">
