@@ -142,16 +142,14 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
 
   const startTime = useMemo(() => {
     if (!selectedDate) return null;
-    const y = selectedDate.getFullYear();
-    const m = String(selectedDate.getMonth() + 1).padStart(2, "0");
-    const day = String(selectedDate.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}T${startHour}:${startMinute}:00`;
+    const d = new Date(selectedDate);
+    d.setHours(parseInt(startHour), parseInt(startMinute), 0, 0);
+    return d.toISOString();
   }, [selectedDate, startHour, startMinute]);
 
   const endTime = useMemo(() => {
     if (!startTime) return null;
-    const start = new Date(startTime);
-    return new Date(start.getTime() + duration * 60 * 1000).toISOString();
+    return new Date(new Date(startTime).getTime() + duration * 60 * 1000).toISOString();
   }, [startTime, duration]);
 
   // Search profiles
