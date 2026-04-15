@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { CouponInput } from "@/components/shop/CouponInput";
 import { ValidateCouponResult, calculateDiscount, useRedeemCoupon } from "@/hooks/useCoupons";
+import { BookingTerms } from "@/components/BookingTerms";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -43,6 +44,7 @@ export default function Dashboard() {
   const [appliedCoupon, setAppliedCoupon] = useState<ValidateCouponResult | null>(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponPkgId, setCouponPkgId] = useState<string | null>(null);
+  const [pkgTermsAccepted, setPkgTermsAccepted] = useState(false);
   const { data: visibility } = usePageVisibility();
   const userCity = profile?.preferred_city;
   const { data: coachingHoursPerSession } = useQuery({
@@ -465,7 +467,7 @@ export default function Dashboard() {
                           className="w-full mt-4"
                           variant={pkg.hours === 25 ? "default" : "outline"}
                           onClick={() => handleBuyHours(pkg)}
-                          disabled={buyingPkgId === pkg.id}
+                          disabled={buyingPkgId === pkg.id || !pkgTermsAccepted}
                         >
                           {buyingPkgId === pkg.id ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</> : "Buy Now"}
                         </Button>
@@ -479,7 +481,6 @@ export default function Dashboard() {
                   onApply={(result, discount) => {
                     setAppliedCoupon(result);
                     setCouponDiscount(discount);
-                    // Apply to the first package by default; actual discount recalculated per package at purchase time
                     setCouponPkgId(null);
                   }}
                   onRemove={() => {
@@ -487,6 +488,11 @@ export default function Dashboard() {
                     setCouponDiscount(0);
                     setCouponPkgId(null);
                   }}
+                />
+                <BookingTerms
+                  slug="package-terms"
+                  accepted={pkgTermsAccepted}
+                  onAcceptedChange={setPkgTermsAccepted}
                 />
               </CardContent>
             </Card>

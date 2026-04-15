@@ -27,6 +27,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { CouponInput } from "@/components/shop/CouponInput";
 import { ValidateCouponResult, calculateDiscount, useRedeemCoupon } from "@/hooks/useCoupons";
+import { BookingTerms } from "@/components/BookingTerms";
 
 type Step = "select" | "payment" | "confirm";
 
@@ -60,6 +61,7 @@ export default function PublicBooking() {
 
   const [bookingComplete, setBookingComplete] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const isGuest = !user;
 
@@ -760,6 +762,22 @@ export default function PublicBooking() {
                 </CardContent>
               </Card>
 
+              {/* Terms & Conditions — only for pay-now */}
+              {paymentMethod === "pay" && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Terms & Conditions</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <BookingTerms
+                      slug="booking-terms"
+                      accepted={termsAccepted}
+                      onAcceptedChange={setTermsAccepted}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Confirm Button */}
               <Button
                 className="w-full"
@@ -767,6 +785,7 @@ export default function PublicBooking() {
                 disabled={
                   isProcessing ||
                   (paymentMethod === "hours" && !hasEnoughHours) ||
+                  (paymentMethod === "pay" && !termsAccepted) ||
                   (isGuest && (!guestName.trim() || !guestEmail.trim() || !guestPhone.trim()))
                 }
                 onClick={handleConfirmBooking}
