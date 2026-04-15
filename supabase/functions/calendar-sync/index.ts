@@ -529,8 +529,8 @@ Deno.serve(async (req) => {
         .from("bookings")
         .select("id")
         .in("status", ["confirmed", "pending"])
-        .gte("end_time", start_time)
-        .lte("start_time", end_time);
+        .gt("end_time", start_time)
+        .lt("start_time", end_time);
       if (bay_id) overlapQuery.eq("bay_id", bay_id);
       else overlapQuery.eq("city", city);
 
@@ -856,8 +856,8 @@ Deno.serve(async (req) => {
         .from("bookings")
         .select("*")
         .in("status", ["confirmed", "pending"])
-        .gte("end_time", start_time)
-        .lte("start_time", end_time);
+        .gt("end_time", start_time)
+        .lt("start_time", end_time);
 
       if (bay_id) {
         overlapQuery.eq("bay_id", bay_id);
