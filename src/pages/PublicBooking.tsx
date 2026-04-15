@@ -716,7 +716,7 @@ export default function PublicBooking() {
                   {/* Hours option - only for logged in members */}
                   {user && (
                     <button
-                      onClick={() => setPaymentMethod("hours")}
+                      onClick={() => { setPaymentMethod("hours"); setTermsAccepted(false); }}
                       className={cn(
                         "w-full flex items-center gap-4 rounded-lg border p-4 text-left transition-colors",
                         paymentMethod === "hours"
