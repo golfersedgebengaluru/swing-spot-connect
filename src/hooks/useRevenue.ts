@@ -253,19 +253,37 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
         }
       }
 
-      // --- Revenue by product category (from invoice line items) ---
-      const confirmedIds = confirmed
-        .filter((t) => t.transaction_type !== "refund")
-        .map((t: any) => t.id)
-        .filter(Boolean);
+      // --- Revenue by product category ---
+      // All booking & guest_booking transactions are Bay Usage.
+      // Other transaction types use invoice line-item product categories.
+      const BAY_USAGE_TYPES = new Set(["booking", "guest_booking"]);
+      const nonRefundConfirmed = confirmed.filter((t) => t.transaction_type !== "refund");
 
       const byCategory: Record<string, number> = {};
-      if (confirmedIds.length > 0) {
-        // Get invoices linked to these transactions
+
+      const bayUsageTxns: typeof nonRefundConfirmed = [];
+      const otherTxns: typeof nonRefundConfirmed = [];
+      for (const t of nonRefundConfirmed) {
+        if (BAY_USAGE_TYPES.has(t.transaction_type)) {
+          bayUsageTxns.push(t);
+        } else {
+          otherTxns.push(t);
+        }
+      }
+
+      // Bay Usage = sum of all booking/guest_booking amounts
+      const bayUsageTotal = bayUsageTxns.reduce((s, t) => s + Number(t.amount), 0);
+      if (bayUsageTotal > 0) {
+        byCategory["Bay Usage"] = bayUsageTotal;
+      }
+
+      // For non-bay transactions, break down by invoice line-item product categories
+      if (otherTxns.length > 0) {
+        const otherIds = otherTxns.map((t: any) => t.id).filter(Boolean);
         const { data: invoices } = await supabase
           .from("invoices")
           .select("id, revenue_transaction_id")
-          .in("revenue_transaction_id", confirmedIds);
+          .in("revenue_transaction_id", otherIds);
 
         const invoiceIds = (invoices ?? []).map((inv) => inv.id);
         if (invoiceIds.length > 0) {
@@ -274,7 +292,6 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
             .select("invoice_id, line_total, product_id")
             .in("invoice_id", invoiceIds);
 
-          // Get product categories for all product_ids
           const productIds = [...new Set((lineItems ?? []).map((li) => li.product_id).filter(Boolean))] as string[];
           let productCategoryMap: Record<string, string> = {};
           if (productIds.length > 0) {
@@ -287,17 +304,7 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
 
           for (const li of lineItems ?? []) {
             const cat = li.product_id ? (productCategoryMap[li.product_id] || "Other") : "Other";
-            // Normalize sim usage categories to "Bay Usage"
-            const normalizedCat = cat.toLowerCase().includes("sim usage") ? "Bay Usage" : cat;
-            byCategory[normalizedCat] = (byCategory[normalizedCat] || 0) + Number(li.line_total);
-          }
-        }
-
-        // Add guest_booking amounts (no invoice) as Bay Usage
-        for (const t of confirmed.filter((t) => t.transaction_type === "guest_booking")) {
-          const hasInvoice = (invoices ?? []).some((inv) => inv.revenue_transaction_id === (t as any).id);
-          if (!hasInvoice) {
-            byCategory["Bay Usage"] = (byCategory["Bay Usage"] || 0) + Number(t.amount);
+            byCategory[cat] = (byCategory[cat] || 0) + Number(li.line_total);
           }
         }
       }
