@@ -1056,6 +1056,13 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
           )}
         </TabsContent>
 
+        {/* Scoring Config & Hidden Holes */}
+        <TabsContent value="scoring" className="space-y-6">
+          <ScoringConfigPanel league={league} />
+          <Separator />
+          <HiddenHolesPanel league={league} />
+        </TabsContent>
+
         {/* Branding */}
         {tenant.sponsorship_enabled && (
           <TabsContent value="branding" className="space-y-4">
