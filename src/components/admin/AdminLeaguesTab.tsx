@@ -42,6 +42,12 @@ import {
   useCreateCompetition,
   useUpdateCompetition,
   useDeleteCompetition,
+  useLeagueTeams,
+  useCreateTeam,
+  useUpdateTeam,
+  useDeleteTeam,
+  useAddTeamMember,
+  useRemoveTeamMember,
 } from "@/hooks/useLeagues";
 import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition } from "@/types/league";
