@@ -48,6 +48,9 @@ import {
   useDeleteTeam,
   useAddTeamMember,
   useRemoveTeamMember,
+  useHiddenHoles,
+  useSetHiddenHoles,
+  useCloseRound,
 } from "@/hooks/useLeagues";
 import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam } from "@/types/league";
