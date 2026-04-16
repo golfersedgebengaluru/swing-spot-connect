@@ -146,6 +146,10 @@ function parseRoute(url: URL): Route {
     if (subResource === 'hidden-holes') {
       return { action: 'league-hidden-holes', leagueId, subResource }
     }
+    // /leagues/:id/leaderboard
+    if (subResource === 'leaderboard') {
+      return { action: 'league-leaderboard', leagueId, subResource }
+    }
     return { action: `league-${subResource}`, leagueId, subResource }
   }
   return { action: 'unknown' }

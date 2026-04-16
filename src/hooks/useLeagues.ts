@@ -25,6 +25,7 @@ import type {
   UpdateRoundRequest,
   CreateCompetitionRequest,
   UpdateCompetitionRequest,
+  LeaderboardResponse,
 } from "@/types/league";
 import { useToast } from "@/hooks/use-toast";
 

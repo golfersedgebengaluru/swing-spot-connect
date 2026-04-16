@@ -263,6 +263,27 @@ export interface RescheduleBayBookingRequest {
   notes?: string;
 }
 
+// ── Leaderboard ──────────────────────────────────────────────
+export interface LeaderboardEntry {
+  rank: number;
+  type: 'individual' | 'team';
+  id: string;
+  name: string;
+  team_name?: string;
+  total_gross: number;
+  total_net: number;
+  final_score: number;
+  rounds_played: number;
+  breakdown: { round: number; gross: number; net: number; handicap: number }[];
+  members?: { player_id: string; name: string; net_score: number }[];
+}
+
+export interface LeaderboardResponse {
+  entries: LeaderboardEntry[];
+  round: number | null;
+  filter: 'all' | 'individuals' | 'teams';
+}
+
 // ── League Round ─────────────────────────────────────────────
 export interface LeagueRound {
   id: string;
