@@ -606,6 +606,226 @@ function TeamsPanel({ league }: { league: League }) {
   );
 }
 
+// ── Scoring Config Panel ────────────────────────────────────
+function ScoringConfigPanel({ league }: { league: League }) {
+  const updateLeague = useUpdateLeague(league.id);
+  const [scoringHoles, setScoringHoles] = useState(league.scoring_holes || 18);
+  const [fairnessPct, setFairnessPct] = useState(league.fairness_factor_pct || 0);
+  const [aggregation, setAggregation] = useState(league.team_aggregation_method || 'best_ball');
+  const [peoriaMultiplier, setPeoriaMultiplier] = useState(league.peoria_multiplier || 3);
+
+  const handleSave = () => {
+    updateLeague.mutate({
+      scoring_holes: scoringHoles,
+      fairness_factor_pct: fairnessPct,
+      team_aggregation_method: aggregation as 'best_ball' | 'average',
+      peoria_multiplier: peoriaMultiplier,
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <h4 className="text-sm font-semibold">Scoring Configuration</h4>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <Label>Holes per Round</Label>
+          <div className="flex gap-2 mt-1">
+            <Button size="sm" variant={scoringHoles === 9 ? "default" : "outline"} onClick={() => setScoringHoles(9)}>9 Holes</Button>
+            <Button size="sm" variant={scoringHoles === 18 ? "default" : "outline"} onClick={() => setScoringHoles(18)}>18 Holes</Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            {scoringHoles === 9 ? "3 hidden holes, ×3 multiplier" : "6 hidden holes, ×3 multiplier"}
+          </p>
+        </div>
+        <div>
+          <Label>Peoria Multiplier</Label>
+          <Input type="number" value={peoriaMultiplier || ""} onChange={(e) => setPeoriaMultiplier(Number(e.target.value))} min={1} max={10} step={0.5} />
+          <p className="text-xs text-muted-foreground mt-1">Hidden hole sum × this value = handicap</p>
+        </div>
+        <div>
+          <Label>Team Aggregation Method</Label>
+          <Select value={aggregation} onValueChange={setAggregation}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="best_ball">Best Ball (lowest net score)</SelectItem>
+              <SelectItem value="average">Average Score</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Team Fairness Factor (%)</Label>
+          <Input type="number" value={fairnessPct || ""} onChange={(e) => setFairnessPct(Number(e.target.value))} min={0} max={100} step={1} />
+          <p className="text-xs text-muted-foreground mt-1">Team score reduced by this % to compete with individuals</p>
+        </div>
+      </div>
+      <Button onClick={handleSave} disabled={updateLeague.isPending} size="sm">
+        {updateLeague.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}Save Configuration
+      </Button>
+    </div>
+  );
+}
+
+// ── Hidden Holes Panel ──────────────────────────────────────
+function HiddenHolesPanel({ league }: { league: League }) {
+  const { data: hiddenHoles, isLoading } = useHiddenHoles(league.id);
+  const { data: rounds } = useLeagueRounds(league.id);
+  const setHiddenHoles = useSetHiddenHoles(league.id);
+  const closeRound = useCloseRound(league.id);
+  const [selectedRound, setSelectedRound] = useState<number>(1);
+  const [manualHoles, setManualHoles] = useState<number[]>([]);
+  const [lastResult, setLastResult] = useState<any>(null);
+
+  const scoringHoles = league.scoring_holes || 18;
+  const requiredCount = scoringHoles === 9 ? 3 : 6;
+
+  const currentRoundHH = hiddenHoles?.find((h) => h.round_number === selectedRound);
+
+  const toggleHole = (hole: number) => {
+    setManualHoles((prev) => {
+      if (prev.includes(hole)) return prev.filter((h) => h !== hole);
+      if (prev.length >= requiredCount) return prev;
+      return [...prev, hole].sort((a, b) => a - b);
+    });
+  };
+
+  const handleRandomize = () => {
+    setHiddenHoles.mutate({ round_number: selectedRound, randomize: true });
+  };
+
+  const handleSaveManual = () => {
+    if (manualHoles.length !== requiredCount) return;
+    setHiddenHoles.mutate({ round_number: selectedRound, hidden_holes: manualHoles });
+  };
+
+  const handleCloseRound = () => {
+    closeRound.mutate(selectedRound, {
+      onSuccess: (data) => setLastResult(data),
+    });
+  };
+
+  if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>;
+
+  return (
+    <div className="space-y-4">
+      <h4 className="text-sm font-semibold">Hidden Holes (Peoria System)</h4>
+
+      <div className="flex items-center gap-3">
+        <div>
+          <Label>Round</Label>
+          {rounds && rounds.length > 0 ? (
+            <Select value={String(selectedRound)} onValueChange={(v) => setSelectedRound(Number(v))}>
+              <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {rounds.map((r) => (
+                  <SelectItem key={r.round_number} value={String(r.round_number)}>
+                    Round {r.round_number}: {r.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input type="number" value={selectedRound} onChange={(e) => setSelectedRound(Number(e.target.value))} min={1} className="w-20" />
+          )}
+        </div>
+      </div>
+
+      {currentRoundHH ? (
+        <div className="border rounded-md p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {currentRoundHH.revealed_at ? (
+                <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"><Unlock className="h-3 w-3 mr-1" /> Revealed</Badge>
+              ) : (
+                <Badge variant="secondary"><Lock className="h-3 w-3 mr-1" /> Hidden</Badge>
+              )}
+              <span className="text-sm">Round {currentRoundHH.round_number}</span>
+            </div>
+            {!currentRoundHH.revealed_at && (
+              <Button size="sm" variant="destructive" onClick={handleCloseRound} disabled={closeRound.isPending}>
+                {closeRound.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}Close Round & Reveal
+              </Button>
+            )}
+          </div>
+          {currentRoundHH.hidden_holes && (
+            <div className="flex gap-2 flex-wrap">
+              {currentRoundHH.hidden_holes.map((h) => (
+                <Badge key={h} variant="outline" className="text-sm">Hole {h}</Badge>
+              ))}
+            </div>
+          )}
+          {currentRoundHH.revealed_at && (
+            <p className="text-xs text-muted-foreground">Revealed at {format(new Date(currentRoundHH.revealed_at), "PP p")}</p>
+          )}
+        </div>
+      ) : (
+        <div className="border-2 border-dashed rounded-lg p-4 space-y-4">
+          <p className="text-sm text-muted-foreground">No hidden holes set for Round {selectedRound}. Select {requiredCount} holes or randomize.</p>
+
+          {/* Hole grid */}
+          <div className="grid grid-cols-9 gap-1">
+            {Array.from({ length: scoringHoles }, (_, i) => {
+              const hole = i + 1;
+              const isSelected = manualHoles.includes(hole);
+              return (
+                <Button
+                  key={hole}
+                  size="sm"
+                  variant={isSelected ? "default" : "outline"}
+                  className="h-8 w-8 p-0 text-xs"
+                  onClick={() => toggleHole(hole)}
+                >
+                  {hole}
+                </Button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">{manualHoles.length}/{requiredCount} selected</p>
+
+          <div className="flex gap-2">
+            <Button size="sm" onClick={handleSaveManual} disabled={manualHoles.length !== requiredCount || setHiddenHoles.isPending}>
+              {setHiddenHoles.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}Save Selection
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleRandomize} disabled={setHiddenHoles.isPending}>
+              <Shuffle className="h-3.5 w-3.5 mr-1" /> Randomize
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Peoria Results */}
+      {lastResult?.peoria_results && lastResult.peoria_results.length > 0 && (
+        <div className="space-y-2">
+          <h5 className="text-sm font-medium">Peoria Handicap Results</h5>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Player</TableHead>
+                <TableHead>Gross</TableHead>
+                <TableHead>Hidden Sum</TableHead>
+                <TableHead>Handicap</TableHead>
+                <TableHead>Net</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {lastResult.peoria_results
+                .sort((a: any, b: any) => a.net_score - b.net_score)
+                .map((r: any) => (
+                  <TableRow key={r.score_id}>
+                    <TableCell className="font-mono text-xs">{r.player_id.slice(0, 8)}</TableCell>
+                    <TableCell>{r.gross_score}</TableCell>
+                    <TableCell>{r.hidden_hole_sum}</TableCell>
+                    <TableCell>{r.peoria_handicap}</TableCell>
+                    <TableCell className="font-semibold">{r.net_score}</TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
   const updateLeague = useUpdateLeague(league.id);
