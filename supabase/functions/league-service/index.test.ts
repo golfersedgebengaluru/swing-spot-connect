@@ -97,3 +97,34 @@ Deno.test("league-service: reschedule without auth returns 401", async () => {
   });
   assertEquals(status, 401);
 });
+
+// ── Team auth gate tests ────────────────────────────────────
+Deno.test("league-service: GET teams without auth returns 401", async () => {
+  const { status } = await fetchAPI("/leagues/fake-id/teams", "GET");
+  assertEquals(status, 401);
+});
+
+Deno.test("league-service: POST teams without auth returns 401", async () => {
+  const { status } = await fetchAPI("/leagues/fake-id/teams", "POST", { name: "Test Team" });
+  assertEquals(status, 401);
+});
+
+Deno.test("league-service: PATCH team without auth returns 401", async () => {
+  const { status } = await fetchAPI("/leagues/fake-id/teams/fake-team", "PATCH", { name: "Updated" });
+  assertEquals(status, 401);
+});
+
+Deno.test("league-service: DELETE team without auth returns 401", async () => {
+  const { status } = await fetchAPI("/leagues/fake-id/teams/fake-team", "DELETE");
+  assertEquals(status, 401);
+});
+
+Deno.test("league-service: POST team member without auth returns 401", async () => {
+  const { status } = await fetchAPI("/leagues/fake-id/teams/fake-team/members", "POST", { player_id: "fake" });
+  assertEquals(status, 401);
+});
+
+Deno.test("league-service: DELETE team member without auth returns 401", async () => {
+  const { status } = await fetchAPI("/leagues/fake-id/teams/fake-team/members/fake-member", "DELETE");
+  assertEquals(status, 401);
+});
