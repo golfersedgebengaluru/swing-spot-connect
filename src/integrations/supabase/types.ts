@@ -1766,6 +1766,54 @@ export type Database = {
           },
         ]
       }
+      league_round_hidden_holes: {
+        Row: {
+          created_at: string
+          hidden_holes: number[]
+          id: string
+          league_id: string
+          revealed_at: string | null
+          round_number: number
+          selected_by: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          hidden_holes: number[]
+          id?: string
+          league_id: string
+          revealed_at?: string | null
+          round_number: number
+          selected_by: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          hidden_holes?: number[]
+          id?: string
+          league_id?: string
+          revealed_at?: string | null
+          round_number?: number
+          selected_by?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_round_hidden_holes_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_round_hidden_holes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       league_rounds: {
         Row: {
           created_at: string
@@ -1974,13 +2022,17 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          fairness_factor_pct: number
           format: Database["public"]["Enums"]["league_format"]
           id: string
           name: string
+          peoria_multiplier: number
           score_entry_method: Database["public"]["Enums"]["score_entry_method"]
+          scoring_holes: number
           season_end: string | null
           season_start: string | null
           status: Database["public"]["Enums"]["league_status"]
+          team_aggregation_method: string
           tenant_id: string
           updated_at: string
           venue_id: string | null
@@ -1988,13 +2040,17 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
+          fairness_factor_pct?: number
           format?: Database["public"]["Enums"]["league_format"]
           id?: string
           name: string
+          peoria_multiplier?: number
           score_entry_method?: Database["public"]["Enums"]["score_entry_method"]
+          scoring_holes?: number
           season_end?: string | null
           season_start?: string | null
           status?: Database["public"]["Enums"]["league_status"]
+          team_aggregation_method?: string
           tenant_id: string
           updated_at?: string
           venue_id?: string | null
@@ -2002,13 +2058,17 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          fairness_factor_pct?: number
           format?: Database["public"]["Enums"]["league_format"]
           id?: string
           name?: string
+          peoria_multiplier?: number
           score_entry_method?: Database["public"]["Enums"]["score_entry_method"]
+          scoring_holes?: number
           season_end?: string | null
           season_start?: string | null
           status?: Database["public"]["Enums"]["league_status"]
+          team_aggregation_method?: string
           tenant_id?: string
           updated_at?: string
           venue_id?: string | null
