@@ -996,6 +996,9 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
 
   const [sponsorName, setSponsorName] = useState(branding?.sponsor_name || "");
   const [sponsorUrl, setSponsorUrl] = useState(branding?.sponsor_url || "");
+  const [leagueLogoUrl, setLeagueLogoUrl] = useState(branding?.logo_url || "");
+  const [sponsorLogoUrl, setSponsorLogoUrl] = useState(branding?.sponsor_logo_url || "");
+  const [uploadingLogo, setUploadingLogo] = useState<string | null>(null);
   const [codeTeamId, setCodeTeamId] = useState<string>("");
 
   // Bidirectional status transitions
