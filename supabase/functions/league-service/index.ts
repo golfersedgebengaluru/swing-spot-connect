@@ -125,7 +125,11 @@ function parseRoute(url: URL): Route {
   const resource = segments[1] || ''
 
   if (resource === 'join') return { action: 'join' }
-  if (resource === 'tenants') return { action: 'tenants' }
+  if (resource === 'tenants') {
+    const tenantId = segments[2]
+    if (tenantId) return { action: 'tenant-detail', leagueId: tenantId }
+    return { action: 'tenants' }
+  }
   if (resource === 'bays') return { action: 'bays' }
   if (resource === 'leagues') {
     const leagueId = segments[2]
