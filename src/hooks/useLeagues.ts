@@ -11,6 +11,7 @@ import type {
   LeagueBayBlock,
   LeagueRound,
   LeagueCompetition,
+  LeagueTeam,
   BayAvailabilityResponse,
   CreateLeagueRequest,
   UpdateLeagueRequest,
