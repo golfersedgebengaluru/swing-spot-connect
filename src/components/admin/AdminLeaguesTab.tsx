@@ -734,7 +734,7 @@ function HiddenHolesPanel({ league }: { league: League }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {currentRoundHH.revealed_at ? (
-                <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"><Unlock className="h-3 w-3 mr-1" /> Revealed</Badge>
+                <Badge variant="default"><Unlock className="h-3 w-3 mr-1" /> Revealed</Badge>
               ) : (
                 <Badge variant="secondary"><Lock className="h-3 w-3 mr-1" /> Hidden</Badge>
               )}
