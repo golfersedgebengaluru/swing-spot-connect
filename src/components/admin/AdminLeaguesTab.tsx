@@ -1191,6 +1191,11 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
           )}
         </TabsContent>
 
+        {/* Leaderboard */}
+        <TabsContent value="leaderboard">
+          <LeaderboardPanel league={league} />
+        </TabsContent>
+
         {/* Scoring Config & Hidden Holes */}
         <TabsContent value="scoring" className="space-y-6">
           <ScoringConfigPanel league={league} />
