@@ -630,3 +630,42 @@ export function useDeleteCompetition(leagueId: string, roundId: string) {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 }
+
+// ── Hidden Holes (Peoria) ───────────────────────────────────
+export function useHiddenHoles(leagueId: string | null) {
+  return useQuery<LeagueRoundHiddenHoles[]>({
+    queryKey: ["league-hidden-holes", leagueId],
+    queryFn: () => invoke(`/leagues/${leagueId}/hidden-holes`, "GET"),
+    enabled: !!leagueId,
+    staleTime: LEAGUE_STALE_TIME,
+  });
+}
+
+export function useSetHiddenHoles(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (body: { round_number: number; hidden_holes?: number[]; randomize?: boolean }) =>
+      invoke(`/leagues/${leagueId}/hidden-holes`, "POST", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-hidden-holes", leagueId] });
+      toast({ title: "Hidden holes saved" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useCloseRound(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation<CloseRoundResponse, Error, number>({
+    mutationFn: (roundNumber: number) =>
+      invoke(`/leagues/${leagueId}/hidden-holes`, "PATCH", { round_number: roundNumber, action: "close_round" }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["league-hidden-holes", leagueId] });
+      qc.invalidateQueries({ queryKey: ["league-scores", leagueId] });
+      toast({ title: "Round closed", description: `${data.peoria_results.length} scores processed` });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
