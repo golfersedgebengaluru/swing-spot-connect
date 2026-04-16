@@ -27,6 +27,10 @@ export interface League {
   venue_id: string | null;
   status: LeagueStatus;
   score_entry_method: ScoreEntryMethod;
+  scoring_holes: number;
+  fairness_factor_pct: number;
+  team_aggregation_method: 'best_ball' | 'average';
+  peoria_multiplier: number;
   created_by: string;
   created_at: string;
   updated_at: string;
