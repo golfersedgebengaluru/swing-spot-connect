@@ -381,6 +381,12 @@ Deno.serve(async (req) => {
         const expiresAt = body.expires_at ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
         const maxUses = body.max_uses ?? 100
 
+        // Validate team_id if provided
+        if (body.team_id) {
+          const { data: teamCheck } = await supabase.from('league_teams').select('id').eq('id', body.team_id).eq('league_id', route.leagueId).single()
+          if (!teamCheck) return err('Team not found in this league', 404)
+        }
+
         const code = generateCode()
         const { data, error } = await supabase.from('league_join_codes').insert({
           league_id: route.leagueId,
@@ -388,6 +394,7 @@ Deno.serve(async (req) => {
           expires_at: expiresAt,
           max_uses: maxUses,
           created_by: user.id,
+          team_id: body.team_id ?? null,
         }).select().single()
 
         if (error) return err(error.message, 500)
