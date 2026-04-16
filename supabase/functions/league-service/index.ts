@@ -53,6 +53,24 @@ async function audit(
   })
 }
 
+// ── Feed emit helper ─────────────────────────────────────────
+async function emitFeed(
+  supabase: any,
+  tenantId: string,
+  leagueId: string,
+  actorId: string,
+  eventType: string,
+  payload: Record<string, unknown> = {}
+) {
+  await supabase.from('league_feed_items').insert({
+    tenant_id: tenantId,
+    league_id: leagueId,
+    actor_id: actorId,
+    event_type: eventType,
+    payload,
+  })
+}
+
 // ── Role check helpers ───────────────────────────────────────
 async function getUserLeagueRole(supabase: any, userId: string, tenantId: string): Promise<string | null> {
   // Check system admin first
