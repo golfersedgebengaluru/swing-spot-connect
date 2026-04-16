@@ -687,3 +687,31 @@ export function useLeaderboard(leagueId: string | null, round?: number, filter?:
     staleTime: LEAGUE_STALE_TIME,
   });
 }
+
+// ── Activity Feed ───────────────────────────────────────────
+export function useLeagueFeed(leagueId: string | null) {
+  return useQuery<import("@/types/league").LeagueFeedItem[]>({
+    queryKey: ["league-feed", leagueId],
+    queryFn: () => invoke(`/leagues/${leagueId}/feed?limit=50`, "GET"),
+    enabled: !!leagueId,
+    staleTime: LEAGUE_STALE_TIME,
+  });
+}
+
+export function useReactToFeedItem(leagueId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ feedItemId, emoji }: { feedItemId: string; emoji: string }) =>
+      invoke(`/leagues/${leagueId}/feed/${feedItemId}/reactions`, "POST", { emoji }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["league-feed", leagueId] }),
+  });
+}
+
+export function useUnreactFeedItem(leagueId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ feedItemId, emoji }: { feedItemId: string; emoji: string }) =>
+      invoke(`/leagues/${leagueId}/feed/${feedItemId}/reactions?emoji=${encodeURIComponent(emoji)}`, "DELETE"),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["league-feed", leagueId] }),
+  });
+}
