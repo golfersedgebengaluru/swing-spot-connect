@@ -142,6 +142,10 @@ function parseRoute(url: URL): Route {
     if (subResource === 'rounds' && segments[4]) {
       return { action: 'league-round-detail', leagueId, subResource, subId: segments[4] }
     }
+    // /leagues/:id/hidden-holes
+    if (subResource === 'hidden-holes') {
+      return { action: 'league-hidden-holes', leagueId, subResource }
+    }
     return { action: `league-${subResource}`, leagueId, subResource }
   }
   return { action: 'unknown' }
