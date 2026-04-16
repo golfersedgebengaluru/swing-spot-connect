@@ -1621,6 +1621,93 @@ export type Database = {
           },
         ]
       }
+      league_feed_items: {
+        Row: {
+          actor_id: string
+          created_at: string
+          event_type: string
+          id: string
+          league_id: string
+          payload: Json
+          tenant_id: string
+        }
+        Insert: {
+          actor_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          league_id: string
+          payload?: Json
+          tenant_id: string
+        }
+        Update: {
+          actor_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          league_id?: string
+          payload?: Json
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_feed_items_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_feed_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_feed_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          feed_item_id: string
+          id: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji?: string
+          feed_item_id: string
+          id?: string
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          feed_item_id?: string
+          id?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_feed_reactions_feed_item_id_fkey"
+            columns: ["feed_item_id"]
+            isOneToOne: false
+            referencedRelation: "league_feed_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_feed_reactions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       league_join_codes: {
         Row: {
           code: string
