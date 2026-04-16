@@ -250,6 +250,27 @@ Deno.serve(async (req) => {
       return err('Method not allowed', 405)
     }
 
+    // ── TENANT DETAIL (PATCH) ────────────────────────────────
+    if (route.action === 'tenant-detail') {
+      if (method === 'PATCH') {
+        const { data: isAdmin } = await supabase.rpc('is_admin_or_site_admin', { _user_id: user.id })
+        if (!isAdmin) return err('Only site admins can update tenants', 403)
+        const body = await req.json()
+        const updates: Record<string, unknown> = {}
+        if (typeof body.sponsorship_enabled === 'boolean') updates.sponsorship_enabled = body.sponsorship_enabled
+        if (body.default_logo_url !== undefined) updates.default_logo_url = body.default_logo_url
+        if (body.name) updates.name = body.name
+        if (Object.keys(updates).length === 0) return err('No valid fields to update')
+        updates.updated_at = new Date().toISOString()
+        const { data: before } = await supabase.from('tenants').select('*').eq('id', route.leagueId).single()
+        const { data, error } = await supabase.from('tenants').update(updates).eq('id', route.leagueId).select().single()
+        if (error) return err(error.message, 500)
+        await audit(supabase, route.leagueId!, null, user.id, 'site_admin', 'TenantUpdated', 'tenant', route.leagueId!, before, data)
+        return json(data)
+      }
+      return err('Method not allowed', 405)
+    }
+
     // ── LEAGUES LIST / CREATE ──────────────────────────────
     if (route.action === 'leagues') {
       const tenantId = url.searchParams.get('tenant_id')
