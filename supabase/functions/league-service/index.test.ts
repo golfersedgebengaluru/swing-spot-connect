@@ -139,3 +139,24 @@ Deno.test("league-service: GET leaderboard with round filter without auth return
   const { status } = await fetchAPI("/leagues/fake-id/leaderboard?round=1&filter=teams", "GET");
   assertEquals(status, 401);
 });
+
+// ── Activity Feed auth gate tests ───────────────────────────
+Deno.test("league-service: GET feed without auth returns 401", async () => {
+  const { status } = await fetchAPI("/leagues/fake-id/feed", "GET");
+  assertEquals(status, 401);
+});
+
+Deno.test("league-service: GET feed with limit without auth returns 401", async () => {
+  const { status } = await fetchAPI("/leagues/fake-id/feed?limit=10&offset=0", "GET");
+  assertEquals(status, 401);
+});
+
+Deno.test("league-service: POST reaction without auth returns 401", async () => {
+  const { status } = await fetchAPI("/leagues/fake-id/feed/fake-item/reactions", "POST", { emoji: "👏" });
+  assertEquals(status, 401);
+});
+
+Deno.test("league-service: DELETE reaction without auth returns 401", async () => {
+  const { status } = await fetchAPI("/leagues/fake-id/feed/fake-item/reactions?emoji=👏", "DELETE");
+  assertEquals(status, 401);
+});
