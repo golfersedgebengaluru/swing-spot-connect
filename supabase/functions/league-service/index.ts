@@ -449,13 +449,32 @@ Deno.serve(async (req) => {
       if (existing) return err('Already a member of this league')
 
       // Join
-      const { data: player, error: jErr } = await supabase.from('league_players').insert({
+      const insertData: any = {
         league_id: joinCode.league_id,
         user_id: user.id,
         joined_via_code_id: joinCode.id,
-      }).select().single()
+        team_id: joinCode.team_id ?? null,
+      }
+      const { data: player, error: jErr } = await supabase.from('league_players').insert(insertData).select().single()
 
       if (jErr) return err(jErr.message, 500)
+
+      // If team join code, also add to league_team_members
+      if (joinCode.team_id) {
+        // Check roster size
+        const { data: team } = await supabase.from('league_teams').select('max_roster_size').eq('id', joinCode.team_id).single()
+        const { count } = await supabase.from('league_team_members').select('id', { count: 'exact', head: true }).eq('team_id', joinCode.team_id)
+        if (team && count !== null && count >= team.max_roster_size) {
+          // Rollback player insert
+          await supabase.from('league_players').delete().eq('id', player.id)
+          return err('Team roster is full')
+        }
+        await supabase.from('league_team_members').insert({
+          team_id: joinCode.team_id,
+          player_id: player.id,
+          assigned_by: user.id,
+        })
+      }
 
       // Increment use count
       await supabase.from('league_join_codes').update({ use_count: joinCode.use_count + 1 }).eq('id', joinCode.id)
@@ -469,8 +488,8 @@ Deno.serve(async (req) => {
         role: 'player',
       }, { onConflict: 'user_id,tenant_id,league_id,role' })
 
-      await audit(supabase, tenantId, joinCode.league_id, user.id, 'player', 'PlayerJoined', 'league_player', player.id, null, player)
-      return json({ success: true, league_id: joinCode.league_id }, 201)
+      await audit(supabase, tenantId, joinCode.league_id, user.id, 'player', 'PlayerJoined', 'league_player', player.id, null, { ...player, team_id: joinCode.team_id ?? null })
+      return json({ success: true, league_id: joinCode.league_id, team_id: joinCode.team_id ?? null }, 201)
     }
 
     // ── SCORES ─────────────────────────────────────────────
