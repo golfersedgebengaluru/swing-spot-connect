@@ -53,6 +53,24 @@ async function audit(
   })
 }
 
+// ── Feed emit helper ─────────────────────────────────────────
+async function emitFeed(
+  supabase: any,
+  tenantId: string,
+  leagueId: string,
+  actorId: string,
+  eventType: string,
+  payload: Record<string, unknown> = {}
+) {
+  await supabase.from('league_feed_items').insert({
+    tenant_id: tenantId,
+    league_id: leagueId,
+    actor_id: actorId,
+    event_type: eventType,
+    payload,
+  })
+}
+
 // ── Role check helpers ───────────────────────────────────────
 async function getUserLeagueRole(supabase: any, userId: string, tenantId: string): Promise<string | null> {
   // Check system admin first
@@ -149,6 +167,14 @@ function parseRoute(url: URL): Route {
     // /leagues/:id/leaderboard
     if (subResource === 'leaderboard') {
       return { action: 'league-leaderboard', leagueId, subResource }
+    }
+    // /leagues/:id/feed/:feedItemId/reactions
+    if (subResource === 'feed' && segments[4] && segments[5] === 'reactions') {
+      return { action: 'league-feed-reaction', leagueId, subResource, subId: segments[4] }
+    }
+    // /leagues/:id/feed
+    if (subResource === 'feed') {
+      return { action: 'league-feed', leagueId, subResource }
     }
     return { action: `league-${subResource}`, leagueId, subResource }
   }
@@ -504,6 +530,7 @@ Deno.serve(async (req) => {
       }, { onConflict: 'user_id,tenant_id,league_id,role' })
 
       await audit(supabase, tenantId, joinCode.league_id, user.id, 'player', 'PlayerJoined', 'league_player', player.id, null, { ...player, team_id: joinCode.team_id ?? null })
+      await emitFeed(supabase, tenantId, joinCode.league_id, user.id, 'player_joined', { team_id: joinCode.team_id ?? null })
       return json({ success: true, league_id: joinCode.league_id, team_id: joinCode.team_id ?? null }, 201)
     }
 
@@ -573,6 +600,7 @@ Deno.serve(async (req) => {
         if (sErr) return err(sErr.message, 500)
 
         await audit(supabase, tenantId, route.leagueId, user.id, 'player', 'ScoreSubmitted', 'league_score', score.id, null, score)
+        await emitFeed(supabase, tenantId, route.leagueId, user.id, 'score_submitted', { total_score: score.total_score, round_number: score.round_number, method: method_val })
         return json(score, 201)
       }
 
@@ -1623,6 +1651,7 @@ Deno.serve(async (req) => {
         }
 
         await audit(supabase, tenantId, route.leagueId, user.id, role!, 'RoundClosed', 'league_round_hidden_holes', hiddenHolesRecord.id, hiddenHolesRecord, revealed)
+        await emitFeed(supabase, tenantId, route.leagueId, user.id, 'round_closed', { round_number: body.round_number, hidden_holes: revealed.hidden_holes, scores_processed: results.length })
 
         return json({
           revealed: revealed,
@@ -1837,6 +1866,143 @@ Deno.serve(async (req) => {
       const ranked = entries.map((e, i) => ({ ...e, rank: i + 1 }))
 
       return json({ entries: ranked, round: roundParam ? parseInt(roundParam) : null, filter: filterParam })
+    }
+
+    // ── ACTIVITY FEED ────────────────────────────────────────
+    if (route.action === 'league-feed' && route.leagueId) {
+      const { data: league } = await supabase.from('leagues').select('tenant_id').eq('id', route.leagueId).single()
+      if (!league) return err('League not found', 404)
+      const tenantId = league.tenant_id
+
+      if (method === 'GET') {
+        // Verify user has access
+        const role = await getUserLeagueRole(supabase, user.id, tenantId)
+        const { data: isMember } = await supabase
+          .from('league_players')
+          .select('id')
+          .eq('league_id', route.leagueId)
+          .eq('user_id', user.id)
+          .maybeSingle()
+
+        if (!role && !isMember) return err('No access', 403)
+
+        const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100)
+        const offset = parseInt(url.searchParams.get('offset') || '0')
+
+        const { data: items, error: feedErr } = await supabase
+          .from('league_feed_items')
+          .select('*')
+          .eq('league_id', route.leagueId)
+          .eq('tenant_id', tenantId)
+          .order('created_at', { ascending: false })
+          .range(offset, offset + limit - 1)
+
+        if (feedErr) return err(feedErr.message, 500)
+
+        // Fetch reactions for these items
+        const itemIds = (items || []).map((i: any) => i.id)
+        let reactions: any[] = []
+        if (itemIds.length > 0) {
+          const { data: rxns } = await supabase
+            .from('league_feed_reactions')
+            .select('*')
+            .in('feed_item_id', itemIds)
+            .eq('tenant_id', tenantId)
+          reactions = rxns || []
+        }
+
+        // Fetch actor profiles
+        const actorIds = [...new Set((items || []).map((i: any) => i.actor_id))]
+        let profileMap: Record<string, string> = {}
+        if (actorIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('user_id, display_name')
+            .in('user_id', actorIds)
+          for (const p of profiles || []) {
+            profileMap[p.user_id] = p.display_name || p.user_id.slice(0, 8)
+          }
+        }
+
+        // Group reactions per item
+        const reactionMap: Record<string, { emoji: string; count: number; user_reacted: boolean }[]> = {}
+        for (const r of reactions) {
+          if (!reactionMap[r.feed_item_id]) reactionMap[r.feed_item_id] = []
+          const existing = reactionMap[r.feed_item_id].find((x: any) => x.emoji === r.emoji)
+          if (existing) {
+            existing.count++
+            if (r.user_id === user.id) existing.user_reacted = true
+          } else {
+            reactionMap[r.feed_item_id].push({ emoji: r.emoji, count: 1, user_reacted: r.user_id === user.id })
+          }
+        }
+
+        const enrichedItems = (items || []).map((item: any) => ({
+          ...item,
+          actor_name: profileMap[item.actor_id] || item.actor_id.slice(0, 8),
+          reactions: reactionMap[item.id] || [],
+        }))
+
+        return json(enrichedItems)
+      }
+      return err('Method not allowed', 405)
+    }
+
+    // ── FEED REACTIONS ─────────────────────────────────────
+    if (route.action === 'league-feed-reaction' && route.leagueId && route.subId) {
+      const feedItemId = route.subId
+      const { data: feedItem } = await supabase
+        .from('league_feed_items')
+        .select('league_id, tenant_id')
+        .eq('id', feedItemId)
+        .single()
+      if (!feedItem) return err('Feed item not found', 404)
+      if (feedItem.league_id !== route.leagueId) return err('Feed item not in this league', 403)
+      const tenantId = feedItem.tenant_id
+
+      // Verify user is a member
+      const { data: isMember } = await supabase
+        .from('league_players')
+        .select('id')
+        .eq('league_id', route.leagueId)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (!role && !isMember) return err('No access', 403)
+
+      if (method === 'POST') {
+        const body = await req.json().catch(() => ({}))
+        const emoji = body.emoji || '👏'
+        if (typeof emoji !== 'string' || emoji.length > 10) return err('Invalid emoji')
+
+        const { data, error } = await supabase
+          .from('league_feed_reactions')
+          .upsert(
+            { feed_item_id: feedItemId, user_id: user.id, emoji, tenant_id: tenantId },
+            { onConflict: 'feed_item_id,user_id,emoji' }
+          )
+          .select()
+          .single()
+
+        if (error) return err(error.message, 500)
+        return json(data, 201)
+      }
+
+      if (method === 'DELETE') {
+        const emoji = url.searchParams.get('emoji') || '👏'
+        const { error } = await supabase
+          .from('league_feed_reactions')
+          .delete()
+          .eq('feed_item_id', feedItemId)
+          .eq('user_id', user.id)
+          .eq('emoji', emoji)
+
+        if (error) return err(error.message, 500)
+        return json({ ok: true })
+      }
+
+      return err('Method not allowed', 405)
     }
 
     return err('Not found', 404)

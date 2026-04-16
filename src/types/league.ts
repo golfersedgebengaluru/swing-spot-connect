@@ -341,3 +341,22 @@ export interface UpdateCompetitionRequest {
   points_config?: { position: number; points: number }[];
   sort_order?: number;
 }
+
+// ── Activity Feed ────────────────────────────────────────────
+export interface LeagueFeedItem {
+  id: string;
+  league_id: string;
+  tenant_id: string;
+  actor_id: string;
+  actor_name: string;
+  event_type: string;
+  payload: Record<string, unknown>;
+  reactions: FeedReaction[];
+  created_at: string;
+}
+
+export interface FeedReaction {
+  emoji: string;
+  count: number;
+  user_reacted: boolean;
+}
