@@ -50,7 +50,7 @@ import {
   useRemoveTeamMember,
 } from "@/hooks/useLeagues";
 import { supabase } from "@/integrations/supabase/client";
-import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition } from "@/types/league";
+import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam } from "@/types/league";
 import { useToast } from "@/hooks/use-toast";
 
 // ── Status badge ─────────────────────────────────────────────
