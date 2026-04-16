@@ -52,6 +52,7 @@ import {
   useSetHiddenHoles,
   useCloseRound,
   useLeaderboard,
+  useUpdateTenant,
 } from "@/hooks/useLeagues";
 import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam, LeaderboardEntry } from "@/types/league";
@@ -66,6 +67,24 @@ function StatusBadge({ status }: { status: LeagueStatus }) {
     archived: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
   };
   return <Badge className={variants[status]}>{status}</Badge>;
+}
+
+// ── Sponsorship Toggle ───────────────────────────────────────
+function SponsorshipToggle({ tenant }: { tenant: Tenant }) {
+  const updateTenant = useUpdateTenant();
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <Label htmlFor="sponsorship-toggle" className="text-muted-foreground cursor-pointer">Sponsorship</Label>
+      <Switch
+        id="sponsorship-toggle"
+        checked={tenant.sponsorship_enabled}
+        disabled={updateTenant.isPending}
+        onCheckedChange={(checked) =>
+          updateTenant.mutate({ tenantId: tenant.id, sponsorship_enabled: checked })
+        }
+      />
+    </div>
+  );
 }
 
 // ── Create Tenant Dialog ─────────────────────────────────────
@@ -1277,12 +1296,7 @@ export function AdminLeaguesTab() {
         </div>
         <CreateTenantDialog />
         {selectedTenant && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Sponsorship:</span>
-            <Badge variant={selectedTenant.sponsorship_enabled ? "default" : "secondary"}>
-              {selectedTenant.sponsorship_enabled ? "ON" : "OFF"}
-            </Badge>
-          </div>
+          <SponsorshipToggle tenant={selectedTenant} />
         )}
       </div>
 

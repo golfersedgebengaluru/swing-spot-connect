@@ -125,7 +125,11 @@ function parseRoute(url: URL): Route {
   const resource = segments[1] || ''
 
   if (resource === 'join') return { action: 'join' }
-  if (resource === 'tenants') return { action: 'tenants' }
+  if (resource === 'tenants') {
+    const tenantId = segments[2]
+    if (tenantId) return { action: 'tenant-detail', leagueId: tenantId }
+    return { action: 'tenants' }
+  }
   if (resource === 'bays') return { action: 'bays' }
   if (resource === 'leagues') {
     const leagueId = segments[2]
@@ -242,6 +246,27 @@ Deno.serve(async (req) => {
         if (error) return err(error.message, 500)
         await audit(supabase, data.id, null, user.id, 'site_admin', 'TenantCreated', 'tenant', data.id, null, data)
         return json(data, 201)
+      }
+      return err('Method not allowed', 405)
+    }
+
+    // ── TENANT DETAIL (PATCH) ────────────────────────────────
+    if (route.action === 'tenant-detail') {
+      if (method === 'PATCH') {
+        const { data: isAdmin } = await supabase.rpc('is_admin_or_site_admin', { _user_id: user.id })
+        if (!isAdmin) return err('Only site admins can update tenants', 403)
+        const body = await req.json()
+        const updates: Record<string, unknown> = {}
+        if (typeof body.sponsorship_enabled === 'boolean') updates.sponsorship_enabled = body.sponsorship_enabled
+        if (body.default_logo_url !== undefined) updates.default_logo_url = body.default_logo_url
+        if (body.name) updates.name = body.name
+        if (Object.keys(updates).length === 0) return err('No valid fields to update')
+        updates.updated_at = new Date().toISOString()
+        const { data: before } = await supabase.from('tenants').select('*').eq('id', route.leagueId).single()
+        const { data, error } = await supabase.from('tenants').update(updates).eq('id', route.leagueId).select().single()
+        if (error) return err(error.message, 500)
+        await audit(supabase, route.leagueId!, null, user.id, 'site_admin', 'TenantUpdated', 'tenant', route.leagueId!, before, data)
+        return json(data)
       }
       return err('Method not allowed', 405)
     }
