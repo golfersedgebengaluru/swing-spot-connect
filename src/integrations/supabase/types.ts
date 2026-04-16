@@ -1631,6 +1631,7 @@ export type Database = {
           league_id: string
           max_uses: number
           revoked_at: string | null
+          team_id: string | null
           use_count: number
         }
         Insert: {
@@ -1642,6 +1643,7 @@ export type Database = {
           league_id: string
           max_uses?: number
           revoked_at?: string | null
+          team_id?: string | null
           use_count?: number
         }
         Update: {
@@ -1653,6 +1655,7 @@ export type Database = {
           league_id?: string
           max_uses?: number
           revoked_at?: string | null
+          team_id?: string | null
           use_count?: number
         }
         Relationships: [
@@ -1663,6 +1666,13 @@ export type Database = {
             referencedRelation: "leagues"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "league_join_codes_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "league_teams"
+            referencedColumns: ["id"]
+          },
         ]
       }
       league_players: {
@@ -1671,6 +1681,7 @@ export type Database = {
           joined_at: string
           joined_via_code_id: string | null
           league_id: string
+          team_id: string | null
           user_id: string
         }
         Insert: {
@@ -1678,6 +1689,7 @@ export type Database = {
           joined_at?: string
           joined_via_code_id?: string | null
           league_id: string
+          team_id?: string | null
           user_id: string
         }
         Update: {
@@ -1685,6 +1697,7 @@ export type Database = {
           joined_at?: string
           joined_via_code_id?: string | null
           league_id?: string
+          team_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -1700,6 +1713,13 @@ export type Database = {
             columns: ["league_id"]
             isOneToOne: false
             referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_players_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "league_teams"
             referencedColumns: ["id"]
           },
         ]
@@ -1856,6 +1876,93 @@ export type Database = {
           },
           {
             foreignKeyName: "league_scores_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_team_members: {
+        Row: {
+          assigned_at: string
+          assigned_by: string
+          id: string
+          player_id: string
+          team_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by: string
+          id?: string
+          player_id: string
+          team_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string
+          id?: string
+          player_id?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_team_members_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "league_players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "league_teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_teams: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          league_id: string
+          max_roster_size: number
+          name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          league_id: string
+          max_roster_size?: number
+          name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          league_id?: string
+          max_roster_size?: number
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_teams_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_teams_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
