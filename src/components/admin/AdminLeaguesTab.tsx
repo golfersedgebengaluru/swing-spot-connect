@@ -69,6 +69,24 @@ function StatusBadge({ status }: { status: LeagueStatus }) {
   return <Badge className={variants[status]}>{status}</Badge>;
 }
 
+// ── Sponsorship Toggle ───────────────────────────────────────
+function SponsorshipToggle({ tenant }: { tenant: Tenant }) {
+  const updateTenant = useUpdateTenant();
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <Label htmlFor="sponsorship-toggle" className="text-muted-foreground cursor-pointer">Sponsorship</Label>
+      <Switch
+        id="sponsorship-toggle"
+        checked={tenant.sponsorship_enabled}
+        disabled={updateTenant.isPending}
+        onCheckedChange={(checked) =>
+          updateTenant.mutate({ tenantId: tenant.id, sponsorship_enabled: checked })
+        }
+      />
+    </div>
+  );
+}
+
 // ── Create Tenant Dialog ─────────────────────────────────────
 function CreateTenantDialog() {
   const [open, setOpen] = useState(false);
