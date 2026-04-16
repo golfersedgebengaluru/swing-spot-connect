@@ -670,3 +670,20 @@ export function useCloseRound(leagueId: string) {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 }
+
+// ── Leaderboard ─────────────────────────────────────────────
+export function useLeaderboard(leagueId: string | null, round?: number, filter?: 'all' | 'individuals' | 'teams') {
+  return useQuery<LeaderboardResponse>({
+    queryKey: ["league-leaderboard", leagueId, round, filter],
+    queryFn: () => {
+      let path = `/leagues/${leagueId}/leaderboard`;
+      const params: string[] = [];
+      if (round) params.push(`round=${round}`);
+      if (filter && filter !== 'all') params.push(`filter=${filter}`);
+      if (params.length) path += `?${params.join('&')}`;
+      return invoke(path, "GET");
+    },
+    enabled: !!leagueId,
+    staleTime: LEAGUE_STALE_TIME,
+  });
+}
