@@ -665,8 +665,9 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
       </div>
 
       <Tabs defaultValue="players">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="players"><Users className="h-3.5 w-3.5 mr-1" />Players ({players?.length || 0})</TabsTrigger>
+          <TabsTrigger value="teams"><Users className="h-3.5 w-3.5 mr-1" />Teams</TabsTrigger>
           <TabsTrigger value="rounds"><ListOrdered className="h-3.5 w-3.5 mr-1" />Rounds</TabsTrigger>
           <TabsTrigger value="codes">Join Codes</TabsTrigger>
           <TabsTrigger value="scheduling"><Calendar className="h-3.5 w-3.5 mr-1" />Bay Scheduling</TabsTrigger>
