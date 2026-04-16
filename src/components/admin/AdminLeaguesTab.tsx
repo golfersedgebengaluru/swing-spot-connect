@@ -1278,12 +1278,7 @@ export function AdminLeaguesTab() {
         </div>
         <CreateTenantDialog />
         {selectedTenant && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Sponsorship:</span>
-            <Badge variant={selectedTenant.sponsorship_enabled ? "default" : "secondary"}>
-              {selectedTenant.sponsorship_enabled ? "ON" : "OFF"}
-            </Badge>
-          </div>
+          <SponsorshipToggle tenant={selectedTenant} />
         )}
       </div>
 
