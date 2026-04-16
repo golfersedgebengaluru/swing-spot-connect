@@ -128,3 +128,14 @@ Deno.test("league-service: DELETE team member without auth returns 401", async (
   const { status } = await fetchAPI("/leagues/fake-id/teams/fake-team/members/fake-member", "DELETE");
   assertEquals(status, 401);
 });
+
+// ── Leaderboard auth gate tests ─────────────────────────────
+Deno.test("league-service: GET leaderboard without auth returns 401", async () => {
+  const { status } = await fetchAPI("/leagues/fake-id/leaderboard", "GET");
+  assertEquals(status, 401);
+});
+
+Deno.test("league-service: GET leaderboard with round filter without auth returns 401", async () => {
+  const { status } = await fetchAPI("/leagues/fake-id/leaderboard?round=1&filter=teams", "GET");
+  assertEquals(status, 401);
+});
