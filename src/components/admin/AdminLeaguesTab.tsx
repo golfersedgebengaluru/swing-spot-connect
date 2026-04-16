@@ -961,6 +961,7 @@ function LeaderboardPanel({ league }: { league: League }) {
 }
 
 
+function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
   const updateLeague = useUpdateLeague(league.id);
   const { data: joinCodes, isLoading: codesLoading } = useJoinCodes(league.id);
   const createCode = useCreateJoinCode(league.id);
