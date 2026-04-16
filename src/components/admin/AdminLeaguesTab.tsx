@@ -733,14 +733,28 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
 
         {/* Join Codes */}
         <TabsContent value="codes" className="space-y-4">
-          <Button size="sm" onClick={() => createCode.mutate({})} disabled={createCode.isPending}>
-            <Plus className="h-4 w-4 mr-1" /> Generate Code
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            {teams && teams.length > 0 && (
+              <Select value={codeTeamId} onValueChange={setCodeTeamId}>
+                <SelectTrigger className="w-[180px]"><SelectValue placeholder="Individual (no team)" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Individual (no team)</SelectItem>
+                  {teams.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button size="sm" onClick={() => createCode.mutate({ team_id: codeTeamId && codeTeamId !== "none" ? codeTeamId : undefined })} disabled={createCode.isPending}>
+              <Plus className="h-4 w-4 mr-1" /> Generate Code
+            </Button>
+          </div>
           {codesLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Code</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Uses</TableHead>
                   <TableHead>Expires</TableHead>
                   <TableHead>Status</TableHead>
@@ -748,24 +762,34 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(joinCodes || []).map((jc) => (
-                  <TableRow key={jc.id}>
-                    <TableCell className="font-mono">{jc.code}</TableCell>
-                    <TableCell>{jc.use_count}/{jc.max_uses}</TableCell>
-                    <TableCell>{jc.expires_at ? format(new Date(jc.expires_at), "PP") : "—"}</TableCell>
-                    <TableCell>
-                      {jc.revoked_at ? <Badge variant="destructive">Revoked</Badge> :
-                        jc.expires_at && new Date(jc.expires_at) < new Date() ? <Badge variant="secondary">Expired</Badge> :
-                        <Badge variant="default">Active</Badge>}
-                    </TableCell>
-                    <TableCell className="flex gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => copyCode(jc.code)}><Copy className="h-3.5 w-3.5" /></Button>
-                      {!jc.revoked_at && (
-                        <Button size="icon" variant="ghost" onClick={() => revokeCode.mutate(jc.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {(joinCodes || []).map((jc) => {
+                  const teamName = jc.team_id ? teams?.find((t) => t.id === jc.team_id)?.name : null;
+                  return (
+                    <TableRow key={jc.id}>
+                      <TableCell className="font-mono">{jc.code}</TableCell>
+                      <TableCell>
+                        {teamName ? (
+                          <Badge variant="secondary" className="text-xs">{teamName}</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-xs">Individual</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>{jc.use_count}/{jc.max_uses}</TableCell>
+                      <TableCell>{jc.expires_at ? format(new Date(jc.expires_at), "PP") : "—"}</TableCell>
+                      <TableCell>
+                        {jc.revoked_at ? <Badge variant="destructive">Revoked</Badge> :
+                          jc.expires_at && new Date(jc.expires_at) < new Date() ? <Badge variant="secondary">Expired</Badge> :
+                          <Badge variant="default">Active</Badge>}
+                      </TableCell>
+                      <TableCell className="flex gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => copyCode(jc.code)}><Copy className="h-3.5 w-3.5" /></Button>
+                        {!jc.revoked_at && (
+                          <Button size="icon" variant="ghost" onClick={() => revokeCode.mutate(jc.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
