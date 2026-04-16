@@ -644,7 +644,7 @@ function ScoringConfigPanel({ league }: { league: League }) {
         </div>
         <div>
           <Label>Team Aggregation Method</Label>
-          <Select value={aggregation} onValueChange={setAggregation}>
+          <Select value={aggregation} onValueChange={(v) => setAggregation(v as 'best_ball' | 'average')}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="best_ball">Best Ball (lowest net score)</SelectItem>
