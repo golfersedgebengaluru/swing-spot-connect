@@ -60,6 +60,28 @@ export interface LeagueJoinCode {
   use_count: number;
   created_by: string;
   created_at: string;
+  team_id: string | null;
+}
+
+// ── Team ─────────────────────────────────────────────────────
+export interface LeagueTeam {
+  id: string;
+  league_id: string;
+  tenant_id: string;
+  name: string;
+  max_roster_size: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  members?: LeagueTeamMember[];
+}
+
+export interface LeagueTeamMember {
+  id: string;
+  player_id: string;
+  user_id: string;
+  display_name: string | null;
+  assigned_at: string;
 }
 
 // ── Player ───────────────────────────────────────────────────
@@ -69,6 +91,7 @@ export interface LeaguePlayer {
   user_id: string;
   joined_via_code_id: string | null;
   joined_at: string;
+  team_id: string | null;
 }
 
 // ── Score ─────────────────────────────────────────────────────
