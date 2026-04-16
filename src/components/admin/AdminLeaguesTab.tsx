@@ -14,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown, ChevronRight, Edit, ListOrdered, Settings2, Shuffle, Lock, Unlock, BarChart3 } from "lucide-react";
+import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown, ChevronRight, Edit, ListOrdered, Settings2, Shuffle, Lock, Unlock, BarChart3, Upload } from "lucide-react";
 import { BaySchedulingPanel } from "@/components/admin/league/BaySchedulingPanel";
 import { format } from "date-fns";
 import {
@@ -996,6 +996,9 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
 
   const [sponsorName, setSponsorName] = useState(branding?.sponsor_name || "");
   const [sponsorUrl, setSponsorUrl] = useState(branding?.sponsor_url || "");
+  const [leagueLogoUrl, setLeagueLogoUrl] = useState(branding?.logo_url || "");
+  const [sponsorLogoUrl, setSponsorLogoUrl] = useState(branding?.sponsor_logo_url || "");
+  const [uploadingLogo, setUploadingLogo] = useState<string | null>(null);
   const [codeTeamId, setCodeTeamId] = useState<string>("");
 
   // Bidirectional status transitions
@@ -1227,9 +1230,63 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
           <TabsContent value="branding" className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div><Label>Sponsor Name</Label><Input value={sponsorName} onChange={(e) => setSponsorName(e.target.value)} /></div>
-              <div><Label>Sponsor URL</Label><Input value={sponsorUrl} onChange={(e) => setSponsorUrl(e.target.value)} placeholder="https://" /></div>
+              <div><Label>Sponsor Website URL</Label><Input value={sponsorUrl} onChange={(e) => setSponsorUrl(e.target.value)} placeholder="https://www.example.com" /><p className="text-xs text-muted-foreground mt-1">Clickable link on the sponsor logo/name in the leaderboard</p></div>
             </div>
-            <Button onClick={() => updateBranding.mutate({ sponsor_name: sponsorName, sponsor_url: sponsorUrl })} disabled={updateBranding.isPending}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* League Logo */}
+              <div className="space-y-2">
+                <Label>League Logo</Label>
+                {leagueLogoUrl && <img src={leagueLogoUrl} alt="League logo" className="h-16 w-auto rounded border object-contain" />}
+                <div className="flex gap-2 items-end">
+                  <Input value={leagueLogoUrl} onChange={(e) => setLeagueLogoUrl(e.target.value)} placeholder="URL or upload below" className="flex-1" />
+                  <label className="cursor-pointer">
+                    <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setUploadingLogo("league");
+                      const ext = file.name.split(".").pop();
+                      const path = `leagues/${league.id}/logo.${ext}`;
+                      const { error } = await supabase.storage.from("league-assets").upload(path, file, { upsert: true });
+                      if (error) { toast({ title: "Upload failed", description: error.message, variant: "destructive" }); setUploadingLogo(null); return; }
+                      const { data: { publicUrl } } = supabase.storage.from("league-assets").getPublicUrl(path);
+                      setLeagueLogoUrl(publicUrl);
+                      setUploadingLogo(null);
+                      toast({ title: "Uploaded", description: "League logo uploaded." });
+                    }} />
+                    <Button variant="outline" size="sm" asChild disabled={uploadingLogo === "league"}>
+                      <span>{uploadingLogo === "league" ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Upload className="h-4 w-4 mr-1" />Upload</>}</span>
+                    </Button>
+                  </label>
+                </div>
+              </div>
+              {/* Sponsor Logo */}
+              <div className="space-y-2">
+                <Label>Sponsor Logo</Label>
+                {sponsorLogoUrl && <img src={sponsorLogoUrl} alt="Sponsor logo" className="h-16 w-auto rounded border object-contain" />}
+                <div className="flex gap-2 items-end">
+                  <Input value={sponsorLogoUrl} onChange={(e) => setSponsorLogoUrl(e.target.value)} placeholder="URL or upload below" className="flex-1" />
+                  <label className="cursor-pointer">
+                    <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setUploadingLogo("sponsor");
+                      const ext = file.name.split(".").pop();
+                      const path = `leagues/${league.id}/sponsor.${ext}`;
+                      const { error } = await supabase.storage.from("league-assets").upload(path, file, { upsert: true });
+                      if (error) { toast({ title: "Upload failed", description: error.message, variant: "destructive" }); setUploadingLogo(null); return; }
+                      const { data: { publicUrl } } = supabase.storage.from("league-assets").getPublicUrl(path);
+                      setSponsorLogoUrl(publicUrl);
+                      setUploadingLogo(null);
+                      toast({ title: "Uploaded", description: "Sponsor logo uploaded." });
+                    }} />
+                    <Button variant="outline" size="sm" asChild disabled={uploadingLogo === "sponsor"}>
+                      <span>{uploadingLogo === "sponsor" ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Upload className="h-4 w-4 mr-1" />Upload</>}</span>
+                    </Button>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <Button onClick={() => updateBranding.mutate({ sponsor_name: sponsorName, sponsor_url: sponsorUrl, logo_url: leagueLogoUrl, sponsor_logo_url: sponsorLogoUrl })} disabled={updateBranding.isPending}>
               {updateBranding.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Save Branding
             </Button>
           </TabsContent>
