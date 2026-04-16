@@ -12,6 +12,8 @@ import type {
   LeagueRound,
   LeagueCompetition,
   LeagueTeam,
+  LeagueRoundHiddenHoles,
+  CloseRoundResponse,
   BayAvailabilityResponse,
   CreateLeagueRequest,
   UpdateLeagueRequest,
