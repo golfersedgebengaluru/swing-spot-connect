@@ -196,6 +196,36 @@ export interface UpdateLeagueRequest {
   venue_id?: string;
   status?: LeagueStatus;
   score_entry_method?: ScoreEntryMethod;
+  scoring_holes?: number;
+  fairness_factor_pct?: number;
+  team_aggregation_method?: 'best_ball' | 'average';
+  peoria_multiplier?: number;
+}
+
+// ── Hidden Holes ─────────────────────────────────────────────
+export interface LeagueRoundHiddenHoles {
+  id: string;
+  league_id: string;
+  round_number: number;
+  hidden_holes: number[] | null;
+  revealed_at: string | null;
+  selected_by: string;
+  tenant_id: string;
+  created_at: string;
+}
+
+export interface PeoriaResult {
+  score_id: string;
+  player_id: string;
+  gross_score: number;
+  hidden_hole_sum: number;
+  peoria_handicap: number;
+  net_score: number;
+}
+
+export interface CloseRoundResponse {
+  revealed: LeagueRoundHiddenHoles;
+  peoria_results: PeoriaResult[];
 }
 
 export interface SubmitScoreRequest {
