@@ -338,7 +338,7 @@ Deno.serve(async (req) => {
         }
 
         const updates: Record<string, any> = {}
-        const allowed = ['name', 'format', 'season_start', 'season_end', 'venue_id', 'status', 'score_entry_method']
+        const allowed = ['name', 'format', 'season_start', 'season_end', 'venue_id', 'status', 'score_entry_method', 'scoring_holes', 'fairness_factor_pct', 'team_aggregation_method', 'peoria_multiplier']
         for (const key of allowed) {
           if (body[key] !== undefined) updates[key] = body[key]
         }
