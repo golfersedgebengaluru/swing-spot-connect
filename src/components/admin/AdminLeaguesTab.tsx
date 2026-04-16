@@ -448,7 +448,162 @@ function RoundsPanel({ league }: { league: League }) {
   );
 }
 
-// ── League Detail Panel ──────────────────────────────────────
+// ── Teams Panel ──────────────────────────────────────────────
+function TeamsPanel({ league }: { league: League }) {
+  const { data: teams, isLoading } = useLeagueTeams(league.id);
+  const { data: players } = useLeaguePlayers(league.id);
+  const createTeam = useCreateTeam(league.id);
+  const updateTeam = useUpdateTeam(league.id);
+  const deleteTeam = useDeleteTeam(league.id);
+  const addMember = useAddTeamMember(league.id);
+  const removeMember = useRemoveTeamMember(league.id);
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [teamName, setTeamName] = useState("");
+  const [rosterSize, setRosterSize] = useState(4);
+  const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
+  const [editingTeam, setEditingTeam] = useState<string | null>(null);
+  const [editData, setEditData] = useState({ name: "", max_roster_size: 4 });
+
+  const handleCreate = () => {
+    if (!teamName.trim()) return;
+    createTeam.mutate({ name: teamName, max_roster_size: rosterSize }, {
+      onSuccess: () => { setShowAdd(false); setTeamName(""); setRosterSize(4); },
+    });
+  };
+
+  const startEdit = (t: LeagueTeam) => {
+    setEditingTeam(t.id);
+    setEditData({ name: t.name, max_roster_size: t.max_roster_size });
+  };
+
+  const saveEdit = (teamId: string) => {
+    updateTeam.mutate({ teamId, body: editData }, { onSuccess: () => setEditingTeam(null) });
+  };
+
+  // Players not in any team (available for assignment)
+  const unassignedPlayers = (players || []).filter(
+    (p) => !teams?.some((t) => t.members?.some((m) => m.player_id === p.id))
+  );
+
+  if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>;
+
+  return (
+    <div className="space-y-4">
+      <Button size="sm" onClick={() => setShowAdd(!showAdd)}>
+        <Plus className="h-4 w-4 mr-1" /> Create Team
+      </Button>
+
+      {showAdd && (
+        <div className="border rounded-md p-4 space-y-3 bg-muted/30">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div><Label>Team Name</Label><Input value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="e.g. Team Alpha" /></div>
+            <div><Label>Max Roster Size</Label><Input type="number" value={rosterSize || ""} onChange={(e) => setRosterSize(Number(e.target.value))} min={2} max={20} /></div>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={handleCreate} disabled={createTeam.isPending}>
+              {createTeam.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}Create
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setShowAdd(false)}>Cancel</Button>
+          </div>
+        </div>
+      )}
+
+      {(!teams || teams.length === 0) ? (
+        <p className="text-sm text-muted-foreground py-4">No teams yet. Create teams and assign players.</p>
+      ) : (
+        <div className="space-y-2">
+          {teams.map((team) => (
+            <div key={team.id} className="border rounded-md">
+              <div
+                className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/30"
+                onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}
+              >
+                <div className="flex items-center gap-2">
+                  <ChevronRight className={`h-4 w-4 transition-transform ${expandedTeam === team.id ? "rotate-90" : ""}`} />
+                  <div>
+                    <span className="font-medium text-sm">{team.name}</span>
+                    <p className="text-xs text-muted-foreground">
+                      {team.members?.length || 0}/{team.max_roster_size} players
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <Button size="icon" variant="ghost" onClick={() => startEdit(team)}><Edit className="h-3.5 w-3.5" /></Button>
+                  <Button size="icon" variant="ghost" onClick={() => deleteTeam.mutate(team.id)} disabled={deleteTeam.isPending}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+
+              {editingTeam === team.id && (
+                <div className="px-3 pb-3 space-y-3 border-t bg-muted/20 pt-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div><Label>Name</Label><Input value={editData.name} onChange={(e) => setEditData({ ...editData, name: e.target.value })} /></div>
+                    <div><Label>Max Roster</Label><Input type="number" value={editData.max_roster_size || ""} onChange={(e) => setEditData({ ...editData, max_roster_size: Number(e.target.value) })} /></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => saveEdit(team.id)} disabled={updateTeam.isPending}>Save</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditingTeam(null)}>Cancel</Button>
+                  </div>
+                </div>
+              )}
+
+              {expandedTeam === team.id && editingTeam !== team.id && (
+                <div className="px-3 pb-3 border-t pt-3 space-y-3">
+                  {/* Current members */}
+                  {team.members && team.members.length > 0 ? (
+                    <div className="space-y-1">
+                      {team.members.map((m) => (
+                        <div key={m.id} className="flex items-center justify-between py-1.5 px-2 rounded bg-muted/20">
+                          <span className="text-sm">{m.display_name || "Unnamed"}</span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => removeMember.mutate({ teamId: team.id, memberId: m.id })}
+                            disabled={removeMember.isPending}
+                          >
+                            <UserMinus className="h-3 w-3 text-destructive" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No members assigned.</p>
+                  )}
+
+                  {/* Assign unassigned players */}
+                  {unassignedPlayers.length > 0 && (team.members?.length || 0) < team.max_roster_size && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Assign a player:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {unassignedPlayers.map((p) => (
+                          <Button
+                            key={p.id}
+                            size="sm"
+                            variant="outline"
+                            className="text-xs h-7"
+                            onClick={() => addMember.mutate({ teamId: team.id, playerId: p.id })}
+                            disabled={addMember.isPending}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />{p.display_name || p.email || "Unnamed"}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
   const updateLeague = useUpdateLeague(league.id);
   const { data: joinCodes, isLoading: codesLoading } = useJoinCodes(league.id);
