@@ -146,7 +146,7 @@ export function useCreateJoinCode(leagueId: string) {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: (body?: { expires_at?: string; max_uses?: number }) =>
+    mutationFn: (body?: { expires_at?: string; max_uses?: number; team_id?: string }) =>
       invoke(`/leagues/${leagueId}/join-codes`, "POST", body ?? {}),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["league-join-codes", leagueId] });
