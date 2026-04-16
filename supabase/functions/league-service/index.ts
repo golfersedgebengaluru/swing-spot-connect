@@ -1450,6 +1450,185 @@ Deno.serve(async (req) => {
       return err('Method not allowed', 405)
     }
 
+    // ── HIDDEN HOLES (Peoria System) ────────────────────────────
+    if (route.action === 'league-hidden-holes' && route.leagueId) {
+      const { data: league } = await supabase.from('leagues').select('tenant_id, scoring_holes').eq('id', route.leagueId).single()
+      if (!league) return err('League not found', 404)
+      const tenantId = league.tenant_id
+
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (!role) return err('No access', 403)
+
+      // GET: list hidden holes (players only see revealed ones via RLS, admins see all)
+      if (method === 'GET') {
+        const isAdmin = role !== 'player'
+        const { data, error } = await supabase
+          .from('league_round_hidden_holes')
+          .select('*')
+          .eq('league_id', route.leagueId)
+          .order('round_number')
+        if (error) return err(error.message, 500)
+
+        // For players, strip hidden_holes if not yet revealed
+        if (!isAdmin) {
+          const sanitized = (data || []).map((h: any) => ({
+            ...h,
+            hidden_holes: h.revealed_at ? h.hidden_holes : null,
+          }))
+          return json(sanitized)
+        }
+        return json(data)
+      }
+
+      // POST: set hidden holes for a round
+      if (method === 'POST') {
+        if (role === 'player') return err('Insufficient permissions', 403)
+
+        const body = await req.json()
+        if (!body.round_number) return err('round_number is required')
+
+        const scoringHoles = league.scoring_holes || 18
+        const requiredHiddenCount = scoringHoles === 9 ? 3 : 6
+
+        let hiddenHoles: number[] = body.hidden_holes || []
+
+        // If randomize requested, pick random holes
+        if (body.randomize) {
+          const allHoles = Array.from({ length: scoringHoles }, (_, i) => i + 1)
+          hiddenHoles = []
+          for (let i = 0; i < requiredHiddenCount; i++) {
+            const idx = Math.floor(Math.random() * allHoles.length)
+            hiddenHoles.push(allHoles.splice(idx, 1)[0])
+          }
+          hiddenHoles.sort((a, b) => a - b)
+        }
+
+        if (hiddenHoles.length !== requiredHiddenCount) {
+          return err(`Exactly ${requiredHiddenCount} hidden holes required for ${scoringHoles}-hole play`)
+        }
+
+        // Validate hole numbers are in range
+        if (hiddenHoles.some((h: number) => h < 1 || h > scoringHoles)) {
+          return err(`Hole numbers must be between 1 and ${scoringHoles}`)
+        }
+
+        // Upsert
+        const { data: existing } = await supabase
+          .from('league_round_hidden_holes')
+          .select('*')
+          .eq('league_id', route.leagueId)
+          .eq('round_number', body.round_number)
+          .maybeSingle()
+
+        if (existing && existing.revealed_at) {
+          return err('Cannot modify hidden holes after round is closed')
+        }
+
+        let result
+        if (existing) {
+          const { data, error } = await supabase
+            .from('league_round_hidden_holes')
+            .update({ hidden_holes: hiddenHoles, selected_by: user.id })
+            .eq('id', existing.id)
+            .select().single()
+          if (error) return err(error.message, 500)
+          await audit(supabase, tenantId, route.leagueId, user.id, role!, 'HiddenHolesUpdated', 'league_round_hidden_holes', data.id, existing, data)
+          result = data
+        } else {
+          const { data, error } = await supabase
+            .from('league_round_hidden_holes')
+            .insert({
+              league_id: route.leagueId,
+              round_number: body.round_number,
+              hidden_holes: hiddenHoles,
+              selected_by: user.id,
+              tenant_id: tenantId,
+            })
+            .select().single()
+          if (error) return err(error.message, 500)
+          await audit(supabase, tenantId, route.leagueId, user.id, role!, 'HiddenHolesSet', 'league_round_hidden_holes', data.id, null, data)
+          result = data
+        }
+
+        return json(result, 201)
+      }
+
+      // PATCH: close round (reveal hidden holes and calculate Peoria handicaps)
+      if (method === 'PATCH') {
+        if (role === 'player') return err('Insufficient permissions', 403)
+
+        const body = await req.json()
+        if (!body.round_number) return err('round_number is required')
+        if (body.action !== 'close_round') return err('action must be close_round')
+
+        const { data: hiddenHolesRecord } = await supabase
+          .from('league_round_hidden_holes')
+          .select('*')
+          .eq('league_id', route.leagueId)
+          .eq('round_number', body.round_number)
+          .single()
+
+        if (!hiddenHolesRecord) return err('Hidden holes not set for this round', 404)
+        if (hiddenHolesRecord.revealed_at) return err('Round is already closed')
+
+        // Reveal
+        const { data: revealed, error: revErr } = await supabase
+          .from('league_round_hidden_holes')
+          .update({ revealed_at: new Date().toISOString() })
+          .eq('id', hiddenHolesRecord.id)
+          .select().single()
+        if (revErr) return err(revErr.message, 500)
+
+        // Calculate Peoria handicaps for all scores in this round
+        const { data: scores } = await supabase
+          .from('league_scores')
+          .select('*')
+          .eq('league_id', route.leagueId)
+          .eq('round_number', body.round_number)
+
+        const hiddenHoles = hiddenHolesRecord.hidden_holes as number[]
+        const peoriaMultiplier = league.scoring_holes === 9 ? 3 : 3 // configurable via peoria_multiplier on league
+
+        // Fetch league's peoria_multiplier
+        const { data: leagueFull } = await supabase.from('leagues').select('peoria_multiplier').eq('id', route.leagueId).single()
+        const multiplier = Number(leagueFull?.peoria_multiplier) || 3
+
+        const results: any[] = []
+        for (const score of (scores || [])) {
+          const holeScores = score.hole_scores as number[]
+          if (!holeScores || holeScores.length === 0) continue
+
+          // Sum hidden hole scores (0-indexed: hole 1 = index 0)
+          const hiddenSum = hiddenHoles.reduce((sum, holeNum) => {
+            const idx = holeNum - 1
+            return sum + (holeScores[idx] || 0)
+          }, 0)
+
+          const peoriaHandicap = hiddenSum * multiplier
+          const grossScore = score.total_score || holeScores.reduce((s: number, v: number) => s + (v || 0), 0)
+          const netScore = grossScore - peoriaHandicap
+
+          results.push({
+            score_id: score.id,
+            player_id: score.player_id,
+            gross_score: grossScore,
+            hidden_hole_sum: hiddenSum,
+            peoria_handicap: peoriaHandicap,
+            net_score: netScore,
+          })
+        }
+
+        await audit(supabase, tenantId, route.leagueId, user.id, role!, 'RoundClosed', 'league_round_hidden_holes', hiddenHolesRecord.id, hiddenHolesRecord, revealed)
+
+        return json({
+          revealed: revealed,
+          peoria_results: results,
+        })
+      }
+
+      return err('Method not allowed', 405)
+    }
+
     return err('Not found', 404)
   } catch (e) {
     console.error('League service error:', e)
