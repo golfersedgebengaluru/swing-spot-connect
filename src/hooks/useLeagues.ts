@@ -316,6 +316,20 @@ export function useRemoveTeamMember(leagueId: string) {
   });
 }
 
+export function useUpdateTenant() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ tenantId, ...body }: { tenantId: string; sponsorship_enabled?: boolean; default_logo_url?: string; name?: string }) =>
+      invoke(`/tenants/${tenantId}`, "PATCH", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-tenants"] });
+      toast({ title: "Tenant updated" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
 
 export function useLeagueScores(leagueId: string | null, round?: number) {
   return useQuery<LeagueScore[]>({
