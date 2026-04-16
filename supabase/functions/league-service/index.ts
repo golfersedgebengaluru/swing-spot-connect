@@ -122,6 +122,18 @@ function parseRoute(url: URL): Route {
     if (subResource === 'players' && segments[4]) {
       return { action: 'league-player-detail', leagueId, subResource, bookingId: segments[4] }
     }
+    // /leagues/:id/teams/:teamId/members/:memberId
+    if (subResource === 'teams' && segments[4] && segments[5] === 'members' && segments[6]) {
+      return { action: 'league-team-member-detail', leagueId, subResource, subId: segments[4], bookingId: segments[6] }
+    }
+    // /leagues/:id/teams/:teamId/members
+    if (subResource === 'teams' && segments[4] && segments[5] === 'members') {
+      return { action: 'league-team-members', leagueId, subResource, subId: segments[4] }
+    }
+    // /leagues/:id/teams/:teamId
+    if (subResource === 'teams' && segments[4]) {
+      return { action: 'league-team-detail', leagueId, subResource, subId: segments[4] }
+    }
     // /leagues/:id/rounds/:roundId/competitions
     if (subResource === 'rounds' && segments[4] && segments[5] === 'competitions') {
       return { action: 'league-round-competitions', leagueId, subResource, subId: segments[4] }
