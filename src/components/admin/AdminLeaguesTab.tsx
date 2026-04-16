@@ -14,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown, ChevronRight, Edit, ListOrdered, Settings2, Shuffle, Lock, Unlock } from "lucide-react";
+import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown, ChevronRight, Edit, ListOrdered, Settings2, Shuffle, Lock, Unlock, BarChart3 } from "lucide-react";
 import { BaySchedulingPanel } from "@/components/admin/league/BaySchedulingPanel";
 import { format } from "date-fns";
 import {
@@ -51,9 +51,10 @@ import {
   useHiddenHoles,
   useSetHiddenHoles,
   useCloseRound,
+  useLeaderboard,
 } from "@/hooks/useLeagues";
 import { supabase } from "@/integrations/supabase/client";
-import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam } from "@/types/league";
+import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam, LeaderboardEntry } from "@/types/league";
 import { useToast } from "@/hooks/use-toast";
 
 // ── Status badge ─────────────────────────────────────────────
@@ -826,6 +827,139 @@ function HiddenHolesPanel({ league }: { league: League }) {
   );
 }
 
+// ── Leaderboard Panel ────────────────────────────────────────
+function LeaderboardPanel({ league }: { league: League }) {
+  const { data: rounds } = useLeagueRounds(league.id);
+  const [selectedRound, setSelectedRound] = useState<number | undefined>(undefined);
+  const [filter, setFilter] = useState<'all' | 'individuals' | 'teams'>('all');
+  const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
+
+  const { data: leaderboard, isLoading } = useLeaderboard(league.id, selectedRound, filter);
+
+  if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>;
+
+  const entries = leaderboard?.entries || [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* Round filter */}
+        <div>
+          <Label className="text-xs">Round</Label>
+          <Select value={selectedRound ? String(selectedRound) : "all"} onValueChange={(v) => setSelectedRound(v === "all" ? undefined : Number(v))}>
+            <SelectTrigger className="w-[160px] h-8"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Rounds</SelectItem>
+              {(rounds || []).map((r) => (
+                <SelectItem key={r.round_number} value={String(r.round_number)}>R{r.round_number}: {r.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {/* Type filter */}
+        <div>
+          <Label className="text-xs">View</Label>
+          <div className="flex gap-1 mt-0.5">
+            {(['all', 'individuals', 'teams'] as const).map((f) => (
+              <Button key={f} size="sm" variant={filter === f ? "default" : "outline"} className="h-8 text-xs capitalize" onClick={() => setFilter(f)}>
+                {f}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {entries.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-8 text-center">No leaderboard data yet. Scores need to be submitted and rounds closed.</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-12">#</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead className="text-right">Gross</TableHead>
+              <TableHead className="text-right">Net</TableHead>
+              <TableHead className="text-right">Final</TableHead>
+              <TableHead className="text-right">Rounds</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {entries.map((entry) => (
+              <>
+                <TableRow
+                  key={entry.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => setExpandedEntry(expandedEntry === entry.id ? null : entry.id)}
+                >
+                  <TableCell className="font-semibold">{entry.rank}</TableCell>
+                  <TableCell>
+                    <div>
+                      <span className="font-medium text-sm">{entry.name}</span>
+                      {entry.team_name && <p className="text-xs text-muted-foreground">{entry.team_name}</p>}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={entry.type === 'team' ? 'default' : 'outline'} className="text-xs">
+                      {entry.type === 'team' ? '🏆 Team' : '👤 Individual'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">{entry.total_gross}</TableCell>
+                  <TableCell className="text-right">{entry.total_net}</TableCell>
+                  <TableCell className="text-right font-semibold">{entry.final_score}</TableCell>
+                  <TableCell className="text-right">{entry.rounds_played}</TableCell>
+                </TableRow>
+
+                {expandedEntry === entry.id && (
+                  <TableRow key={`${entry.id}-detail`}>
+                    <TableCell colSpan={7} className="bg-muted/20 p-4">
+                      <div className="space-y-3">
+                        {/* Round breakdown */}
+                        {entry.breakdown.length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Round Breakdown</p>
+                            <div className="flex gap-3 flex-wrap">
+                              {entry.breakdown.map((b) => (
+                                <div key={b.round} className="border rounded px-3 py-1.5 text-xs bg-background">
+                                  <span className="font-medium">R{b.round}</span>: Gross {b.gross}, Net {b.net}
+                                  {b.handicap > 0 && <span className="text-muted-foreground"> (HC: -{b.handicap})</span>}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Team members */}
+                        {entry.type === 'team' && entry.members && entry.members.length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Team Members</p>
+                            <div className="flex gap-3 flex-wrap">
+                              {entry.members.map((m) => (
+                                <div key={m.player_id} className="border rounded px-3 py-1.5 text-xs bg-background">
+                                  <span className="font-medium">{m.name}</span>: Net {m.net_score}
+                                </div>
+                              ))}
+                            </div>
+                            {(league.fairness_factor_pct || 0) > 0 && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Fairness factor: -{league.fairness_factor_pct}% applied → Final: {entry.final_score}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </div>
+  );
+}
+
 
 function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
   const updateLeague = useUpdateLeague(league.id);
@@ -897,6 +1031,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
           <TabsTrigger value="codes">Join Codes</TabsTrigger>
           <TabsTrigger value="scheduling"><Calendar className="h-3.5 w-3.5 mr-1" />Bay Scheduling</TabsTrigger>
           <TabsTrigger value="scores">Scores ({scores?.length || 0})</TabsTrigger>
+          <TabsTrigger value="leaderboard"><BarChart3 className="h-3.5 w-3.5 mr-1" />Leaderboard</TabsTrigger>
           <TabsTrigger value="scoring"><Settings2 className="h-3.5 w-3.5 mr-1" />Scoring</TabsTrigger>
           {tenant.sponsorship_enabled && <TabsTrigger value="branding">Branding</TabsTrigger>}
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
@@ -1054,6 +1189,11 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
               </TableBody>
             </Table>
           )}
+        </TabsContent>
+
+        {/* Leaderboard */}
+        <TabsContent value="leaderboard">
+          <LeaderboardPanel league={league} />
         </TabsContent>
 
         {/* Scoring Config & Hidden Holes */}
