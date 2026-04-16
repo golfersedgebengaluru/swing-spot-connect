@@ -615,10 +615,12 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
   const { data: branding } = useLeagueBranding(tenant.sponsorship_enabled ? league.id : null);
   const updateBranding = useUpdateBranding(league.id);
   const { data: auditLogs } = useLeagueAuditLog(league.tenant_id, league.id);
+  const { data: teams } = useLeagueTeams(league.id);
   const { toast } = useToast();
 
   const [sponsorName, setSponsorName] = useState(branding?.sponsor_name || "");
   const [sponsorUrl, setSponsorUrl] = useState(branding?.sponsor_url || "");
+  const [codeTeamId, setCodeTeamId] = useState<string>("");
 
   // Bidirectional status transitions
   const statusTransitions: Record<LeagueStatus, LeagueStatus[]> = {
