@@ -530,6 +530,7 @@ Deno.serve(async (req) => {
       }, { onConflict: 'user_id,tenant_id,league_id,role' })
 
       await audit(supabase, tenantId, joinCode.league_id, user.id, 'player', 'PlayerJoined', 'league_player', player.id, null, { ...player, team_id: joinCode.team_id ?? null })
+      await emitFeed(supabase, tenantId, joinCode.league_id, user.id, 'player_joined', { team_id: joinCode.team_id ?? null })
       return json({ success: true, league_id: joinCode.league_id, team_id: joinCode.team_id ?? null }, 201)
     }
 
@@ -599,6 +600,7 @@ Deno.serve(async (req) => {
         if (sErr) return err(sErr.message, 500)
 
         await audit(supabase, tenantId, route.leagueId, user.id, 'player', 'ScoreSubmitted', 'league_score', score.id, null, score)
+        await emitFeed(supabase, tenantId, route.leagueId, user.id, 'score_submitted', { total_score: score.total_score, round_number: score.round_number, method: method_val })
         return json(score, 201)
       }
 
@@ -1649,6 +1651,7 @@ Deno.serve(async (req) => {
         }
 
         await audit(supabase, tenantId, route.leagueId, user.id, role!, 'RoundClosed', 'league_round_hidden_holes', hiddenHolesRecord.id, hiddenHolesRecord, revealed)
+        await emitFeed(supabase, tenantId, route.leagueId, user.id, 'round_closed', { round_number: body.round_number, hidden_holes: revealed.hidden_holes, scores_processed: results.length })
 
         return json({
           revealed: revealed,
