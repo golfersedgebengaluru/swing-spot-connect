@@ -719,6 +719,11 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
           )}
         </TabsContent>
 
+        {/* Teams */}
+        <TabsContent value="teams">
+          <TeamsPanel league={league} />
+        </TabsContent>
+
         {/* Rounds */}
         <TabsContent value="rounds">
           <RoundsPanel league={league} />
