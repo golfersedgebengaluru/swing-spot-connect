@@ -122,6 +122,18 @@ function parseRoute(url: URL): Route {
     if (subResource === 'players' && segments[4]) {
       return { action: 'league-player-detail', leagueId, subResource, bookingId: segments[4] }
     }
+    // /leagues/:id/teams/:teamId/members/:memberId
+    if (subResource === 'teams' && segments[4] && segments[5] === 'members' && segments[6]) {
+      return { action: 'league-team-member-detail', leagueId, subResource, subId: segments[4], bookingId: segments[6] }
+    }
+    // /leagues/:id/teams/:teamId/members
+    if (subResource === 'teams' && segments[4] && segments[5] === 'members') {
+      return { action: 'league-team-members', leagueId, subResource, subId: segments[4] }
+    }
+    // /leagues/:id/teams/:teamId
+    if (subResource === 'teams' && segments[4]) {
+      return { action: 'league-team-detail', leagueId, subResource, subId: segments[4] }
+    }
     // /leagues/:id/rounds/:roundId/competitions
     if (subResource === 'rounds' && segments[4] && segments[5] === 'competitions') {
       return { action: 'league-round-competitions', leagueId, subResource, subId: segments[4] }
@@ -369,6 +381,12 @@ Deno.serve(async (req) => {
         const expiresAt = body.expires_at ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
         const maxUses = body.max_uses ?? 100
 
+        // Validate team_id if provided
+        if (body.team_id) {
+          const { data: teamCheck } = await supabase.from('league_teams').select('id').eq('id', body.team_id).eq('league_id', route.leagueId).single()
+          if (!teamCheck) return err('Team not found in this league', 404)
+        }
+
         const code = generateCode()
         const { data, error } = await supabase.from('league_join_codes').insert({
           league_id: route.leagueId,
@@ -376,6 +394,7 @@ Deno.serve(async (req) => {
           expires_at: expiresAt,
           max_uses: maxUses,
           created_by: user.id,
+          team_id: body.team_id ?? null,
         }).select().single()
 
         if (error) return err(error.message, 500)
@@ -437,13 +456,32 @@ Deno.serve(async (req) => {
       if (existing) return err('Already a member of this league')
 
       // Join
-      const { data: player, error: jErr } = await supabase.from('league_players').insert({
+      const insertData: any = {
         league_id: joinCode.league_id,
         user_id: user.id,
         joined_via_code_id: joinCode.id,
-      }).select().single()
+        team_id: joinCode.team_id ?? null,
+      }
+      const { data: player, error: jErr } = await supabase.from('league_players').insert(insertData).select().single()
 
       if (jErr) return err(jErr.message, 500)
+
+      // If team join code, also add to league_team_members
+      if (joinCode.team_id) {
+        // Check roster size
+        const { data: team } = await supabase.from('league_teams').select('max_roster_size').eq('id', joinCode.team_id).single()
+        const { count } = await supabase.from('league_team_members').select('id', { count: 'exact', head: true }).eq('team_id', joinCode.team_id)
+        if (team && count !== null && count >= team.max_roster_size) {
+          // Rollback player insert
+          await supabase.from('league_players').delete().eq('id', player.id)
+          return err('Team roster is full')
+        }
+        await supabase.from('league_team_members').insert({
+          team_id: joinCode.team_id,
+          player_id: player.id,
+          assigned_by: user.id,
+        })
+      }
 
       // Increment use count
       await supabase.from('league_join_codes').update({ use_count: joinCode.use_count + 1 }).eq('id', joinCode.id)
@@ -457,8 +495,8 @@ Deno.serve(async (req) => {
         role: 'player',
       }, { onConflict: 'user_id,tenant_id,league_id,role' })
 
-      await audit(supabase, tenantId, joinCode.league_id, user.id, 'player', 'PlayerJoined', 'league_player', player.id, null, player)
-      return json({ success: true, league_id: joinCode.league_id }, 201)
+      await audit(supabase, tenantId, joinCode.league_id, user.id, 'player', 'PlayerJoined', 'league_player', player.id, null, { ...player, team_id: joinCode.team_id ?? null })
+      return json({ success: true, league_id: joinCode.league_id, team_id: joinCode.team_id ?? null }, 201)
     }
 
     // ── SCORES ─────────────────────────────────────────────
@@ -1222,6 +1260,186 @@ Deno.serve(async (req) => {
         const { error } = await supabase.from('league_competitions').delete().eq('id', compId)
         if (error) return err(error.message, 500)
         await audit(supabase, tenantId, route.leagueId, user.id, role!, 'CompetitionDeleted', 'league_competition', compId, before, null)
+        return json({ success: true })
+      }
+
+      return err('Method not allowed', 405)
+    }
+
+    // ── TEAMS (list / create) ────────────────────────────────
+    if (route.action === 'league-teams' && route.leagueId) {
+      const { data: league } = await supabase.from('leagues').select('tenant_id').eq('id', route.leagueId).single()
+      if (!league) return err('League not found', 404)
+      const tenantId = league.tenant_id
+
+      if (method === 'GET') {
+        const role = await getUserLeagueRole(supabase, user.id, tenantId)
+        if (!role) return err('No access', 403)
+
+        const { data, error } = await supabase
+          .from('league_teams')
+          .select('*, league_team_members(*, league_players(user_id))')
+          .eq('league_id', route.leagueId)
+          .order('name')
+        if (error) return err(error.message, 500)
+
+        // Enrich with player display names
+        const allUserIds = (data || []).flatMap((t: any) =>
+          (t.league_team_members || []).map((m: any) => m.league_players?.user_id).filter(Boolean)
+        )
+        let profileMap: Record<string, string> = {}
+        if (allUserIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('user_id, display_name')
+            .in('user_id', [...new Set(allUserIds)])
+          if (profiles) {
+            profileMap = Object.fromEntries(profiles.map((p: any) => [p.user_id, p.display_name || '']))
+          }
+        }
+
+        const enriched = (data || []).map((t: any) => ({
+          ...t,
+          members: (t.league_team_members || []).map((m: any) => ({
+            id: m.id,
+            player_id: m.player_id,
+            user_id: m.league_players?.user_id,
+            display_name: profileMap[m.league_players?.user_id] || null,
+            assigned_at: m.assigned_at,
+          })),
+          league_team_members: undefined,
+        }))
+
+        return json(enriched)
+      }
+
+      if (method === 'POST') {
+        const role = await getUserLeagueRole(supabase, user.id, tenantId)
+        if (!role || role === 'player') return err('Insufficient permissions', 403)
+
+        const body = await req.json()
+        if (!body.name) return err('name is required')
+
+        const { data, error } = await supabase.from('league_teams').insert({
+          league_id: route.leagueId,
+          tenant_id: tenantId,
+          name: body.name,
+          max_roster_size: body.max_roster_size ?? 4,
+          created_by: user.id,
+        }).select().single()
+        if (error) {
+          if (error.code === '23505') return err('A team with that name already exists in this league')
+          return err(error.message, 500)
+        }
+
+        await audit(supabase, tenantId, route.leagueId, user.id, role!, 'TeamCreated', 'league_team', data.id, null, data)
+        return json(data, 201)
+      }
+
+      return err('Method not allowed', 405)
+    }
+
+    // ── TEAM DETAIL (update / delete) ─────────────────────────
+    if (route.action === 'league-team-detail' && route.leagueId && route.subId) {
+      const { data: team } = await supabase.from('league_teams').select('*').eq('id', route.subId).single()
+      if (!team) return err('Team not found', 404)
+      const tenantId = team.tenant_id
+
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (!role || role === 'player') return err('Insufficient permissions', 403)
+
+      if (method === 'PATCH') {
+        const body = await req.json()
+        const updates: Record<string, any> = {}
+        if (body.name !== undefined) updates.name = body.name
+        if (body.max_roster_size !== undefined) updates.max_roster_size = body.max_roster_size
+
+        const { data, error } = await supabase.from('league_teams').update(updates).eq('id', route.subId).select().single()
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId!, user.id, role!, 'TeamUpdated', 'league_team', route.subId, team, data)
+        return json(data)
+      }
+
+      if (method === 'DELETE') {
+        // Check if team has members
+        const { count } = await supabase.from('league_team_members').select('id', { count: 'exact', head: true }).eq('team_id', route.subId)
+        if (count && count > 0) return err('Cannot delete a team with members. Remove all members first.')
+
+        const { error } = await supabase.from('league_teams').delete().eq('id', route.subId)
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId!, user.id, role!, 'TeamDeleted', 'league_team', route.subId, team, null)
+        return json({ success: true })
+      }
+
+      return err('Method not allowed', 405)
+    }
+
+    // ── TEAM MEMBERS (add) ────────────────────────────────────
+    if (route.action === 'league-team-members' && route.leagueId && route.subId) {
+      const { data: team } = await supabase.from('league_teams').select('*, leagues!inner(tenant_id)').eq('id', route.subId).single()
+      if (!team) return err('Team not found', 404)
+      const tenantId = (team as any).leagues.tenant_id
+
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (!role || role === 'player') return err('Insufficient permissions', 403)
+
+      if (method === 'POST') {
+        const body = await req.json()
+        if (!body.player_id) return err('player_id is required')
+
+        // Verify player belongs to this league
+        const { data: player } = await supabase.from('league_players').select('id, user_id, team_id').eq('id', body.player_id).eq('league_id', route.leagueId).single()
+        if (!player) return err('Player not found in this league', 404)
+
+        // Check roster capacity
+        const { count } = await supabase.from('league_team_members').select('id', { count: 'exact', head: true }).eq('team_id', route.subId)
+        if (count !== null && count >= team.max_roster_size) return err('Team roster is full')
+
+        // Remove from current team if any
+        if (player.team_id && player.team_id !== route.subId) {
+          await supabase.from('league_team_members').delete().eq('player_id', body.player_id).eq('team_id', player.team_id)
+        }
+
+        const { data, error } = await supabase.from('league_team_members').upsert({
+          team_id: route.subId,
+          player_id: body.player_id,
+          assigned_by: user.id,
+        }, { onConflict: 'team_id,player_id' }).select().single()
+        if (error) return err(error.message, 500)
+
+        // Update player's team_id
+        await supabase.from('league_players').update({ team_id: route.subId }).eq('id', body.player_id)
+
+        await audit(supabase, tenantId, route.leagueId!, user.id, role!, 'TeamMemberAdded', 'league_team_member', data.id, null, { ...data, user_id: player.user_id })
+        return json(data, 201)
+      }
+
+      return err('Method not allowed', 405)
+    }
+
+    // ── TEAM MEMBER DETAIL (remove) ───────────────────────────
+    if (route.action === 'league-team-member-detail' && route.leagueId && route.subId && route.bookingId) {
+      const teamId = route.subId
+      const memberId = route.bookingId
+
+      const { data: team } = await supabase.from('league_teams').select('*, leagues!inner(tenant_id)').eq('id', teamId).single()
+      if (!team) return err('Team not found', 404)
+      const tenantId = (team as any).leagues.tenant_id
+
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (!role || role === 'player') return err('Insufficient permissions', 403)
+
+      if (method === 'DELETE') {
+        const { data: member } = await supabase.from('league_team_members').select('*, league_players(user_id)').eq('id', memberId).single()
+        if (!member) return err('Member not found', 404)
+
+        const { error } = await supabase.from('league_team_members').delete().eq('id', memberId)
+        if (error) return err(error.message, 500)
+
+        // Clear team_id on the player
+        await supabase.from('league_players').update({ team_id: null }).eq('id', member.player_id)
+
+        await audit(supabase, tenantId, route.leagueId!, user.id, role!, 'TeamMemberRemoved', 'league_team_member', memberId, member, null)
         return json({ success: true })
       }
 

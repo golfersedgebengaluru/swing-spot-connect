@@ -11,6 +11,7 @@ import type {
   LeagueBayBlock,
   LeagueRound,
   LeagueCompetition,
+  LeagueTeam,
   BayAvailabilityResponse,
   CreateLeagueRequest,
   UpdateLeagueRequest,
@@ -145,7 +146,7 @@ export function useCreateJoinCode(leagueId: string) {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: (body?: { expires_at?: string; max_uses?: number }) =>
+    mutationFn: (body?: { expires_at?: string; max_uses?: number; team_id?: string }) =>
       invoke(`/leagues/${leagueId}/join-codes`, "POST", body ?? {}),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["league-join-codes", leagueId] });
@@ -230,7 +231,89 @@ export function useRemoveLeaguePlayer(leagueId: string) {
   });
 }
 
-// ── Scores ───────────────────────────────────────────────────
+// ── Teams ───────────────────────────────────────────────────
+export function useLeagueTeams(leagueId: string | null) {
+  return useQuery<LeagueTeam[]>({
+    queryKey: ["league-teams", leagueId],
+    queryFn: () => invoke(`/leagues/${leagueId}/teams`, "GET"),
+    enabled: !!leagueId,
+    staleTime: LEAGUE_STALE_TIME,
+  });
+}
+
+export function useCreateTeam(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (body: { name: string; max_roster_size?: number }) =>
+      invoke(`/leagues/${leagueId}/teams`, "POST", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-teams", leagueId] });
+      toast({ title: "Team created" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useUpdateTeam(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ teamId, body }: { teamId: string; body: { name?: string; max_roster_size?: number } }) =>
+      invoke(`/leagues/${leagueId}/teams/${teamId}`, "PATCH", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-teams", leagueId] });
+      toast({ title: "Team updated" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useDeleteTeam(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (teamId: string) =>
+      invoke(`/leagues/${leagueId}/teams/${teamId}`, "DELETE"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-teams", leagueId] });
+      toast({ title: "Team deleted" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useAddTeamMember(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ teamId, playerId }: { teamId: string; playerId: string }) =>
+      invoke(`/leagues/${leagueId}/teams/${teamId}/members`, "POST", { player_id: playerId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-teams", leagueId] });
+      qc.invalidateQueries({ queryKey: ["league-players", leagueId] });
+      toast({ title: "Player assigned to team" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useRemoveTeamMember(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ teamId, memberId }: { teamId: string; memberId: string }) =>
+      invoke(`/leagues/${leagueId}/teams/${teamId}/members/${memberId}`, "DELETE"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-teams", leagueId] });
+      qc.invalidateQueries({ queryKey: ["league-players", leagueId] });
+      toast({ title: "Player removed from team" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+
 export function useLeagueScores(leagueId: string | null, round?: number) {
   return useQuery<LeagueScore[]>({
     queryKey: ["league-scores", leagueId, round],
