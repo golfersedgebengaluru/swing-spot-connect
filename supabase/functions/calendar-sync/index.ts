@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveProfileDisplayName } from "./profile-lookup.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") || "*",
@@ -172,14 +173,7 @@ async function getAdminAndSiteAdminIds(adminClient: any, city: string, excludeUs
 async function notifyAdmins(adminClient: any, adminIds: string[], template: string, subject: string, data: Record<string, any>) {
   for (const adminId of adminIds) {
     try {
-      // Dual-key profile lookup: try user_id first, then id
-      let adminProfile: any = null;
-      const { data: byUserId } = await adminClient.from("profiles").select("display_name").eq("user_id", adminId).single();
-      adminProfile = byUserId;
-      if (!adminProfile) {
-        const { data: byId } = await adminClient.from("profiles").select("display_name").eq("id", adminId).single();
-        adminProfile = byId;
-      }
+      const adminName = await resolveProfileDisplayName(adminClient, adminId, "Admin");
       await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
         method: "POST",
         headers: {
@@ -190,7 +184,7 @@ async function notifyAdmins(adminClient: any, adminIds: string[], template: stri
           user_id: adminId,
           template,
           subject,
-          data: { ...data, admin_name: adminProfile?.display_name || "Admin" },
+          data: { ...data, admin_name: adminName },
         }),
       });
     } catch (e) {
@@ -1013,8 +1007,7 @@ Deno.serve(async (req) => {
 
         // Notify admins + site-admins about new confirmed booking
         try {
-          const { data: userPrf } = await adminClient.from("profiles").select("display_name").eq("user_id", bookingUserId).single();
-          const memberName = userPrf?.display_name || display_name || "A member";
+          const memberName = await resolveProfileDisplayName(adminClient, bookingUserId, display_name || "A member");
           const notifyIds = await getAdminAndSiteAdminIds(adminClient, city, bookingUserId);
           await notifyAdminsInApp(adminClient, notifyIds, "📅 New Booking", `${memberName} booked ${bayLabel}${isCoaching ? " (Coaching)" : ""} on ${formatDateTime(start_time, calTz)}.`);
           await notifyAdmins(adminClient, notifyIds, "admin_new_booking", "📅 New Booking", {
@@ -1067,8 +1060,7 @@ Deno.serve(async (req) => {
 
         // Notify admins + site-admins about new confirmed booking
         try {
-          const { data: userPrf } = await adminClient.from("profiles").select("display_name").eq("user_id", bookingUserId).single();
-          const memberName = userPrf?.display_name || display_name || "A member";
+          const memberName = await resolveProfileDisplayName(adminClient, bookingUserId, display_name || "A member");
           const notifyIds = await getAdminAndSiteAdminIds(adminClient, city, bookingUserId);
           await notifyAdminsInApp(adminClient, notifyIds, "📅 New Booking (Paid)", `${memberName} booked ${bayLabel}${isCoaching ? " (Coaching)" : ""} on ${formatDateTime(start_time, calTz)} — paid via ${payment_method}.`);
           await notifyAdmins(adminClient, notifyIds, "admin_new_booking", "📅 New Booking (Paid)", {
@@ -1233,8 +1225,7 @@ Deno.serve(async (req) => {
       // Update calendar event title
       if (booking.calendar_event_id && calendarEmail) {
         try {
-          const { data: profile } = await adminClient.from("profiles").select("display_name").eq("user_id", booking.user_id).single();
-          const displayName = profile?.display_name || "Member";
+          const displayName = await resolveProfileDisplayName(adminClient, booking.user_id, "Member");
           await updateEvent(
             accessToken,
             calendarEmail,
@@ -1529,8 +1520,7 @@ Deno.serve(async (req) => {
       });
 
       // Admin + site-admin notifications (in-app + email)
-      const { data: userProfile } = await adminClient.from("profiles").select("display_name").eq("user_id", userId).single();
-      const displayName = userProfile?.display_name || "A member";
+      const displayName = await resolveProfileDisplayName(adminClient, userId, "A member");
       const notifyIds = await getAdminAndSiteAdminIds(adminClient, booking.city, userId);
       await notifyAdminsInApp(adminClient, notifyIds, "🚫 Booking Cancelled", `${displayName} cancelled their ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${formatDateTime(booking.start_time, calTz)}.${hoursRefunded > 0 ? ` ${hoursRefunded}h refunded.` : ""}`);
       await notifyAdmins(adminClient, notifyIds, "admin_booking_cancelled", "🚫 Booking Cancelled by Member", {
@@ -1705,8 +1695,7 @@ Deno.serve(async (req) => {
 
       // Notify other admins + site-admins about the admin cancellation
       try {
-        const { data: ownerProfile } = await adminClient.from("profiles").select("display_name").eq("user_id", booking.user_id).single();
-        const memberName = ownerProfile?.display_name || "A member";
+        const memberName = await resolveProfileDisplayName(adminClient, booking.user_id, "A member");
         const adminNotifyIds = await getAdminAndSiteAdminIds(adminClient, booking.city);
         await notifyAdminsInApp(adminClient, adminNotifyIds, "🚫 Booking Cancelled by Admin", `Admin cancelled ${memberName}'s ${booking.session_type === "coaching" ? "coaching" : "bay"} booking at ${bayName} on ${formatDateTime(booking.start_time, calTz)}.`);
         await notifyAdmins(adminClient, adminNotifyIds, "admin_booking_cancelled", "🚫 Booking Cancelled by Admin", {
