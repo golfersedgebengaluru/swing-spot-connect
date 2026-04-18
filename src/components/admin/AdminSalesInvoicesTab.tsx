@@ -236,6 +236,13 @@ function InvoiceListSection({ city }: { city: string }) {
       <CreateInvoiceDialog open={createOpen} onOpenChange={setCreateOpen} city={city} />
       <InvoiceViewDialog invoiceId={viewId} onClose={() => setViewId(null)} />
 
+      <ReassignInvoiceCityDialog
+        invoiceId={reassignTarget?.id ?? null}
+        currentCity={reassignTarget?.city ?? null}
+        currentNumber={reassignTarget?.number ?? null}
+        onClose={() => setReassignTarget(null)}
+      />
+
       <AlertDialog open={!!cancelConfirmId} onOpenChange={(open) => { if (!open) setCancelConfirmId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
