@@ -190,6 +190,17 @@ function InvoiceListSection({ city }: { city: string }) {
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewId(inv.id)}>
                         <Eye className="h-3.5 w-3.5" />
                       </Button>
+                      {canReassign && inv.status === "issued" && inv.invoice_type === "invoice" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setReassignTarget({ id: inv.id, city: inv.city, number: inv.invoice_number })}
+                          title="Reassign to another city"
+                        >
+                          <MoveRight className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       {inv.status === "issued" && inv.invoice_type === "invoice" && (
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCancelConfirmId(inv.id)} disabled={cancelInvoice.isPending} title="Cancel & create credit note">
                           <FileX className="h-3.5 w-3.5 text-destructive" />
