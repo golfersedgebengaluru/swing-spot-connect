@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Download, Search, Loader2, Eye, FileX, Trash2, ChevronLeft, ChevronRight, MapPin, Wallet, ArrowUpRight } from "lucide-react";
+import { Plus, Download, Search, Loader2, Eye, FileX, Trash2, ChevronLeft, ChevronRight, MapPin, Wallet, ArrowUpRight, MoveRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useInvoices, useCancelInvoice, useDeleteInvoice } from "@/hooks/useInvoices";
 import type { CancelInvoiceParams } from "@/hooks/useInvoices";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { CreateInvoiceDialog } from "@/components/admin/CreateInvoiceDialog";
 import { InvoiceViewDialog } from "@/components/admin/InvoiceViewDialog";
+import { ReassignInvoiceCityDialog } from "@/components/admin/ReassignInvoiceCityDialog";
 import { format } from "date-fns";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAllCities } from "@/hooks/useBookings";
@@ -28,6 +29,8 @@ function useAvailableCities() {
 function InvoiceListSection({ city }: { city: string }) {
   const { toast } = useToast();
   const currency = useDefaultCurrency();
+  const { isAdmin, isSiteAdmin } = useAdmin();
+  const canReassign = isAdmin || isSiteAdmin;
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -38,6 +41,7 @@ function InvoiceListSection({ city }: { city: string }) {
   const [viewId, setViewId] = useState<string | null>(null);
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [reassignTarget, setReassignTarget] = useState<{ id: string; city: string; number: string } | null>(null);
 
   const cancelInvoice = useCancelInvoice();
   const deleteInvoice = useDeleteInvoice();
@@ -186,6 +190,17 @@ function InvoiceListSection({ city }: { city: string }) {
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setViewId(inv.id)}>
                         <Eye className="h-3.5 w-3.5" />
                       </Button>
+                      {canReassign && inv.status === "issued" && inv.invoice_type === "invoice" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setReassignTarget({ id: inv.id, city: inv.city, number: inv.invoice_number })}
+                          title="Reassign to another city"
+                        >
+                          <MoveRight className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       {inv.status === "issued" && inv.invoice_type === "invoice" && (
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCancelConfirmId(inv.id)} disabled={cancelInvoice.isPending} title="Cancel & create credit note">
                           <FileX className="h-3.5 w-3.5 text-destructive" />
@@ -220,6 +235,13 @@ function InvoiceListSection({ city }: { city: string }) {
 
       <CreateInvoiceDialog open={createOpen} onOpenChange={setCreateOpen} city={city} />
       <InvoiceViewDialog invoiceId={viewId} onClose={() => setViewId(null)} />
+
+      <ReassignInvoiceCityDialog
+        invoiceId={reassignTarget?.id ?? null}
+        currentCity={reassignTarget?.city ?? null}
+        currentNumber={reassignTarget?.number ?? null}
+        onClose={() => setReassignTarget(null)}
+      />
 
       <AlertDialog open={!!cancelConfirmId} onOpenChange={(open) => { if (!open) setCancelConfirmId(null); }}>
         <AlertDialogContent>

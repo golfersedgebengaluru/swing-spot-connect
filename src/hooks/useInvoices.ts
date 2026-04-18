@@ -689,3 +689,125 @@ export function useDeleteInvoice() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["invoices"] }),
   });
 }
+
+// ─── Reassign invoice to a different city ──────────────
+// Moves an invoice from one city to another. The original number is recycled
+// (so the source city can reuse it), and the invoice receives the next
+// sequential number for the target city — or an explicit override if given.
+export interface ReassignInvoiceCityParams {
+  invoiceId: string;
+  targetCity: string;
+  /** Optional manual override: pass an integer to use that exact sequence number. */
+  overrideNumber?: number;
+}
+
+export function useReassignInvoiceCity() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ invoiceId, targetCity, overrideNumber }: ReassignInvoiceCityParams) => {
+      // 1. Fetch the original invoice
+      const { data: invoice, error: fetchErr } = await supabase.from("invoices")
+        .select("*").eq("id", invoiceId).maybeSingle();
+      if (fetchErr) throw fetchErr;
+      if (!invoice) throw new Error("Invoice not found");
+      if (invoice.city === targetCity) throw new Error("Invoice is already assigned to that city");
+      if (invoice.invoice_type === "credit_note") throw new Error("Credit notes cannot be reassigned. Reassign the original invoice instead.");
+
+      // 2. Fetch target city's GST profile
+      const { data: targetProfile, error: profErr } = await supabase.from("gst_profiles")
+        .select("*").eq("city", targetCity).maybeSingle();
+      if (profErr) throw profErr;
+      if (!targetProfile) throw new Error(`No GST profile configured for ${targetCity}. Set one up in Finance → GST Settings first.`);
+
+      const targetGstRegistered = isGstRegistered(targetProfile.gstin);
+      const targetSequenceGstin = targetGstRegistered ? targetProfile.gstin : `NOGST-${targetCity}`;
+      const targetPrefix = targetProfile.invoice_prefix || "INV";
+
+      // 3. Recycle the original number so the source city can reuse it
+      const oldParts = (invoice.invoice_number as string).split("/");
+      const oldSeqNumber = oldParts.length >= 3 ? parseInt(oldParts[oldParts.length - 1], 10) : null;
+      const oldPrefix = oldParts.length >= 3 ? oldParts.slice(0, oldParts.length - 2).join("/") : "INV";
+      if (oldSeqNumber && invoice.financial_year_id && invoice.business_gstin !== null) {
+        const sourceSequenceGstin = invoice.business_gstin && invoice.business_gstin.length > 0
+          ? invoice.business_gstin
+          : `NOGST-${invoice.city}`;
+        await supabase.from("recycled_invoice_numbers").insert({
+          gstin: sourceSequenceGstin,
+          financial_year_id: invoice.financial_year_id,
+          prefix: oldPrefix,
+          number: oldSeqNumber,
+          invoice_number_text: invoice.invoice_number,
+        });
+      }
+
+      // 4. Determine the new invoice number
+      let newInvoiceNumber: string;
+      if (overrideNumber !== undefined) {
+        // Use FY label for formatting, like get_next_invoice_number does
+        const { data: fy } = await supabase.from("financial_years")
+          .select("label").eq("id", invoice.financial_year_id).maybeSingle();
+        const fyLabel = fy?.label || "";
+        const padded = String(overrideNumber).padStart(4, "0");
+        newInvoiceNumber = `${targetPrefix}/${fyLabel}/${padded}`;
+
+        // Bump sequence so future auto-numbered invoices skip past this
+        const { data: existingSeq } = await supabase.from("invoice_sequences")
+          .select("last_number")
+          .eq("gstin", targetSequenceGstin)
+          .eq("financial_year_id", invoice.financial_year_id)
+          .maybeSingle();
+        if (existingSeq) {
+          if (overrideNumber > (existingSeq.last_number ?? 0)) {
+            await supabase.from("invoice_sequences")
+              .update({ last_number: overrideNumber, updated_at: new Date().toISOString() })
+              .eq("gstin", targetSequenceGstin)
+              .eq("financial_year_id", invoice.financial_year_id);
+          }
+        } else {
+          await supabase.from("invoice_sequences").insert({
+            gstin: targetSequenceGstin,
+            financial_year_id: invoice.financial_year_id,
+            prefix: targetPrefix,
+            last_number: overrideNumber,
+          });
+        }
+      } else {
+        // Use the standard sequencer (also consumes any recycled number first)
+        const { data: nextNumber, error: seqErr } = await supabase.rpc("get_next_invoice_number", {
+          p_gstin: targetSequenceGstin,
+          p_fy_id: invoice.financial_year_id!,
+          p_prefix: targetPrefix,
+          p_start: targetProfile.invoice_start_number || 1,
+        });
+        if (seqErr) throw seqErr;
+        newInvoiceNumber = nextNumber as string;
+      }
+
+      // 5. Update the invoice with new city, business identity, and number
+      const { error: updErr } = await supabase.from("invoices").update({
+        invoice_number: newInvoiceNumber,
+        city: targetCity,
+        business_name: targetProfile.legal_name,
+        business_gstin: targetGstRegistered ? targetProfile.gstin : "",
+        business_address: targetProfile.address || null,
+        business_state: targetProfile.state || null,
+        business_state_code: targetProfile.state_code || null,
+      }).eq("id", invoiceId);
+      if (updErr) throw updErr;
+
+      // 6. Sync linked revenue_transactions city
+      if (invoice.revenue_transaction_id) {
+        await supabase.from("revenue_transactions")
+          .update({ city: targetCity, description: `${newInvoiceNumber}${invoice.customer_name ? ` — ${invoice.customer_name}` : ""}` })
+          .eq("id", invoice.revenue_transaction_id);
+      }
+
+      return { newInvoiceNumber };
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: ["revenue_transactions"] });
+      qc.invalidateQueries({ queryKey: ["revenue_summary"] });
+    },
+  });
+}
