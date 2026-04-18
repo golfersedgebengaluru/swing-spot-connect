@@ -29,6 +29,8 @@ function useAvailableCities() {
 function InvoiceListSection({ city }: { city: string }) {
   const { toast } = useToast();
   const currency = useDefaultCurrency();
+  const { isAdmin, isSiteAdmin } = useAdmin();
+  const canReassign = isAdmin || isSiteAdmin;
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -39,6 +41,7 @@ function InvoiceListSection({ city }: { city: string }) {
   const [viewId, setViewId] = useState<string | null>(null);
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [reassignTarget, setReassignTarget] = useState<{ id: string; city: string; number: string } | null>(null);
 
   const cancelInvoice = useCancelInvoice();
   const deleteInvoice = useDeleteInvoice();
