@@ -748,7 +748,9 @@ Deno.serve(async (req) => {
         earliest = Date.UTC(nowDate.getUTCFullYear(), nowDate.getUTCMonth(), nowDate.getUTCDate(), nowDate.getUTCHours() + 1, 0, 0, 0);
       }
 
-      for (let t = dayStart; t < dayEnd; t += 30 * 60 * 1000) {
+      // Last bookable start = close - 60min (minimum bookings are 1 hour)
+      const lastStart = dayEnd - 60 * 60 * 1000;
+      for (let t = dayStart; t <= lastStart; t += 30 * 60 * 1000) {
         const slotEnd = t + 30 * 60 * 1000;
         const isBusy = busy.some((b) => t < b.end && slotEnd > b.start);
         const isPast = t < earliest;
