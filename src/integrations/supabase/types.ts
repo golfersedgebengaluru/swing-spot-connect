@@ -2623,6 +2623,75 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_guest_bookings: {
+        Row: {
+          amount: number
+          bay_id: string | null
+          bay_name: string | null
+          calendar_email: string | null
+          city: string
+          created_at: string
+          currency: string
+          duration_minutes: number
+          end_time: string
+          error_message: string | null
+          finalized_at: string | null
+          guest_email: string
+          guest_name: string
+          guest_phone: string | null
+          id: string
+          razorpay_order_id: string
+          session_type: string | null
+          start_time: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          bay_id?: string | null
+          bay_name?: string | null
+          calendar_email?: string | null
+          city: string
+          created_at?: string
+          currency?: string
+          duration_minutes: number
+          end_time: string
+          error_message?: string | null
+          finalized_at?: string | null
+          guest_email: string
+          guest_name: string
+          guest_phone?: string | null
+          id?: string
+          razorpay_order_id: string
+          session_type?: string | null
+          start_time: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          bay_id?: string | null
+          bay_name?: string | null
+          calendar_email?: string | null
+          city?: string
+          created_at?: string
+          currency?: string
+          duration_minutes?: number
+          end_time?: string
+          error_message?: string | null
+          finalized_at?: string | null
+          guest_email?: string
+          guest_name?: string
+          guest_phone?: string | null
+          id?: string
+          razorpay_order_id?: string
+          session_type?: string | null
+          start_time?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pending_purchases: {
         Row: {
           city: string
