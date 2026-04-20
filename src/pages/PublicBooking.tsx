@@ -61,6 +61,7 @@ export default function PublicBooking() {
 
   const [bookingComplete, setBookingComplete] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
 
   const isGuest = !user;
@@ -361,6 +362,7 @@ export default function PublicBooking() {
       }
     } finally {
       setIsProcessing(false);
+      setIsFinalizing(false);
     }
   };
 
