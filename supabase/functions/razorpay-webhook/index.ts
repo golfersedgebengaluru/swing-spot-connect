@@ -192,6 +192,60 @@ Deno.serve(async (req) => {
       }
     }
 
+    // --- NEW: Reconcile guest bookings (browser may have failed to call calendar-sync) ---
+    const { data: pendingGuest } = await adminClient
+      .from("pending_guest_bookings")
+      .select("*")
+      .eq("razorpay_order_id", razorpayOrderId)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (pendingGuest) {
+      console.log(`Webhook reconciling guest booking for order ${razorpayOrderId}`);
+      try {
+        const invokeRes = await fetch(`${supabaseUrl}/functions/v1/calendar-sync`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({
+            action: "guest_booking",
+            start_time: pendingGuest.start_time,
+            end_time: pendingGuest.end_time,
+            duration_minutes: pendingGuest.duration_minutes,
+            city: pendingGuest.city,
+            bay_id: pendingGuest.bay_id,
+            bay_name: pendingGuest.bay_name,
+            session_type: pendingGuest.session_type,
+            guest_name: pendingGuest.guest_name,
+            guest_email: pendingGuest.guest_email,
+            guest_phone: pendingGuest.guest_phone,
+            calendar_email: pendingGuest.calendar_email,
+            payment_id: razorpayPaymentId || "webhook_reconciled",
+            order_id: razorpayOrderId,
+            amount: pendingGuest.amount,
+            currency: pendingGuest.currency,
+            gateway_name: "razorpay",
+          }),
+        });
+
+        if (!invokeRes.ok) {
+          const errBody = await invokeRes.text();
+          console.error("Webhook guest_booking invoke failed:", invokeRes.status, errBody);
+          await adminClient.from("pending_guest_bookings").update({
+            status: "webhook_error",
+            error_message: `HTTP ${invokeRes.status}: ${errBody.slice(0, 500)}`,
+          }).eq("id", pendingGuest.id);
+        } else {
+          console.log(`Webhook successfully reconciled guest booking for order ${razorpayOrderId}`);
+          // calendar-sync will mark pending_guest_bookings.status = 'completed'
+        }
+      } catch (reconcileErr) {
+        console.error("Webhook guest reconciliation error:", (reconcileErr as Error).message);
+      }
+    }
+
     // Mark event as processed
     await adminClient.from("payment_events").update({ processed: true }).eq("razorpay_event_id", eventId);
   }
@@ -212,6 +266,13 @@ Deno.serve(async (req) => {
     // Mark pending purchase as failed
     await adminClient
       .from("pending_purchases")
+      .update({ status: "failed", error_message: "Payment failed at gateway" })
+      .eq("razorpay_order_id", razorpayOrderId)
+      .eq("status", "pending");
+
+    // Mark pending guest booking as failed
+    await adminClient
+      .from("pending_guest_bookings")
       .update({ status: "failed", error_message: "Payment failed at gateway" })
       .eq("razorpay_order_id", razorpayOrderId)
       .eq("status", "pending");
