@@ -518,6 +518,23 @@ Deno.serve(async (req) => {
 
       const adminClient = createAdminClient();
 
+      // Idempotency: if a revenue_transaction already exists for this Razorpay order,
+      // the booking has already been finalized (by the browser flow OR webhook). Skip.
+      if (order_id) {
+        const { data: existingTx } = await adminClient
+          .from("revenue_transactions")
+          .select("id, booking_id")
+          .eq("gateway_order_ref", order_id)
+          .maybeSingle();
+        if (existingTx) {
+          console.log(`guest_booking already finalized for order ${order_id} — skipping`);
+          return new Response(
+            JSON.stringify({ status: "already_finalized", booking_id: existingTx.booking_id }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+
       // Check for overlapping bookings
       const overlapQuery = adminClient
         .from("bookings")
@@ -688,6 +705,18 @@ Deno.serve(async (req) => {
           });
         } catch (e) {
           console.error("Failed to send guest confirmation email:", (e as Error).message);
+        }
+      }
+
+      // Mark pending_guest_bookings row as completed (if exists)
+      if (order_id) {
+        try {
+          await adminClient
+            .from("pending_guest_bookings")
+            .update({ status: "completed", finalized_at: new Date().toISOString() })
+            .eq("razorpay_order_id", order_id);
+        } catch (e) {
+          console.error("Failed to mark pending_guest_bookings completed:", (e as Error).message);
         }
       }
 
