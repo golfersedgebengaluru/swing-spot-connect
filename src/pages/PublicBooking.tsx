@@ -190,6 +190,33 @@ export default function PublicBooking() {
 
         const { order_id, key_id, currency: rzpCurrency } = orderRes.data;
 
+        // 1b. For guest checkouts, stash booking params server-side BEFORE opening checkout.
+        // This lets the razorpay-webhook finalize the booking even if the browser handler never fires
+        // (e.g., user closes the tab, network drops, or phone locks after payment).
+        if (!user) {
+          try {
+            await supabase.from("pending_guest_bookings").insert({
+              razorpay_order_id: order_id,
+              city: selectedCity,
+              bay_id: currentBay.id,
+              bay_name: currentBay.name,
+              calendar_email: currentBay.calendar_email,
+              start_time: selectedSlot,
+              end_time: endTime,
+              duration_minutes: duration,
+              session_type: sessionType,
+              guest_name: guestName,
+              guest_email: guestEmail,
+              guest_phone: guestPhone,
+              amount: totalCost,
+              currency: currentPrice?.currency || "INR",
+            });
+          } catch (e) {
+            console.error("Failed to stash pending guest booking (non-fatal):", e);
+            // Non-fatal: browser handler will still try to finalize
+          }
+        }
+
         // 2. Load Razorpay checkout script
         const loaded = await loadRazorpayScript();
         if (!loaded) {
