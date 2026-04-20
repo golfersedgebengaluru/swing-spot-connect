@@ -250,6 +250,7 @@ export default function PublicBooking() {
             handler: async (response: any) => {
               try {
                 setIsProcessing(true);
+                setIsFinalizing(true);
 
                 if (user) {
                   const bookingResult = await createBooking.mutateAsync({
