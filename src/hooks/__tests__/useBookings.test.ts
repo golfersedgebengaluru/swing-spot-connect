@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockFrom = vi.fn();
 const mockFunctionsInvoke = vi.fn();
+const mockGetSession = vi.fn();
+const mockRefreshSession = vi.fn();
 const mockChannel = vi.fn().mockReturnValue({
   on: vi.fn().mockReturnThis(),
   subscribe: vi.fn().mockReturnThis(),
@@ -14,6 +16,10 @@ vi.mock("@/integrations/supabase/client", () => ({
     functions: { invoke: mockFunctionsInvoke },
     channel: mockChannel,
     removeChannel: mockRemoveChannel,
+    auth: {
+      getSession: mockGetSession,
+      refreshSession: mockRefreshSession,
+    },
   },
 }));
 
@@ -28,7 +34,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-const { useBays, useCities, useUserHoursBalance, useUserProfile } = await import(
+const { useBays, useCities, useUserHoursBalance, useUserProfile, useAdminCancelBooking } = await import(
   "@/hooks/useBookings"
 );
 
