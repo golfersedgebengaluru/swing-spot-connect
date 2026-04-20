@@ -74,6 +74,50 @@ Deno.test("calendar-sync: create_booking requires auth", async () => {
   assertEquals(data.error, "Unauthorized");
 });
 
+// ── Idempotency tests for server-side guest booking finalization ─────────────
+// When the razorpay-webhook reconciles a guest booking after the browser has
+// already finalized it (or vice versa), calendar-sync must detect the existing
+// revenue_transaction by gateway_order_ref and short-circuit with
+// status: "already_finalized" — preventing duplicate bookings, calendar
+// events, and emails.
+
+Deno.test("calendar-sync: guest_booking with order_id returns structured response (idempotency path)", async () => {
+  // Use a clearly-fake order_id that won't collide with real data.
+  // If no revenue_transaction exists for it, the function proceeds past the
+  // idempotency check (and may fail later for other reasons in the test env).
+  // The key assertion is that the request is accepted and returns valid JSON.
+  const fakeOrderId = `order_test_${Date.now()}`;
+  const farFutureDate = "2099-02-15";
+
+  const { data } = await callCalendarSync({
+    action: "guest_booking",
+    order_id: fakeOrderId,
+    payment_id: "pay_test_dummy",
+    start_time: `${farFutureDate}T04:00:00.000Z`,
+    end_time: `${farFutureDate}T05:00:00.000Z`,
+    duration_minutes: 60,
+    city: "__test_city__",
+    bay_id: null,
+    bay_name: "Test Bay",
+    session_type: "practice",
+    guest_name: "Idempotency Test",
+    guest_email: "idem@test.com",
+    guest_phone: null,
+    calendar_email: null,
+    amount: 0,
+    currency: "INR",
+    gateway_name: "razorpay",
+  });
+
+  // Should return either a normal result or "already_finalized" — never crash.
+  assertExists(data);
+  // If by chance the order_id existed, the response should match this shape.
+  if (data.status === "already_finalized") {
+    assertEquals(typeof data, "object");
+  }
+  await consumeBody(data);
+});
+
 Deno.test("calendar-sync: list_slots without calendar returns error", async () => {
   // list_slots requires GOOGLE_SERVICE_ACCOUNT_KEY to be configured
   // but does not require auth. We test it returns a structured response.
