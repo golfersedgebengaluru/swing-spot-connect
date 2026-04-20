@@ -331,7 +331,7 @@ export function AdminBookingLogsTab() {
                       <div>
                         <div className="text-xs leading-tight">{b.display_name}</div>
                         <Badge variant="outline" className="text-[9px] px-1 py-0 mt-0.5">
-                          {b.user_type === "member" ? "👤 Member" : b.user_type === "non-registered" ? "🔗 Guest" : "📝 Registered"}
+                          {b.user_type === "member" ? "👤 Member" : (b.user_type === "non-registered" || b.user_type === "guest") ? "🔗 Guest" : "📝 Registered"}
                         </Badge>
                       </div>
                     </div>
