@@ -61,6 +61,7 @@ export default function PublicBooking() {
 
   const [bookingComplete, setBookingComplete] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
 
   const isGuest = !user;
@@ -249,6 +250,7 @@ export default function PublicBooking() {
             handler: async (response: any) => {
               try {
                 setIsProcessing(true);
+                setIsFinalizing(true);
 
                 if (user) {
                   const bookingResult = await createBooking.mutateAsync({
@@ -361,6 +363,7 @@ export default function PublicBooking() {
       }
     } finally {
       setIsProcessing(false);
+      setIsFinalizing(false);
     }
   };
 
@@ -409,6 +412,19 @@ export default function PublicBooking() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      {isFinalizing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-sm p-4">
+          <Card className="max-w-md w-full">
+            <CardContent className="p-8 text-center">
+              <Loader2 className="mx-auto mb-4 h-10 w-10 animate-spin text-primary" />
+              <h2 className="font-display text-xl font-bold text-foreground">Payment received</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Finalizing your booking — please don't close this window or press back. This can take up to 30 seconds.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
       <Navbar />
       <main className="flex-1 py-8">
         <div className="container mx-auto max-w-3xl px-4">

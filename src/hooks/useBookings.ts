@@ -293,6 +293,17 @@ export function useAdminCancelBooking() {
 
   return useMutation({
     mutationFn: async (bookingId: string) => {
+      // Proactively refresh session so the JWT is fresh when the edge function validates it.
+      // Avoids "Unauthorized" errors when the cached access_token has just expired.
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        await supabase.auth.refreshSession();
+      }
+      const { data: refreshed } = await supabase.auth.getSession();
+      if (!refreshed.session?.access_token) {
+        throw new Error("Session expired. Please sign in again to cancel bookings.");
+      }
+
       const res = await supabase.functions.invoke("calendar-sync", {
         body: { action: "admin_cancel_booking", booking_id: bookingId },
       });

@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockFrom = vi.fn();
 const mockFunctionsInvoke = vi.fn();
+const mockGetSession = vi.fn();
+const mockRefreshSession = vi.fn();
 const mockChannel = vi.fn().mockReturnValue({
   on: vi.fn().mockReturnThis(),
   subscribe: vi.fn().mockReturnThis(),
@@ -14,6 +16,10 @@ vi.mock("@/integrations/supabase/client", () => ({
     functions: { invoke: mockFunctionsInvoke },
     channel: mockChannel,
     removeChannel: mockRemoveChannel,
+    auth: {
+      getSession: mockGetSession,
+      refreshSession: mockRefreshSession,
+    },
   },
 }));
 
@@ -28,7 +34,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-const { useBays, useCities, useUserHoursBalance, useUserProfile } = await import(
+const { useBays, useCities, useUserHoursBalance, useUserProfile, useAdminCancelBooking } = await import(
   "@/hooks/useBookings"
 );
 
@@ -140,5 +146,37 @@ describe("useUserProfile", () => {
     const { result } = renderHook(() => useUserProfile(), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.display_name).toBe("Test Player");
+  });
+});
+
+describe("useAdminCancelBooking", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("refreshes the session before invoking the edge function and returns data on success", async () => {
+    mockGetSession
+      .mockResolvedValueOnce({ data: { session: null } }) // initial check -> stale
+      .mockResolvedValueOnce({ data: { session: { access_token: "fresh-token" } } }); // after refresh
+    mockRefreshSession.mockResolvedValue({ data: { session: { access_token: "fresh-token" } }, error: null });
+    mockFunctionsInvoke.mockResolvedValue({ data: { success: true }, error: null });
+
+    const { result } = renderHook(() => useAdminCancelBooking(), { wrapper: createWrapper() });
+    const res = await result.current.mutateAsync("booking-123");
+
+    expect(mockGetSession).toHaveBeenCalled();
+    expect(mockRefreshSession).toHaveBeenCalled();
+    expect(mockFunctionsInvoke).toHaveBeenCalledWith("calendar-sync", {
+      body: { action: "admin_cancel_booking", booking_id: "booking-123" },
+    });
+    expect(res).toEqual({ success: true });
+  });
+
+  it("throws a clear Session Expired error when no token is available", async () => {
+    mockGetSession.mockResolvedValue({ data: { session: null } });
+    mockRefreshSession.mockResolvedValue({ data: { session: null }, error: null });
+
+    const { result } = renderHook(() => useAdminCancelBooking(), { wrapper: createWrapper() });
+
+    await expect(result.current.mutateAsync("booking-456")).rejects.toThrow(/Session expired/i);
+    expect(mockFunctionsInvoke).not.toHaveBeenCalled();
   });
 });
