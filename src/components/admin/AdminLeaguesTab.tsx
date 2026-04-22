@@ -573,19 +573,20 @@ function TeamsPanel({ league }: { league: League }) {
           {teams.map((team) => (
             <div key={team.id} className="border rounded-md">
               <div
-                className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/30"
+                className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/30 gap-3"
                 onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <ChevronRight className={`h-4 w-4 transition-transform ${expandedTeam === team.id ? "rotate-90" : ""}`} />
-                  <div>
+                  <div className="min-w-0">
                     <span className="font-medium text-sm">{team.name}</span>
                     <p className="text-xs text-muted-foreground">
                       {team.members?.length || 0}/{team.max_roster_size} players
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                  <TeamLocationCell leagueId={league.id} team={team} />
                   <Button size="icon" variant="ghost" onClick={() => startEdit(team)}><Edit className="h-3.5 w-3.5" /></Button>
                   <Button size="icon" variant="ghost" onClick={() => deleteTeam.mutate(team.id)} disabled={deleteTeam.isPending}>
                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
