@@ -29,12 +29,27 @@ export interface BookableWindow {
  *
  * Times are HH:MM[:SS] strings; lexicographic comparison is safe.
  */
+/**
+ * Normalize a time string to `HH:MM`.
+ *
+ * The DB stores `bays.open_time`/`close_time` without seconds (`"09:00"`) but
+ * `extended_open_time`/`extended_close_time` arrive as `"06:00:00"` (Postgres
+ * `time` rendered with seconds). The downstream `list_slots` edge function
+ * appends `:00` for seconds — feeding it `"06:00:00"` produces `"06:00:00:00"`
+ * which `Intl.DateTimeFormat` rejects with `RangeError: Invalid time value`,
+ * blanking out availability. Trimming to `HH:MM` keeps the contract stable
+ * regardless of which column the value originated from.
+ */
+const toHHMM = (t: string): string => t.slice(0, 5);
+
 export function getBookableWindow(
   bay: BayLike | null | undefined,
   includeExtended: boolean,
 ): BookableWindow | null {
   if (!bay) return null;
-  const base = { openTime: bay.open_time, closeTime: bay.close_time, extended: false };
+  const normalOpen = toHHMM(bay.open_time);
+  const normalClose = toHHMM(bay.close_time);
+  const base = { openTime: normalOpen, closeTime: normalClose, extended: false };
 
   if (
     !includeExtended ||
@@ -45,12 +60,14 @@ export function getBookableWindow(
     return base;
   }
 
-  const openTime = bay.extended_open_time < bay.open_time ? bay.extended_open_time : bay.open_time;
-  const closeTime = bay.extended_close_time > bay.close_time ? bay.extended_close_time : bay.close_time;
+  const extOpen = toHHMM(bay.extended_open_time);
+  const extClose = toHHMM(bay.extended_close_time);
+  const openTime = extOpen < normalOpen ? extOpen : normalOpen;
+  const closeTime = extClose > normalClose ? extClose : normalClose;
 
   return {
     openTime,
     closeTime,
-    extended: openTime !== bay.open_time || closeTime !== bay.close_time,
+    extended: openTime !== normalOpen || closeTime !== normalClose,
   };
 }
