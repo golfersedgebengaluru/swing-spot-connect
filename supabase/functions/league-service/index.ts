@@ -1879,6 +1879,7 @@ Deno.serve(async (req) => {
       // Team entries
       if (filterParam !== 'individuals' && teams && teams.length > 0) {
         for (const team of teams) {
+          if (cityScopedTeamIds && !cityScopedTeamIds.has(team.id)) continue
           // Get team member player_ids (user_ids)
           const memberUserIds = Object.entries(playerIdToTeamId)
             .filter(([, tid]) => tid === team.id)
