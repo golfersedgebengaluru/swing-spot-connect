@@ -14,9 +14,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown, ChevronRight, Edit, ListOrdered, Settings2, Shuffle, Lock, Unlock, BarChart3, Upload } from "lucide-react";
+import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown, ChevronRight, Edit, ListOrdered, Settings2, Shuffle, Lock, Unlock, BarChart3, Upload, MapPin } from "lucide-react";
 import { BaySchedulingPanel } from "@/components/admin/league/BaySchedulingPanel";
 import { CitiesLocationsPanel } from "@/components/admin/league/CitiesLocationsPanel";
+import { LocationAssignCell } from "@/components/admin/league/LocationAssignCell";
 import { format } from "date-fns";
 import {
   useTenants,
@@ -54,9 +55,41 @@ import {
   useCloseRound,
   useLeaderboard,
   useUpdateTenant,
+  useLeagueCities,
+  useLeagueLocations,
+  useAssignPlayerLocation,
+  useAssignTeamLocation,
 } from "@/hooks/useLeagues";
 import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam, LeaderboardEntry } from "@/types/league";
+import type { LeaguePlayerWithProfile } from "@/hooks/useLeagues";
+
+// ── Inline assignment cells ──────────────────────────────────
+function PlayerLocationCell({ leagueId, player }: { leagueId: string; player: LeaguePlayerWithProfile }) {
+  const assign = useAssignPlayerLocation(leagueId);
+  return (
+    <LocationAssignCell
+      leagueId={leagueId}
+      cityId={player.league_city_id}
+      locationId={player.league_location_id}
+      disabled={assign.isPending}
+      onChange={(body) => assign.mutate({ playerId: player.id, body })}
+    />
+  );
+}
+
+function TeamLocationCell({ leagueId, team }: { leagueId: string; team: LeagueTeam }) {
+  const assign = useAssignTeamLocation(leagueId);
+  return (
+    <LocationAssignCell
+      leagueId={leagueId}
+      cityId={team.league_city_id}
+      locationId={team.league_location_id}
+      disabled={assign.isPending}
+      onChange={(body) => assign.mutate({ teamId: team.id, body })}
+    />
+  );
+}
 import { useToast } from "@/hooks/use-toast";
 
 // ── Status badge ─────────────────────────────────────────────
@@ -540,19 +573,20 @@ function TeamsPanel({ league }: { league: League }) {
           {teams.map((team) => (
             <div key={team.id} className="border rounded-md">
               <div
-                className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/30"
+                className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/30 gap-3"
                 onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <ChevronRight className={`h-4 w-4 transition-transform ${expandedTeam === team.id ? "rotate-90" : ""}`} />
-                  <div>
+                  <div className="min-w-0">
                     <span className="font-medium text-sm">{team.name}</span>
                     <p className="text-xs text-muted-foreground">
                       {team.members?.length || 0}/{team.max_roster_size} players
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                  <TeamLocationCell leagueId={league.id} team={team} />
                   <Button size="icon" variant="ghost" onClick={() => startEdit(team)}><Edit className="h-3.5 w-3.5" /></Button>
                   <Button size="icon" variant="ghost" onClick={() => deleteTeam.mutate(team.id)} disabled={deleteTeam.isPending}>
                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
@@ -850,11 +884,14 @@ function HiddenHolesPanel({ league }: { league: League }) {
 // ── Leaderboard Panel ────────────────────────────────────────
 function LeaderboardPanel({ league }: { league: League }) {
   const { data: rounds } = useLeagueRounds(league.id);
+  const { data: leagueCities } = useLeagueCities(league.id);
   const [selectedRound, setSelectedRound] = useState<number | undefined>(undefined);
   const [filter, setFilter] = useState<'all' | 'individuals' | 'teams'>('all');
+  const [scope, setScope] = useState<'national' | 'city'>('national');
+  const [scopeCityId, setScopeCityId] = useState<string | null>(null);
   const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
 
-  const { data: leaderboard, isLoading } = useLeaderboard(league.id, selectedRound, filter);
+  const { data: leaderboard, isLoading } = useLeaderboard(league.id, selectedRound, filter, scope, scopeCityId);
 
   if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>;
 
@@ -863,6 +900,42 @@ function LeaderboardPanel({ league }: { league: League }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
+        {/* Scope: National vs City */}
+        <div>
+          <Label className="text-xs">Scope</Label>
+          <div className="flex gap-1 mt-0.5">
+            <Button
+              size="sm"
+              variant={scope === 'national' ? "default" : "outline"}
+              className="h-8 text-xs"
+              onClick={() => { setScope('national'); setScopeCityId(null); }}
+            >
+              National
+            </Button>
+            <Button
+              size="sm"
+              variant={scope === 'city' ? "default" : "outline"}
+              className="h-8 text-xs"
+              onClick={() => setScope('city')}
+              disabled={!leagueCities || leagueCities.length === 0}
+            >
+              By City
+            </Button>
+          </div>
+        </div>
+        {scope === 'city' && (
+          <div>
+            <Label className="text-xs">League City</Label>
+            <Select value={scopeCityId || ""} onValueChange={(v) => setScopeCityId(v || null)}>
+              <SelectTrigger className="w-[160px] h-8"><SelectValue placeholder="Select city" /></SelectTrigger>
+              <SelectContent>
+                {(leagueCities || []).map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         {/* Round filter */}
         <div>
           <Label className="text-xs">Round</Label>
@@ -889,7 +962,9 @@ function LeaderboardPanel({ league }: { league: League }) {
         </div>
       </div>
 
-      {entries.length === 0 ? (
+      {scope === 'city' && !scopeCityId ? (
+        <p className="text-sm text-muted-foreground py-8 text-center">Select a league city to view its leaderboard.</p>
+      ) : entries.length === 0 ? (
         <p className="text-sm text-muted-foreground py-8 text-center">No leaderboard data yet. Scores need to be submitted and rounds closed.</p>
       ) : (
         <Table>
@@ -1050,6 +1125,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
         <TabsList className="flex flex-wrap h-auto gap-1 p-1 mb-4">
           <TabsTrigger value="players"><Users className="h-3.5 w-3.5 mr-1" />Players ({players?.length || 0})</TabsTrigger>
           <TabsTrigger value="teams"><Users className="h-3.5 w-3.5 mr-1" />Teams</TabsTrigger>
+          <TabsTrigger value="cities"><MapPin className="h-3.5 w-3.5 mr-1" />Cities & Locations</TabsTrigger>
           <TabsTrigger value="rounds"><ListOrdered className="h-3.5 w-3.5 mr-1" />Rounds</TabsTrigger>
           <TabsTrigger value="codes">Join Codes</TabsTrigger>
           <TabsTrigger value="scheduling"><Calendar className="h-3.5 w-3.5 mr-1" />Bay Scheduling</TabsTrigger>
@@ -1071,6 +1147,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>City / Location</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead>Method</TableHead>
                   <TableHead></TableHead>
@@ -1081,6 +1158,9 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.display_name || "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{p.email || "—"}</TableCell>
+                    <TableCell>
+                      <PlayerLocationCell leagueId={league.id} player={p} />
+                    </TableCell>
                     <TableCell>{format(new Date(p.joined_at), "PP")}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">{p.joined_via_code_id ? "Join Code" : "Admin Added"}</Badge>
@@ -1106,6 +1186,11 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
         {/* Teams */}
         <TabsContent value="teams">
           <TeamsPanel league={league} />
+        </TabsContent>
+
+        {/* Cities & Locations */}
+        <TabsContent value="cities">
+          <CitiesLocationsPanel leagueId={league.id} tenantId={league.tenant_id} />
         </TabsContent>
 
         {/* Rounds */}

@@ -195,6 +195,8 @@ export interface LeaguePlayerWithProfile {
   joined_at: string;
   display_name: string | null;
   email: string | null;
+  league_city_id?: string | null;
+  league_location_id?: string | null;
 }
 
 export function useLeaguePlayers(leagueId: string | null) {

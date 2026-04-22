@@ -74,6 +74,8 @@ export interface LeagueTeam {
   tenant_id: string;
   name: string;
   max_roster_size: number;
+  league_city_id: string | null;
+  league_location_id: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
