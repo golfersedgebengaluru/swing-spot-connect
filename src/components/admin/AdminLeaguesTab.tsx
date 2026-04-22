@@ -1096,6 +1096,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
         <TabsList className="flex flex-wrap h-auto gap-1 p-1 mb-4">
           <TabsTrigger value="players"><Users className="h-3.5 w-3.5 mr-1" />Players ({players?.length || 0})</TabsTrigger>
           <TabsTrigger value="teams"><Users className="h-3.5 w-3.5 mr-1" />Teams</TabsTrigger>
+          <TabsTrigger value="cities"><MapPin className="h-3.5 w-3.5 mr-1" />Cities & Locations</TabsTrigger>
           <TabsTrigger value="rounds"><ListOrdered className="h-3.5 w-3.5 mr-1" />Rounds</TabsTrigger>
           <TabsTrigger value="codes">Join Codes</TabsTrigger>
           <TabsTrigger value="scheduling"><Calendar className="h-3.5 w-3.5 mr-1" />Bay Scheduling</TabsTrigger>
@@ -1117,6 +1118,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>City / Location</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead>Method</TableHead>
                   <TableHead></TableHead>
@@ -1127,6 +1129,9 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.display_name || "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{p.email || "—"}</TableCell>
+                    <TableCell>
+                      <PlayerLocationCell leagueId={league.id} player={p} />
+                    </TableCell>
                     <TableCell>{format(new Date(p.joined_at), "PP")}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">{p.joined_via_code_id ? "Join Code" : "Admin Added"}</Badge>
@@ -1152,6 +1157,11 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
         {/* Teams */}
         <TabsContent value="teams">
           <TeamsPanel league={league} />
+        </TabsContent>
+
+        {/* Cities & Locations */}
+        <TabsContent value="cities">
+          <CitiesLocationsPanel leagueId={league.id} tenantId={league.tenant_id} />
         </TabsContent>
 
         {/* Rounds */}
