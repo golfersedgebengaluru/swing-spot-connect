@@ -723,6 +723,9 @@ export function AdminAllUsersTab() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("viewprofile"); }}>
+                                <Eye className="mr-2 h-4 w-4" />View Profile
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("editprofile"); }}>
                                 <Pencil className="mr-2 h-4 w-4" />Edit Profile
                               </DropdownMenuItem>
