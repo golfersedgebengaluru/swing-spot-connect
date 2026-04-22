@@ -1519,6 +1519,65 @@ export type Database = {
           },
         ]
       }
+      league_bay_mappings: {
+        Row: {
+          bay_id: string
+          created_at: string
+          created_by: string
+          id: string
+          league_id: string
+          league_location_id: string
+          tenant_id: string
+        }
+        Insert: {
+          bay_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          league_id: string
+          league_location_id: string
+          tenant_id: string
+        }
+        Update: {
+          bay_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          league_id?: string
+          league_location_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_bay_mappings_bay_id_fkey"
+            columns: ["bay_id"]
+            isOneToOne: false
+            referencedRelation: "bays"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_bay_mappings_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_bay_mappings_league_location_id_fkey"
+            columns: ["league_location_id"]
+            isOneToOne: false
+            referencedRelation: "league_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_bay_mappings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       league_branding: {
         Row: {
           created_at: string
@@ -1565,6 +1624,54 @@ export type Database = {
             columns: ["league_id"]
             isOneToOne: true
             referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_cities: {
+        Row: {
+          created_at: string
+          created_by: string
+          display_order: number
+          id: string
+          league_id: string
+          name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          display_order?: number
+          id?: string
+          league_id: string
+          name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          display_order?: number
+          id?: string
+          league_id?: string
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_cities_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_cities_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -1771,12 +1878,72 @@ export type Database = {
           },
         ]
       }
+      league_locations: {
+        Row: {
+          created_at: string
+          created_by: string
+          display_order: number
+          id: string
+          league_city_id: string
+          league_id: string
+          name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          display_order?: number
+          id?: string
+          league_city_id: string
+          league_id: string
+          name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          display_order?: number
+          id?: string
+          league_city_id?: string
+          league_id?: string
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_locations_league_city_id_fkey"
+            columns: ["league_city_id"]
+            isOneToOne: false
+            referencedRelation: "league_cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_locations_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_locations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       league_players: {
         Row: {
           id: string
           joined_at: string
           joined_via_code_id: string | null
+          league_city_id: string | null
           league_id: string
+          league_location_id: string | null
           team_id: string | null
           user_id: string
         }
@@ -1784,7 +1951,9 @@ export type Database = {
           id?: string
           joined_at?: string
           joined_via_code_id?: string | null
+          league_city_id?: string | null
           league_id: string
+          league_location_id?: string | null
           team_id?: string | null
           user_id: string
         }
@@ -1792,7 +1961,9 @@ export type Database = {
           id?: string
           joined_at?: string
           joined_via_code_id?: string | null
+          league_city_id?: string | null
           league_id?: string
+          league_location_id?: string | null
           team_id?: string | null
           user_id?: string
         }
@@ -1805,10 +1976,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "league_players_league_city_id_fkey"
+            columns: ["league_city_id"]
+            isOneToOne: false
+            referencedRelation: "league_cities"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "league_players_league_id_fkey"
             columns: ["league_id"]
             isOneToOne: false
             referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_players_league_location_id_fkey"
+            columns: ["league_location_id"]
+            isOneToOne: false
+            referencedRelation: "league_locations"
             referencedColumns: ["id"]
           },
           {
@@ -2071,7 +2256,9 @@ export type Database = {
           created_at: string
           created_by: string
           id: string
+          league_city_id: string | null
           league_id: string
+          league_location_id: string | null
           max_roster_size: number
           name: string
           tenant_id: string
@@ -2081,7 +2268,9 @@ export type Database = {
           created_at?: string
           created_by: string
           id?: string
+          league_city_id?: string | null
           league_id: string
+          league_location_id?: string | null
           max_roster_size?: number
           name: string
           tenant_id: string
@@ -2091,7 +2280,9 @@ export type Database = {
           created_at?: string
           created_by?: string
           id?: string
+          league_city_id?: string | null
           league_id?: string
+          league_location_id?: string | null
           max_roster_size?: number
           name?: string
           tenant_id?: string
@@ -2099,10 +2290,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "league_teams_league_city_id_fkey"
+            columns: ["league_city_id"]
+            isOneToOne: false
+            referencedRelation: "league_cities"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "league_teams_league_id_fkey"
             columns: ["league_id"]
             isOneToOne: false
             referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_teams_league_location_id_fkey"
+            columns: ["league_location_id"]
+            isOneToOne: false
+            referencedRelation: "league_locations"
             referencedColumns: ["id"]
           },
           {
@@ -2121,6 +2326,7 @@ export type Database = {
           fairness_factor_pct: number
           format: Database["public"]["Enums"]["league_format"]
           id: string
+          leaderboard_visibility: string
           name: string
           peoria_multiplier: number
           score_entry_method: Database["public"]["Enums"]["score_entry_method"]
@@ -2139,6 +2345,7 @@ export type Database = {
           fairness_factor_pct?: number
           format?: Database["public"]["Enums"]["league_format"]
           id?: string
+          leaderboard_visibility?: string
           name: string
           peoria_multiplier?: number
           score_entry_method?: Database["public"]["Enums"]["score_entry_method"]
@@ -2157,6 +2364,7 @@ export type Database = {
           fairness_factor_pct?: number
           format?: Database["public"]["Enums"]["league_format"]
           id?: string
+          leaderboard_visibility?: string
           name?: string
           peoria_multiplier?: number
           score_entry_method?: Database["public"]["Enums"]["score_entry_method"]
