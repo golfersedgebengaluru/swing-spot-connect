@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown, ChevronRight, Edit, ListOrdered, Settings2, Shuffle, Lock, Unlock, BarChart3, Upload, MapPin } from "lucide-react";
 import { BaySchedulingPanel } from "@/components/admin/league/BaySchedulingPanel";
 import { CitiesLocationsPanel } from "@/components/admin/league/CitiesLocationsPanel";
+import { LocationAssignCell } from "@/components/admin/league/LocationAssignCell";
 import { format } from "date-fns";
 import {
   useTenants,
@@ -854,11 +855,14 @@ function HiddenHolesPanel({ league }: { league: League }) {
 // ── Leaderboard Panel ────────────────────────────────────────
 function LeaderboardPanel({ league }: { league: League }) {
   const { data: rounds } = useLeagueRounds(league.id);
+  const { data: leagueCities } = useLeagueCities(league.id);
   const [selectedRound, setSelectedRound] = useState<number | undefined>(undefined);
   const [filter, setFilter] = useState<'all' | 'individuals' | 'teams'>('all');
+  const [scope, setScope] = useState<'national' | 'city'>('national');
+  const [scopeCityId, setScopeCityId] = useState<string | null>(null);
   const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
 
-  const { data: leaderboard, isLoading } = useLeaderboard(league.id, selectedRound, filter);
+  const { data: leaderboard, isLoading } = useLeaderboard(league.id, selectedRound, filter, scope, scopeCityId);
 
   if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>;
 
@@ -867,6 +871,42 @@ function LeaderboardPanel({ league }: { league: League }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
+        {/* Scope: National vs City */}
+        <div>
+          <Label className="text-xs">Scope</Label>
+          <div className="flex gap-1 mt-0.5">
+            <Button
+              size="sm"
+              variant={scope === 'national' ? "default" : "outline"}
+              className="h-8 text-xs"
+              onClick={() => { setScope('national'); setScopeCityId(null); }}
+            >
+              National
+            </Button>
+            <Button
+              size="sm"
+              variant={scope === 'city' ? "default" : "outline"}
+              className="h-8 text-xs"
+              onClick={() => setScope('city')}
+              disabled={!leagueCities || leagueCities.length === 0}
+            >
+              By City
+            </Button>
+          </div>
+        </div>
+        {scope === 'city' && (
+          <div>
+            <Label className="text-xs">League City</Label>
+            <Select value={scopeCityId || ""} onValueChange={(v) => setScopeCityId(v || null)}>
+              <SelectTrigger className="w-[160px] h-8"><SelectValue placeholder="Select city" /></SelectTrigger>
+              <SelectContent>
+                {(leagueCities || []).map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         {/* Round filter */}
         <div>
           <Label className="text-xs">Round</Label>
@@ -893,7 +933,9 @@ function LeaderboardPanel({ league }: { league: League }) {
         </div>
       </div>
 
-      {entries.length === 0 ? (
+      {scope === 'city' && !scopeCityId ? (
+        <p className="text-sm text-muted-foreground py-8 text-center">Select a league city to view its leaderboard.</p>
+      ) : entries.length === 0 ? (
         <p className="text-sm text-muted-foreground py-8 text-center">No leaderboard data yet. Scores need to be submitted and rounds closed.</p>
       ) : (
         <Table>
