@@ -240,8 +240,11 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
     }
   };
 
-  // Fetch hours balance for selected profile using the DB function
+  // Fetch hours balance for selected profile using the DB function.
+  // Also resets the extended-hours toggle whenever the customer changes so it can't
+  // leak across different members with different access levels.
   useEffect(() => {
+    setShowExtended(false);
     if (!selectedProfile) { setHoursBalance(null); return; }
     const uid = selectedProfile.user_id || selectedProfile.id;
     supabase
@@ -462,6 +465,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
     setBookingComplete(false);
     setIsProcessing(false);
     setAdvanceDrawdown(0);
+    setShowExtended(false);
   };
 
   const handleClose = () => {
