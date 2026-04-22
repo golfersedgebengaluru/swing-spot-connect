@@ -76,17 +76,16 @@ export function AdminWalkInBookingTab() {
   const currentBay = cityBays.find((b: any) => b.id === effectiveBayId);
   const dateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined;
 
-  // Walk-in bookings (admin) always include the extended window when configured
-  const extOpen = currentBay?.extended_hours_enabled ? currentBay?.extended_open_time : null;
-  const extClose = currentBay?.extended_hours_enabled ? currentBay?.extended_close_time : null;
-  const adminOpen = extOpen && currentBay?.open_time && extOpen < currentBay.open_time ? extOpen : currentBay?.open_time;
-  const adminClose = extClose && currentBay?.close_time && extClose > currentBay.close_time ? extClose : currentBay?.close_time;
+  // Walk-in bookings are for guests with no profile, who can never have extended-hours
+  // access — so we always query the bay's normal window. This matches the public booking
+  // flow and avoids early-morning calendar conflicts blanking out the slot grid.
+  const bookableWindow = getBookableWindow(currentBay as any, false);
   const { data: slots, isLoading: loadingSlots } = useAvailableSlots(
     currentBay?.calendar_email,
     dateStr,
-    adminOpen,
-    adminClose,
-    { refetchInterval: 30000, includeExtended: true }
+    bookableWindow?.openTime,
+    bookableWindow?.closeTime,
+    { refetchInterval: 30000, includeExtended: false }
   );
 
   const currentPrice = useMemo(() => {
