@@ -106,11 +106,11 @@ export function BayConfigTab() {
     };
 
     if (editing.id) {
-      const { error } = await supabase.from("bays").update(payload).eq("id", editing.id);
+      const { error } = await supabase.from("bays").update(payload as never).eq("id", editing.id);
       if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Bay updated" });
     } else {
-      const { error } = await supabase.from("bays").insert(payload);
+      const { error } = await supabase.from("bays").insert(payload as never);
       if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Bay created" });
     }
