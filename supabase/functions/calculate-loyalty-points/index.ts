@@ -80,21 +80,6 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Legacy fallback: use bays table peak_start/peak_end if no bay_peak_hours found
-      if (peakWindows.length === 0 && event.city) {
-        const { data: bayConfig } = await supabase
-          .from("bays")
-          .select("peak_start, peak_end")
-          .eq("city", event.city)
-          .eq("is_active", true)
-          .limit(1)
-          .single();
-
-        if (bayConfig?.peak_start && bayConfig?.peak_end) {
-          peakWindows = [{ peak_start: bayConfig.peak_start, peak_end: bayConfig.peak_end }];
-        }
-      }
-
       if (peakWindows.length > 0) {
         // Off-peak means NOT within any peak window
         const withinPeak = peakWindows.some(

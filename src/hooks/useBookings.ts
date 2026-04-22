@@ -37,10 +37,11 @@ export function useAvailableSlots(
   date: string | undefined,
   openTime: string | undefined,
   closeTime: string | undefined,
-  options: { refetchInterval?: number } = {}
+  options: { refetchInterval?: number; includeExtended?: boolean } = {}
 ) {
+  const { includeExtended, ...queryOptions } = options;
   return useQuery({
-    queryKey: ["available_slots", calendarEmail, date],
+    queryKey: ["available_slots", calendarEmail, date, openTime, closeTime, !!includeExtended],
     enabled: !!calendarEmail && !!date && !!openTime && !!closeTime,
     queryFn: async () => {
       const res = await supabase.functions.invoke("calendar-sync", {
@@ -60,7 +61,7 @@ export function useAvailableSlots(
       }
       return res.data.slots as { time: string; available: boolean }[];
     },
-    ...options,
+    ...queryOptions,
   });
 }
 

@@ -93,14 +93,19 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
   const effectiveBayId = cityBays.length === 1 ? cityBays[0]?.id : selectedBayId;
   const currentBay = cityBays.find((b: any) => b.id === effectiveBayId);
 
-  // Fetch calendar availability when bay + date are selected
+  // Fetch calendar availability when bay + date are selected.
+  // Admin-initiated bookings always include extended hours so staff can book any slot the bay supports.
   const slotDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined;
+  const extOpen = currentBay?.extended_hours_enabled ? currentBay?.extended_open_time : null;
+  const extClose = currentBay?.extended_hours_enabled ? currentBay?.extended_close_time : null;
+  const adminOpen = extOpen && currentBay?.open_time && extOpen < currentBay.open_time ? extOpen : currentBay?.open_time;
+  const adminClose = extClose && currentBay?.close_time && extClose > currentBay.close_time ? extClose : currentBay?.close_time;
   const { data: availableSlots, isLoading: slotsLoading } = useAvailableSlots(
     currentBay?.calendar_email,
     slotDate,
-    currentBay?.open_time,
-    currentBay?.close_time,
-    { refetchInterval: 0 }
+    adminOpen,
+    adminClose,
+    { refetchInterval: 0, includeExtended: true }
   );
 
   // Detect conflict: check if the selected manual time overlaps any busy slot

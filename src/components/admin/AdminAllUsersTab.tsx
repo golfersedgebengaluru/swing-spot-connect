@@ -292,7 +292,7 @@ export function AdminAllUsersTab() {
     queryFn: async () => {
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, user_id, display_name, email, phone, points, created_at, user_type, preferred_city")
+        .select("id, user_id, display_name, email, phone, points, created_at, user_type, preferred_city, extended_hours_access")
         .order("created_at", { ascending: false });
       const { data: hours } = await supabase.from("member_hours").select("*");
       const hoursMap = new Map((hours ?? []).map((h: any) => [h.user_id, h]));
@@ -359,6 +359,19 @@ export function AdminAllUsersTab() {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Membership updated" });
+      queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
+    }
+  };
+
+  const handleToggleExtendedHours = async (profileId: string, enabled: boolean) => {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ extended_hours_access: enabled } as never)
+      .eq("id", profileId);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: enabled ? "Extended hours enabled" : "Extended hours disabled" });
       queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
     }
   };
@@ -728,6 +741,11 @@ export function AdminAllUsersTab() {
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("finance"); }}>
                                 <Wallet className="mr-2 h-4 w-4" />Finance
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleToggleExtendedHours(u.id, !u.extended_hours_access)}>
+                                <Clock className="mr-2 h-4 w-4" />
+                                {u.extended_hours_access ? "Disable" : "Enable"} Extended Hours
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteConfirm(u)}>

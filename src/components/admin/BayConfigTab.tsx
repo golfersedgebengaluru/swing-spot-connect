@@ -25,14 +25,15 @@ interface BayForm {
   calendar_email: string;
   open_time: string;
   close_time: string;
-  peak_start: string;
-  peak_end: string;
   is_active: boolean;
   sort_order: number;
   coaching_mode: string;
   coaching_hours: number;
   coaching_cancellation_refund_hours: number;
   currency: string;
+  extended_hours_enabled: boolean;
+  extended_open_time: string;
+  extended_close_time: string;
 }
 
 const emptyForm: BayForm = {
@@ -41,14 +42,15 @@ const emptyForm: BayForm = {
   calendar_email: "",
   open_time: "09:00",
   close_time: "22:00",
-  peak_start: "17:00",
-  peak_end: "21:00",
   is_active: true,
   sort_order: 0,
   coaching_mode: "instant",
   coaching_hours: 1,
   coaching_cancellation_refund_hours: 0,
   currency: "INR",
+  extended_hours_enabled: false,
+  extended_open_time: "07:00",
+  extended_close_time: "23:00",
 };
 
 export function BayConfigTab() {
@@ -75,28 +77,40 @@ export function BayConfigTab() {
       toast({ title: "Validation Error", description: "Cancellation refund hours cannot exceed coaching hours per session.", variant: "destructive" });
       return;
     }
-    const payload = {
+    // Validate extended hours window is non-empty when enabled
+    if (editing.extended_hours_enabled) {
+      if (!editing.extended_open_time || !editing.extended_close_time) {
+        toast({ title: "Validation Error", description: "Extended hours require both start and end times.", variant: "destructive" });
+        return;
+      }
+      if (editing.extended_open_time >= editing.extended_close_time) {
+        toast({ title: "Validation Error", description: "Extended end time must be after start time.", variant: "destructive" });
+        return;
+      }
+    }
+    const payload: Record<string, unknown> = {
       city: editing.city,
       name: editing.name,
       calendar_email: editing.calendar_email || null,
       open_time: editing.open_time,
       close_time: editing.close_time,
-      peak_start: editing.peak_start,
-      peak_end: editing.peak_end,
       is_active: editing.is_active,
       sort_order: editing.sort_order,
       coaching_mode: editing.coaching_mode,
       coaching_hours: editing.coaching_hours,
       coaching_cancellation_refund_hours: editing.coaching_cancellation_refund_hours,
       currency: editing.currency,
+      extended_hours_enabled: editing.extended_hours_enabled,
+      extended_open_time: editing.extended_hours_enabled ? editing.extended_open_time : null,
+      extended_close_time: editing.extended_hours_enabled ? editing.extended_close_time : null,
     };
 
     if (editing.id) {
-      const { error } = await supabase.from("bays").update(payload).eq("id", editing.id);
+      const { error } = await supabase.from("bays").update(payload as never).eq("id", editing.id);
       if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Bay updated" });
     } else {
-      const { error } = await supabase.from("bays").insert(payload);
+      const { error } = await supabase.from("bays").insert(payload as never);
       if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
       toast({ title: "Bay created" });
     }
@@ -249,17 +263,31 @@ export function BayConfigTab() {
                   <Input type="time" value={editing.close_time} onChange={(e) => setEditing({ ...editing, close_time: e.target.value })} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Peak Hours Start</Label>
-                  <Input type="time" value={editing.peak_start} onChange={(e) => setEditing({ ...editing, peak_start: e.target.value })} />
+              {/* Extended Hours */}
+              <div className="rounded-md border border-border p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm">Extended Hours</Label>
+                    <p className="text-xs text-muted-foreground">Allow bookings outside normal opening hours for users with extended access.</p>
+                  </div>
+                  <Switch
+                    checked={editing.extended_hours_enabled}
+                    onCheckedChange={(v) => setEditing({ ...editing, extended_hours_enabled: v })}
+                  />
                 </div>
-                <div>
-                  <Label>Peak Hours End</Label>
-                  <Input type="time" value={editing.peak_end} onChange={(e) => setEditing({ ...editing, peak_end: e.target.value })} />
-                </div>
+                {editing.extended_hours_enabled && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs">Extended Start</Label>
+                      <Input type="time" value={editing.extended_open_time} onChange={(e) => setEditing({ ...editing, extended_open_time: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Extended End</Label>
+                      <Input type="time" value={editing.extended_close_time} onChange={(e) => setEditing({ ...editing, extended_close_time: e.target.value })} />
+                    </div>
+                  </div>
+                )}
               </div>
-              <p className="text-xs text-muted-foreground -mt-2">Peak hours are now managed per-bay via the schedule editors below.</p>
               <div>
                 <Label>Coaching Mode</Label>
                 <Select value={editing.coaching_mode} onValueChange={(v) => setEditing({ ...editing, coaching_mode: v })}>

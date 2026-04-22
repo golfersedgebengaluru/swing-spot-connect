@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useBays, useAvailableSlots, useCreateBooking, useUserHoursBalance, useUserProfile, useUpdatePreferredCity, useCities } from "@/hooks/useBookings";
 import { useBayHolidays } from "@/hooks/useBayHolidays";
 import { isDateBlocked, getBlockedReason } from "@/lib/bay-schedule-utils";
+import { getBookableWindow } from "@/lib/extended-hours";
 import { useToast } from "@/hooks/use-toast";
 import { Navigate } from "react-router-dom";
 
@@ -67,12 +68,15 @@ export default function Bookings() {
     return isDateBlocked(date, weeklyOffDays, holidays, currentBay.id);
   };
 
+  const includeExtended = !!(profile as any)?.extended_hours_access;
+  const bookableWindow = getBookableWindow(currentBay, includeExtended);
+
   const { data: slots, isLoading: loadingSlots } = useAvailableSlots(
     currentBay?.calendar_email,
     dateStr,
-    currentBay?.open_time,
-    currentBay?.close_time,
-    { refetchInterval: 30000 }
+    bookableWindow?.openTime,
+    bookableWindow?.closeTime,
+    { refetchInterval: 30000, includeExtended }
   );
 
   // Hours calculation based on session type

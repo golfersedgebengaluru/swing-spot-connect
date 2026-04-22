@@ -191,6 +191,11 @@ export default function Profile() {
                       <p className="font-medium text-foreground mt-1 capitalize">
                         {({ member: "Member", registered: "Registered", "non-registered": "Guest", birdie: "Birdie Member", coaching: "Coaching Member" } as Record<string, string>)[profile?.user_type || "registered"] || profile?.user_type || "Registered"}
                       </p>
+                      {(profile as any)?.extended_hours_access && (
+                        <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary">
+                          <Clock className="h-3 w-3" /> Extended hours access
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
