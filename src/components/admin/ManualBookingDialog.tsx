@@ -704,6 +704,28 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
               </div>
             </div>
 
+            {/* Extended hours toggle (existing members only, when bay supports it) */}
+            {currentBay?.extended_hours_enabled && customerMode === "existing" && (
+              <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-muted/30 p-2.5">
+                <div className="space-y-0.5">
+                  <Label htmlFor="ext-hours" className="text-xs font-medium flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" /> Show extended hours
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground">
+                    {canUseExtended
+                      ? `Includes ${currentBay.extended_open_time?.slice(0, 5)}–${currentBay.extended_close_time?.slice(0, 5)} window.`
+                      : "Customer does not have extended-hours access."}
+                  </p>
+                </div>
+                <Switch
+                  id="ext-hours"
+                  checked={effectiveShowExtended}
+                  disabled={!canUseExtended}
+                  onCheckedChange={setShowExtended}
+                />
+              </div>
+            )}
+
             {/* Calendar Availability Grid */}
             {currentBay && selectedDate && (
               <div>
