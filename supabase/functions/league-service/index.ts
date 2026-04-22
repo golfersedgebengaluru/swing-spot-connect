@@ -180,6 +180,38 @@ function parseRoute(url: URL): Route {
     if (subResource === 'feed') {
       return { action: 'league-feed', leagueId, subResource }
     }
+    // /leagues/:id/cities/:cityId/locations/:locationId/bays/:bayId
+    if (subResource === 'cities' && segments[4] && segments[5] === 'locations' && segments[6] && segments[7] === 'bays' && segments[8]) {
+      return { action: 'league-location-bay-detail', leagueId, subResource, subId: segments[6], bookingId: segments[8] }
+    }
+    // /leagues/:id/cities/:cityId/locations/:locationId/bays
+    if (subResource === 'cities' && segments[4] && segments[5] === 'locations' && segments[6] && segments[7] === 'bays') {
+      return { action: 'league-location-bays', leagueId, subResource, subId: segments[6] }
+    }
+    // /leagues/:id/cities/:cityId/locations/:locationId
+    if (subResource === 'cities' && segments[4] && segments[5] === 'locations' && segments[6]) {
+      return { action: 'league-location-detail', leagueId, subResource, subId: segments[6] }
+    }
+    // /leagues/:id/cities/:cityId/locations
+    if (subResource === 'cities' && segments[4] && segments[5] === 'locations') {
+      return { action: 'league-city-locations', leagueId, subResource, subId: segments[4] }
+    }
+    // /leagues/:id/cities/:cityId
+    if (subResource === 'cities' && segments[4]) {
+      return { action: 'league-city-detail', leagueId, subResource, subId: segments[4] }
+    }
+    // /leagues/:id/cities
+    if (subResource === 'cities') {
+      return { action: 'league-cities', leagueId, subResource }
+    }
+    // /leagues/:id/players/:playerId/assign
+    if (subResource === 'players' && segments[4] && segments[5] === 'assign') {
+      return { action: 'league-player-assign', leagueId, subResource, bookingId: segments[4] }
+    }
+    // /leagues/:id/teams/:teamId/assign
+    if (subResource === 'teams' && segments[4] && segments[5] === 'assign') {
+      return { action: 'league-team-assign', leagueId, subResource, subId: segments[4] }
+    }
     return { action: `league-${subResource}`, leagueId, subResource }
   }
   return { action: 'unknown' }
