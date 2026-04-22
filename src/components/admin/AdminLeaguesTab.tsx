@@ -62,6 +62,34 @@ import {
 } from "@/hooks/useLeagues";
 import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam, LeaderboardEntry } from "@/types/league";
+import type { LeaguePlayerWithProfile } from "@/hooks/useLeagues";
+
+// ── Inline assignment cells ──────────────────────────────────
+function PlayerLocationCell({ leagueId, player }: { leagueId: string; player: LeaguePlayerWithProfile }) {
+  const assign = useAssignPlayerLocation(leagueId);
+  return (
+    <LocationAssignCell
+      leagueId={leagueId}
+      cityId={player.league_city_id}
+      locationId={player.league_location_id}
+      disabled={assign.isPending}
+      onChange={(body) => assign.mutate({ playerId: player.id, body })}
+    />
+  );
+}
+
+function TeamLocationCell({ leagueId, team }: { leagueId: string; team: LeagueTeam }) {
+  const assign = useAssignTeamLocation(leagueId);
+  return (
+    <LocationAssignCell
+      leagueId={leagueId}
+      cityId={team.league_city_id}
+      locationId={team.league_location_id}
+      disabled={assign.isPending}
+      onChange={(body) => assign.mutate({ teamId: team.id, body })}
+    />
+  );
+}
 import { useToast } from "@/hooks/use-toast";
 
 // ── Status badge ─────────────────────────────────────────────
