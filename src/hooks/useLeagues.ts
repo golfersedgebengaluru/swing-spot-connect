@@ -686,19 +686,189 @@ export function useCloseRound(leagueId: string) {
 }
 
 // ── Leaderboard ─────────────────────────────────────────────
-export function useLeaderboard(leagueId: string | null, round?: number, filter?: 'all' | 'individuals' | 'teams') {
+export function useLeaderboard(
+  leagueId: string | null,
+  round?: number,
+  filter?: 'all' | 'individuals' | 'teams',
+  scope: 'national' | 'city' = 'national',
+  leagueCityId?: string | null,
+) {
   return useQuery<LeaderboardResponse>({
-    queryKey: ["league-leaderboard", leagueId, round, filter],
+    queryKey: ["league-leaderboard", leagueId, round, filter, scope, leagueCityId],
     queryFn: () => {
       let path = `/leagues/${leagueId}/leaderboard`;
       const params: string[] = [];
       if (round) params.push(`round=${round}`);
       if (filter && filter !== 'all') params.push(`filter=${filter}`);
+      if (scope === 'city' && leagueCityId) {
+        params.push(`scope=city`);
+        params.push(`league_city_id=${leagueCityId}`);
+      }
       if (params.length) path += `?${params.join('&')}`;
       return invoke(path, "GET");
     },
+    enabled: !!leagueId && (scope !== 'city' || !!leagueCityId),
+    staleTime: LEAGUE_STALE_TIME,
+  });
+}
+
+// ── League Cities ───────────────────────────────────────────
+import type { LeagueCity, LeagueLocation, LeagueBayMapping } from "@/types/league";
+
+export function useLeagueCities(leagueId: string | null) {
+  return useQuery<LeagueCity[]>({
+    queryKey: ["league-cities", leagueId],
+    queryFn: () => invoke(`/leagues/${leagueId}/cities`, "GET"),
     enabled: !!leagueId,
     staleTime: LEAGUE_STALE_TIME,
+  });
+}
+
+export function useCreateLeagueCity(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (body: { name: string; display_order?: number }) =>
+      invoke(`/leagues/${leagueId}/cities`, "POST", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-cities", leagueId] });
+      toast({ title: "City added" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useUpdateLeagueCity(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ cityId, body }: { cityId: string; body: { name?: string; display_order?: number } }) =>
+      invoke(`/leagues/${leagueId}/cities/${cityId}`, "PATCH", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-cities", leagueId] });
+      toast({ title: "City updated" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useDeleteLeagueCity(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (cityId: string) => invoke(`/leagues/${leagueId}/cities/${cityId}`, "DELETE"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-cities", leagueId] });
+      qc.invalidateQueries({ queryKey: ["league-locations", leagueId] });
+      toast({ title: "City deleted" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+// ── League Locations ────────────────────────────────────────
+export function useLeagueLocations(leagueId: string | null, cityId: string | null) {
+  return useQuery<LeagueLocation[]>({
+    queryKey: ["league-locations", leagueId, cityId],
+    queryFn: () => invoke(`/leagues/${leagueId}/cities/${cityId}/locations`, "GET"),
+    enabled: !!leagueId && !!cityId,
+    staleTime: LEAGUE_STALE_TIME,
+  });
+}
+
+export function useCreateLeagueLocation(leagueId: string, cityId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (body: { name: string; display_order?: number }) =>
+      invoke(`/leagues/${leagueId}/cities/${cityId}/locations`, "POST", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-locations", leagueId, cityId] });
+      toast({ title: "Location added" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useDeleteLeagueLocation(leagueId: string, cityId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (locationId: string) =>
+      invoke(`/leagues/${leagueId}/cities/${cityId}/locations/${locationId}`, "DELETE"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-locations", leagueId, cityId] });
+      qc.invalidateQueries({ queryKey: ["league-location-bays", leagueId] });
+      toast({ title: "Location deleted" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+// ── League Location Bays ────────────────────────────────────
+export function useLocationBays(leagueId: string | null, cityId: string | null, locationId: string | null) {
+  return useQuery<LeagueBayMapping[]>({
+    queryKey: ["league-location-bays", leagueId, locationId],
+    queryFn: () => invoke(`/leagues/${leagueId}/cities/${cityId}/locations/${locationId}/bays`, "GET"),
+    enabled: !!leagueId && !!cityId && !!locationId,
+    staleTime: LEAGUE_STALE_TIME,
+  });
+}
+
+export function useImportLocationBays(leagueId: string, cityId: string, locationId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (bayIds: string[]) =>
+      invoke(`/leagues/${leagueId}/cities/${cityId}/locations/${locationId}/bays`, "POST", { bay_ids: bayIds }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-location-bays", leagueId, locationId] });
+      toast({ title: "Bays imported" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useUnmapLocationBay(leagueId: string, cityId: string, locationId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (mappingId: string) =>
+      invoke(`/leagues/${leagueId}/cities/${cityId}/locations/${locationId}/bays/${mappingId}`, "DELETE"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-location-bays", leagueId, locationId] });
+      toast({ title: "Bay unmapped" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+// ── Player / Team city assignment ───────────────────────────
+export function useAssignPlayerLocation(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ playerId, body }: { playerId: string; body: { league_city_id?: string | null; league_location_id?: string | null } }) =>
+      invoke(`/leagues/${leagueId}/players/${playerId}/assign`, "PATCH", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-players", leagueId] });
+      toast({ title: "Player assigned" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useAssignTeamLocation(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ teamId, body }: { teamId: string; body: { league_city_id?: string | null; league_location_id?: string | null } }) =>
+      invoke(`/leagues/${leagueId}/teams/${teamId}/assign`, "PATCH", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-teams", leagueId] });
+      toast({ title: "Team assigned" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 }
 

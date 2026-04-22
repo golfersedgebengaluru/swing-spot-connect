@@ -180,6 +180,38 @@ function parseRoute(url: URL): Route {
     if (subResource === 'feed') {
       return { action: 'league-feed', leagueId, subResource }
     }
+    // /leagues/:id/cities/:cityId/locations/:locationId/bays/:bayId
+    if (subResource === 'cities' && segments[4] && segments[5] === 'locations' && segments[6] && segments[7] === 'bays' && segments[8]) {
+      return { action: 'league-location-bay-detail', leagueId, subResource, subId: segments[6], bookingId: segments[8] }
+    }
+    // /leagues/:id/cities/:cityId/locations/:locationId/bays
+    if (subResource === 'cities' && segments[4] && segments[5] === 'locations' && segments[6] && segments[7] === 'bays') {
+      return { action: 'league-location-bays', leagueId, subResource, subId: segments[6] }
+    }
+    // /leagues/:id/cities/:cityId/locations/:locationId
+    if (subResource === 'cities' && segments[4] && segments[5] === 'locations' && segments[6]) {
+      return { action: 'league-location-detail', leagueId, subResource, subId: segments[6] }
+    }
+    // /leagues/:id/cities/:cityId/locations
+    if (subResource === 'cities' && segments[4] && segments[5] === 'locations') {
+      return { action: 'league-city-locations', leagueId, subResource, subId: segments[4] }
+    }
+    // /leagues/:id/cities/:cityId
+    if (subResource === 'cities' && segments[4]) {
+      return { action: 'league-city-detail', leagueId, subResource, subId: segments[4] }
+    }
+    // /leagues/:id/cities
+    if (subResource === 'cities') {
+      return { action: 'league-cities', leagueId, subResource }
+    }
+    // /leagues/:id/players/:playerId/assign
+    if (subResource === 'players' && segments[4] && segments[5] === 'assign') {
+      return { action: 'league-player-assign', leagueId, subResource, bookingId: segments[4] }
+    }
+    // /leagues/:id/teams/:teamId/assign
+    if (subResource === 'teams' && segments[4] && segments[5] === 'assign') {
+      return { action: 'league-team-assign', leagueId, subResource, subId: segments[4] }
+    }
     return { action: `league-${subResource}`, leagueId, subResource }
   }
   return { action: 'unknown' }
@@ -1698,12 +1730,33 @@ Deno.serve(async (req) => {
 
       const roundParam = url.searchParams.get('round')
       const filterParam = url.searchParams.get('filter') || 'all' // all | individuals | teams
+      const scopeParam = url.searchParams.get('scope') || 'national' // national | city
+      const cityIdParam = url.searchParams.get('league_city_id')
+
+      // Enforce leaderboard visibility for non-admins
+      const { data: leagueVis } = await supabase.from('leagues').select('leaderboard_visibility').eq('id', route.leagueId).single()
+      if (leagueVis?.leaderboard_visibility === 'admin_only' && role === 'player') {
+        return err('Leaderboard not yet visible', 403)
+      }
+
+      // If scope=city, restrict players/teams to that city
+      let cityScopedPlayerIds: Set<string> | null = null
+      let cityScopedTeamIds: Set<string> | null = null
+      if (scopeParam === 'city' && cityIdParam) {
+        const { data: cityPlayers } = await supabase.from('league_players').select('user_id').eq('league_id', route.leagueId).eq('league_city_id', cityIdParam)
+        cityScopedPlayerIds = new Set((cityPlayers || []).map((p: any) => p.user_id))
+        const { data: cityTeams } = await supabase.from('league_teams').select('id').eq('league_id', route.leagueId).eq('league_city_id', cityIdParam)
+        cityScopedTeamIds = new Set((cityTeams || []).map((t: any) => t.id))
+      }
 
       // 1. Fetch all scores (optionally filtered by round)
       let scoresQuery = supabase.from('league_scores').select('*').eq('league_id', route.leagueId)
       if (roundParam) scoresQuery = scoresQuery.eq('round_number', parseInt(roundParam))
-      const { data: scores } = await scoresQuery
-      if (!scores || scores.length === 0) return json({ entries: [], round: roundParam ? parseInt(roundParam) : null, filter: filterParam })
+      const { data: scoresAll } = await scoresQuery
+      const scores = cityScopedPlayerIds
+        ? (scoresAll || []).filter((s: any) => cityScopedPlayerIds!.has(s.player_id))
+        : (scoresAll || [])
+      if (!scores || scores.length === 0) return json({ entries: [], round: roundParam ? parseInt(roundParam) : null, filter: filterParam, scope: scopeParam, league_city_id: cityIdParam })
 
       // 2. Fetch hidden holes for Peoria net score calculation
       let hiddenHolesMap: Record<number, number[]> = {}
@@ -1826,6 +1879,7 @@ Deno.serve(async (req) => {
       // Team entries
       if (filterParam !== 'individuals' && teams && teams.length > 0) {
         for (const team of teams) {
+          if (cityScopedTeamIds && !cityScopedTeamIds.has(team.id)) continue
           // Get team member player_ids (user_ids)
           const memberUserIds = Object.entries(playerIdToTeamId)
             .filter(([, tid]) => tid === team.id)
@@ -1890,7 +1944,7 @@ Deno.serve(async (req) => {
       // Add rank
       const ranked = entries.map((e, i) => ({ ...e, rank: i + 1 }))
 
-      return json({ entries: ranked, round: roundParam ? parseInt(roundParam) : null, filter: filterParam })
+      return json({ entries: ranked, round: roundParam ? parseInt(roundParam) : null, filter: filterParam, scope: scopeParam, league_city_id: cityIdParam })
     }
 
     // ── ACTIVITY FEED ────────────────────────────────────────
@@ -2028,6 +2082,266 @@ Deno.serve(async (req) => {
       }
 
       return err('Method not allowed', 405)
+    }
+
+    // ── LEAGUE CITIES (list/create) ──────────────────────────
+    if (route.action === 'league-cities' && route.leagueId) {
+      const { data: league } = await supabase.from('leagues').select('tenant_id').eq('id', route.leagueId).single()
+      if (!league) return err('League not found', 404)
+      const tenantId = league.tenant_id
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (!role) return err('No access', 403)
+
+      if (method === 'GET') {
+        const { data, error } = await supabase
+          .from('league_cities')
+          .select('*')
+          .eq('league_id', route.leagueId)
+          .order('display_order', { ascending: true })
+          .order('name', { ascending: true })
+        if (error) return err(error.message, 500)
+        return json(data)
+      }
+
+      if (method === 'POST') {
+        if (role !== 'franchise_admin' && role !== 'site_admin') return err('Forbidden', 403)
+        const body = await req.json().catch(() => ({}))
+        if (!body.name || typeof body.name !== 'string') return err('name is required')
+        const { data, error } = await supabase
+          .from('league_cities')
+          .insert({
+            league_id: route.leagueId,
+            tenant_id: tenantId,
+            name: body.name.trim(),
+            display_order: typeof body.display_order === 'number' ? body.display_order : 0,
+            created_by: user.id,
+          })
+          .select()
+          .single()
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId, user.id, role, 'LeagueCityCreated', 'league_city', data.id, null, data)
+        return json(data, 201)
+      }
+
+      return err('Method not allowed', 405)
+    }
+
+    // ── LEAGUE CITY DETAIL (PATCH / DELETE) ──────────────────
+    if (route.action === 'league-city-detail' && route.leagueId && route.subId) {
+      const { data: city } = await supabase.from('league_cities').select('*').eq('id', route.subId).single()
+      if (!city || city.league_id !== route.leagueId) return err('City not found', 404)
+      const tenantId = city.tenant_id
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (role !== 'franchise_admin' && role !== 'site_admin') return err('Forbidden', 403)
+
+      if (method === 'PATCH') {
+        const body = await req.json().catch(() => ({}))
+        const updates: Record<string, unknown> = {}
+        if (typeof body.name === 'string') updates.name = body.name.trim()
+        if (typeof body.display_order === 'number') updates.display_order = body.display_order
+        if (Object.keys(updates).length === 0) return err('No valid fields')
+        const { data, error } = await supabase.from('league_cities').update(updates).eq('id', route.subId).select().single()
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId, user.id, role, 'LeagueCityUpdated', 'league_city', route.subId, city, data)
+        return json(data)
+      }
+
+      if (method === 'DELETE') {
+        const { error } = await supabase.from('league_cities').delete().eq('id', route.subId)
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId, user.id, role, 'LeagueCityDeleted', 'league_city', route.subId, city, null)
+        return json({ ok: true })
+      }
+
+      return err('Method not allowed', 405)
+    }
+
+    // ── LEAGUE CITY LOCATIONS (list/create) ──────────────────
+    if (route.action === 'league-city-locations' && route.leagueId && route.subId) {
+      const cityId = route.subId
+      const { data: city } = await supabase.from('league_cities').select('*').eq('id', cityId).single()
+      if (!city || city.league_id !== route.leagueId) return err('City not found', 404)
+      const tenantId = city.tenant_id
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (!role) return err('No access', 403)
+
+      if (method === 'GET') {
+        const { data, error } = await supabase
+          .from('league_locations')
+          .select('*')
+          .eq('league_city_id', cityId)
+          .order('display_order', { ascending: true })
+          .order('name', { ascending: true })
+        if (error) return err(error.message, 500)
+        return json(data)
+      }
+
+      if (method === 'POST') {
+        if (role !== 'franchise_admin' && role !== 'site_admin') return err('Forbidden', 403)
+        const body = await req.json().catch(() => ({}))
+        if (!body.name || typeof body.name !== 'string') return err('name is required')
+        const { data, error } = await supabase
+          .from('league_locations')
+          .insert({
+            league_city_id: cityId,
+            league_id: route.leagueId,
+            tenant_id: tenantId,
+            name: body.name.trim(),
+            display_order: typeof body.display_order === 'number' ? body.display_order : 0,
+            created_by: user.id,
+          })
+          .select()
+          .single()
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId, user.id, role, 'LeagueLocationCreated', 'league_location', data.id, null, data)
+        return json(data, 201)
+      }
+
+      return err('Method not allowed', 405)
+    }
+
+    // ── LEAGUE LOCATION DETAIL (PATCH / DELETE) ──────────────
+    if (route.action === 'league-location-detail' && route.leagueId && route.subId) {
+      const { data: loc } = await supabase.from('league_locations').select('*').eq('id', route.subId).single()
+      if (!loc || loc.league_id !== route.leagueId) return err('Location not found', 404)
+      const tenantId = loc.tenant_id
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (role !== 'franchise_admin' && role !== 'site_admin') return err('Forbidden', 403)
+
+      if (method === 'PATCH') {
+        const body = await req.json().catch(() => ({}))
+        const updates: Record<string, unknown> = {}
+        if (typeof body.name === 'string') updates.name = body.name.trim()
+        if (typeof body.display_order === 'number') updates.display_order = body.display_order
+        if (Object.keys(updates).length === 0) return err('No valid fields')
+        const { data, error } = await supabase.from('league_locations').update(updates).eq('id', route.subId).select().single()
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId, user.id, role, 'LeagueLocationUpdated', 'league_location', route.subId, loc, data)
+        return json(data)
+      }
+
+      if (method === 'DELETE') {
+        const { error } = await supabase.from('league_locations').delete().eq('id', route.subId)
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId, user.id, role, 'LeagueLocationDeleted', 'league_location', route.subId, loc, null)
+        return json({ ok: true })
+      }
+
+      return err('Method not allowed', 405)
+    }
+
+    // ── LEAGUE LOCATION BAYS (list/create) ───────────────────
+    if (route.action === 'league-location-bays' && route.leagueId && route.subId) {
+      const locId = route.subId
+      const { data: loc } = await supabase.from('league_locations').select('*').eq('id', locId).single()
+      if (!loc || loc.league_id !== route.leagueId) return err('Location not found', 404)
+      const tenantId = loc.tenant_id
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (!role) return err('No access', 403)
+
+      if (method === 'GET') {
+        const { data, error } = await supabase
+          .from('league_bay_mappings')
+          .select('*, bays:bay_id(name, city)')
+          .eq('league_location_id', locId)
+        if (error) return err(error.message, 500)
+        const enriched = (data || []).map((m: any) => ({
+          id: m.id,
+          league_location_id: m.league_location_id,
+          league_id: m.league_id,
+          tenant_id: m.tenant_id,
+          bay_id: m.bay_id,
+          created_at: m.created_at,
+          bay_name: m.bays?.name ?? null,
+          bay_city: m.bays?.city ?? null,
+        }))
+        return json(enriched)
+      }
+
+      if (method === 'POST') {
+        if (role !== 'franchise_admin' && role !== 'site_admin') return err('Forbidden', 403)
+        const body = await req.json().catch(() => ({}))
+        const bayIds: string[] = Array.isArray(body.bay_ids) ? body.bay_ids : (body.bay_id ? [body.bay_id] : [])
+        if (bayIds.length === 0) return err('bay_ids or bay_id required')
+        const rows = bayIds.map((b) => ({
+          league_location_id: locId,
+          league_id: route.leagueId,
+          tenant_id: tenantId,
+          bay_id: b,
+          created_by: user.id,
+        }))
+        const { data, error } = await supabase
+          .from('league_bay_mappings')
+          .upsert(rows, { onConflict: 'league_id,bay_id' })
+          .select()
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId, user.id, role, 'LeagueBaysMapped', 'league_bay_mapping', locId, null, { bay_ids: bayIds })
+        return json(data, 201)
+      }
+
+      return err('Method not allowed', 405)
+    }
+
+    // ── LEAGUE LOCATION BAY DETAIL (DELETE) ──────────────────
+    if (route.action === 'league-location-bay-detail' && route.leagueId && route.bookingId) {
+      const mappingId = route.bookingId
+      const { data: mapping } = await supabase.from('league_bay_mappings').select('*').eq('id', mappingId).single()
+      if (!mapping || mapping.league_id !== route.leagueId) return err('Mapping not found', 404)
+      const tenantId = mapping.tenant_id
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (role !== 'franchise_admin' && role !== 'site_admin') return err('Forbidden', 403)
+
+      if (method === 'DELETE') {
+        const { error } = await supabase.from('league_bay_mappings').delete().eq('id', mappingId)
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId, user.id, role, 'LeagueBayUnmapped', 'league_bay_mapping', mappingId, mapping, null)
+        return json({ ok: true })
+      }
+
+      return err('Method not allowed', 405)
+    }
+
+    // ── PLAYER CITY/LOCATION ASSIGN (PATCH) ──────────────────
+    if (route.action === 'league-player-assign' && route.leagueId && route.bookingId && method === 'PATCH') {
+      const playerId = route.bookingId
+      const { data: player } = await supabase.from('league_players').select('*').eq('id', playerId).single()
+      if (!player || player.league_id !== route.leagueId) return err('Player not found', 404)
+      const { data: leagueRow } = await supabase.from('leagues').select('tenant_id').eq('id', route.leagueId).single()
+      const tenantId = leagueRow!.tenant_id
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (role !== 'franchise_admin' && role !== 'site_admin' && role !== 'league_admin') return err('Forbidden', 403)
+
+      const body = await req.json().catch(() => ({}))
+      const updates: Record<string, unknown> = {}
+      if (body.league_city_id !== undefined) updates.league_city_id = body.league_city_id
+      if (body.league_location_id !== undefined) updates.league_location_id = body.league_location_id
+      if (Object.keys(updates).length === 0) return err('No valid fields')
+
+      const { data, error } = await supabase.from('league_players').update(updates).eq('id', playerId).select().single()
+      if (error) return err(error.message, 500)
+      await audit(supabase, tenantId, route.leagueId, user.id, role, 'LeaguePlayerAssigned', 'league_player', playerId, player, data)
+      return json(data)
+    }
+
+    // ── TEAM CITY/LOCATION ASSIGN (PATCH) ────────────────────
+    if (route.action === 'league-team-assign' && route.leagueId && route.subId && method === 'PATCH') {
+      const teamId = route.subId
+      const { data: team } = await supabase.from('league_teams').select('*').eq('id', teamId).single()
+      if (!team || team.league_id !== route.leagueId) return err('Team not found', 404)
+      const tenantId = team.tenant_id
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (role !== 'franchise_admin' && role !== 'site_admin' && role !== 'league_admin') return err('Forbidden', 403)
+
+      const body = await req.json().catch(() => ({}))
+      const updates: Record<string, unknown> = {}
+      if (body.league_city_id !== undefined) updates.league_city_id = body.league_city_id
+      if (body.league_location_id !== undefined) updates.league_location_id = body.league_location_id
+      if (Object.keys(updates).length === 0) return err('No valid fields')
+
+      const { data, error } = await supabase.from('league_teams').update(updates).eq('id', teamId).select().single()
+      if (error) return err(error.message, 500)
+      await audit(supabase, tenantId, route.leagueId, user.id, role, 'LeagueTeamAssigned', 'league_team', teamId, team, data)
+      return json(data)
     }
 
     return err('Not found', 404)

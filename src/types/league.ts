@@ -360,3 +360,40 @@ export interface FeedReaction {
   count: number;
   user_reacted: boolean;
 }
+
+// ── League Cities & Locations ────────────────────────────────
+export interface LeagueCity {
+  id: string;
+  league_id: string;
+  tenant_id: string;
+  name: string;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeagueLocation {
+  id: string;
+  league_city_id: string;
+  league_id: string;
+  tenant_id: string;
+  name: string;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeagueBayMapping {
+  id: string;
+  league_location_id: string;
+  league_id: string;
+  tenant_id: string;
+  bay_id: string;
+  created_at: string;
+  bay_name?: string;
+  bay_city?: string;
+}
+
+export type LeaderboardScope = 'national' | 'city';
+export type LeaderboardVisibility = 'public' | 'admin_only';
+
