@@ -1730,12 +1730,33 @@ Deno.serve(async (req) => {
 
       const roundParam = url.searchParams.get('round')
       const filterParam = url.searchParams.get('filter') || 'all' // all | individuals | teams
+      const scopeParam = url.searchParams.get('scope') || 'national' // national | city
+      const cityIdParam = url.searchParams.get('league_city_id')
+
+      // Enforce leaderboard visibility for non-admins
+      const { data: leagueVis } = await supabase.from('leagues').select('leaderboard_visibility').eq('id', route.leagueId).single()
+      if (leagueVis?.leaderboard_visibility === 'admin_only' && role === 'player') {
+        return err('Leaderboard not yet visible', 403)
+      }
+
+      // If scope=city, restrict players/teams to that city
+      let cityScopedPlayerIds: Set<string> | null = null
+      let cityScopedTeamIds: Set<string> | null = null
+      if (scopeParam === 'city' && cityIdParam) {
+        const { data: cityPlayers } = await supabase.from('league_players').select('user_id').eq('league_id', route.leagueId).eq('league_city_id', cityIdParam)
+        cityScopedPlayerIds = new Set((cityPlayers || []).map((p: any) => p.user_id))
+        const { data: cityTeams } = await supabase.from('league_teams').select('id').eq('league_id', route.leagueId).eq('league_city_id', cityIdParam)
+        cityScopedTeamIds = new Set((cityTeams || []).map((t: any) => t.id))
+      }
 
       // 1. Fetch all scores (optionally filtered by round)
       let scoresQuery = supabase.from('league_scores').select('*').eq('league_id', route.leagueId)
       if (roundParam) scoresQuery = scoresQuery.eq('round_number', parseInt(roundParam))
-      const { data: scores } = await scoresQuery
-      if (!scores || scores.length === 0) return json({ entries: [], round: roundParam ? parseInt(roundParam) : null, filter: filterParam })
+      const { data: scoresAll } = await scoresQuery
+      const scores = cityScopedPlayerIds
+        ? (scoresAll || []).filter((s: any) => cityScopedPlayerIds!.has(s.player_id))
+        : (scoresAll || [])
+      if (!scores || scores.length === 0) return json({ entries: [], round: roundParam ? parseInt(roundParam) : null, filter: filterParam, scope: scopeParam, league_city_id: cityIdParam })
 
       // 2. Fetch hidden holes for Peoria net score calculation
       let hiddenHolesMap: Record<number, number[]> = {}
