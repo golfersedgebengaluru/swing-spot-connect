@@ -593,6 +593,14 @@ export function AdminAllUsersTab() {
         </DialogContent>
       </Dialog>
 
+      {selectedUser && dialogOpen === "viewprofile" && (
+        <ViewUserProfileDialog
+          user={selectedUser}
+          onClose={() => { setDialogOpen(null); setSelectedUser(null); }}
+          onEdit={() => setDialogOpen("editprofile")}
+        />
+      )}
+
       <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
