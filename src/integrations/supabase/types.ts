@@ -296,6 +296,9 @@ export type Database = {
           coaching_mode: string
           created_at: string
           currency: string
+          extended_close_time: string | null
+          extended_hours_enabled: boolean
+          extended_open_time: string | null
           id: string
           is_active: boolean
           name: string
@@ -315,6 +318,9 @@ export type Database = {
           coaching_mode?: string
           created_at?: string
           currency?: string
+          extended_close_time?: string | null
+          extended_hours_enabled?: boolean
+          extended_open_time?: string | null
           id?: string
           is_active?: boolean
           name: string
@@ -334,6 +340,9 @@ export type Database = {
           coaching_mode?: string
           created_at?: string
           currency?: string
+          extended_close_time?: string | null
+          extended_hours_enabled?: boolean
+          extended_open_time?: string | null
           id?: string
           is_active?: boolean
           name?: string
@@ -2940,6 +2949,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           email: string | null
+          extended_hours_access: boolean
           handicap: number | null
           id: string
           phone: string | null
@@ -2957,6 +2967,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          extended_hours_access?: boolean
           handicap?: number | null
           id?: string
           phone?: string | null
@@ -2974,6 +2985,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          extended_hours_access?: boolean
           handicap?: number | null
           id?: string
           phone?: string | null
