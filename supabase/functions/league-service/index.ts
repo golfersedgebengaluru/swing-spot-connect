@@ -1944,7 +1944,7 @@ Deno.serve(async (req) => {
       // Add rank
       const ranked = entries.map((e, i) => ({ ...e, rank: i + 1 }))
 
-      return json({ entries: ranked, round: roundParam ? parseInt(roundParam) : null, filter: filterParam })
+      return json({ entries: ranked, round: roundParam ? parseInt(roundParam) : null, filter: filterParam, scope: scopeParam, league_city_id: cityIdParam })
     }
 
     // ── ACTIVITY FEED ────────────────────────────────────────
