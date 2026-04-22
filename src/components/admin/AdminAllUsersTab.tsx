@@ -10,8 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Loader2, MinusCircle, PlusCircle, Star, Award, UserCheck, ChevronLeft, ChevronRight, Clock, MoreHorizontal, Pencil, History, Trash2, Search, Wallet } from "lucide-react";
+import { Plus, Loader2, MinusCircle, PlusCircle, Star, Award, UserCheck, ChevronLeft, ChevronRight, Clock, MoreHorizontal, Pencil, History, Trash2, Search, Wallet, Eye } from "lucide-react";
 import { CustomerFinanceDialog } from "@/components/admin/CustomerFinanceDialog";
+import { ViewUserProfileDialog } from "@/components/admin/ViewUserProfileDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useRewards } from "@/hooks/useRewards";
 import { useAllocatePoints, useRedeemPoints, usePointsTransactions } from "@/hooks/usePoints";
@@ -592,6 +593,14 @@ export function AdminAllUsersTab() {
         </DialogContent>
       </Dialog>
 
+      {selectedUser && dialogOpen === "viewprofile" && (
+        <ViewUserProfileDialog
+          user={selectedUser}
+          onClose={() => { setDialogOpen(null); setSelectedUser(null); }}
+          onEdit={() => setDialogOpen("editprofile")}
+        />
+      )}
+
       <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -722,6 +731,9 @@ export function AdminAllUsersTab() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("viewprofile"); }}>
+                                <Eye className="mr-2 h-4 w-4" />View Profile
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("editprofile"); }}>
                                 <Pencil className="mr-2 h-4 w-4" />Edit Profile
                               </DropdownMenuItem>
