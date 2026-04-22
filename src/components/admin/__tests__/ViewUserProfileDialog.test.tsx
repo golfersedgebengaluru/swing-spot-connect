@@ -104,7 +104,8 @@ describe("ViewUserProfileDialog", () => {
     await waitFor(() => expect(screen.getByText("Site-Admin")).toBeInTheDocument());
     // Assigned instances
     expect(screen.getByText("Assigned instances:")).toBeInTheDocument();
-    expect(screen.getByText("Bangalore")).toBeInTheDocument();
+    // "Bangalore" appears in both contact (preferred city) and assigned instances
+    expect(screen.getAllByText("Bangalore").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("Mumbai")).toBeInTheDocument();
   });
 
