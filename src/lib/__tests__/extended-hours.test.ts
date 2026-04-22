@@ -100,6 +100,55 @@ describe("getBookableWindow", () => {
       extended: false,
     });
   });
+
+  /**
+   * Regression guard: Postgres `time` columns serialize as `"HH:MM:SS"`. The
+   * downstream `list_slots` edge function appends `:00` for seconds and parses
+   * the result with `Intl.DateTimeFormat`, which throws `RangeError: Invalid
+   * time value` if it sees `"06:00:00:00"`. The helper must trim seconds so
+   * both code paths produce valid `YYYY-MM-DDTHH:MM:00<offset>` strings.
+   */
+  it("normalizes HH:MM:SS inputs to HH:MM (extended fields)", () => {
+    const bay = {
+      open_time: "09:00",
+      close_time: "22:00",
+      extended_hours_enabled: true,
+      extended_open_time: "06:00:00",
+      extended_close_time: "23:30:00",
+    };
+    expect(getBookableWindow(bay, true)).toEqual({
+      openTime: "06:00",
+      closeTime: "23:30",
+      extended: true,
+    });
+  });
+
+  it("normalizes HH:MM:SS inputs on normal open/close fields", () => {
+    const bay = {
+      open_time: "09:00:00",
+      close_time: "22:00:00",
+    };
+    expect(getBookableWindow(bay, false)).toEqual({
+      openTime: "09:00",
+      closeTime: "22:00",
+      extended: false,
+    });
+  });
+
+  it("does not flag extended=true when seconds are the only difference", () => {
+    const bay = {
+      open_time: "09:00",
+      close_time: "22:00",
+      extended_hours_enabled: true,
+      extended_open_time: "09:00:00",
+      extended_close_time: "22:00:00",
+    };
+    expect(getBookableWindow(bay, true)).toEqual({
+      openTime: "09:00",
+      closeTime: "22:00",
+      extended: false,
+    });
+  });
 });
 
 /**
