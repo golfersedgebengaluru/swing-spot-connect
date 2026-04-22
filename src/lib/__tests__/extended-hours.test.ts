@@ -101,3 +101,68 @@ describe("getBookableWindow", () => {
     });
   });
 });
+
+/**
+ * Admin-side gating: the Manual Booking dialog only widens the slot query when both
+ * (a) the selected customer has `extended_hours_access` and (b) the bay has the
+ * extended window enabled. Walk-in (guest) bookings never qualify.
+ *
+ * This mirrors the runtime expression:
+ *   canUseExtended         = customerHasExtendedAccess && bay.extended_hours_enabled
+ *   effectiveShowExtended  = adminToggleOn && canUseExtended
+ *   window                 = getBookableWindow(bay, effectiveShowExtended)
+ */
+describe("admin extended-hours gating", () => {
+  const bay = {
+    open_time: "09:00",
+    close_time: "22:00",
+    extended_hours_enabled: true,
+    extended_open_time: "06:00",
+    extended_close_time: "23:30",
+  };
+
+  const computeWindow = (
+    customerHasAccess: boolean,
+    bayExtendedEnabled: boolean,
+    adminToggleOn: boolean,
+  ) => {
+    const cfg = { ...bay, extended_hours_enabled: bayExtendedEnabled };
+    const canUseExtended = customerHasAccess && bayExtendedEnabled;
+    const effective = adminToggleOn && canUseExtended;
+    return getBookableWindow(cfg, effective);
+  };
+
+  it("walk-in guest (no profile) always uses the normal window", () => {
+    // Walk-ins pass `false` directly — never widen.
+    expect(getBookableWindow(bay, false)).toEqual({
+      openTime: "09:00",
+      closeTime: "22:00",
+      extended: false,
+    });
+  });
+
+  it("uses normal window when the customer lacks extended-hours access", () => {
+    expect(computeWindow(false, true, true)?.openTime).toBe("09:00");
+    expect(computeWindow(false, true, true)?.extended).toBe(false);
+  });
+
+  it("uses normal window when bay-level extended hours is disabled", () => {
+    expect(computeWindow(true, false, true)?.openTime).toBe("09:00");
+    expect(computeWindow(true, false, true)?.extended).toBe(false);
+  });
+
+  it("uses normal window by default even for eligible customers (toggle off)", () => {
+    // Regression guard for the Apr 23/24 bug: admin dialog must not widen
+    // automatically — the public flow narrowness is the safe default.
+    expect(computeWindow(true, true, false)?.openTime).toBe("09:00");
+    expect(computeWindow(true, true, false)?.extended).toBe(false);
+  });
+
+  it("widens only when customer has access, bay supports it, and admin opts in", () => {
+    expect(computeWindow(true, true, true)).toEqual({
+      openTime: "06:00",
+      closeTime: "23:30",
+      extended: true,
+    });
+  });
+});

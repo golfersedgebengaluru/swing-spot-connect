@@ -16,6 +16,8 @@ import {
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useBays, useCities, useAvailableSlots } from "@/hooks/useBookings";
+import { getBookableWindow } from "@/lib/extended-hours";
+import { Switch } from "@/components/ui/switch";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useBayPricing } from "@/hooks/usePricing";
 import { useOfflinePaymentMethods } from "@/hooks/useOfflinePaymentMethods";
@@ -82,6 +84,11 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
   const [paymentReference, setPaymentReference] = useState("");
 
+  // Extended hours: opt-in toggle, only available when the selected member has access.
+  // Defaults to off so the admin slot grid mirrors the public booking flow and avoids
+  // pulling in early-morning calendar conflicts that previously blanked out availability.
+  const [showExtended, setShowExtended] = useState(false);
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [bookingComplete, setBookingComplete] = useState(false);
 
@@ -94,18 +101,20 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
   const currentBay = cityBays.find((b: any) => b.id === effectiveBayId);
 
   // Fetch calendar availability when bay + date are selected.
-  // Admin-initiated bookings always include extended hours so staff can book any slot the bay supports.
+  // Default to the bay's normal window (matches the public flow). The admin can opt in
+  // to extended hours per booking, but only if the selected customer has the
+  // `extended_hours_access` flag enabled on their profile.
   const slotDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined;
-  const extOpen = currentBay?.extended_hours_enabled ? currentBay?.extended_open_time : null;
-  const extClose = currentBay?.extended_hours_enabled ? currentBay?.extended_close_time : null;
-  const adminOpen = extOpen && currentBay?.open_time && extOpen < currentBay.open_time ? extOpen : currentBay?.open_time;
-  const adminClose = extClose && currentBay?.close_time && extClose > currentBay.close_time ? extClose : currentBay?.close_time;
+  const customerHasExtendedAccess = !!selectedProfile?.extended_hours_access;
+  const canUseExtended = customerHasExtendedAccess && !!currentBay?.extended_hours_enabled;
+  const effectiveShowExtended = showExtended && canUseExtended;
+  const bookableWindow = getBookableWindow(currentBay as any, effectiveShowExtended);
   const { data: availableSlots, isLoading: slotsLoading } = useAvailableSlots(
     currentBay?.calendar_email,
     slotDate,
-    adminOpen,
-    adminClose,
-    { refetchInterval: 0, includeExtended: true }
+    bookableWindow?.openTime,
+    bookableWindow?.closeTime,
+    { refetchInterval: 0, includeExtended: effectiveShowExtended }
   );
 
   // Detect conflict: check if the selected manual time overlaps any busy slot
@@ -167,7 +176,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
       // Search regular profiles
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("id, user_id, display_name, email, phone, user_type")
+        .select("id, user_id, display_name, email, phone, user_type, extended_hours_access")
         .or(`display_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`)
         .limit(10);
 
@@ -211,7 +220,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
           // Fetch profile for this league player
           const { data: profile } = await supabase
             .from("profiles")
-            .select("id, user_id, display_name, email, phone, user_type")
+            .select("id, user_id, display_name, email, phone, user_type, extended_hours_access")
             .eq("user_id", lp.user_id)
             .single();
 
@@ -231,8 +240,11 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
     }
   };
 
-  // Fetch hours balance for selected profile using the DB function
+  // Fetch hours balance for selected profile using the DB function.
+  // Also resets the extended-hours toggle whenever the customer changes so it can't
+  // leak across different members with different access levels.
   useEffect(() => {
+    setShowExtended(false);
     if (!selectedProfile) { setHoursBalance(null); return; }
     const uid = selectedProfile.user_id || selectedProfile.id;
     supabase
@@ -453,6 +465,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
     setBookingComplete(false);
     setIsProcessing(false);
     setAdvanceDrawdown(0);
+    setShowExtended(false);
   };
 
   const handleClose = () => {
@@ -690,6 +703,28 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
                 </Select>
               </div>
             </div>
+
+            {/* Extended hours toggle (existing members only, when bay supports it) */}
+            {currentBay?.extended_hours_enabled && customerMode === "existing" && (
+              <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-muted/30 p-2.5">
+                <div className="space-y-0.5">
+                  <Label htmlFor="ext-hours" className="text-xs font-medium flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" /> Show extended hours
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground">
+                    {canUseExtended
+                      ? `Includes ${currentBay.extended_open_time?.slice(0, 5)}–${currentBay.extended_close_time?.slice(0, 5)} window.`
+                      : "Customer does not have extended-hours access."}
+                  </p>
+                </div>
+                <Switch
+                  id="ext-hours"
+                  checked={effectiveShowExtended}
+                  disabled={!canUseExtended}
+                  onCheckedChange={setShowExtended}
+                />
+              </div>
+            )}
 
             {/* Calendar Availability Grid */}
             {currentBay && selectedDate && (
