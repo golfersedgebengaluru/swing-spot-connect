@@ -18,6 +18,7 @@ import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Ca
 import { BaySchedulingPanel } from "@/components/admin/league/BaySchedulingPanel";
 import { CitiesLocationsPanel } from "@/components/admin/league/CitiesLocationsPanel";
 import { LocationAssignCell } from "@/components/admin/league/LocationAssignCell";
+import { AdminScoreEntryDialog } from "@/components/admin/league/AdminScoreEntryDialog";
 import { format } from "date-fns";
 import {
   useTenants,
@@ -1268,7 +1269,13 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
         </TabsContent>
 
         {/* Scores */}
-        <TabsContent value="scores">
+        <TabsContent value="scores" className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              {scores?.length || 0} score{(scores?.length || 0) === 1 ? "" : "s"} submitted
+            </p>
+            <AdminScoreEntryDialog league={league} players={players || []} />
+          </div>
           {(!scores || scores.length === 0) ? (
             <p className="text-sm text-muted-foreground py-4">No scores submitted yet.</p>
           ) : (

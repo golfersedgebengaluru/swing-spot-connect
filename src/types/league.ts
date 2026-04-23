@@ -236,6 +236,7 @@ export interface SubmitScoreRequest {
   total_score?: number;
   method?: 'photo_ocr' | 'manual' | 'api';
   photo_url?: string;
+  player_id?: string; // admin-only: submit on behalf of another player
 }
 
 export interface UpdateBrandingRequest {
