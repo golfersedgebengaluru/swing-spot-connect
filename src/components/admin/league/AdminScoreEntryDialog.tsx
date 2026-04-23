@@ -103,10 +103,11 @@ export function AdminScoreEntryDialog({ league, players }: Props) {
       );
     }
     const max = format === "stableford" ? 8 : 15;
+    const minVal = 0;
     return (
       <Input
         type="number"
-        min={format === "match_play" ? -1 : 0}
+        min={minVal}
         max={max}
         value={holes[i]}
         onChange={(e) => {
