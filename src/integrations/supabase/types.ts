@@ -2103,6 +2103,7 @@ export type Database = {
           id: string
           league_id: string
           name: string
+          par_per_hole: number[]
           round_number: number
           start_date: string
           tenant_id: string
@@ -2115,6 +2116,7 @@ export type Database = {
           id?: string
           league_id: string
           name: string
+          par_per_hole?: number[]
           round_number: number
           start_date: string
           tenant_id: string
@@ -2127,6 +2129,7 @@ export type Database = {
           id?: string
           league_id?: string
           name?: string
+          par_per_hole?: number[]
           round_number?: number
           start_date?: string
           tenant_id?: string
