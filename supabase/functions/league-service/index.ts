@@ -1613,7 +1613,7 @@ Deno.serve(async (req) => {
     // this to verify Peoria selections privately during a live round.
     if (route.action === 'league-hidden-holes-admin' && route.leagueId) {
       if (method !== 'GET') return err('Method not allowed', 405)
-      const { data: league } = await supabase.from('leagues').select('tenant_id').eq('id', route.leagueId).single()
+      const { data: league } = await supabase.from('leagues').select('tenant_id, scoring_holes').eq('id', route.leagueId).single()
       if (!league) return err('League not found', 404)
       const role = await getUserLeagueRole(supabase, user.id, league.tenant_id)
       if (role !== 'franchise_admin' && role !== 'site_admin' && role !== 'league_admin') {
@@ -1625,7 +1625,9 @@ Deno.serve(async (req) => {
         .eq('league_id', route.leagueId)
         .order('round_number')
       if (error) return err(error.message, 500)
-      return json(data || [])
+      const scoringHoles = league.scoring_holes || 18
+      const sanitized = (data || []).map((h: any) => sanitizeHiddenHoles(h, scoringHoles))
+      return json(sanitized)
     }
 
     // ── HIDDEN HOLES (Peoria System) ────────────────────────────
@@ -1633,6 +1635,7 @@ Deno.serve(async (req) => {
       const { data: league } = await supabase.from('leagues').select('tenant_id, scoring_holes').eq('id', route.leagueId).single()
       if (!league) return err('League not found', 404)
       const tenantId = league.tenant_id
+      const scoringHoles = league.scoring_holes || 18
 
       const role = await getUserLeagueRole(supabase, user.id, tenantId)
       if (!role) return err('No access', 403)
@@ -1647,15 +1650,15 @@ Deno.serve(async (req) => {
           .order('round_number')
         if (error) return err(error.message, 500)
 
-        // For players, strip hidden_holes if not yet revealed
-        if (!isAdmin) {
-          const sanitized = (data || []).map((h: any) => ({
-            ...h,
-            hidden_holes: h.revealed_at ? h.hidden_holes : null,
-          }))
-          return json(sanitized)
-        }
-        return json(data)
+        const sanitized = (data || []).map((h: any) => {
+          const clean = sanitizeHiddenHoles(h, scoringHoles)
+          // For players, strip hidden_holes if not yet revealed
+          if (!isAdmin && !clean.revealed_at) {
+            return { ...clean, hidden_holes: null }
+          }
+          return clean
+        })
+        return json(sanitized)
       }
 
       // POST: set hidden holes for a round
