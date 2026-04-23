@@ -52,6 +52,7 @@ import {
   useAddTeamMember,
   useRemoveTeamMember,
   useHiddenHoles,
+  useHiddenHolesAdmin,
   useSetHiddenHoles,
   useCloseRound,
   useLeaderboard,
@@ -399,29 +400,66 @@ function RoundsPanel({ league }: { league: League }) {
   const createRound = useCreateRound(league.id);
   const updateRound = useUpdateRound(league.id);
   const deleteRound = useDeleteRound(league.id);
+  const adminHidden = useHiddenHolesAdmin(league.id);
   const [showAdd, setShowAdd] = useState(false);
   const [expandedRound, setExpandedRound] = useState<string | null>(null);
-  const [newRound, setNewRound] = useState({ name: "", description: "", start_date: "", end_date: "" });
+  const numHoles = league.scoring_holes || 18;
+  const blankPar = () => Array(numHoles).fill(4);
+  const [newRound, setNewRound] = useState<{ name: string; description: string; start_date: string; end_date: string; par_per_hole: number[] }>(
+    { name: "", description: "", start_date: "", end_date: "", par_per_hole: blankPar() },
+  );
   const [editingRound, setEditingRound] = useState<string | null>(null);
-  const [editData, setEditData] = useState({ name: "", description: "", start_date: "", end_date: "" });
+  const [editData, setEditData] = useState<{ name: string; description: string; start_date: string; end_date: string; par_per_hole: number[] }>(
+    { name: "", description: "", start_date: "", end_date: "", par_per_hole: blankPar() },
+  );
 
   const handleCreate = () => {
     if (!newRound.name || !newRound.start_date || !newRound.end_date) return;
     createRound.mutate(newRound, {
-      onSuccess: () => { setShowAdd(false); setNewRound({ name: "", description: "", start_date: "", end_date: "" }); },
+      onSuccess: () => { setShowAdd(false); setNewRound({ name: "", description: "", start_date: "", end_date: "", par_per_hole: blankPar() }); },
     });
   };
 
   const startEdit = (r: LeagueRound) => {
     setEditingRound(r.id);
-    setEditData({ name: r.name, description: r.description || "", start_date: r.start_date, end_date: r.end_date });
+    setEditData({
+      name: r.name,
+      description: r.description || "",
+      start_date: r.start_date,
+      end_date: r.end_date,
+      par_per_hole: (r.par_per_hole && r.par_per_hole.length === numHoles) ? [...r.par_per_hole] : blankPar(),
+    });
   };
 
   const saveEdit = (roundId: string) => {
-    updateRound.mutate({ roundId, body: editData }, {
-      onSuccess: () => setEditingRound(null),
-    });
+    updateRound.mutate({ roundId, body: editData }, { onSuccess: () => setEditingRound(null) });
   };
+
+  const ParGrid = ({ value, onChange }: { value: number[]; onChange: (v: number[]) => void }) => (
+    <div>
+      <Label className="text-xs">Par per hole ({numHoles}) — values 3–6</Label>
+      <div className="grid grid-cols-9 gap-1 mt-1">
+        {Array.from({ length: numHoles }).map((_, i) => (
+          <div key={i} className="space-y-0.5">
+            <div className="text-[10px] text-muted-foreground text-center">{i + 1}</div>
+            <Input
+              type="number"
+              min={3}
+              max={6}
+              value={value[i] ?? ""}
+              onChange={(e) => {
+                const next = [...value];
+                next[i] = Number(e.target.value) || 0;
+                onChange(next);
+              }}
+              className="h-8 text-xs px-1 text-center"
+            />
+          </div>
+        ))}
+      </div>
+      <p className="text-[11px] text-muted-foreground mt-1">Total par: {value.reduce((s, v) => s + (v || 0), 0)}</p>
+    </div>
+  );
 
   if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>;
 
@@ -441,6 +479,7 @@ function RoundsPanel({ league }: { league: League }) {
             <div><Label>Start Date</Label><Input type="date" value={newRound.start_date} onChange={(e) => setNewRound({ ...newRound, start_date: e.target.value })} /></div>
             <div><Label>End Date</Label><Input type="date" value={newRound.end_date} onChange={(e) => setNewRound({ ...newRound, end_date: e.target.value })} /></div>
           </div>
+          <ParGrid value={newRound.par_per_hole} onChange={(v) => setNewRound({ ...newRound, par_per_hole: v })} />
           <div className="flex gap-2">
             <Button size="sm" onClick={handleCreate} disabled={createRound.isPending}>
               {createRound.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}Create Round
@@ -454,52 +493,83 @@ function RoundsPanel({ league }: { league: League }) {
         <p className="text-sm text-muted-foreground py-4">No rounds configured. Add rounds to structure the league schedule.</p>
       ) : (
         <div className="space-y-2">
-          {rounds.map((r) => (
-            <div key={r.id} className="border rounded-md">
-              <div
-                className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/30"
-                onClick={() => setExpandedRound(expandedRound === r.id ? null : r.id)}
-              >
-                <div className="flex items-center gap-2">
-                  <ChevronRight className={`h-4 w-4 transition-transform ${expandedRound === r.id ? "rotate-90" : ""}`} />
-                  <div>
-                    <span className="font-medium text-sm">Round {r.round_number}: {r.name}</span>
-                    <p className="text-xs text-muted-foreground">{r.start_date} → {r.end_date}</p>
+          {rounds.map((r) => {
+            const adminHH = (adminHidden.data || []).find((h) => h.round_number === r.round_number);
+            const parSet = (r.par_per_hole?.length || 0) === numHoles;
+            return (
+              <div key={r.id} className="border rounded-md">
+                <div
+                  className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/30"
+                  onClick={() => setExpandedRound(expandedRound === r.id ? null : r.id)}
+                >
+                  <div className="flex items-center gap-2">
+                    <ChevronRight className={`h-4 w-4 transition-transform ${expandedRound === r.id ? "rotate-90" : ""}`} />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">Round {r.round_number}: {r.name}</span>
+                        {parSet ? (
+                          <Badge variant="outline" className="text-[10px]">Par {r.par_per_hole.reduce((s, v) => s + v, 0)}</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-[10px]">Par not set</Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{r.start_date} → {r.end_date}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    <Button size="icon" variant="ghost" onClick={() => startEdit(r)}><Edit className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" onClick={() => deleteRound.mutate(r.id)} disabled={deleteRound.isPending}>
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                  <Button size="icon" variant="ghost" onClick={() => startEdit(r)}><Edit className="h-3.5 w-3.5" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => deleteRound.mutate(r.id)} disabled={deleteRound.isPending}>
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                  </Button>
-                </div>
+
+                {editingRound === r.id && (
+                  <div className="px-3 pb-3 space-y-3 border-t bg-muted/20">
+                    <div className="grid gap-3 sm:grid-cols-2 pt-3">
+                      <div><Label>Name</Label><Input value={editData.name} onChange={(e) => setEditData({ ...editData, name: e.target.value })} /></div>
+                      <div><Label>Description</Label><Input value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} /></div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div><Label>Start Date</Label><Input type="date" value={editData.start_date} onChange={(e) => setEditData({ ...editData, start_date: e.target.value })} /></div>
+                      <div><Label>End Date</Label><Input type="date" value={editData.end_date} onChange={(e) => setEditData({ ...editData, end_date: e.target.value })} /></div>
+                    </div>
+                    <ParGrid value={editData.par_per_hole} onChange={(v) => setEditData({ ...editData, par_per_hole: v })} />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => saveEdit(r.id)} disabled={updateRound.isPending}>Save</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingRound(null)}>Cancel</Button>
+                    </div>
+                  </div>
+                )}
+
+                {expandedRound === r.id && editingRound !== r.id && (
+                  <div className="px-3 pb-3 border-t pt-3 space-y-3">
+                    {r.description && <p className="text-sm text-muted-foreground">{r.description}</p>}
+                    {/* Admin-only Peoria hidden-holes preview */}
+                    {adminHH && adminHH.hidden_holes && adminHH.hidden_holes.length > 0 && (
+                      <div className="rounded-md border border-dashed p-3 bg-muted/30">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="text-xs font-semibold">Hidden Holes (Peoria) — Admin preview</span>
+                          {adminHH.revealed_at ? (
+                            <Badge variant="default" className="text-[10px]">Revealed to players</Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-[10px]">Confidential — not visible to players until round closes</Badge>
+                          )}
+                        </div>
+                        <div className="flex gap-1 flex-wrap">
+                          {adminHH.hidden_holes.map((h) => (
+                            <Badge key={h} variant="outline" className="text-xs">Hole {h}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <CompetitionEditor leagueId={league.id} round={r} />
+                  </div>
+                )}
               </div>
-
-              {editingRound === r.id && (
-                <div className="px-3 pb-3 space-y-3 border-t bg-muted/20">
-                  <div className="grid gap-3 sm:grid-cols-2 pt-3">
-                    <div><Label>Name</Label><Input value={editData.name} onChange={(e) => setEditData({ ...editData, name: e.target.value })} /></div>
-                    <div><Label>Description</Label><Input value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} /></div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div><Label>Start Date</Label><Input type="date" value={editData.start_date} onChange={(e) => setEditData({ ...editData, start_date: e.target.value })} /></div>
-                    <div><Label>End Date</Label><Input type="date" value={editData.end_date} onChange={(e) => setEditData({ ...editData, end_date: e.target.value })} /></div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={() => saveEdit(r.id)} disabled={updateRound.isPending}>Save</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setEditingRound(null)}>Cancel</Button>
-                  </div>
-                </div>
-              )}
-
-              {expandedRound === r.id && editingRound !== r.id && (
-                <div className="px-3 pb-3 border-t pt-3">
-                  {r.description && <p className="text-sm text-muted-foreground mb-3">{r.description}</p>}
-                  <CompetitionEditor leagueId={league.id} round={r} />
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -974,7 +1044,7 @@ function LeaderboardPanel({ league }: { league: League }) {
               <TableHead className="w-12">#</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead className="text-right">Gross</TableHead>
+              {!leaderboard?.handicap_active && <TableHead className="text-right">Gross</TableHead>}
               <TableHead className="text-right">Net</TableHead>
               <TableHead className="text-right">Final</TableHead>
               <TableHead className="text-right">Rounds</TableHead>
@@ -1000,7 +1070,7 @@ function LeaderboardPanel({ league }: { league: League }) {
                       {entry.type === 'team' ? '🏆 Team' : '👤 Individual'}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">{entry.total_gross}</TableCell>
+                  {!leaderboard?.handicap_active && <TableCell className="text-right">{entry.total_gross}</TableCell>}
                   <TableCell className="text-right">{entry.total_net}</TableCell>
                   <TableCell className="text-right font-semibold">{entry.final_score}</TableCell>
                   <TableCell className="text-right">{entry.rounds_played}</TableCell>
