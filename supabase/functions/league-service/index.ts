@@ -128,6 +128,8 @@ function sanitizeHiddenHoles(row: any, scoringHoles: number) {
   }
   return { ...row, needs_reroll: false }
 }
+
+// ── Route parser ─────────────────────────────────────────────
 interface Route {
   action: string
   leagueId?: string
