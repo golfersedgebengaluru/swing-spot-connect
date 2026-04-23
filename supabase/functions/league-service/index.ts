@@ -1672,13 +1672,54 @@ Deno.serve(async (req) => {
 
         // If randomize requested, pick random holes
         if (body.randomize) {
-          const allHoles = Array.from({ length: scoringHoles }, (_, i) => i + 1)
-          hiddenHoles = []
-          for (let i = 0; i < requiredHiddenCount; i++) {
-            const idx = Math.floor(Math.random() * allHoles.length)
-            hiddenHoles.push(allHoles.splice(idx, 1)[0])
+          // Fetch round par to honor par-mix rule (one par-3, one par-4, one par-5 for 9-hole Peoria)
+          const { data: roundRow } = await supabase
+            .from('league_rounds')
+            .select('par_per_hole')
+            .eq('league_id', route.leagueId)
+            .eq('round_number', body.round_number)
+            .maybeSingle()
+          const parPerHole = (roundRow?.par_per_hole as number[] | null) || []
+
+          const pickRandom = (arr: number[]): number | null => {
+            if (arr.length === 0) return null
+            const idx = Math.floor(Math.random() * arr.length)
+            return arr.splice(idx, 1)[0]
           }
-          hiddenHoles.sort((a, b) => a - b)
+
+          if (scoringHoles === 9 && parPerHole.length === 9) {
+            // 9-hole Peoria: pick one par-3, one par-4, one par-5 if available.
+            // Fall back to random fill from remaining holes when a par class is missing.
+            const byPar: Record<number, number[]> = { 3: [], 4: [], 5: [] }
+            parPerHole.forEach((p, i) => {
+              if (p === 3 || p === 4 || p === 5) byPar[p].push(i + 1)
+            })
+            hiddenHoles = []
+            for (const p of [3, 4, 5]) {
+              const picked = pickRandom(byPar[p])
+              if (picked !== null) hiddenHoles.push(picked)
+            }
+            // Top up if any par class was empty
+            if (hiddenHoles.length < requiredHiddenCount) {
+              const remaining = Array.from({ length: 9 }, (_, i) => i + 1).filter(h => !hiddenHoles.includes(h))
+              while (hiddenHoles.length < requiredHiddenCount) {
+                const picked = pickRandom(remaining)
+                if (picked === null) break
+                hiddenHoles.push(picked)
+              }
+            }
+            hiddenHoles.sort((a, b) => a - b)
+          } else {
+            // 18-hole or par not yet configured → uniform random pick
+            const allHoles = Array.from({ length: scoringHoles }, (_, i) => i + 1)
+            hiddenHoles = []
+            for (let i = 0; i < requiredHiddenCount; i++) {
+              const picked = pickRandom(allHoles)
+              if (picked === null) break
+              hiddenHoles.push(picked)
+            }
+            hiddenHoles.sort((a, b) => a - b)
+          }
         }
 
         if (hiddenHoles.length !== requiredHiddenCount) {
