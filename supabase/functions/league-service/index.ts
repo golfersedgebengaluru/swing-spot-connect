@@ -111,7 +111,23 @@ function isSafeUrl(url: string): boolean {
   }
 }
 
-// ── Route parser ─────────────────────────────────────────────
+// ── Hidden-holes sanitizer ───────────────────────────────────
+// Detects stale rows where the saved selection no longer matches the league's
+// current scoring_holes (e.g., league was switched from 18 → 9 after holes were
+// already chosen, or count is wrong / out-of-range). Returns the row with
+// hidden_holes nulled out and a `needs_reroll: true` flag so the UI can prompt
+// the admin to re-randomize using the corrected logic.
+function sanitizeHiddenHoles(row: any, scoringHoles: number) {
+  if (!row) return row
+  const expected = scoringHoles === 9 ? 3 : 6
+  const holes = Array.isArray(row.hidden_holes) ? row.hidden_holes : []
+  const inRange = holes.every((h: any) => Number.isInteger(h) && h >= 1 && h <= scoringHoles)
+  const validCount = holes.length === expected
+  if (!validCount || !inRange) {
+    return { ...row, hidden_holes: null, needs_reroll: true }
+  }
+  return { ...row, needs_reroll: false }
+}
 interface Route {
   action: string
   leagueId?: string
