@@ -546,22 +546,28 @@ function RoundsPanel({ league }: { league: League }) {
                   <div className="px-3 pb-3 border-t pt-3 space-y-3">
                     {r.description && <p className="text-sm text-muted-foreground">{r.description}</p>}
                     {/* Admin-only Peoria hidden-holes preview */}
-                    {adminHH && adminHH.hidden_holes && adminHH.hidden_holes.length > 0 && (
+                    {adminHH && (adminHH.hidden_holes?.length > 0 || (adminHH as any).needs_reroll) && (
                       <div className="rounded-md border border-dashed p-3 bg-muted/30">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <Lock className="h-3.5 w-3.5 text-muted-foreground" />
                           <span className="text-xs font-semibold">Hidden Holes (Peoria) — Admin preview</span>
-                          {adminHH.revealed_at ? (
+                          {(adminHH as any).needs_reroll ? (
+                            <Badge variant="destructive" className="text-[10px]">Stale selection — re-randomize required</Badge>
+                          ) : adminHH.revealed_at ? (
                             <Badge variant="default" className="text-[10px]">Revealed to players</Badge>
                           ) : (
                             <Badge variant="secondary" className="text-[10px]">Confidential — not visible to players until round closes</Badge>
                           )}
                         </div>
-                        <div className="flex gap-1 flex-wrap">
-                          {adminHH.hidden_holes.map((h) => (
-                            <Badge key={h} variant="outline" className="text-xs">Hole {h}</Badge>
-                          ))}
-                        </div>
+                        {(adminHH as any).needs_reroll ? (
+                          <p className="text-[11px] text-muted-foreground">The saved hidden holes don't match the league's current scoring configuration. Use the Hidden Holes panel below to re-randomize.</p>
+                        ) : (
+                          <div className="flex gap-1 flex-wrap">
+                            {adminHH.hidden_holes!.map((h: number) => (
+                              <Badge key={h} variant="outline" className="text-xs">Hole {h}</Badge>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                     <CompetitionEditor leagueId={league.id} round={r} />
@@ -857,7 +863,7 @@ function HiddenHolesPanel({ league }: { league: League }) {
         </div>
       </div>
 
-      {currentRoundHH ? (
+      {currentRoundHH && !((currentRoundHH as any).needs_reroll) ? (
         <div className="border rounded-md p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -887,7 +893,13 @@ function HiddenHolesPanel({ league }: { league: League }) {
         </div>
       ) : (
         <div className="border-2 border-dashed rounded-lg p-4 space-y-4">
-          <p className="text-sm text-muted-foreground">No hidden holes set for Round {selectedRound}. Select {requiredCount} holes or randomize.</p>
+          {currentRoundHH && (currentRoundHH as any).needs_reroll ? (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs">
+              <strong>Stale selection detected.</strong> The previously saved hidden holes don't match this league's current scoring ({scoringHoles} holes, expects {requiredCount}). Re-randomize or pick {requiredCount} valid holes below.
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No hidden holes set for Round {selectedRound}. Select {requiredCount} holes or randomize.</p>
+          )}
 
           {/* Hole grid */}
           <div className="grid grid-cols-9 gap-1">
