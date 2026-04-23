@@ -1608,6 +1608,26 @@ Deno.serve(async (req) => {
       return err('Method not allowed', 405)
     }
 
+    // ── HIDDEN HOLES — ADMIN-ONLY PREVIEW ───────────────────────
+    // Returns hidden holes with values regardless of `revealed_at`. Admins use
+    // this to verify Peoria selections privately during a live round.
+    if (route.action === 'league-hidden-holes-admin' && route.leagueId) {
+      if (method !== 'GET') return err('Method not allowed', 405)
+      const { data: league } = await supabase.from('leagues').select('tenant_id').eq('id', route.leagueId).single()
+      if (!league) return err('League not found', 404)
+      const role = await getUserLeagueRole(supabase, user.id, league.tenant_id)
+      if (role !== 'franchise_admin' && role !== 'site_admin' && role !== 'league_admin') {
+        return err('Admin access required', 403)
+      }
+      const { data, error } = await supabase
+        .from('league_round_hidden_holes')
+        .select('*')
+        .eq('league_id', route.leagueId)
+        .order('round_number')
+      if (error) return err(error.message, 500)
+      return json(data || [])
+    }
+
     // ── HIDDEN HOLES (Peoria System) ────────────────────────────
     if (route.action === 'league-hidden-holes' && route.leagueId) {
       const { data: league } = await supabase.from('leagues').select('tenant_id, scoring_holes').eq('id', route.leagueId).single()
