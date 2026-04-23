@@ -1078,7 +1078,7 @@ function LeaderboardPanel({ league }: { league: League }) {
 
                 {expandedEntry === entry.id && (
                   <TableRow key={`${entry.id}-detail`}>
-                    <TableCell colSpan={7} className="bg-muted/20 p-4">
+                    <TableCell colSpan={leaderboard?.handicap_active ? 6 : 7} className="bg-muted/20 p-4">
                       <div className="space-y-3">
                         {/* Round breakdown */}
                         {entry.breakdown.length > 0 && (
