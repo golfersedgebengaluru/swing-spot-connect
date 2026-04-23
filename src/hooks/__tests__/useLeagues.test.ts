@@ -521,3 +521,30 @@ describe("BaySchedulingPanel hides empty bays", () => {
     expect(code).toContain("bayBookings.length > 0 || bayBlocks.length > 0");
   });
 });
+
+describe("Leaderboard handicap_active flag", () => {
+  it("type allows handicap_active to be true/false/undefined", () => {
+    const a: import("@/types/league").LeaderboardResponse = {
+      entries: [], round: null, filter: 'all', handicap_active: true,
+    };
+    const b: import("@/types/league").LeaderboardResponse = {
+      entries: [], round: null, filter: 'all', handicap_active: false,
+    };
+    const c: import("@/types/league").LeaderboardResponse = {
+      entries: [], round: null, filter: 'all',
+    };
+    expect(a.handicap_active).toBe(true);
+    expect(b.handicap_active).toBe(false);
+    expect(c.handicap_active).toBeUndefined();
+  });
+
+  it("AdminLeaguesTab hides Gross column and adjusts colSpan when handicap_active", async () => {
+    const source: any = await import(
+      "../../components/admin/AdminLeaguesTab?raw"
+    );
+    const code = source.default ?? source;
+    expect(code).toContain("!leaderboard?.handicap_active && <TableHead");
+    expect(code).toContain("!leaderboard?.handicap_active && <TableCell");
+    expect(code).toContain("colSpan={leaderboard?.handicap_active ? 6 : 7}");
+  });
+});
