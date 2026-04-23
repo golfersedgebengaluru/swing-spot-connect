@@ -658,6 +658,19 @@ export function useHiddenHoles(leagueId: string | null) {
   });
 }
 
+/**
+ * Admin-only preview of hidden holes (returns values regardless of revealed_at).
+ * Players never see this endpoint — it 403s for non-admins.
+ */
+export function useHiddenHolesAdmin(leagueId: string | null) {
+  return useQuery<LeagueRoundHiddenHoles[]>({
+    queryKey: ["league-hidden-holes-admin", leagueId],
+    queryFn: () => invoke(`/leagues/${leagueId}/hidden-holes/admin`, "GET"),
+    enabled: !!leagueId,
+    staleTime: LEAGUE_STALE_TIME,
+  });
+}
+
 export function useSetHiddenHoles(leagueId: string) {
   const qc = useQueryClient();
   const { toast } = useToast();
