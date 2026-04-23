@@ -18,6 +18,7 @@ import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Ca
 import { BaySchedulingPanel } from "@/components/admin/league/BaySchedulingPanel";
 import { CitiesLocationsPanel } from "@/components/admin/league/CitiesLocationsPanel";
 import { LocationAssignCell } from "@/components/admin/league/LocationAssignCell";
+import { AdminScoreEntryDialog } from "@/components/admin/league/AdminScoreEntryDialog";
 import { format } from "date-fns";
 import {
   useTenants,
