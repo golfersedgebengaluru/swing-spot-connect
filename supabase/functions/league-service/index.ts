@@ -156,6 +156,10 @@ function parseRoute(url: URL): Route {
     if (subResource === 'teams' && segments[4] && segments[5] === 'members') {
       return { action: 'league-team-members', leagueId, subResource, subId: segments[4] }
     }
+    // /leagues/:id/teams/:teamId/assign  (must come before /teams/:teamId)
+    if (subResource === 'teams' && segments[4] && segments[5] === 'assign') {
+      return { action: 'league-team-assign', leagueId, subResource, subId: segments[4] }
+    }
     // /leagues/:id/teams/:teamId
     if (subResource === 'teams' && segments[4]) {
       return { action: 'league-team-detail', leagueId, subResource, subId: segments[4] }
