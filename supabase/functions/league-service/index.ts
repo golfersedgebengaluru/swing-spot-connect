@@ -213,8 +213,6 @@ function parseRoute(url: URL): Route {
       return { action: 'league-cities', leagueId, subResource }
     }
     return { action: `league-${subResource}`, leagueId, subResource }
-    }
-    return { action: `league-${subResource}`, leagueId, subResource }
   }
   return { action: 'unknown' }
 }
