@@ -654,10 +654,35 @@ Deno.serve(async (req) => {
           actorRole = role
         }
 
-        // Calculate total from holes if provided
+        // Apply per-hole cap (project rule: max +4 over par per hole) for gross-stroke formats only.
+        // Stableford / match_play encode different per-hole semantics so we skip the cap there.
+        let holeScores: number[] = Array.isArray(body.hole_scores) ? [...body.hole_scores] : []
+        const STROKE_FORMATS = ['stroke_play', 'scramble', 'best_ball', 'skins']
+        if (holeScores.length > 0 && body.round_number) {
+          const { data: leagueFmt } = await supabase.from('leagues').select('format').eq('id', route.leagueId).single()
+          if (leagueFmt && STROKE_FORMATS.includes(leagueFmt.format)) {
+            const { data: roundRow } = await supabase
+              .from('league_rounds')
+              .select('par_per_hole')
+              .eq('league_id', route.leagueId)
+              .eq('round_number', body.round_number)
+              .maybeSingle()
+            const parPerHole = (roundRow?.par_per_hole as number[] | null) || []
+            if (parPerHole.length > 0) {
+              const MAX_OVER_PAR = 4
+              holeScores = holeScores.map((s, i) => {
+                const par = parPerHole[i]
+                if (!par || par <= 0 || !Number.isFinite(s) || s <= 0) return s
+                return Math.min(s, par + MAX_OVER_PAR)
+              })
+            }
+          }
+        }
+
+        // Calculate total from (possibly capped) holes
         let totalScore = body.total_score
-        if (body.hole_scores && Array.isArray(body.hole_scores)) {
-          totalScore = body.hole_scores.reduce((sum: number, s: number) => sum + (s || 0), 0)
+        if (holeScores.length > 0) {
+          totalScore = holeScores.reduce((sum: number, s: number) => sum + (s || 0), 0)
         }
 
         const { data: score, error: sErr } = await supabase.from('league_scores').insert({
@@ -665,7 +690,7 @@ Deno.serve(async (req) => {
           player_id: targetPlayerId,
           tenant_id: tenantId,
           round_number: body.round_number || 1,
-          hole_scores: body.hole_scores || [],
+          hole_scores: holeScores,
           total_score: totalScore,
           method: method_val,
           photo_url: body.photo_url ?? null,
