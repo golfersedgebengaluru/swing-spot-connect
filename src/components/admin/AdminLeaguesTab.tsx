@@ -863,7 +863,7 @@ function HiddenHolesPanel({ league }: { league: League }) {
         </div>
       </div>
 
-      {currentRoundHH ? (
+      {currentRoundHH && !((currentRoundHH as any).needs_reroll) ? (
         <div className="border rounded-md p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -893,7 +893,13 @@ function HiddenHolesPanel({ league }: { league: League }) {
         </div>
       ) : (
         <div className="border-2 border-dashed rounded-lg p-4 space-y-4">
-          <p className="text-sm text-muted-foreground">No hidden holes set for Round {selectedRound}. Select {requiredCount} holes or randomize.</p>
+          {currentRoundHH && (currentRoundHH as any).needs_reroll ? (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs">
+              <strong>Stale selection detected.</strong> The previously saved hidden holes don't match this league's current scoring ({scoringHoles} holes, expects {requiredCount}). Re-randomize or pick {requiredCount} valid holes below.
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No hidden holes set for Round {selectedRound}. Select {requiredCount} holes or randomize.</p>
+          )}
 
           {/* Hole grid */}
           <div className="grid grid-cols-9 gap-1">
