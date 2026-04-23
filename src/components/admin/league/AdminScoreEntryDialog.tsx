@@ -6,28 +6,49 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Plus } from "lucide-react";
-import { useSubmitScore } from "@/hooks/useLeagues";
+import { useSubmitScore, useLeagueRounds } from "@/hooks/useLeagues";
 import type { League } from "@/types/league";
 import type { LeaguePlayerWithProfile } from "@/hooks/useLeagues";
 import { useToast } from "@/hooks/use-toast";
+import {
+  capHoleScore,
+  classifyHole,
+  totalPar,
+  totalRelativeToPar,
+  formatRelativeToPar,
+  MAX_OVER_PAR_PER_HOLE,
+} from "@/lib/golf-scoring";
 
 interface Props {
   league: League;
   players: LeaguePlayerWithProfile[];
 }
 
-/**
- * Admin score entry. Adapts hole-input semantics to the league format:
- * - stroke_play, scramble, best_ball, skins → strokes per hole (gross total)
- * - stableford → points per hole (sum = total points; higher is better but we still store sum)
- * - match_play → per-hole result encoded: 1=Win, 0=Halve, -1=Loss; total = match score (sum)
- *
- * For all formats we keep storage shape `hole_scores: number[]` + `total_score: number`,
- * matching the existing schema. The format meaning is documented per league.
- */
+const STROKE_FORMATS = ["stroke_play", "scramble", "best_ball", "skins"] as const;
+
+const LABEL_CLASS: Record<string, string> = {
+  albatross: "bg-purple-500/15 text-purple-600 border-purple-500/40",
+  eagle: "bg-blue-500/15 text-blue-600 border-blue-500/40",
+  birdie: "bg-emerald-500/15 text-emerald-600 border-emerald-500/40",
+  par: "bg-muted text-muted-foreground border-border",
+  bogey: "bg-orange-500/15 text-orange-600 border-orange-500/40",
+  double_bogey: "bg-red-500/15 text-red-600 border-red-500/40",
+  triple_plus: "bg-red-700/20 text-red-700 border-red-700/40",
+};
+const LABEL_SHORT: Record<string, string> = {
+  albatross: "ALB",
+  eagle: "EAG",
+  birdie: "BIR",
+  par: "PAR",
+  bogey: "BOG",
+  double_bogey: "DBL",
+  triple_plus: "+3↑",
+};
+
 export function AdminScoreEntryDialog({ league, players }: Props) {
   const { toast } = useToast();
   const submit = useSubmitScore(league.id);
+  const { data: rounds } = useLeagueRounds(league.id);
 
   const [open, setOpen] = useState(false);
   const [playerId, setPlayerId] = useState<string>("");
@@ -36,21 +57,35 @@ export function AdminScoreEntryDialog({ league, players }: Props) {
   const [holes, setHoles] = useState<string[]>(() => Array(numHoles).fill(""));
 
   const format = league.format;
+  const isStroke = (STROKE_FORMATS as readonly string[]).includes(format);
+
+  const currentRound = useMemo(() => (rounds || []).find((r) => r.round_number === round), [rounds, round]);
+  const parPerHole = currentRound?.par_per_hole || [];
+  const parReady = parPerHole.length === numHoles && parPerHole.every((p) => p > 0);
 
   const holeLabel = useMemo(() => {
     switch (format) {
-      case "stableford":
-        return "Points";
-      case "match_play":
-        return "Result";
-      default:
-        return "Strokes";
+      case "stableford": return "Points";
+      case "match_play": return "Result";
+      default: return "Strokes";
     }
   }, [format]);
 
-  const total = useMemo(() => {
-    return holes.reduce((s, v) => s + (Number(v) || 0), 0);
-  }, [holes]);
+  // Cap-aware effective scores for display/total when stroke format + par configured
+  const effectiveScores = useMemo(
+    () => holes.map((v, i) => {
+      const n = Number(v) || 0;
+      if (!isStroke || !parReady) return n;
+      return capHoleScore(n, parPerHole[i]);
+    }),
+    [holes, isStroke, parReady, parPerHole],
+  );
+
+  const total = useMemo(() => effectiveScores.reduce((s, v) => s + (v || 0), 0), [effectiveScores]);
+  const relTotal = useMemo(
+    () => (isStroke && parReady ? totalRelativeToPar(effectiveScores, parPerHole) : null),
+    [isStroke, parReady, effectiveScores, parPerHole],
+  );
 
   const reset = () => {
     setPlayerId("");
@@ -63,6 +98,7 @@ export function AdminScoreEntryDialog({ league, players }: Props) {
       toast({ title: "Pick a player", variant: "destructive" });
       return;
     }
+    // Send raw values; the edge function applies the same per-hole cap server-side.
     const holeScores = holes.map((v) => Number(v) || 0);
     submit.mutate(
       {
@@ -103,11 +139,10 @@ export function AdminScoreEntryDialog({ league, players }: Props) {
       );
     }
     const max = format === "stableford" ? 8 : 15;
-    const minVal = 0;
     return (
       <Input
         type="number"
-        min={minVal}
+        min={0}
         max={max}
         value={holes[i]}
         onChange={(e) => {
@@ -152,54 +187,91 @@ export function AdminScoreEntryDialog({ league, players }: Props) {
               </div>
               <div>
                 <Label>Round</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={round || ""}
-                  onChange={(e) => setRound(Number(e.target.value) || 1)}
-                />
+                {rounds && rounds.length > 0 ? (
+                  <Select value={String(round)} onValueChange={(v) => setRound(Number(v))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {rounds.map((r) => (
+                        <SelectItem key={r.id} value={String(r.round_number)}>
+                          R{r.round_number}: {r.name}
+                          {r.par_per_hole?.length === numHoles ? ` · Par ${totalPar(r.par_per_hole)}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input type="number" min={1} value={round || ""} onChange={(e) => setRound(Number(e.target.value) || 1)} />
+                )}
               </div>
             </div>
 
             <div>
               <Label className="mb-2 block">
                 Holes ({numHoles}) · {holeLabel}
+                {isStroke && parReady && (
+                  <span className="text-xs text-muted-foreground ml-2">
+                    Par per hole shown · scores capped at par +{MAX_OVER_PAR_PER_HOLE}
+                  </span>
+                )}
               </Label>
               <div className="grid grid-cols-9 gap-1.5">
-                {Array.from({ length: numHoles }).map((_, i) => (
-                  <div key={i} className="space-y-1">
-                    <div className="text-[10px] text-muted-foreground text-center">{i + 1}</div>
-                    {renderHoleInput(i)}
-                  </div>
-                ))}
+                {Array.from({ length: numHoles }).map((_, i) => {
+                  const par = parPerHole[i];
+                  const raw = Number(holes[i]) || 0;
+                  const eff = effectiveScores[i];
+                  const capped = isStroke && parReady && raw > 0 && eff !== raw;
+                  const cls = isStroke && parReady && eff > 0 ? classifyHole(eff, par) : null;
+                  return (
+                    <div key={i} className="space-y-1">
+                      <div className="text-[10px] text-muted-foreground text-center">
+                        {i + 1}{isStroke && parReady ? <span className="ml-0.5 text-[9px]">·P{par}</span> : null}
+                      </div>
+                      {renderHoleInput(i)}
+                      {cls && (
+                        <div className={`text-[9px] text-center rounded border px-1 py-0.5 ${LABEL_CLASS[cls]}`}>
+                          {LABEL_SHORT[cls]}
+                          {capped && <span className="ml-0.5">⚑</span>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
+              {isStroke && parReady && holes.some((h, i) => Number(h) > 0 && Number(h) !== effectiveScores[i]) && (
+                <p className="text-[11px] text-muted-foreground mt-2">⚑ One or more holes were capped at par +{MAX_OVER_PAR_PER_HOLE}.</p>
+              )}
             </div>
 
             <div className="flex items-center justify-between rounded border p-3 bg-muted/40">
-              <span className="text-sm font-medium">Total ({holeLabel})</span>
-              <span className="text-lg font-bold">{total}</span>
+              <span className="text-sm font-medium">
+                Total ({holeLabel}){isStroke && parReady ? ` · Par ${totalPar(parPerHole)}` : ""}
+              </span>
+              <span className="text-lg font-bold">
+                {total}
+                {relTotal !== null && (
+                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                    ({formatRelativeToPar(relTotal)})
+                  </span>
+                )}
+              </span>
             </div>
 
             {format === "match_play" && (
-              <p className="text-xs text-muted-foreground">
-                Enter per-hole result. Final total = wins − losses.
-              </p>
+              <p className="text-xs text-muted-foreground">Enter per-hole result. Final total = wins − losses.</p>
             )}
             {format === "stableford" && (
-              <p className="text-xs text-muted-foreground">
-                Enter Stableford points per hole (typically 0–8). Higher total wins.
-              </p>
+              <p className="text-xs text-muted-foreground">Enter Stableford points per hole (typically 0–8). Higher total wins.</p>
             )}
-            {(format === "stroke_play" || format === "scramble" || format === "best_ball" || format === "skins") && (
-              <p className="text-xs text-muted-foreground">Enter strokes per hole. Lower total wins.</p>
+            {isStroke && (
+              <p className="text-xs text-muted-foreground">
+                Enter strokes per hole. Lower total wins. {parReady ? `Per-hole max = par + ${MAX_OVER_PAR_PER_HOLE}.` : "Set par on the round to see par-relative labels and capping."}
+              </p>
             )}
           </div>
         </ScrollArea>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => setOpen(false)} disabled={submit.isPending}>
-            Cancel
-          </Button>
+          <Button variant="ghost" onClick={() => setOpen(false)} disabled={submit.isPending}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={submit.isPending || !playerId}>
             {submit.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
             Submit Score
