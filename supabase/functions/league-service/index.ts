@@ -140,6 +140,10 @@ function parseRoute(url: URL): Route {
     if (subResource === 'bay-bookings' && segments[4]) {
       return { action: 'league-bay-booking-detail', leagueId, subResource, bookingId: segments[4] }
     }
+    // /leagues/:id/players/:playerId/assign  (must come before /players/:playerId)
+    if (subResource === 'players' && segments[4] && segments[5] === 'assign') {
+      return { action: 'league-player-assign', leagueId, subResource, bookingId: segments[4] }
+    }
     // /leagues/:id/players/:playerId
     if (subResource === 'players' && segments[4]) {
       return { action: 'league-player-detail', leagueId, subResource, bookingId: segments[4] }
