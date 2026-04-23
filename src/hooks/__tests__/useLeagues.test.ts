@@ -345,6 +345,7 @@ describe("League rounds", () => {
       description: "Opening round",
       start_date: "2026-04-14",
       end_date: "2026-04-20",
+      par_per_hole: [],
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
