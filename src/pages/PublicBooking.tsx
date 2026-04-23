@@ -18,7 +18,8 @@ import {
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { useBays, useAvailableSlots, useCreateBooking, useUserHoursBalance, useCities } from "@/hooks/useBookings";
+import { useBays, useAvailableSlots, useCreateBooking, useUserHoursBalance, useCities, useUserProfile } from "@/hooks/useBookings";
+import { getBookableWindow } from "@/lib/extended-hours";
 import { useBayPricing } from "@/hooks/usePricing";
 import { useBayHolidays } from "@/hooks/useBayHolidays";
 import { isDateBlocked } from "@/lib/bay-schedule-utils";
@@ -36,6 +37,7 @@ export default function PublicBooking() {
   const { toast } = useToast();
   const { data: bays, isLoading: loadingBays } = useBays();
   const { data: balance } = useUserHoursBalance();
+  const { data: profile } = useUserProfile();
   const { data: bayPricing } = useBayPricing();
   const createBooking = useCreateBooking();
   const redeemCoupon = useRedeemCoupon();
@@ -78,13 +80,19 @@ export default function PublicBooking() {
 
   const dateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined;
 
+  // Auto-apply extended hours window for logged-in users with the access flag.
+  // Guests always get the normal window. No toggle is shown — matches the design
+  // where eligible members see extended slots transparently on login.
+  const includeExtended = !!user && !!(profile as any)?.extended_hours_access;
+  const bookableWindow = getBookableWindow(currentBay as any, includeExtended);
+
   // Fetch real-time slots for ALL users (including guests)
   const { data: slots, isLoading: loadingSlots } = useAvailableSlots(
     currentBay?.calendar_email,
     dateStr,
-    currentBay?.open_time,
-    currentBay?.close_time,
-    { refetchInterval: 30000 }
+    bookableWindow?.openTime,
+    bookableWindow?.closeTime,
+    { refetchInterval: 30000, includeExtended }
   );
 
   // Get pricing for current selection
