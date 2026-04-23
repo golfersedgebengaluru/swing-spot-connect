@@ -760,7 +760,9 @@ function ScoringConfigPanel({ league }: { league: League }) {
             <Button size="sm" variant={scoringHoles === 18 ? "default" : "outline"} onClick={() => setScoringHoles(18)}>18 Holes</Button>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            {scoringHoles === 9 ? "3 hidden holes, ×3 multiplier" : "6 hidden holes, ×3 multiplier"}
+            {scoringHoles === 9
+              ? "3 hidden holes (one par-3, par-4 & par-5), ×6 multiplier"
+              : "6 hidden holes, ×3 multiplier"}
           </p>
         </div>
         <div>
