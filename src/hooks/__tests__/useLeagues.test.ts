@@ -525,13 +525,13 @@ describe("BaySchedulingPanel hides empty bays", () => {
 describe("Leaderboard handicap_active flag", () => {
   it("type allows handicap_active to be true/false/undefined", () => {
     const a: import("@/types/league").LeaderboardResponse = {
-      entries: [], round: null, scope: 'overall', filter: 'all', handicap_active: true,
+      entries: [], round: null, filter: 'all', handicap_active: true,
     };
     const b: import("@/types/league").LeaderboardResponse = {
-      entries: [], round: null, scope: 'overall', filter: 'all', handicap_active: false,
+      entries: [], round: null, filter: 'all', handicap_active: false,
     };
     const c: import("@/types/league").LeaderboardResponse = {
-      entries: [], round: null, scope: 'overall', filter: 'all',
+      entries: [], round: null, filter: 'all',
     };
     expect(a.handicap_active).toBe(true);
     expect(b.handicap_active).toBe(false);
