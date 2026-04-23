@@ -172,6 +172,10 @@ function parseRoute(url: URL): Route {
     if (subResource === 'rounds' && segments[4]) {
       return { action: 'league-round-detail', leagueId, subResource, subId: segments[4] }
     }
+    // /leagues/:id/hidden-holes/admin   (admin-only preview, regardless of revealed_at)
+    if (subResource === 'hidden-holes' && segments[4] === 'admin') {
+      return { action: 'league-hidden-holes-admin', leagueId, subResource }
+    }
     // /leagues/:id/hidden-holes
     if (subResource === 'hidden-holes') {
       return { action: 'league-hidden-holes', leagueId, subResource }
@@ -1255,6 +1259,18 @@ Deno.serve(async (req) => {
           .limit(1)
         const nextRound = (existing && existing.length > 0) ? existing[0].round_number + 1 : 1
 
+        // Validate par_per_hole if provided (must match league.scoring_holes; values 3-6)
+        let parPerHole: number[] | undefined = undefined
+        if (Array.isArray(body.par_per_hole) && body.par_per_hole.length > 0) {
+          const { data: lg } = await supabase.from('leagues').select('scoring_holes').eq('id', route.leagueId).single()
+          const holes = (lg?.scoring_holes as number) || 18
+          if (body.par_per_hole.length !== holes) return err(`par_per_hole must have ${holes} entries`)
+          if (body.par_per_hole.some((p: number) => !Number.isInteger(p) || p < 3 || p > 6)) {
+            return err('Each par value must be an integer between 3 and 6')
+          }
+          parPerHole = body.par_per_hole
+        }
+
         const { data, error } = await supabase.from('league_rounds').insert({
           league_id: route.leagueId,
           tenant_id: tenantId,
@@ -1263,6 +1279,7 @@ Deno.serve(async (req) => {
           description: body.description ?? null,
           start_date: body.start_date,
           end_date: body.end_date,
+          ...(parPerHole ? { par_per_hole: parPerHole } : {}),
         }).select().single()
         if (error) return err(error.message, 500)
 
@@ -1287,6 +1304,18 @@ Deno.serve(async (req) => {
         const updates: Record<string, any> = {}
         for (const key of ['name', 'description', 'start_date', 'end_date', 'round_number']) {
           if (body[key] !== undefined) updates[key] = body[key]
+        }
+        if (Array.isArray(body.par_per_hole)) {
+          // Allow clearing with [] or setting full-length array
+          if (body.par_per_hole.length > 0) {
+            const { data: lg } = await supabase.from('leagues').select('scoring_holes').eq('id', route.leagueId).single()
+            const holes = (lg?.scoring_holes as number) || 18
+            if (body.par_per_hole.length !== holes) return err(`par_per_hole must have ${holes} entries`)
+            if (body.par_per_hole.some((p: number) => !Number.isInteger(p) || p < 3 || p > 6)) {
+              return err('Each par value must be an integer between 3 and 6')
+            }
+          }
+          updates.par_per_hole = body.par_per_hole
         }
         const { data, error } = await supabase.from('league_rounds').update(updates).eq('id', route.subId).select().single()
         if (error) return err(error.message, 500)
