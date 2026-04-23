@@ -1269,7 +1269,13 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
         </TabsContent>
 
         {/* Scores */}
-        <TabsContent value="scores">
+        <TabsContent value="scores" className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              {scores?.length || 0} score{(scores?.length || 0) === 1 ? "" : "s"} submitted
+            </p>
+            <AdminScoreEntryDialog league={league} players={players || []} />
+          </div>
           {(!scores || scores.length === 0) ? (
             <p className="text-sm text-muted-foreground py-4">No scores submitted yet.</p>
           ) : (
