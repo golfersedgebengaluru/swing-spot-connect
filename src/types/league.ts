@@ -285,6 +285,8 @@ export interface LeaderboardResponse {
   entries: LeaderboardEntry[];
   round: number | null;
   filter: 'all' | 'individuals' | 'teams';
+  /** When true the leaderboard is operating in handicap mode — UI should hide gross. */
+  handicap_active?: boolean;
 }
 
 // ── League Round ─────────────────────────────────────────────
@@ -297,6 +299,8 @@ export interface LeagueRound {
   description: string | null;
   start_date: string;
   end_date: string;
+  /** Par per hole. Empty array if not yet configured. Length matches league.scoring_holes when set. */
+  par_per_hole: number[];
   created_at: string;
   updated_at: string;
 }
@@ -307,6 +311,7 @@ export interface CreateRoundRequest {
   start_date: string;
   end_date: string;
   round_number?: number;
+  par_per_hole?: number[];
 }
 
 export interface UpdateRoundRequest {
@@ -315,6 +320,7 @@ export interface UpdateRoundRequest {
   start_date?: string;
   end_date?: string;
   round_number?: number;
+  par_per_hole?: number[];
 }
 
 // ── League Competition ───────────────────────────────────────
