@@ -635,6 +635,21 @@ Deno.serve(async (req) => {
         const validMethods = ['photo_ocr', 'manual', 'api']
         if (!validMethods.includes(method_val)) return err('Invalid score method')
 
+        // Determine target player. Admins can submit on behalf of others by passing player_id.
+        let targetPlayerId = user.id
+        let actorRole: string = 'player'
+        if (body.player_id && body.player_id !== user.id) {
+          const role = await getUserLeagueRole(supabase, user.id, tenantId)
+          if (role !== 'franchise_admin' && role !== 'site_admin' && role !== 'league_admin') {
+            return err('Only admins can submit scores for other players', 403)
+          }
+          // Verify target player belongs to this league
+          const { data: lp } = await supabase.from('league_players').select('user_id').eq('league_id', route.leagueId).eq('user_id', body.player_id).maybeSingle()
+          if (!lp) return err('Target player is not in this league', 404)
+          targetPlayerId = body.player_id
+          actorRole = role
+        }
+
         // Calculate total from holes if provided
         let totalScore = body.total_score
         if (body.hole_scores && Array.isArray(body.hole_scores)) {
@@ -643,7 +658,7 @@ Deno.serve(async (req) => {
 
         const { data: score, error: sErr } = await supabase.from('league_scores').insert({
           league_id: route.leagueId,
-          player_id: user.id,
+          player_id: targetPlayerId,
           tenant_id: tenantId,
           round_number: body.round_number || 1,
           hole_scores: body.hole_scores || [],
@@ -656,8 +671,8 @@ Deno.serve(async (req) => {
 
         if (sErr) return err(sErr.message, 500)
 
-        await audit(supabase, tenantId, route.leagueId, user.id, 'player', 'ScoreSubmitted', 'league_score', score.id, null, score)
-        await emitFeed(supabase, tenantId, route.leagueId, user.id, 'score_submitted', { total_score: score.total_score, round_number: score.round_number, method: method_val })
+        await audit(supabase, tenantId, route.leagueId, user.id, actorRole, 'ScoreSubmitted', 'league_score', score.id, null, score)
+        await emitFeed(supabase, tenantId, route.leagueId, user.id, 'score_submitted', { total_score: score.total_score, round_number: score.round_number, method: method_val, player_id: targetPlayerId })
         return json(score, 201)
       }
 
