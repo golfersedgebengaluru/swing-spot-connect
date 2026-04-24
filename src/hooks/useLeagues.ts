@@ -197,6 +197,10 @@ export interface LeaguePlayerWithProfile {
   email: string | null;
   league_city_id?: string | null;
   league_location_id?: string | null;
+  team_id?: string | null;
+  team_name?: string | null;
+  team_city_id?: string | null;
+  team_location_id?: string | null;
 }
 
 export function useLeaguePlayers(leagueId: string | null) {

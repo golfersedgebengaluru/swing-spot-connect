@@ -69,6 +69,23 @@ import type { LeaguePlayerWithProfile } from "@/hooks/useLeagues";
 // ── Inline assignment cells ──────────────────────────────────
 function PlayerLocationCell({ leagueId, player }: { leagueId: string; player: LeaguePlayerWithProfile }) {
   const assign = useAssignPlayerLocation(leagueId);
+  const inheritsFromTeam = !!player.team_id && (!!player.team_city_id || !!player.team_location_id);
+  if (inheritsFromTeam) {
+    return (
+      <div className="space-y-1">
+        <LocationAssignCell
+          leagueId={leagueId}
+          cityId={player.team_city_id ?? null}
+          locationId={player.team_location_id ?? null}
+          disabled
+          onChange={() => {}}
+        />
+        <p className="text-[10px] text-muted-foreground italic">
+          Inherited from team{player.team_name ? ` "${player.team_name}"` : ""}
+        </p>
+      </div>
+    );
+  }
   return (
     <LocationAssignCell
       leagueId={leagueId}
