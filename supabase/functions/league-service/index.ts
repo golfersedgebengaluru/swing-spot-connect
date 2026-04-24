@@ -2486,6 +2486,19 @@ Deno.serve(async (req) => {
       if (body.league_location_id !== undefined) updates.league_location_id = body.league_location_id
       if (Object.keys(updates).length === 0) return err('No valid fields')
 
+      // Guard: if the player belongs to a team that already has a city/location,
+      // the player inherits it and cannot be reassigned individually.
+      if (player.team_id) {
+        const { data: team } = await supabase
+          .from('league_teams')
+          .select('league_city_id, league_location_id, name')
+          .eq('id', player.team_id)
+          .maybeSingle()
+        if (team && (team.league_city_id || team.league_location_id)) {
+          return err(`Player inherits city/location from team "${team.name}". Reassign the team instead.`, 409)
+        }
+      }
+
       const { data, error } = await supabase.from('league_players').update(updates).eq('id', playerId).select().single()
       if (error) return err(error.message, 500)
       await audit(supabase, tenantId, route.leagueId, user.id, role, 'LeaguePlayerAssigned', 'league_player', playerId, player, data)
