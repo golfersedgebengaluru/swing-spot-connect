@@ -1084,7 +1084,7 @@ Deno.serve(async (req) => {
       if (method === 'GET') {
         const { data: players, error: pErr } = await supabase
           .from('league_players')
-          .select('id, league_id, user_id, joined_via_code_id, joined_at')
+          .select('id, league_id, user_id, joined_via_code_id, joined_at, league_city_id, league_location_id, team_id')
           .eq('league_id', route.leagueId)
           .order('joined_at')
         if (pErr) return err(pErr.message, 500)
