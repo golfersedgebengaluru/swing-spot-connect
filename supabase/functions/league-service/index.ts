@@ -1844,11 +1844,20 @@ Deno.serve(async (req) => {
           .eq('round_number', body.round_number)
 
         const hiddenHoles = hiddenHolesRecord.hidden_holes as number[]
-        const peoriaMultiplier = league.scoring_holes === 9 ? 3 : 3 // configurable via peoria_multiplier on league
 
-        // Fetch league's peoria_multiplier
-        const { data: leagueFull } = await supabase.from('leagues').select('peoria_multiplier').eq('id', route.leagueId).single()
-        const multiplier = Number(leagueFull?.peoria_multiplier) || 3
+        // Fetch round par_per_hole from league_rounds (drives the handicap formula)
+        const { data: roundCfg } = await supabase
+          .from('league_rounds')
+          .select('par_per_hole')
+          .eq('league_id', route.leagueId)
+          .eq('round_number', body.round_number)
+          .maybeSingle()
+        const parPerHole: number[] = (roundCfg?.par_per_hole as number[]) || []
+        const roundPar = parPerHole.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
+
+        // Peoria-style handicap: (sum of hidden hole scores × 3) − round par
+        // Works for both 9-hole (3 hidden × 3 = 9 holes) and 18-hole (6 hidden × 3 = 18 holes)
+        const HC_MULTIPLIER = 3
 
         const results: any[] = []
         for (const score of (scores || [])) {
@@ -1861,7 +1870,7 @@ Deno.serve(async (req) => {
             return sum + (holeScores[idx] || 0)
           }, 0)
 
-          const peoriaHandicap = hiddenSum * multiplier
+          const peoriaHandicap = roundPar > 0 ? (hiddenSum * HC_MULTIPLIER) - roundPar : 0
           const grossScore = score.total_score || holeScores.reduce((s: number, v: number) => s + (v || 0), 0)
           const netScore = grossScore - peoriaHandicap
 
