@@ -2088,20 +2088,28 @@ Deno.serve(async (req) => {
             )
             if (memberScoresForRound.length === 0) continue
 
-            let roundNet: number
+            // Team gross uses configured aggregation method on member GROSS scores
             let roundGross: number
             if (aggregation === 'best_ball') {
-              const best = memberScoresForRound.reduce((a, b) => a.net_score < b.net_score ? a : b)
-              roundNet = best.net_score
+              // Best ball on gross: lowest gross score
+              const best = memberScoresForRound.reduce((a, b) => a.gross_score < b.gross_score ? a : b)
               roundGross = best.gross_score
             } else {
-              roundNet = memberScoresForRound.reduce((s, p) => s + p.net_score, 0) / memberScoresForRound.length
               roundGross = memberScoresForRound.reduce((s, p) => s + p.gross_score, 0) / memberScoresForRound.length
             }
 
+            // Team handicap for the round = average of participating members' individual handicaps
+            const roundHandicap = memberScoresForRound.reduce((s, p) => s + p.peoria_handicap, 0) / memberScoresForRound.length
+            const roundNet = roundGross - roundHandicap
+
             teamTotalNet += roundNet
             teamTotalGross += roundGross
-            teamBreakdown.push({ round: rn, gross: Math.round(roundGross * 100) / 100, net: Math.round(roundNet * 100) / 100, handicap: 0 })
+            teamBreakdown.push({
+              round: rn,
+              gross: Math.round(roundGross * 100) / 100,
+              net: Math.round(roundNet * 100) / 100,
+              handicap: Math.round(roundHandicap * 100) / 100,
+            })
           }
 
           // Apply fairness factor: team_final = aggregated * (1 - fairness_pct / 100)
