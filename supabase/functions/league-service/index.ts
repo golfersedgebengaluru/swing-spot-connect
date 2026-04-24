@@ -1844,11 +1844,20 @@ Deno.serve(async (req) => {
           .eq('round_number', body.round_number)
 
         const hiddenHoles = hiddenHolesRecord.hidden_holes as number[]
-        const peoriaMultiplier = league.scoring_holes === 9 ? 3 : 3 // configurable via peoria_multiplier on league
 
-        // Fetch league's peoria_multiplier
-        const { data: leagueFull } = await supabase.from('leagues').select('peoria_multiplier').eq('id', route.leagueId).single()
-        const multiplier = Number(leagueFull?.peoria_multiplier) || 3
+        // Fetch round par_per_hole from league_rounds (drives the handicap formula)
+        const { data: roundCfg } = await supabase
+          .from('league_rounds')
+          .select('par_per_hole')
+          .eq('league_id', route.leagueId)
+          .eq('round_number', body.round_number)
+          .maybeSingle()
+        const parPerHole: number[] = (roundCfg?.par_per_hole as number[]) || []
+        const roundPar = parPerHole.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
+
+        // Peoria-style handicap: (sum of hidden hole scores × 3) − round par
+        // Works for both 9-hole (3 hidden × 3 = 9 holes) and 18-hole (6 hidden × 3 = 18 holes)
+        const HC_MULTIPLIER = 3
 
         const results: any[] = []
         for (const score of (scores || [])) {
@@ -1861,7 +1870,7 @@ Deno.serve(async (req) => {
             return sum + (holeScores[idx] || 0)
           }, 0)
 
-          const peoriaHandicap = hiddenSum * multiplier
+          const peoriaHandicap = roundPar > 0 ? (hiddenSum * HC_MULTIPLIER) - roundPar : 0
           const grossScore = score.total_score || holeScores.reduce((s: number, v: number) => s + (v || 0), 0)
           const netScore = grossScore - peoriaHandicap
 
@@ -1933,7 +1942,18 @@ Deno.serve(async (req) => {
         if (hh.revealed_at) hiddenHolesMap[hh.round_number] = hh.hidden_holes as number[]
       }
 
-      const multiplier = Number(league.peoria_multiplier) || 3
+      // Fetch all rounds' par_per_hole → roundParMap[round_number] = total par for round
+      const { data: allRounds } = await supabase
+        .from('league_rounds')
+        .select('round_number, par_per_hole')
+        .eq('league_id', route.leagueId)
+      const roundParMap: Record<number, number> = {}
+      for (const r of (allRounds || [])) {
+        const arr = (r.par_per_hole as number[]) || []
+        roundParMap[r.round_number] = arr.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
+      }
+
+      const HC_MULTIPLIER = 3
       const fairnessPct = Number(league.fairness_factor_pct) || 0
       const aggregation = league.team_aggregation_method || 'best_ball'
 
@@ -1952,13 +1972,14 @@ Deno.serve(async (req) => {
         const holeScores = score.hole_scores as number[]
         const grossScore = score.total_score || (holeScores ? holeScores.reduce((s: number, v: number) => s + (v || 0), 0) : 0)
         const hiddenHoles = hiddenHolesMap[score.round_number]
+        const roundPar = roundParMap[score.round_number] || 0
         let netScore = grossScore
         let hiddenSum = 0
         let handicap = 0
 
-        if (hiddenHoles && holeScores && holeScores.length > 0) {
+        if (hiddenHoles && holeScores && holeScores.length > 0 && roundPar > 0) {
           hiddenSum = hiddenHoles.reduce((sum, holeNum) => sum + (holeScores[holeNum - 1] || 0), 0)
-          handicap = hiddenSum * multiplier
+          handicap = (hiddenSum * HC_MULTIPLIER) - roundPar
           netScore = grossScore - handicap
         }
 
@@ -2067,20 +2088,28 @@ Deno.serve(async (req) => {
             )
             if (memberScoresForRound.length === 0) continue
 
-            let roundNet: number
+            // Team gross uses configured aggregation method on member GROSS scores
             let roundGross: number
             if (aggregation === 'best_ball') {
-              const best = memberScoresForRound.reduce((a, b) => a.net_score < b.net_score ? a : b)
-              roundNet = best.net_score
+              // Best ball on gross: lowest gross score
+              const best = memberScoresForRound.reduce((a, b) => a.gross_score < b.gross_score ? a : b)
               roundGross = best.gross_score
             } else {
-              roundNet = memberScoresForRound.reduce((s, p) => s + p.net_score, 0) / memberScoresForRound.length
               roundGross = memberScoresForRound.reduce((s, p) => s + p.gross_score, 0) / memberScoresForRound.length
             }
 
+            // Team handicap for the round = average of participating members' individual handicaps
+            const roundHandicap = memberScoresForRound.reduce((s, p) => s + p.peoria_handicap, 0) / memberScoresForRound.length
+            const roundNet = roundGross - roundHandicap
+
             teamTotalNet += roundNet
             teamTotalGross += roundGross
-            teamBreakdown.push({ round: rn, gross: Math.round(roundGross * 100) / 100, net: Math.round(roundNet * 100) / 100, handicap: 0 })
+            teamBreakdown.push({
+              round: rn,
+              gross: Math.round(roundGross * 100) / 100,
+              net: Math.round(roundNet * 100) / 100,
+              handicap: Math.round(roundHandicap * 100) / 100,
+            })
           }
 
           // Apply fairness factor: team_final = aggregated * (1 - fairness_pct / 100)
