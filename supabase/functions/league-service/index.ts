@@ -1942,7 +1942,18 @@ Deno.serve(async (req) => {
         if (hh.revealed_at) hiddenHolesMap[hh.round_number] = hh.hidden_holes as number[]
       }
 
-      const multiplier = Number(league.peoria_multiplier) || 3
+      // Fetch all rounds' par_per_hole → roundParMap[round_number] = total par for round
+      const { data: allRounds } = await supabase
+        .from('league_rounds')
+        .select('round_number, par_per_hole')
+        .eq('league_id', route.leagueId)
+      const roundParMap: Record<number, number> = {}
+      for (const r of (allRounds || [])) {
+        const arr = (r.par_per_hole as number[]) || []
+        roundParMap[r.round_number] = arr.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
+      }
+
+      const HC_MULTIPLIER = 3
       const fairnessPct = Number(league.fairness_factor_pct) || 0
       const aggregation = league.team_aggregation_method || 'best_ball'
 
@@ -1961,13 +1972,14 @@ Deno.serve(async (req) => {
         const holeScores = score.hole_scores as number[]
         const grossScore = score.total_score || (holeScores ? holeScores.reduce((s: number, v: number) => s + (v || 0), 0) : 0)
         const hiddenHoles = hiddenHolesMap[score.round_number]
+        const roundPar = roundParMap[score.round_number] || 0
         let netScore = grossScore
         let hiddenSum = 0
         let handicap = 0
 
-        if (hiddenHoles && holeScores && holeScores.length > 0) {
+        if (hiddenHoles && holeScores && holeScores.length > 0 && roundPar > 0) {
           hiddenSum = hiddenHoles.reduce((sum, holeNum) => sum + (holeScores[holeNum - 1] || 0), 0)
-          handicap = hiddenSum * multiplier
+          handicap = (hiddenSum * HC_MULTIPLIER) - roundPar
           netScore = grossScore - handicap
         }
 
