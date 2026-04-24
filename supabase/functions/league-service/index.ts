@@ -1100,12 +1100,29 @@ Deno.serve(async (req) => {
           profiles = profs || []
         }
 
+        // Resolve team city/location for players that belong to a team
+        const teamIds = Array.from(new Set((players || []).map((p: any) => p.team_id).filter(Boolean)))
+        let teamMap = new Map<string, any>()
+        if (teamIds.length > 0) {
+          const { data: teamRows } = await supabase
+            .from('league_teams')
+            .select('id, name, league_city_id, league_location_id')
+            .in('id', teamIds)
+          teamMap = new Map((teamRows || []).map((t: any) => [t.id, t]))
+        }
+
         const profileMap = new Map(profiles.map((p: any) => [p.user_id, p]))
-        const enriched = (players || []).map((p: any) => ({
-          ...p,
-          display_name: profileMap.get(p.user_id)?.display_name || null,
-          email: profileMap.get(p.user_id)?.email || null,
-        }))
+        const enriched = (players || []).map((p: any) => {
+          const team = p.team_id ? teamMap.get(p.team_id) : null
+          return {
+            ...p,
+            display_name: profileMap.get(p.user_id)?.display_name || null,
+            email: profileMap.get(p.user_id)?.email || null,
+            team_name: team?.name || null,
+            team_city_id: team?.league_city_id || null,
+            team_location_id: team?.league_location_id || null,
+          }
+        })
 
         return json(enriched)
       }
