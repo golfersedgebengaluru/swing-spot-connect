@@ -490,6 +490,105 @@ function getUtcOffsetForTz(date: string, tz: string): string {
   return "+00:00";
 }
 
+// ===== Calendar invite (.ics) generation =====
+// Formats a JS date / ISO string into the iCal UTC timestamp form: YYYYMMDDTHHMMSSZ
+function toIcsUtc(input: string | Date): string {
+  const d = typeof input === "string" ? new Date(input) : input;
+  return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+}
+
+// Escape iCal text fields per RFC 5545 §3.3.11
+function icsEscape(s: string): string {
+  return String(s ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\n/g, "\\n")
+    .replace(/,/g, "\\,")
+    .replace(/;/g, "\\;");
+}
+
+// Fold lines to <=75 octets per RFC 5545 §3.1
+function icsFold(line: string): string {
+  if (line.length <= 75) return line;
+  const out: string[] = [];
+  let i = 0;
+  while (i < line.length) {
+    out.push((i === 0 ? "" : " ") + line.slice(i, i + 73));
+    i += 73;
+  }
+  return out.join("\r\n");
+}
+
+interface IcsParams {
+  uid: string;            // stable per booking — use booking id
+  sequence?: number;      // bump on reschedule
+  method?: "REQUEST" | "CANCEL";
+  start: string;          // ISO
+  end: string;            // ISO
+  summary: string;
+  description?: string;
+  location?: string;
+}
+
+function buildIcs(p: IcsParams): string {
+  const now = toIcsUtc(new Date());
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Golfer's Edge//Booking//EN",
+    "CALSCALE:GREGORIAN",
+    `METHOD:${p.method || "REQUEST"}`,
+    "BEGIN:VEVENT",
+    `UID:${p.uid}`,
+    `SEQUENCE:${p.sequence ?? 0}`,
+    `DTSTAMP:${now}`,
+    `DTSTART:${toIcsUtc(p.start)}`,
+    `DTEND:${toIcsUtc(p.end)}`,
+    `SUMMARY:${icsEscape(p.summary)}`,
+    p.description ? `DESCRIPTION:${icsEscape(p.description)}` : "",
+    p.location ? `LOCATION:${icsEscape(p.location)}` : "",
+    "STATUS:CONFIRMED",
+    "TRANSP:OPAQUE",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].filter(Boolean);
+  return lines.map(icsFold).join("\r\n") + "\r\n";
+}
+
+// Uploads the .ics to the booking-ics bucket and returns a long-lived signed URL.
+// Returns null on any failure — caller should treat the email as still sendable.
+async function generateAddToCalendarUrl(
+  client: ReturnType<typeof createAdminClient>,
+  bookingId: string,
+  params: Omit<IcsParams, "uid">,
+): Promise<string | null> {
+  try {
+    const ics = buildIcs({ uid: `booking-${bookingId}@golfersedge`, ...params });
+    const path = `${bookingId}.ics`;
+    const { error: upErr } = await client.storage
+      .from("booking-ics")
+      .upload(path, new Blob([ics], { type: "text/calendar" }), {
+        contentType: "text/calendar; charset=utf-8",
+        upsert: true,
+      });
+    if (upErr) {
+      console.error("ICS upload failed:", upErr.message);
+      return null;
+    }
+    // 90 days is plenty — bookings are usually <= a few weeks out
+    const { data, error: signErr } = await client.storage
+      .from("booking-ics")
+      .createSignedUrl(path, 60 * 60 * 24 * 90);
+    if (signErr || !data?.signedUrl) {
+      console.error("ICS sign failed:", signErr?.message);
+      return null;
+    }
+    return data.signedUrl;
+  } catch (e) {
+    console.error("generateAddToCalendarUrl error:", (e as Error).message);
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
