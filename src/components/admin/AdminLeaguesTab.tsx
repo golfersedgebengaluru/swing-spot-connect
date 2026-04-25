@@ -1395,8 +1395,20 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
               </TableHeader>
               <TableBody>
                 {scores.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="text-sm">{(s as any).player_name || s.player_id.slice(0, 8)}</TableCell>
+                  <TableRow
+                    key={s.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => setScorecardScore(s)}
+                  >
+                    <TableCell className="text-sm">
+                      <button
+                        type="button"
+                        className="text-primary hover:underline font-medium"
+                        onClick={(e) => { e.stopPropagation(); setScorecardScore(s); }}
+                      >
+                        {(s as any).player_name || s.player_id.slice(0, 8)}
+                      </button>
+                    </TableCell>
                     <TableCell>{s.round_number}</TableCell>
                     <TableCell className="font-semibold">{s.total_score ?? "—"}</TableCell>
                     <TableCell><Badge variant="secondary">{s.method}</Badge></TableCell>
