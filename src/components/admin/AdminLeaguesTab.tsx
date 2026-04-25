@@ -1164,6 +1164,8 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
   const createCode = useCreateJoinCode(league.id);
   const revokeCode = useRevokeJoinCode(league.id);
   const { data: scores } = useLeagueScores(league.id);
+  const { data: rounds: scoreRounds } = useLeagueRounds(league.id);
+  const [scorecardScore, setScorecardScore] = useState<any | null>(null);
   const { data: players, isLoading: playersLoading } = useLeaguePlayers(league.id);
   const removePlayer = useRemoveLeaguePlayer(league.id);
   const { data: branding } = useLeagueBranding(tenant.sponsorship_enabled ? league.id : null);
