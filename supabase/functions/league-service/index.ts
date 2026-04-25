@@ -202,6 +202,34 @@ function parseRoute(url: URL): Route {
     if (subResource === 'leaderboard') {
       return { action: 'league-leaderboard', leagueId, subResource }
     }
+    // /leagues/:id/complete
+    if (subResource === 'complete') {
+      return { action: 'league-complete', leagueId, subResource }
+    }
+    // /leagues/:id/reopen
+    if (subResource === 'reopen') {
+      return { action: 'league-reopen', leagueId, subResource }
+    }
+    // /leagues/:id/wrap-up
+    if (subResource === 'wrap-up') {
+      return { action: 'league-wrap-up', leagueId, subResource }
+    }
+    // /leagues/:id/awards/:awardId
+    if (subResource === 'awards' && segments[4]) {
+      return { action: 'league-award-detail', leagueId, subResource, subId: segments[4] }
+    }
+    // /leagues/:id/awards
+    if (subResource === 'awards') {
+      return { action: 'league-awards', leagueId, subResource }
+    }
+    // /leagues/:id/recap-card/:playerId
+    if (subResource === 'recap-card' && segments[4]) {
+      return { action: 'league-recap-card', leagueId, subResource, subId: segments[4] }
+    }
+    // /leagues/:id/recap-card
+    if (subResource === 'recap-card') {
+      return { action: 'league-recap-card', leagueId, subResource }
+    }
     // /leagues/:id/feed/:feedItemId/reactions
     if (subResource === 'feed' && segments[4] && segments[5] === 'reactions') {
       return { action: 'league-feed-reaction', leagueId, subResource, subId: segments[4] }
