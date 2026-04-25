@@ -589,6 +589,49 @@ async function generateAddToCalendarUrl(
   }
 }
 
+// Generates a CANCEL .ics with same UID + bumped SEQUENCE.
+// When the user opens it, calendar apps recognize the matching UID and
+// auto-remove (or mark cancelled) the original event.
+async function generateCancelCalendarUrl(
+  client: ReturnType<typeof createAdminClient>,
+  bookingId: string,
+  params: { start: string; end: string; summary: string; location?: string },
+): Promise<string | null> {
+  try {
+    const ics = buildIcs({
+      uid: `booking-${bookingId}@golfersedge`,
+      sequence: 1,
+      method: "CANCEL",
+      start: params.start,
+      end: params.end,
+      summary: params.summary,
+      location: params.location,
+    });
+    const path = `${bookingId}-cancel.ics`;
+    const { error: upErr } = await client.storage
+      .from("booking-ics")
+      .upload(path, new Blob([ics], { type: "text/calendar" }), {
+        contentType: "text/calendar; charset=utf-8; method=CANCEL",
+        upsert: true,
+      });
+    if (upErr) {
+      console.error("Cancel ICS upload failed:", upErr.message);
+      return null;
+    }
+    const { data, error: signErr } = await client.storage
+      .from("booking-ics")
+      .createSignedUrl(path, 60 * 60 * 24 * 30);
+    if (signErr || !data?.signedUrl) {
+      console.error("Cancel ICS sign failed:", signErr?.message);
+      return null;
+    }
+    return data.signedUrl;
+  } catch (e) {
+    console.error("generateCancelCalendarUrl error:", (e as Error).message);
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -1690,6 +1733,12 @@ Deno.serve(async (req) => {
       });
 
       // Send cancellation email to user
+      const removeFromCalendarUrl = await generateCancelCalendarUrl(adminClient, booking_id, {
+        start: booking.start_time,
+        end: booking.end_time,
+        summary: `${booking.session_type === "coaching" ? "Coaching" : "Bay"} Booking — ${bayName}`,
+        location: `${bayName}, ${booking.city}`,
+      });
       try {
         await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
           method: "POST",
@@ -1708,6 +1757,7 @@ Deno.serve(async (req) => {
               time: formatTime(booking.start_time, calTz),
               duration: `${booking.duration_minutes} min`,
               hours_refunded: hoursRefunded,
+              remove_from_calendar_url: removeFromCalendarUrl,
             },
           }),
         });
@@ -1835,6 +1885,12 @@ Deno.serve(async (req) => {
       });
 
       // Send cancellation email to user
+      const removeFromCalendarUrlAdmin = await generateCancelCalendarUrl(adminClient, booking_id, {
+        start: booking.start_time,
+        end: booking.end_time,
+        summary: `${booking.session_type === "coaching" ? "Coaching" : "Bay"} Booking — ${bayName}`,
+        location: `${bayName}, ${booking.city}`,
+      });
       try {
         await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
           method: "POST",
@@ -1843,7 +1899,7 @@ Deno.serve(async (req) => {
             user_id: booking.user_id,
             template: "booking_cancelled",
             subject: "🚫 Booking Cancelled by Admin",
-            data: { bay: bayName, city: booking.city, date: formatDate(booking.start_time, calTz), time: formatTime(booking.start_time, calTz), duration: `${booking.duration_minutes} min`, hours_refunded: hoursRefunded },
+            data: { bay: bayName, city: booking.city, date: formatDate(booking.start_time, calTz), time: formatTime(booking.start_time, calTz), duration: `${booking.duration_minutes} min`, hours_refunded: hoursRefunded, remove_from_calendar_url: removeFromCalendarUrlAdmin },
           }),
         });
       } catch (e) { console.error("Failed to send cancellation email:", (e as Error).message); }
