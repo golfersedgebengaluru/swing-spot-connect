@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAllCities } from "@/hooks/useBookings";
 import { Button } from "@/components/ui/button";
@@ -1085,12 +1086,19 @@ function LeaderboardPanel({ league }: { league: League }) {
               <TableHead>Type</TableHead>
               {!leaderboard?.handicap_active && <TableHead className="text-right">Gross</TableHead>}
               <TableHead className="text-right">Net</TableHead>
+              <TableHead className="text-right">Par</TableHead>
+              <TableHead className="text-right">vs Par</TableHead>
               <TableHead className="text-right">Final</TableHead>
               <TableHead className="text-right">Rounds</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {entries.map((entry) => (
+            {entries.map((entry) => {
+              const vsPar = entry.final_vs_par ?? entry.net_vs_par ?? 0;
+              const vsParLabel = vsPar === 0 ? "E" : vsPar > 0 ? `+${vsPar}` : `${vsPar}`;
+              const vsParClass = vsPar < 0 ? "text-emerald-600" : vsPar > 0 ? "text-red-600" : "text-muted-foreground";
+              const colSpanForDetail = leaderboard?.handicap_active ? 8 : 9;
+              return (
               <>
                 <TableRow
                   key={entry.id}
@@ -1111,25 +1119,36 @@ function LeaderboardPanel({ league }: { league: League }) {
                   </TableCell>
                   {!leaderboard?.handicap_active && <TableCell className="text-right">{entry.total_gross}</TableCell>}
                   <TableCell className="text-right">{entry.total_net}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">{entry.total_par ?? '—'}</TableCell>
+                  <TableCell className={cn("text-right font-semibold", vsParClass)}>{vsParLabel}</TableCell>
                   <TableCell className="text-right font-semibold">{entry.final_score}</TableCell>
                   <TableCell className="text-right">{entry.rounds_played}</TableCell>
                 </TableRow>
 
                 {expandedEntry === entry.id && (
                   <TableRow key={`${entry.id}-detail`}>
-                    <TableCell colSpan={leaderboard?.handicap_active ? 6 : 7} className="bg-muted/20 p-4">
+                    <TableCell colSpan={colSpanForDetail} className="bg-muted/20 p-4">
                       <div className="space-y-3">
                         {/* Round breakdown */}
                         {entry.breakdown.length > 0 && (
                           <div>
                             <p className="text-xs font-medium text-muted-foreground mb-1">Round Breakdown</p>
                             <div className="flex gap-3 flex-wrap">
-                              {entry.breakdown.map((b) => (
-                                <div key={b.round} className="border rounded px-3 py-1.5 text-xs bg-background">
-                                  <span className="font-medium">R{b.round}</span>: Gross {b.gross}, Net {b.net}
-                                  {b.handicap > 0 && <span className="text-muted-foreground"> (HC: -{b.handicap})</span>}
-                                </div>
-                              ))}
+                              {entry.breakdown.map((b) => {
+                                const rVs = b.net_vs_par ?? 0;
+                                const rLabel = rVs === 0 ? "E" : rVs > 0 ? `+${rVs}` : `${rVs}`;
+                                const rClass = rVs < 0 ? "text-emerald-600" : rVs > 0 ? "text-red-600" : "text-muted-foreground";
+                                return (
+                                  <div key={b.round} className="border rounded px-3 py-1.5 text-xs bg-background">
+                                    <span className="font-medium">R{b.round}</span>: Gross {b.gross}, Net {b.net}
+                                    {b.par ? <span className="text-muted-foreground"> (Par {b.par})</span> : null}
+                                    {b.net_vs_par !== undefined && (
+                                      <span className={cn("ml-1 font-semibold", rClass)}>{rLabel}</span>
+                                    )}
+                                    {b.handicap > 0 && <span className="text-muted-foreground"> · HC -{b.handicap}</span>}
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         )}
@@ -1157,7 +1176,8 @@ function LeaderboardPanel({ league }: { league: League }) {
                   </TableRow>
                 )}
               </>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       )}

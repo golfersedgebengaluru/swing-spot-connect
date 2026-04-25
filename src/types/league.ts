@@ -276,8 +276,14 @@ export interface LeaderboardEntry {
   total_gross: number;
   total_net: number;
   final_score: number;
+  /** Sum of round par across all rounds the entrant has played. */
+  total_par?: number;
+  /** total_net − total_par. Negative is under par. */
+  net_vs_par?: number;
+  /** final_score − total_par (after fairness factor for teams). */
+  final_vs_par?: number;
   rounds_played: number;
-  breakdown: { round: number; gross: number; net: number; handicap: number }[];
+  breakdown: { round: number; gross: number; net: number; handicap: number; par?: number; net_vs_par?: number }[];
   members?: { player_id: string; name: string; net_score: number }[];
 }
 
