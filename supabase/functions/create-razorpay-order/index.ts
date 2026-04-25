@@ -67,14 +67,15 @@ serve(async (req) => {
       );
     }
 
-    const apiKey = (gateway.api_key || "").trim();
+    const gw: any = gateway;
+    const apiKey = (gw.api_key || "").trim();
 
     // Prefer env var secret (RAZORPAY_SECRET_<CITY_SLUG>) over DB column.
     // The DB column will be dropped once all cities have env vars configured.
-    const citySlug = (gateway.city_slug || city.toLowerCase().replace(/[^a-z0-9]/g, "_")).toUpperCase();
+    const citySlug = (gw.city_slug || city.toLowerCase().replace(/[^a-z0-9]/g, "_")).toUpperCase();
     const apiSecret = (
       Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) ||
-      (gateway.api_secret || "")
+      (gw.api_secret || "")
     ).trim();
 
     if (!apiKey || !apiSecret) {

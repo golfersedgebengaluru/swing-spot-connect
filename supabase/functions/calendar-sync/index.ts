@@ -582,16 +582,17 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
       if (existingProfile) {
-          guestUserId = existingProfile.user_id || existingProfile.id;
+          const ep: any = existingProfile;
+          guestUserId = ep.user_id || ep.id;
           // Update phone and preferred_city if missing
           await adminClient
             .from("profiles")
             .update({
-              phone: guest_phone || existingProfile.phone || null,
-              preferred_city: existingProfile.preferred_city || city || null,
-              display_name: existingProfile.display_name || guest_name,
+              phone: guest_phone || ep.phone || null,
+              preferred_city: ep.preferred_city || city || null,
+              display_name: ep.display_name || guest_name,
             })
-            .eq("id", existingProfile.id);
+            .eq("id", ep.id);
         } else {
           const { data: newProfile } = await adminClient
             .from("profiles")

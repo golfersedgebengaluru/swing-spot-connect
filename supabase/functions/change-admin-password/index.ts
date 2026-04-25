@@ -11,7 +11,7 @@ const RATE_LIMIT_MAX = 5;
 const RATE_LIMIT_WINDOW_MIN = 15;
 
 async function checkRateLimit(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: any,
   identifier: string,
   action: string
 ): Promise<boolean> {
@@ -26,7 +26,7 @@ async function checkRateLimit(
 
   if ((count ?? 0) >= RATE_LIMIT_MAX) return false;
 
-  await adminClient.from("rate_limit_attempts").insert({ identifier, action });
+  await adminClient.from("rate_limit_attempts").insert({ identifier, action } as any);
   return true;
 }
 
