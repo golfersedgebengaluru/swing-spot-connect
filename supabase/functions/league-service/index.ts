@@ -2090,7 +2090,8 @@ Deno.serve(async (req) => {
           const roundNumbers = [...new Set(playerScores.map((ps) => ps.round_number))]
           let teamTotalNet = 0
           let teamTotalGross = 0
-          const teamBreakdown: { round: number; gross: number; net: number; handicap: number }[] = []
+          let teamTotalPar = 0
+          const teamBreakdown: { round: number; gross: number; net: number; handicap: number; par: number; net_vs_par: number }[] = []
 
           for (const rn of roundNumbers) {
             const memberScoresForRound = playerScores.filter(
@@ -2111,14 +2112,18 @@ Deno.serve(async (req) => {
             // Team handicap for the round = average of participating members' individual handicaps
             const roundHandicap = memberScoresForRound.reduce((s, p) => s + p.peoria_handicap, 0) / memberScoresForRound.length
             const roundNet = roundGross - roundHandicap
+            const roundPar = roundParMap[rn] || 0
 
             teamTotalNet += roundNet
             teamTotalGross += roundGross
+            teamTotalPar += roundPar
             teamBreakdown.push({
               round: rn,
               gross: Math.round(roundGross * 100) / 100,
               net: Math.round(roundNet * 100) / 100,
               handicap: Math.round(roundHandicap * 100) / 100,
+              par: roundPar,
+              net_vs_par: Math.round((roundNet - roundPar) * 100) / 100,
             })
           }
 
@@ -2138,6 +2143,9 @@ Deno.serve(async (req) => {
             total_gross: Math.round(teamTotalGross * 100) / 100,
             total_net: Math.round(teamTotalNet * 100) / 100,
             final_score: Math.round(finalScore * 100) / 100,
+            total_par: teamTotalPar,
+            net_vs_par: Math.round((teamTotalNet - teamTotalPar) * 100) / 100,
+            final_vs_par: Math.round((finalScore - teamTotalPar) * 100) / 100,
             rounds_played: teamBreakdown.length,
             breakdown: teamBreakdown,
             members: memberDetails,
