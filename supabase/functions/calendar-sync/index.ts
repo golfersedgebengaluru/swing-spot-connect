@@ -1180,6 +1180,13 @@ Deno.serve(async (req) => {
         });
 
         // Send confirmed booking email
+        const addToCalendarUrlGateway = await generateAddToCalendarUrl(adminClient, booking.id, {
+          start: start_time,
+          end: end_time,
+          summary: `${isCoaching ? "Coaching" : "Bay"} Booking — ${bayLabel}`,
+          description: `Your ${isCoaching ? "coaching session" : "bay booking"} at ${bayLabel} is confirmed.`,
+          location: `${bayLabel}, ${city}`,
+        });
         try {
           await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
             method: "POST",
@@ -1198,6 +1205,7 @@ Deno.serve(async (req) => {
                 time: formatTimeRange(start_time, end_time, calTz),
                 duration: `${hoursNeeded}h`,
                 hours_remaining: "N/A (paid via gateway)",
+                add_to_calendar_url: addToCalendarUrlGateway,
               },
             }),
           });
