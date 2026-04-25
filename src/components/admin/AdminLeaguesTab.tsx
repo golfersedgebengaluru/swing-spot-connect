@@ -1164,6 +1164,8 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
   const createCode = useCreateJoinCode(league.id);
   const revokeCode = useRevokeJoinCode(league.id);
   const { data: scores } = useLeagueScores(league.id);
+  const { data: scoreRounds } = useLeagueRounds(league.id);
+  const [scorecardScore, setScorecardScore] = useState<any | null>(null);
   const { data: players, isLoading: playersLoading } = useLeaguePlayers(league.id);
   const removePlayer = useRemoveLeaguePlayer(league.id);
   const { data: branding } = useLeagueBranding(tenant.sponsorship_enabled ? league.id : null);
@@ -1393,8 +1395,20 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
               </TableHeader>
               <TableBody>
                 {scores.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="text-sm">{(s as any).player_name || s.player_id.slice(0, 8)}</TableCell>
+                  <TableRow
+                    key={s.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => setScorecardScore(s)}
+                  >
+                    <TableCell className="text-sm">
+                      <button
+                        type="button"
+                        className="text-primary hover:underline font-medium"
+                        onClick={(e) => { e.stopPropagation(); setScorecardScore(s); }}
+                      >
+                        {(s as any).player_name || s.player_id.slice(0, 8)}
+                      </button>
+                    </TableCell>
                     <TableCell>{s.round_number}</TableCell>
                     <TableCell className="font-semibold">{s.total_score ?? "—"}</TableCell>
                     <TableCell><Badge variant="secondary">{s.method}</Badge></TableCell>
@@ -1405,6 +1419,12 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
               </TableBody>
             </Table>
           )}
+          <ScorecardDialog
+            score={scorecardScore}
+            round={scoreRounds?.find((r) => r.round_number === scorecardScore?.round_number)}
+            leagueId={league.id}
+            onClose={() => setScorecardScore(null)}
+          />
         </TabsContent>
 
         {/* Leaderboard */}
@@ -1600,5 +1620,145 @@ export function AdminLeaguesTab() {
         </div>
       )}
     </div>
+  );
+}
+
+// ── Scorecard Dialog ─────────────────────────────────────────
+function ScorecardDialog({
+  score,
+  round,
+  leagueId,
+  onClose,
+}: {
+  score: any | null;
+  round: { par_per_hole: number[]; name?: string } | undefined;
+  leagueId: string;
+  onClose: () => void;
+}) {
+  const { data: hiddenHolesData } = useHiddenHolesAdmin(score ? leagueId : null);
+  if (!score) return null;
+
+  const holeScores: number[] = Array.isArray(score.hole_scores) ? score.hole_scores : [];
+  const par: number[] = Array.isArray(round?.par_per_hole) ? round!.par_per_hole : [];
+  const holeCount = holeScores.length || par.length;
+  const roundHH = hiddenHolesData?.find((h: any) => h.round_number === score.round_number);
+  const hidden: number[] = Array.isArray(roundHH?.hidden_holes) ? roundHH!.hidden_holes! : [];
+
+  const gross = holeScores.reduce((s, v) => s + (Number(v) || 0), 0);
+  const totalPar = par.slice(0, holeCount).reduce((s, v) => s + (Number(v) || 0), 0);
+  const hiddenSum = hidden.reduce((s, h) => s + (Number(holeScores[h - 1]) || 0), 0);
+  const peoriaHC = totalPar > 0 && hidden.length > 0 ? hiddenSum * 3 - totalPar : 0;
+  const net = gross - peoriaHC;
+
+  return (
+    <Dialog open={!!score} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>
+            Scorecard — {score.player_name || score.player_id?.slice(0, 8)}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-2 text-xs">
+            <Badge variant="outline">Round {score.round_number}{round?.name ? ` · ${round.name}` : ""}</Badge>
+            <Badge variant="secondary">{score.method}</Badge>
+            {score.confirmed_at ? <Badge>Confirmed</Badge> : <Badge variant="outline">Pending</Badge>}
+            <Badge variant="outline">{format(new Date(score.created_at), "PP p")}</Badge>
+          </div>
+
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-16">Hole</TableHead>
+                  {Array.from({ length: holeCount }).map((_, i) => {
+                    const isHidden = hidden.includes(i + 1);
+                    return (
+                      <TableHead
+                        key={i}
+                        className={`text-center px-2 ${isHidden ? "bg-accent/30 text-accent-foreground" : ""}`}
+                      >
+                        {i + 1}
+                      </TableHead>
+                    );
+                  })}
+                  <TableHead className="text-center font-bold">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium text-muted-foreground">Par</TableCell>
+                  {Array.from({ length: holeCount }).map((_, i) => (
+                    <TableCell key={i} className="text-center px-2 text-muted-foreground">
+                      {par[i] ?? "—"}
+                    </TableCell>
+                  ))}
+                  <TableCell className="text-center font-semibold">{totalPar || "—"}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium">Score</TableCell>
+                  {Array.from({ length: holeCount }).map((_, i) => {
+                    const isHidden = hidden.includes(i + 1);
+                    const v = holeScores[i];
+                    const p = par[i];
+                    const diff = typeof v === "number" && typeof p === "number" ? v - p : null;
+                    return (
+                      <TableCell
+                        key={i}
+                        className={`text-center px-2 font-medium ${isHidden ? "bg-accent/30" : ""} ${
+                          diff !== null && diff < 0 ? "text-green-600" : diff !== null && diff > 0 ? "text-destructive" : ""
+                        }`}
+                      >
+                        {v ?? "—"}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell className="text-center font-bold">{gross || "—"}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+
+          {hidden.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Hidden holes (highlighted): {hidden.join(", ")}
+            </p>
+          )}
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t">
+            <div>
+              <p className="text-xs text-muted-foreground">Gross</p>
+              <p className="text-lg font-bold">{gross || "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Round Par</p>
+              <p className="text-lg font-bold">{totalPar || "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Peoria HC</p>
+              <p className="text-lg font-bold">
+                {hidden.length > 0 && totalPar > 0 ? peoriaHC : "—"}
+              </p>
+              {hidden.length > 0 && totalPar > 0 && (
+                <p className="text-[10px] text-muted-foreground">({hiddenSum} × 3) − {totalPar}</p>
+              )}
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Net</p>
+              <p className="text-lg font-bold text-primary">
+                {hidden.length > 0 && totalPar > 0 ? net : "—"}
+              </p>
+            </div>
+          </div>
+
+          {score.photo_url && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-2">Submitted photo</p>
+              <img src={score.photo_url} alt="Scorecard photo" className="max-h-64 rounded border" />
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
