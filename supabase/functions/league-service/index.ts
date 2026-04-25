@@ -202,6 +202,34 @@ function parseRoute(url: URL): Route {
     if (subResource === 'leaderboard') {
       return { action: 'league-leaderboard', leagueId, subResource }
     }
+    // /leagues/:id/complete
+    if (subResource === 'complete') {
+      return { action: 'league-complete', leagueId, subResource }
+    }
+    // /leagues/:id/reopen
+    if (subResource === 'reopen') {
+      return { action: 'league-reopen', leagueId, subResource }
+    }
+    // /leagues/:id/wrap-up
+    if (subResource === 'wrap-up') {
+      return { action: 'league-wrap-up', leagueId, subResource }
+    }
+    // /leagues/:id/awards/:awardId
+    if (subResource === 'awards' && segments[4]) {
+      return { action: 'league-award-detail', leagueId, subResource, subId: segments[4] }
+    }
+    // /leagues/:id/awards
+    if (subResource === 'awards') {
+      return { action: 'league-awards', leagueId, subResource }
+    }
+    // /leagues/:id/recap-card/:playerId
+    if (subResource === 'recap-card' && segments[4]) {
+      return { action: 'league-recap-card', leagueId, subResource, subId: segments[4] }
+    }
+    // /leagues/:id/recap-card
+    if (subResource === 'recap-card') {
+      return { action: 'league-recap-card', leagueId, subResource }
+    }
     // /leagues/:id/feed/:feedItemId/reactions
     if (subResource === 'feed' && segments[4] && segments[5] === 'reactions') {
       return { action: 'league-feed-reaction', leagueId, subResource, subId: segments[4] }
@@ -2571,6 +2599,408 @@ Deno.serve(async (req) => {
       if (error) return err(error.message, 500)
       await audit(supabase, tenantId, route.leagueId, user.id, role, 'LeagueTeamAssigned', 'league_team', teamId, team, data)
       return json(data)
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // PHASE 4 — SEASON WRAP-UP
+    // ══════════════════════════════════════════════════════════
+
+    // Helper: build full final standings (net + gross) for a league
+    async function buildFinalStandings(leagueId: string) {
+      const { data: league } = await supabase.from('leagues').select('*').eq('id', leagueId).single()
+      if (!league) return null
+      const { data: scores } = await supabase.from('league_scores').select('*').eq('league_id', leagueId)
+      const { data: allHH } = await supabase.from('league_round_hidden_holes').select('*').eq('league_id', leagueId)
+      const { data: rounds } = await supabase.from('league_rounds').select('round_number, par_per_hole').eq('league_id', leagueId)
+      const { data: profiles } = await supabase.from('profiles').select('user_id, display_name')
+
+      const hiddenMap: Record<number, number[]> = {}
+      for (const hh of (allHH || [])) {
+        if ((hh as any).revealed_at) hiddenMap[(hh as any).round_number] = (hh as any).hidden_holes as number[]
+      }
+      const parMap: Record<number, number> = {}
+      for (const r of (rounds || [])) {
+        const arr = ((r as any).par_per_hole as number[]) || []
+        parMap[(r as any).round_number] = arr.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
+      }
+      const nameMap: Record<string, string> = {}
+      for (const p of (profiles || [])) nameMap[(p as any).user_id] = (p as any).display_name || ''
+
+      const HC_MULT = 3
+      type Row = { player_id: string; round_number: number; gross: number; net: number; hidden_sum: number; handicap: number; par: number; hole_scores: number[] }
+      const rows: Row[] = []
+      for (const s of (scores || [])) {
+        const sc: any = s
+        const hs: number[] = (sc.hole_scores as number[]) || []
+        const gross = sc.total_score || hs.reduce((a, b) => a + (b || 0), 0)
+        const hidden = hiddenMap[sc.round_number]
+        const par = parMap[sc.round_number] || 0
+        let handicap = 0, hSum = 0, net = gross
+        if (hidden && hs.length > 0 && par > 0) {
+          hSum = hidden.reduce((a, h) => a + (hs[h - 1] || 0), 0)
+          handicap = (hSum * HC_MULT) - par
+          net = gross - handicap
+        }
+        rows.push({ player_id: sc.player_id, round_number: sc.round_number, gross, net, hidden_sum: hSum, handicap, par, hole_scores: hs })
+      }
+
+      // Aggregate per player
+      const byPlayer: Record<string, Row[]> = {}
+      for (const r of rows) {
+        if (!byPlayer[r.player_id]) byPlayer[r.player_id] = []
+        byPlayer[r.player_id].push(r)
+      }
+
+      const netStandings: any[] = []
+      const grossStandings: any[] = []
+      for (const [pid, list] of Object.entries(byPlayer)) {
+        const totalGross = list.reduce((s, r) => s + r.gross, 0)
+        const totalNet = list.reduce((s, r) => s + r.net, 0)
+        const totalPar = list.reduce((s, r) => s + r.par, 0)
+        const base = {
+          player_id: pid,
+          name: nameMap[pid] || pid.slice(0, 8),
+          total_gross: totalGross,
+          total_net: totalNet,
+          total_par: totalPar,
+          rounds_played: list.length,
+        }
+        netStandings.push({ ...base, score: totalNet, vs_par: totalNet - totalPar })
+        grossStandings.push({ ...base, score: totalGross, vs_par: totalGross - totalPar })
+      }
+      netStandings.sort((a, b) => a.vs_par - b.vs_par)
+      grossStandings.sort((a, b) => a.vs_par - b.vs_par)
+      netStandings.forEach((e, i) => (e.rank = i + 1))
+      grossStandings.forEach((e, i) => (e.rank = i + 1))
+
+      // Per-player stats for awards
+      const playerStats: Record<string, { birdies: number; best_round: number | null; net_avg_vs_par: number; first_net_vs_par: number | null; last_net_vs_par: number | null; rounds: number }> = {}
+      for (const [pid, list] of Object.entries(byPlayer)) {
+        let birdies = 0
+        for (const r of list) {
+          // Need par_per_hole for birdie detection
+          const round = (rounds || []).find((rd: any) => rd.round_number === r.round_number) as any
+          const ph: number[] = (round?.par_per_hole as number[]) || []
+          for (let i = 0; i < r.hole_scores.length; i++) {
+            const sc = r.hole_scores[i] || 0
+            const par = ph[i] || 0
+            if (sc > 0 && par > 0 && sc === par - 1) birdies++
+          }
+        }
+        const sorted = [...list].sort((a, b) => a.round_number - b.round_number)
+        const netVsPars = sorted.map((r) => r.net - r.par)
+        const bestRound = sorted.length ? Math.min(...sorted.map((r) => r.net)) : null
+        const avg = netVsPars.length ? netVsPars.reduce((a, b) => a + b, 0) / netVsPars.length : 0
+        playerStats[pid] = {
+          birdies,
+          best_round: bestRound,
+          net_avg_vs_par: avg,
+          first_net_vs_par: netVsPars[0] ?? null,
+          last_net_vs_par: netVsPars[netVsPars.length - 1] ?? null,
+          rounds: sorted.length,
+        }
+      }
+
+      return { league, netStandings, grossStandings, playerStats, nameMap }
+    }
+
+    // Helper: compute auto awards from playerStats
+    function computeAutoAwards(playerStats: Record<string, any>, nameMap: Record<string, string>) {
+      const players = Object.entries(playerStats)
+      const awards: any[] = []
+      if (!players.length) return awards
+
+      // Most birdies
+      const mostBird = [...players].sort((a, b) => b[1].birdies - a[1].birdies)[0]
+      if (mostBird && mostBird[1].birdies > 0) {
+        awards.push({ award_type: 'most_birdies', name: 'Most Birdies', winner_player_id: mostBird[0], value: mostBird[1].birdies, detail: `${mostBird[1].birdies} birdies` })
+      }
+      // Best single round (lowest net score in any round)
+      const withBest = players.filter((p) => p[1].best_round !== null)
+      if (withBest.length) {
+        const best = withBest.sort((a, b) => a[1].best_round - b[1].best_round)[0]
+        awards.push({ award_type: 'best_round', name: 'Best Single Round', winner_player_id: best[0], value: best[1].best_round, detail: `Lowest net round: ${best[1].best_round}` })
+      }
+      // Most improved (largest drop = first - last, more positive = better)
+      const improvable = players.filter((p) => p[1].rounds >= 2 && p[1].first_net_vs_par !== null && p[1].last_net_vs_par !== null)
+      if (improvable.length) {
+        const best = improvable.sort((a, b) => (b[1].first_net_vs_par - b[1].last_net_vs_par) - (a[1].first_net_vs_par - a[1].last_net_vs_par))[0]
+        const delta = best[1].first_net_vs_par - best[1].last_net_vs_par
+        if (delta > 0) {
+          awards.push({ award_type: 'most_improved', name: 'Most Improved', winner_player_id: best[0], value: delta, detail: `Improved by ${delta} strokes` })
+        }
+      }
+      // Lowest season average
+      const withAvg = players.filter((p) => p[1].rounds > 0)
+      if (withAvg.length) {
+        const best = withAvg.sort((a, b) => a[1].net_avg_vs_par - b[1].net_avg_vs_par)[0]
+        awards.push({ award_type: 'lowest_avg', name: 'Lowest Season Average', winner_player_id: best[0], value: Math.round(best[1].net_avg_vs_par * 100) / 100, detail: `Avg ${best[1].net_avg_vs_par.toFixed(2)} vs par` })
+      }
+      return awards
+    }
+
+    // ── COMPLETE SEASON ──────────────────────────────────────
+    if (route.action === 'league-complete' && route.leagueId && method === 'POST') {
+      const { data: league } = await supabase.from('leagues').select('*').eq('id', route.leagueId).single()
+      if (!league) return err('League not found', 404)
+      const tenantId = (league as any).tenant_id
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (!role || role === 'player') return err('Insufficient permissions', 403)
+      if ((league as any).status === 'completed') return err('Season already completed', 409)
+
+      const standings = await buildFinalStandings(route.leagueId!)
+      if (!standings) return err('Failed to build standings', 500)
+
+      // Update league status
+      const { data: updated, error: uErr } = await supabase
+        .from('leagues')
+        .update({ status: 'completed' })
+        .eq('id', route.leagueId)
+        .select()
+        .single()
+      if (uErr) return err(uErr.message, 500)
+
+      // Snapshot standings
+      await supabase.from('league_season_snapshots').upsert({
+        league_id: route.leagueId,
+        tenant_id: tenantId,
+        net_standings: standings.netStandings,
+        gross_standings: standings.grossStandings,
+        stats: standings.playerStats,
+        completed_at: new Date().toISOString(),
+        completed_by: user.id,
+      } as any, { onConflict: 'league_id' })
+
+      // Wipe existing auto awards (manual ones preserved) and insert fresh
+      await supabase.from('league_awards').delete().eq('league_id', route.leagueId).eq('is_manual', false)
+      const autoAwards = computeAutoAwards(standings.playerStats, standings.nameMap)
+      if (autoAwards.length) {
+        await supabase.from('league_awards').insert(autoAwards.map((a) => ({
+          ...a,
+          league_id: route.leagueId,
+          tenant_id: tenantId,
+          is_manual: false,
+          created_by: user.id,
+        })) as any)
+      }
+
+      await audit(supabase, tenantId, route.leagueId, user.id, role, 'SeasonCompleted', 'league', route.leagueId, league, updated)
+      await emitFeed(supabase, tenantId, route.leagueId, user.id, 'season_completed', { auto_awards: autoAwards.length })
+      return json({ league: updated, auto_awards: autoAwards.length })
+    }
+
+    // ── REOPEN SEASON (site/master admin only) ───────────────
+    if (route.action === 'league-reopen' && route.leagueId && method === 'POST') {
+      const { data: league } = await supabase.from('leagues').select('*').eq('id', route.leagueId).single()
+      if (!league) return err('League not found', 404)
+      const { data: isSysAdmin } = await supabase.rpc('is_admin_or_site_admin', { _user_id: user.id })
+      if (!isSysAdmin) return err('Only a site admin can re-open a completed season', 403)
+      if ((league as any).status !== 'completed') return err('League is not completed', 409)
+
+      const { data: updated, error: uErr } = await supabase
+        .from('leagues')
+        .update({ status: 'active' })
+        .eq('id', route.leagueId)
+        .select()
+        .single()
+      if (uErr) return err(uErr.message, 500)
+      const tenantId = (league as any).tenant_id
+      await audit(supabase, tenantId, route.leagueId, user.id, 'site_admin', 'SeasonReopened', 'league', route.leagueId, league, updated)
+      return json({ league: updated })
+    }
+
+    // ── GET WRAP-UP (snapshot + awards) ──────────────────────
+    if (route.action === 'league-wrap-up' && route.leagueId && method === 'GET') {
+      const { data: league } = await supabase.from('leagues').select('*, league_branding(*)').eq('id', route.leagueId).single()
+      if (!league) return err('League not found', 404)
+      const tenantId = (league as any).tenant_id
+
+      // Access: any tenant member or league player
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      const { data: playerRow } = await supabase.from('league_players').select('id').eq('league_id', route.leagueId).eq('user_id', user.id).maybeSingle()
+      if (!role && !playerRow) return err('No access', 403)
+
+      const { data: snapshot } = await supabase.from('league_season_snapshots').select('*').eq('league_id', route.leagueId).maybeSingle()
+      const { data: awards } = await supabase.from('league_awards').select('*').eq('league_id', route.leagueId).order('is_manual').order('created_at')
+
+      // Sponsor data only if enabled
+      const { data: tenant } = await supabase.from('tenants').select('sponsorship_enabled').eq('id', tenantId).single()
+      const sponsorshipOn = (tenant as any)?.sponsorship_enabled ?? false
+      const branding = sponsorshipOn ? (league as any).league_branding : null
+
+      return json({
+        league: { id: (league as any).id, name: (league as any).name, status: (league as any).status, resolved_logo_url: (league as any).resolved_logo_url },
+        snapshot: snapshot || null,
+        awards: awards || [],
+        branding,
+        sponsorship_enabled: sponsorshipOn,
+      })
+    }
+
+    // ── AWARDS LIST / CREATE MANUAL ──────────────────────────
+    if (route.action === 'league-awards' && route.leagueId) {
+      const { data: league } = await supabase.from('leagues').select('tenant_id').eq('id', route.leagueId).single()
+      if (!league) return err('League not found', 404)
+      const tenantId = (league as any).tenant_id
+
+      if (method === 'GET') {
+        const { data, error } = await supabase.from('league_awards').select('*').eq('league_id', route.leagueId).order('is_manual').order('created_at')
+        if (error) return err(error.message, 500)
+        return json(data || [])
+      }
+
+      if (method === 'POST') {
+        const role = await getUserLeagueRole(supabase, user.id, tenantId)
+        if (!role || role === 'player') return err('Insufficient permissions', 403)
+        const body = await req.json().catch(() => ({}))
+        if (!body.name || typeof body.name !== 'string' || body.name.length > 120) return err('name is required (≤120 chars)')
+        if (!body.winner_player_id && !body.winner_team_id) return err('winner_player_id or winner_team_id is required')
+
+        const { data, error } = await supabase.from('league_awards').insert({
+          league_id: route.leagueId,
+          tenant_id: tenantId,
+          award_type: 'manual',
+          name: body.name,
+          winner_player_id: body.winner_player_id || null,
+          winner_team_id: body.winner_team_id || null,
+          detail: body.detail || null,
+          is_manual: true,
+          created_by: user.id,
+        } as any).select().single()
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId, user.id, role, 'ManualAwardCreated', 'league_award', (data as any).id, null, data)
+        return json(data)
+      }
+      return err('Method not allowed', 405)
+    }
+
+    // ── AWARD UPDATE / DELETE (manual only) ──────────────────
+    if (route.action === 'league-award-detail' && route.leagueId && route.subId) {
+      const awardId = route.subId
+      const { data: award } = await supabase.from('league_awards').select('*').eq('id', awardId).single()
+      if (!award) return err('Award not found', 404)
+      const tenantId = (award as any).tenant_id
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (!role || role === 'player') return err('Insufficient permissions', 403)
+      if (!(award as any).is_manual) return err('Auto-calculated awards cannot be edited', 403)
+
+      if (method === 'PATCH') {
+        const body = await req.json().catch(() => ({}))
+        const updates: any = {}
+        if (body.name !== undefined) updates.name = body.name
+        if (body.winner_player_id !== undefined) updates.winner_player_id = body.winner_player_id || null
+        if (body.winner_team_id !== undefined) updates.winner_team_id = body.winner_team_id || null
+        if (body.detail !== undefined) updates.detail = body.detail || null
+        const { data, error } = await supabase.from('league_awards').update(updates).eq('id', awardId).select().single()
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId, user.id, role, 'ManualAwardUpdated', 'league_award', awardId, award, data)
+        return json(data)
+      }
+      if (method === 'DELETE') {
+        const { error } = await supabase.from('league_awards').delete().eq('id', awardId)
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId, user.id, role, 'ManualAwardDeleted', 'league_award', awardId, award, null)
+        return json({ deleted: true })
+      }
+      return err('Method not allowed', 405)
+    }
+
+    // ── RECAP CARD (server-generated SVG → PNG) ──────────────
+    // GET /leagues/:id/recap-card?player_id=xxx  (player_id optional → caller's own)
+    if (route.action === 'league-recap-card' && route.leagueId && method === 'GET') {
+      const { data: league } = await supabase.from('leagues').select('*, league_branding(*)').eq('id', route.leagueId).single()
+      if (!league) return err('League not found', 404)
+      const tenantId = (league as any).tenant_id
+
+      const targetPlayerUserId = url.searchParams.get('player_id') || user.id
+
+      // Access check: caller must be tenant member, the target player themselves, or admin
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      const { data: callerPlayer } = await supabase.from('league_players').select('id, user_id').eq('league_id', route.leagueId).eq('user_id', user.id).maybeSingle()
+      if (!role && !callerPlayer) return err('No access', 403)
+      if (!role && callerPlayer && targetPlayerUserId !== user.id) return err('Players can only access their own recap', 403)
+
+      // Get snapshot + awards (tenant-scoped queries)
+      const { data: snapshot } = await supabase.from('league_season_snapshots').select('*').eq('league_id', route.leagueId).eq('tenant_id', tenantId).maybeSingle()
+      if (!snapshot) return err('Season not yet completed', 409)
+      const { data: awards } = await supabase.from('league_awards').select('*').eq('league_id', route.leagueId).eq('tenant_id', tenantId)
+      const { data: profile } = await supabase.from('profiles').select('display_name').eq('user_id', targetPlayerUserId).maybeSingle()
+
+      const netStandings = ((snapshot as any).net_standings || []) as any[]
+      const myRow = netStandings.find((r) => r.player_id === targetPlayerUserId)
+      if (!myRow) return err('Player not found in standings', 404)
+      const stats = ((snapshot as any).stats || {}) as Record<string, any>
+      const myStats = stats[targetPlayerUserId] || {}
+      const myAwards = (awards || []).filter((a: any) => a.winner_player_id === targetPlayerUserId)
+
+      // Sponsor (only if enabled for tenant)
+      const { data: tenant } = await supabase.from('tenants').select('sponsorship_enabled').eq('id', tenantId).single()
+      const sponsorshipOn = (tenant as any)?.sponsorship_enabled ?? false
+      const branding = sponsorshipOn ? (league as any).league_branding : null
+      const sponsorName: string | null = branding?.sponsor_name || null
+
+      // Build SVG
+      const playerName = (profile as any)?.display_name || myRow.name || 'Player'
+      const leagueName = (league as any).name
+      const rank = myRow.rank
+      const vsPar = myRow.vs_par
+      const vsParStr = vsPar === 0 ? 'E' : (vsPar > 0 ? `+${vsPar}` : `${vsPar}`)
+      const bestRound = myStats.best_round ?? '—'
+      const birdies = myStats.birdies ?? 0
+      const escape = (s: string) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+      const awardsList = myAwards.length
+        ? myAwards.map((a: any, i: number) => `<text x="60" y="${560 + i * 36}" font-family="Helvetica, Arial, sans-serif" font-size="22" fill="#fbbf24">★ ${escape(a.name)}</text>`).join('')
+        : `<text x="60" y="560" font-family="Helvetica, Arial, sans-serif" font-size="20" fill="#94a3b8" font-style="italic">No awards this season</text>`
+
+      const sponsorBlock = sponsorName
+        ? `<text x="600" y="780" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="16" fill="#94a3b8">Presented by ${escape(sponsorName)}</text>`
+        : ''
+
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="800" viewBox="0 0 640 800">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e3a5f"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="800" fill="url(#bg)"/>
+  <text x="60" y="80" font-family="Helvetica, Arial, sans-serif" font-size="18" fill="#94a3b8" letter-spacing="3">SEASON WRAP-UP</text>
+  <text x="60" y="130" font-family="Helvetica, Arial, sans-serif" font-size="32" font-weight="700" fill="#ffffff">${escape(leagueName)}</text>
+  <line x1="60" y1="160" x2="580" y2="160" stroke="#334155" stroke-width="1"/>
+  <text x="60" y="230" font-family="Helvetica, Arial, sans-serif" font-size="44" font-weight="700" fill="#ffffff">${escape(playerName)}</text>
+  <text x="60" y="290" font-family="Helvetica, Arial, sans-serif" font-size="20" fill="#94a3b8">Final Rank</text>
+  <text x="60" y="350" font-family="Helvetica, Arial, sans-serif" font-size="72" font-weight="700" fill="#fbbf24">#${rank}</text>
+  <text x="60" y="400" font-family="Helvetica, Arial, sans-serif" font-size="24" fill="#cbd5e1">${vsParStr} vs Par</text>
+  <line x1="60" y1="430" x2="580" y2="430" stroke="#334155" stroke-width="1"/>
+  <text x="60" y="475" font-family="Helvetica, Arial, sans-serif" font-size="18" fill="#94a3b8">Best Round</text>
+  <text x="60" y="510" font-family="Helvetica, Arial, sans-serif" font-size="32" font-weight="600" fill="#ffffff">${bestRound}</text>
+  <text x="320" y="475" font-family="Helvetica, Arial, sans-serif" font-size="18" fill="#94a3b8">Total Birdies</text>
+  <text x="320" y="510" font-family="Helvetica, Arial, sans-serif" font-size="32" font-weight="600" fill="#ffffff">${birdies}</text>
+  ${awardsList}
+  ${sponsorBlock}
+  <text x="60" y="780" font-family="Helvetica, Arial, sans-serif" font-size="14" fill="#64748b">Golfer's Edge League</text>
+</svg>`
+
+      // Store in tenant-scoped path
+      const path = `${tenantId}/${route.leagueId}/${targetPlayerUserId}.svg`
+      const bytes = new TextEncoder().encode(svg)
+      await supabase.storage.from('league-recaps').upload(path, bytes, {
+        contentType: 'image/svg+xml',
+        upsert: true,
+      })
+
+      // Generate signed URL (1 hour)
+      const { data: signed } = await supabase.storage.from('league-recaps').createSignedUrl(path, 3600)
+
+      await audit(supabase, tenantId, route.leagueId, user.id, role || 'player', 'RecapGenerated', 'league_recap', targetPlayerUserId, null, { path })
+
+      return json({
+        url: signed?.signedUrl || null,
+        path,
+        player: { id: targetPlayerUserId, name: playerName, rank, vs_par: vsPar, best_round: bestRound, birdies, awards: myAwards },
+        sponsor: sponsorName,
+      })
     }
 
     return err('Not found', 404)

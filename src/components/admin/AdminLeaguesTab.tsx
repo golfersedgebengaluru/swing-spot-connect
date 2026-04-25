@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown, ChevronRight, Edit, ListOrdered, Settings2, Shuffle, Lock, Unlock, BarChart3, Upload, MapPin } from "lucide-react";
 import { BaySchedulingPanel } from "@/components/admin/league/BaySchedulingPanel";
 import { CitiesLocationsPanel } from "@/components/admin/league/CitiesLocationsPanel";
+import { SeasonWrapUpPanel } from "@/components/admin/league/SeasonWrapUpPanel";
 import { LocationAssignCell } from "@/components/admin/league/LocationAssignCell";
 import { AdminScoreEntryDialog } from "@/components/admin/league/AdminScoreEntryDialog";
 import { format } from "date-fns";
@@ -1265,8 +1266,17 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
           <TabsTrigger value="leaderboard"><BarChart3 className="h-3.5 w-3.5 mr-1" />Leaderboard</TabsTrigger>
           <TabsTrigger value="scoring"><Settings2 className="h-3.5 w-3.5 mr-1" />Scoring</TabsTrigger>
           {tenant.sponsorship_enabled && <TabsTrigger value="branding">Branding</TabsTrigger>}
+          <TabsTrigger value="wrapup"><Trophy className="h-3.5 w-3.5 mr-1" />Wrap-Up</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="wrapup" className="space-y-4">
+          <SeasonWrapUpPanel
+            league={league}
+            players={(players || []).map((p: any) => ({ user_id: p.user_id, display_name: p.display_name, email: p.email }))}
+            isSiteAdmin={true}
+          />
+        </TabsContent>
 
         {/* Players */}
         <TabsContent value="players" className="space-y-4">

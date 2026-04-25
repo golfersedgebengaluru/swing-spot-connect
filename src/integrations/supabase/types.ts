@@ -1395,6 +1395,83 @@ export type Database = {
           },
         ]
       }
+      league_awards: {
+        Row: {
+          award_type: string
+          created_at: string
+          created_by: string
+          detail: string | null
+          id: string
+          is_manual: boolean
+          league_id: string
+          name: string
+          tenant_id: string
+          updated_at: string
+          value: number | null
+          winner_player_id: string | null
+          winner_team_id: string | null
+        }
+        Insert: {
+          award_type: string
+          created_at?: string
+          created_by: string
+          detail?: string | null
+          id?: string
+          is_manual?: boolean
+          league_id: string
+          name: string
+          tenant_id: string
+          updated_at?: string
+          value?: number | null
+          winner_player_id?: string | null
+          winner_team_id?: string | null
+        }
+        Update: {
+          award_type?: string
+          created_at?: string
+          created_by?: string
+          detail?: string | null
+          id?: string
+          is_manual?: boolean
+          league_id?: string
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+          value?: number | null
+          winner_player_id?: string | null
+          winner_team_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_awards_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_awards_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_awards_winner_player_id_fkey"
+            columns: ["winner_player_id"]
+            isOneToOne: false
+            referencedRelation: "league_players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_awards_winner_team_id_fkey"
+            columns: ["winner_team_id"]
+            isOneToOne: false
+            referencedRelation: "league_teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       league_bay_blocks: {
         Row: {
           bay_id: string
@@ -2208,6 +2285,60 @@ export type Database = {
           },
           {
             foreignKeyName: "league_scores_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_season_snapshots: {
+        Row: {
+          completed_at: string
+          completed_by: string
+          created_at: string
+          gross_standings: Json
+          id: string
+          league_id: string
+          net_standings: Json
+          stats: Json
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string
+          completed_by: string
+          created_at?: string
+          gross_standings?: Json
+          id?: string
+          league_id: string
+          net_standings?: Json
+          stats?: Json
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string
+          completed_by?: string
+          created_at?: string
+          gross_standings?: Json
+          id?: string
+          league_id?: string
+          net_standings?: Json
+          stats?: Json
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_season_snapshots_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: true
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_season_snapshots_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

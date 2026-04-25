@@ -918,3 +918,94 @@ export function useUnreactFeedItem(leagueId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["league-feed", leagueId] }),
   });
 }
+
+// ── Phase 4: Season Wrap-Up ─────────────────────────────────
+import type { LeagueAward, SeasonWrapUpResponse, RecapCardResponse } from "@/types/league";
+
+export function useSeasonWrapUp(leagueId: string | null) {
+  return useQuery<SeasonWrapUpResponse>({
+    queryKey: ["league-wrap-up", leagueId],
+    queryFn: () => invoke(`/leagues/${leagueId}/wrap-up`, "GET"),
+    enabled: !!leagueId,
+    staleTime: LEAGUE_STALE_TIME,
+  });
+}
+
+export function useCompleteSeason(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: () => invoke(`/leagues/${leagueId}/complete`, "POST"),
+    onSuccess: (data: any) => {
+      qc.invalidateQueries({ queryKey: ["leagues"] });
+      qc.invalidateQueries({ queryKey: ["league-wrap-up", leagueId] });
+      qc.invalidateQueries({ queryKey: ["league-awards", leagueId] });
+      toast({ title: "Season completed", description: `${data.auto_awards} auto awards calculated` });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useReopenSeason(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: () => invoke(`/leagues/${leagueId}/reopen`, "POST"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leagues"] });
+      qc.invalidateQueries({ queryKey: ["league-wrap-up", leagueId] });
+      toast({ title: "Season re-opened", description: "Scoring is unlocked" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useLeagueAwards(leagueId: string | null) {
+  return useQuery<LeagueAward[]>({
+    queryKey: ["league-awards", leagueId],
+    queryFn: () => invoke(`/leagues/${leagueId}/awards`, "GET"),
+    enabled: !!leagueId,
+    staleTime: LEAGUE_STALE_TIME,
+  });
+}
+
+export function useCreateAward(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (body: { name: string; winner_player_id?: string; winner_team_id?: string; detail?: string }) =>
+      invoke(`/leagues/${leagueId}/awards`, "POST", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-awards", leagueId] });
+      qc.invalidateQueries({ queryKey: ["league-wrap-up", leagueId] });
+      toast({ title: "Award added" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useDeleteAward(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (awardId: string) => invoke(`/leagues/${leagueId}/awards/${awardId}`, "DELETE"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-awards", leagueId] });
+      qc.invalidateQueries({ queryKey: ["league-wrap-up", leagueId] });
+      toast({ title: "Award removed" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useRecapCard(leagueId: string | null, playerId?: string) {
+  return useQuery<RecapCardResponse>({
+    queryKey: ["league-recap-card", leagueId, playerId],
+    queryFn: () => {
+      const q = playerId ? `?player_id=${playerId}` : "";
+      return invoke(`/leagues/${leagueId}/recap-card${q}`, "GET");
+    },
+    enabled: !!leagueId,
+    staleTime: 5 * 60_000,
+  });
+}

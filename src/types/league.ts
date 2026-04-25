@@ -412,3 +412,69 @@ export interface LeagueBayMapping {
 export type LeaderboardScope = 'national' | 'city';
 export type LeaderboardVisibility = 'public' | 'admin_only';
 
+// ── Phase 4: Season Wrap-Up ──────────────────────────────────
+export type AwardType = 'most_birdies' | 'best_round' | 'most_improved' | 'lowest_avg' | 'manual';
+
+export interface LeagueAward {
+  id: string;
+  league_id: string;
+  tenant_id: string;
+  award_type: AwardType;
+  name: string;
+  winner_player_id: string | null;
+  winner_team_id: string | null;
+  value: number | null;
+  detail: string | null;
+  is_manual: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SeasonStandingEntry {
+  rank: number;
+  player_id: string;
+  name: string;
+  total_gross: number;
+  total_net: number;
+  total_par: number;
+  rounds_played: number;
+  score: number;
+  vs_par: number;
+}
+
+export interface LeagueSeasonSnapshot {
+  id: string;
+  league_id: string;
+  tenant_id: string;
+  net_standings: SeasonStandingEntry[];
+  gross_standings: SeasonStandingEntry[];
+  stats: Record<string, { birdies: number; best_round: number | null; net_avg_vs_par: number; rounds: number }>;
+  completed_at: string;
+  completed_by: string;
+}
+
+export interface SeasonWrapUpResponse {
+  league: { id: string; name: string; status: LeagueStatus; resolved_logo_url: string | null };
+  snapshot: LeagueSeasonSnapshot | null;
+  awards: LeagueAward[];
+  branding: LeagueBranding | null;
+  sponsorship_enabled: boolean;
+}
+
+export interface RecapCardResponse {
+  url: string | null;
+  path: string;
+  player: {
+    id: string;
+    name: string;
+    rank: number;
+    vs_par: number;
+    best_round: number | string;
+    birdies: number;
+    awards: LeagueAward[];
+  };
+  sponsor: string | null;
+}
+
+
