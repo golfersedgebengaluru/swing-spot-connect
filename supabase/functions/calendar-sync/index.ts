@@ -589,7 +589,48 @@ async function generateAddToCalendarUrl(
   }
 }
 
-Deno.serve(async (req) => {
+// Generates a CANCEL .ics with same UID + bumped SEQUENCE.
+// When the user opens it, calendar apps recognize the matching UID and
+// auto-remove (or mark cancelled) the original event.
+async function generateCancelCalendarUrl(
+  client: ReturnType<typeof createAdminClient>,
+  bookingId: string,
+  params: { start: string; end: string; summary: string; location?: string },
+): Promise<string | null> {
+  try {
+    const ics = buildIcs({
+      uid: `booking-${bookingId}@golfersedge`,
+      sequence: 1,
+      method: "CANCEL",
+      start: params.start,
+      end: params.end,
+      summary: params.summary,
+      location: params.location,
+    });
+    const path = `${bookingId}-cancel.ics`;
+    const { error: upErr } = await client.storage
+      .from("booking-ics")
+      .upload(path, new Blob([ics], { type: "text/calendar" }), {
+        contentType: "text/calendar; charset=utf-8; method=CANCEL",
+        upsert: true,
+      });
+    if (upErr) {
+      console.error("Cancel ICS upload failed:", upErr.message);
+      return null;
+    }
+    const { data, error: signErr } = await client.storage
+      .from("booking-ics")
+      .createSignedUrl(path, 60 * 60 * 24 * 30);
+    if (signErr || !data?.signedUrl) {
+      console.error("Cancel ICS sign failed:", signErr?.message);
+      return null;
+    }
+    return data.signedUrl;
+  } catch (e) {
+    console.error("generateCancelCalendarUrl error:", (e as Error).message);
+    return null;
+  }
+}
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
