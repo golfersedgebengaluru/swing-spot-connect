@@ -38,7 +38,6 @@ import {
   useAddLeaguePlayer,
   useRemoveLeaguePlayer,
   useLeagueRounds,
-  useHiddenHolesAdmin,
   useCreateRound,
   useUpdateRound,
   useDeleteRound,
