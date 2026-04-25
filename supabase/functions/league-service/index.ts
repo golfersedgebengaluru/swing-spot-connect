@@ -2032,8 +2032,11 @@ Deno.serve(async (req) => {
         total_gross: number
         total_net: number
         final_score: number
+        total_par: number
+        net_vs_par: number
+        final_vs_par: number
         rounds_played: number
-        breakdown: { round: number; gross: number; net: number; handicap: number }[]
+        breakdown: { round: number; gross: number; net: number; handicap: number; par: number; net_vs_par: number }[]
         members?: { player_id: string; name: string; net_score: number }[]
       }
 
