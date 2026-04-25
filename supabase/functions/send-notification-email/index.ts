@@ -145,6 +145,12 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
           <p style="color:#6b7a8d;font-size:12px;margin:8px 0 0">Open this in Google, Apple, or Outlook to remove the event</p>
         </div>` : ""}
       </div>
+      <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
+        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
+      </div>
+    </div>`,
+
+  points_earned: (d) => `
     <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff">
       <div style="background:#2b3544;padding:32px 24px;text-align:center">
         <h1 style="color:#f5f0eb;margin:0;font-family:'Playfair Display',Georgia,serif;font-size:24px">🎉 Points Awarded!</h1>
