@@ -1419,6 +1419,12 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
               </TableBody>
             </Table>
           )}
+          <ScorecardDialog
+            score={scorecardScore}
+            round={scoreRounds?.find((r) => r.round_number === scorecardScore?.round_number)}
+            leagueId={league.id}
+            onClose={() => setScorecardScore(null)}
+          />
         </TabsContent>
 
         {/* Leaderboard */}
