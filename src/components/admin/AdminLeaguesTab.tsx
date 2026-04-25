@@ -1265,8 +1265,17 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
           <TabsTrigger value="leaderboard"><BarChart3 className="h-3.5 w-3.5 mr-1" />Leaderboard</TabsTrigger>
           <TabsTrigger value="scoring"><Settings2 className="h-3.5 w-3.5 mr-1" />Scoring</TabsTrigger>
           {tenant.sponsorship_enabled && <TabsTrigger value="branding">Branding</TabsTrigger>}
+          <TabsTrigger value="wrapup"><Trophy className="h-3.5 w-3.5 mr-1" />Wrap-Up</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="wrapup" className="space-y-4">
+          <SeasonWrapUpPanel
+            league={league}
+            players={(players || []).map((p: any) => ({ user_id: p.user_id, display_name: p.display_name, email: p.email }))}
+            isSiteAdmin={true}
+          />
+        </TabsContent>
 
         {/* Players */}
         <TabsContent value="players" className="space-y-4">
