@@ -32,6 +32,11 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Hours Remaining</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.hours_remaining}</td></tr>
           </table>
         </div>
+        ${d.add_to_calendar_url ? `
+        <div style="text-align:center;margin:0 0 24px">
+          <a href="${d.add_to_calendar_url}" style="display:inline-block;background:#2b3544;color:#f5f0eb;text-decoration:none;font-weight:600;font-size:14px;padding:12px 24px;border-radius:6px">📅 Add to Calendar</a>
+          <p style="color:#6b7a8d;font-size:12px;margin:8px 0 0">Works with Google, Apple, Outlook & more</p>
+        </div>` : ""}
         <p style="color:#6b7a8d;font-size:14px;margin:0 0 8px">${d._footer_text || `Need to cancel? You can do so up to ${d.cancellation_window || 24} hours before your booking. Please login to your account to cancel.`}</p>
       </div>
       <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
@@ -303,6 +308,11 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
             ${d.amount ? `<tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Amount Paid</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">₹${d.amount}</td></tr>` : ""}
           </table>
         </div>
+        ${d.add_to_calendar_url ? `
+        <div style="text-align:center;margin:0 0 24px">
+          <a href="${d.add_to_calendar_url}" style="display:inline-block;background:#2b3544;color:#f5f0eb;text-decoration:none;font-weight:600;font-size:14px;padding:12px 24px;border-radius:6px">📅 Add to Calendar</a>
+          <p style="color:#6b7a8d;font-size:12px;margin:8px 0 0">Works with Google, Apple, Outlook & more</p>
+        </div>` : ""}
         <p style="color:#6b7a8d;font-size:14px;margin:0 0 8px">Thank you for booking with us. We look forward to seeing you!</p>
       </div>
       <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
