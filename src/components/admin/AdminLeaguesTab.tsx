@@ -820,8 +820,16 @@ function ScoringConfigPanel({ league }: { league: League }) {
 function HiddenHolesPanel({ league }: { league: League }) {
   const { data: hiddenHoles, isLoading } = useHiddenHoles(league.id);
   const { data: rounds } = useLeagueRounds(league.id);
+  const { data: leaguePlayers } = useLeaguePlayers(league.id);
   const setHiddenHoles = useSetHiddenHoles(league.id);
   const closeRound = useCloseRound(league.id);
+
+  const playerNameByUserId = new Map<string, string>();
+  (leaguePlayers || []).forEach((p) => {
+    if (p.user_id) {
+      playerNameByUserId.set(p.user_id, p.display_name || p.email || p.user_id);
+    }
+  });
   const [selectedRound, setSelectedRound] = useState<number>(1);
   const [manualHoles, setManualHoles] = useState<number[]>([]);
   const [lastResult, setLastResult] = useState<any>(null);
