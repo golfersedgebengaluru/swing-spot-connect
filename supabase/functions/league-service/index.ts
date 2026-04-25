@@ -2053,6 +2053,7 @@ Deno.serve(async (req) => {
         for (const [playerId, pScores] of Object.entries(individualScores)) {
           const totalGross = pScores.reduce((s, p) => s + p.gross_score, 0)
           const totalNet = pScores.reduce((s, p) => s + p.net_score, 0)
+          const totalPar = pScores.reduce((s, p) => s + (roundParMap[p.round_number] || 0), 0)
           const teamId = playerIdToTeamId[playerId]
           entries.push({
             type: 'individual',
@@ -2062,8 +2063,14 @@ Deno.serve(async (req) => {
             total_gross: totalGross,
             total_net: totalNet,
             final_score: totalNet,
+            total_par: totalPar,
+            net_vs_par: totalNet - totalPar,
+            final_vs_par: totalNet - totalPar,
             rounds_played: pScores.length,
-            breakdown: pScores.map((p) => ({ round: p.round_number, gross: p.gross_score, net: p.net_score, handicap: p.peoria_handicap })),
+            breakdown: pScores.map((p) => {
+              const par = roundParMap[p.round_number] || 0
+              return { round: p.round_number, gross: p.gross_score, net: p.net_score, handicap: p.peoria_handicap, par, net_vs_par: p.net_score - par }
+            }),
           })
         }
       }
