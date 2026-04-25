@@ -1733,6 +1733,12 @@ Deno.serve(async (req) => {
       });
 
       // Send cancellation email to user
+      const removeFromCalendarUrl = await generateCancelCalendarUrl(adminClient, booking_id, {
+        start: booking.start_time,
+        end: booking.end_time,
+        summary: `${booking.session_type === "coaching" ? "Coaching" : "Bay"} Booking — ${bayName}`,
+        location: `${bayName}, ${booking.city}`,
+      });
       try {
         await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
           method: "POST",
@@ -1751,6 +1757,7 @@ Deno.serve(async (req) => {
               time: formatTime(booking.start_time, calTz),
               duration: `${booking.duration_minutes} min`,
               hours_refunded: hoursRefunded,
+              remove_from_calendar_url: removeFromCalendarUrl,
             },
           }),
         });
