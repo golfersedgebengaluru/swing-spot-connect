@@ -1647,7 +1647,19 @@ Deno.serve(async (req) => {
       // Atomically mark booking cancelled + claw back loyalty points in one DB transaction
       const { data: cancelResult, error: cancelErr } = await adminClient
         .rpc("cancel_booking_with_clawback", { p_booking_id: booking_id, p_cancelled_by: userId });
-      if (cancelErr) throw cancelErr;
+      if (cancelErr) {
+        console.error("cancel_booking_with_clawback RPC failed:", cancelErr);
+        return new Response(
+          JSON.stringify({ error: `Failed to cancel booking: ${cancelErr.message || "database error"}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if ((cancelResult as any)?.error) {
+        return new Response(
+          JSON.stringify({ error: (cancelResult as any).error }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       if ((cancelResult as any)?.already_cancelled) {
         return new Response(JSON.stringify({ error: "Booking already cancelled" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
