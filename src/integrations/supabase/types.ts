@@ -3661,6 +3661,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_booking_with_clawback: {
+        Args: { p_booking_id: string; p_cancelled_by?: string }
+        Returns: Json
+      }
       check_email_rate_limit: {
         Args: { p_max_per_hour?: number; p_user_id: string }
         Returns: boolean

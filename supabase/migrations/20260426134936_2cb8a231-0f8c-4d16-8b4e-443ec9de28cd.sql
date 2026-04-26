@@ -1,11 +1,9 @@
 -- Atomic stored procedure: mark a booking as cancelled and claw back its loyalty points
 -- in a single transaction so partial state (cancelled booking, unreclaimed points) is impossible.
--- The edge function (calendar-sync) handles hours refund/revenue reversal separately,
--- as those require business-logic that's better kept in application code.
+-- Replaces the orphaned migration 20260409100006 which never applied (its timestamp predated
+-- the earliest applied migration so the runner skipped it).
 --
--- Column reference for points_transactions:
---   type TEXT ('allocation' | 'redemption'), points INTEGER, booking_id UUID,
---   event_type TEXT, reason TEXT
+-- Bug fix vs. orphaned version: profiles balance is keyed by user_id (auth id), not profiles.id.
 
 CREATE OR REPLACE FUNCTION public.cancel_booking_with_clawback(
   p_booking_id UUID,
@@ -14,12 +12,13 @@ CREATE OR REPLACE FUNCTION public.cancel_booking_with_clawback(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path TO 'public'
 AS $$
 DECLARE
   v_booking RECORD;
   v_points_clawed_back INTEGER := 0;
 BEGIN
-  -- Lock the booking row for update to prevent race conditions
+  -- Lock the booking row to prevent race conditions
   SELECT * INTO v_booking
   FROM public.bookings
   WHERE id = p_booking_id
@@ -45,7 +44,6 @@ BEGIN
     AND type = 'allocation';
 
   IF v_points_clawed_back > 0 THEN
-    -- Insert clawback (redemption) transaction
     INSERT INTO public.points_transactions (
       user_id, type, points, description, booking_id, created_by, event_type, reason
     )
@@ -60,11 +58,11 @@ BEGIN
       'Clawback for cancelled booking ' || p_booking_id::text
     );
 
-    -- Decrement the user's points balance (floor at 0)
+    -- Decrement the user's points balance (floor at 0). profiles.user_id is the auth user id.
     UPDATE public.profiles
     SET points = GREATEST(0, COALESCE(points, 0) - v_points_clawed_back),
         updated_at = now()
-    WHERE id = v_booking.user_id;
+    WHERE user_id = v_booking.user_id;
   END IF;
 
   RETURN jsonb_build_object(
@@ -75,6 +73,5 @@ BEGIN
 END;
 $$;
 
--- Only callable from service role (edge functions) — not from browser clients
 REVOKE ALL ON FUNCTION public.cancel_booking_with_clawback(UUID, UUID) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.cancel_booking_with_clawback(UUID, UUID) FROM authenticated;
