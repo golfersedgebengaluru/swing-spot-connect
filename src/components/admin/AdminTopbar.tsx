@@ -226,25 +226,26 @@ export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbar
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-[52px] items-center gap-3 border-b border-[hsl(0_0%_91%)] bg-white px-4">
+    <header className="sticky top-0 z-30 flex h-[52px] items-center gap-2 sm:gap-3 border-b border-[hsl(0_0%_91%)] bg-white px-2 sm:px-4">
       <button
         onClick={onMenuClick}
-        className="flex lg:hidden items-center justify-center rounded-md border border-[hsl(0_0%_91%)] p-2 text-muted-foreground hover:bg-accent hover:text-foreground min-h-[44px] min-w-[44px]"
+        className="flex lg:hidden items-center justify-center rounded-md border border-[hsl(0_0%_91%)] p-2 text-muted-foreground hover:bg-accent hover:text-foreground min-h-[40px] min-w-[40px] shrink-0"
         aria-label="Toggle menu"
       >
         <Menu className="h-4 w-4" />
       </button>
 
-      <h1 className="text-lg font-display font-medium text-[hsl(0_0%_13%)] truncate max-w-[140px] sm:max-w-none">
+      {/* Title — hidden on very small screens to free horizontal space */}
+      <h1 className="hidden sm:block text-lg font-display font-medium text-[hsl(0_0%_13%)] truncate max-w-[140px] md:max-w-none">
         {title}
       </h1>
 
       {/* City / Instance selector */}
       {!isLoadingCities && availableCities.length > 0 && (
-        <div className="flex items-center gap-1.5 ml-2">
+        <div className="flex items-center gap-1.5 sm:ml-2 min-w-0">
           <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 hidden sm:block" />
           <Select value={selectedCity || "__all__"} onValueChange={(v) => setSelectedCity(v === "__all__" ? "" : v)}>
-            <SelectTrigger className="h-8 w-[130px] sm:w-[160px] text-xs border-[hsl(0_0%_91%)] bg-accent rounded-full">
+            <SelectTrigger className="h-8 w-[110px] sm:w-[160px] text-xs border-[hsl(0_0%_91%)] bg-accent rounded-full">
               <SelectValue placeholder="All Cities" />
             </SelectTrigger>
             <SelectContent>
@@ -258,8 +259,8 @@ export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbar
       )}
 
       {/* Right actions */}
-      <div className="ml-auto flex items-center gap-1 sm:gap-2 shrink-0">
-        <div className="relative hidden sm:block">
+      <div className="ml-auto flex items-center gap-0.5 sm:gap-2 shrink-0">
+        <div className="relative hidden md:block">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             placeholder="Search"
@@ -272,7 +273,7 @@ export function AdminTopbar({ title, onMenuClick, onSettingsClick }: AdminTopbar
         <AdminProfilePopover />
 
         {hasAdminAccess && (
-          <Button variant="ghost" size="icon" className="inline-flex min-h-[36px] min-w-[36px] sm:min-h-[44px] sm:min-w-[44px]" onClick={onSettingsClick}>
+          <Button variant="ghost" size="icon" className="hidden sm:inline-flex min-h-[44px] min-w-[44px]" onClick={onSettingsClick}>
             <Settings className="h-4 w-4" />
             <span className="sr-only">Settings</span>
           </Button>

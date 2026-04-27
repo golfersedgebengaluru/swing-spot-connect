@@ -272,6 +272,22 @@
   display: none;
 }
 
+/* Thin always-visible scrollbar for ScrollableTable wrapper */
+.scrollable-table-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.scrollable-table-scroll::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 3px;
+}
+.scrollable-table-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.4);
+  border-radius: 3px;
+}
+.scrollable-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.6);
+}
+
 /* Date inputs: show placeholder text when empty on mobile */
 input[type="date"]:invalid::-webkit-datetime-edit,
 input[type="date"][value=""]::-webkit-datetime-edit {
