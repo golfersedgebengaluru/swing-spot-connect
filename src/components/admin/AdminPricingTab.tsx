@@ -13,6 +13,7 @@ import { useBays, useAllCities } from "@/hooks/useBookings";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useAllProducts } from "@/hooks/useProducts";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { ScrollableTable } from "@/components/ui/scrollable-table";
 
 const DAY_TYPES = [
   { key: "weekday", label: "Weekday" },
@@ -229,8 +230,8 @@ function BayPricingSection() {
         )}
 
         {effectiveCity && sessionTypes.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[650px]">
+          <ScrollableTable minWidth="650px">
+            <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left py-2 px-3 text-muted-foreground font-medium">Session Type</th>
@@ -309,7 +310,7 @@ function BayPricingSection() {
                 })}
               </tbody>
             </table>
-          </div>
+          </ScrollableTable>
         )}
 
         {effectiveCity && sessionTypes.length === 0 && (
@@ -322,7 +323,7 @@ function BayPricingSection() {
           </p>
         )}
 
-        <Button onClick={handleSave} disabled={upsert.isPending || !hasChanges}>
+        <Button onClick={handleSave} disabled={upsert.isPending || !hasChanges} className="w-full sm:w-auto">
           {upsert.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
           Save Pricing
         </Button>
