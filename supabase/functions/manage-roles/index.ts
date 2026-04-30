@@ -12,7 +12,7 @@ const MAX_BODY_BYTES = 10_000;
 const GrantRevokeSchema = z.object({
   action: z.enum(["grant", "revoke"]),
   user_id: z.string().uuid("user_id must be a valid UUID"),
-  role: z.enum(["admin", "site_admin", "user"]),
+  role: z.enum(["admin", "site_admin", "user", "coach"]),
   cities: z.array(z.string().min(1).max(100)).optional(),
 });
 
