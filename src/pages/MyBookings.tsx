@@ -289,6 +289,18 @@ export default function MyBookings() {
             </div>
           </div>
 
+          {/* Linked coaching session */}
+          {linkedSessionsMap?.[booking.id] && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => navigate(`/coaching/${linkedSessionsMap[booking.id]}`)}
+            >
+              <GraduationCap className="mr-1.5 h-3.5 w-3.5" /> View session card
+            </Button>
+          )}
+
           {/* Rebook */}
           {["confirmed", "cancelled"].includes(booking.status) && new Date(booking.start_time) < now && (
             <Button
