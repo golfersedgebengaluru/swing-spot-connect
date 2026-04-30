@@ -414,6 +414,95 @@ export type Database = {
           },
         ]
       }
+      coaches: {
+        Row: {
+          bio: string | null
+          city: string
+          created_at: string
+          id: string
+          is_active: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bio?: string | null
+          city: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bio?: string | null
+          city?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      coaching_sessions: {
+        Row: {
+          booking_id: string | null
+          city: string
+          coach_user_id: string
+          created_at: string
+          drills: string | null
+          id: string
+          notes: string | null
+          onform_url: string | null
+          progress_summary: string | null
+          session_date: string
+          sportsbox_url: string | null
+          student_user_id: string
+          superspeed_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          booking_id?: string | null
+          city: string
+          coach_user_id: string
+          created_at?: string
+          drills?: string | null
+          id?: string
+          notes?: string | null
+          onform_url?: string | null
+          progress_summary?: string | null
+          session_date: string
+          sportsbox_url?: string | null
+          student_user_id: string
+          superspeed_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string | null
+          city?: string
+          coach_user_id?: string
+          created_at?: string
+          drills?: string | null
+          id?: string
+          notes?: string | null
+          onform_url?: string | null
+          progress_summary?: string | null
+          session_date?: string
+          sportsbox_url?: string | null
+          student_user_id?: string
+          superspeed_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coaching_sessions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       community_posts: {
         Row: {
           content: string
@@ -3730,6 +3819,7 @@ export type Database = {
         Returns: number
       }
       is_admin_or_site_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_coach: { Args: { _user_id: string }; Returns: boolean }
       is_franchise_or_site_admin: {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
@@ -3744,7 +3834,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "site_admin" | "user"
+      app_role: "admin" | "site_admin" | "user" | "coach"
       league_format:
         | "stroke_play"
         | "match_play"
@@ -3882,7 +3972,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "site_admin", "user"],
+      app_role: ["admin", "site_admin", "user", "coach"],
       league_format: [
         "stroke_play",
         "match_play",

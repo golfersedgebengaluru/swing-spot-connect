@@ -26,6 +26,7 @@ import { AdminSalesInvoicesTab } from "@/components/admin/AdminSalesInvoicesTab"
 import { AdminExpensesTab } from "@/components/admin/AdminExpensesTab";
 import { AdminLeaguesTab } from "@/components/admin/AdminLeaguesTab";
 import { AdminCouponsTab } from "@/components/admin/AdminCouponsTab";
+import { AdminCoachingTab } from "@/components/admin/AdminCoachingTab";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminTopbar, getTabTitle } from "@/components/admin/AdminTopbar";
 import { AdminCityProvider, useAdminCity } from "@/contexts/AdminCityContext";
@@ -77,6 +78,7 @@ const tabComponents: Record<string, React.ComponentType<any>> = {
   rewards: AdminRewardsTab,
   edgerewards: AdminEdgeRewardsTab,
   leagues: AdminLeaguesTab,
+  coaching: AdminCoachingTab,
   coupons: AdminCouponsTab,
   members: AdminMembersTab,
   allusers: AdminAllUsersTab,
@@ -97,9 +99,12 @@ const tabComponents: Record<string, React.ComponentType<any>> = {
 
 export default function Admin() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { isAdmin, isSiteAdmin, isCoach } = useAdmin();
+  const coachOnly = !isAdmin && !isSiteAdmin && isCoach;
   const [activeTab, setActiveTab] = useState(() => {
     const urlTab = searchParams.get("tab");
-    return urlTab && tabComponents[urlTab] ? urlTab : "dashboard";
+    if (urlTab && tabComponents[urlTab]) return urlTab;
+    return coachOnly ? "coaching" : "dashboard";
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);

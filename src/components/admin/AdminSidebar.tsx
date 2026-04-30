@@ -18,6 +18,7 @@ import {
   X,
   Receipt,
   LogOut,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -40,11 +41,12 @@ interface AdminSidebarProps {
 }
 
 const coreItems = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "walkin", label: "Walk-in Booking", icon: CalendarDays },
-  { id: "bookinglogs", label: "Bookings", icon: CalendarDays },
-  { id: "leagues", label: "Leagues", icon: Trophy },
-  { id: "edgerewards", label: "EDGE Rewards", icon: Award },
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, adminOrSiteAdminOnly: true },
+  { id: "walkin", label: "Walk-in Booking", icon: CalendarDays, adminOrSiteAdminOnly: true },
+  { id: "bookinglogs", label: "Bookings", icon: CalendarDays, adminOrSiteAdminOnly: true },
+  { id: "leagues", label: "Leagues", icon: Trophy, adminOrSiteAdminOnly: true },
+  { id: "coaching", label: "Coaching", icon: GraduationCap },
+  { id: "edgerewards", label: "EDGE Rewards", icon: Award, adminOrSiteAdminOnly: true },
 ];
 
 const usersItems = [
@@ -190,7 +192,8 @@ export function AdminSidebar({
   const initials = user?.email
     ? user.email.substring(0, 2).toUpperCase()
     : "AD";
-  const roleLabel = role === "admin" ? "Administrator" : role === "site_admin" ? "Site-Admin" : "User";
+  const roleLabel = role === "admin" ? "Administrator" : role === "site_admin" ? "Site-Admin" : "Coach";
+  const hasAdminOrSiteAdmin = isAdmin || isSiteAdmin;
 
   const visibleReportsItems = reportsItems.filter((item) => {
     if (isAdmin) return true;
@@ -199,12 +202,16 @@ export function AdminSidebar({
     if (item.id === "reports_expense_reports") return permissions?.site_admin_expense_reports_visible;
     if (item.id === "reports_pnl") return permissions?.site_admin_pnl_visible;
     if (item.id === "reports_profitability") return permissions?.site_admin_product_profitability_visible;
-    if (item.id === "reports_gstr1") return true; // visible if other reports are visible
+    if (item.id === "reports_gstr1") return true;
     return false;
   });
 
   const filterItems = (items: typeof coreItems) =>
-    isAdmin ? items : items.filter((i) => !(i as any).adminOnly);
+    items.filter((i) => {
+      if ((i as any).adminOnly && !isAdmin) return false;
+      if ((i as any).adminOrSiteAdminOnly && !hasAdminOrSiteAdmin) return false;
+      return true;
+    });
 
   const handleNavClick = (tab: string) => {
     onTabChange(tab);
@@ -254,38 +261,18 @@ export function AdminSidebar({
           ))}
         </div>
 
-        <div className="border-b border-white/10 my-3" />
+        {hasAdminOrSiteAdmin && <div className="border-b border-white/10 my-3" />}
 
-        {/* Accordion groups */}
-        <AccordionGroup
-          label="Users"
-          items={filterItems(usersItems)}
-          activeTab={activeTab}
-          onTabChange={handleNavClick}
-          collapsed={collapsed}
-        />
-        <AccordionGroup
-          label="Operations"
-          items={filterItems(operationsItems)}
-          activeTab={activeTab}
-          onTabChange={handleNavClick}
-          collapsed={collapsed}
-        />
-        <AccordionGroup
-          label="Config"
-          items={filterItems(configItems)}
-          activeTab={activeTab}
-          onTabChange={handleNavClick}
-          collapsed={collapsed}
-        />
-        {visibleReportsItems.length > 0 && (
-          <AccordionGroup
-            label="Reports"
-            items={visibleReportsItems}
-            activeTab={activeTab}
-            onTabChange={handleNavClick}
-            collapsed={collapsed}
-          />
+        {/* Accordion groups (admin & site-admin only) */}
+        {hasAdminOrSiteAdmin && (
+          <>
+            <AccordionGroup label="Users" items={filterItems(usersItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
+            <AccordionGroup label="Operations" items={filterItems(operationsItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
+            <AccordionGroup label="Config" items={filterItems(configItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
+            {visibleReportsItems.length > 0 && (
+              <AccordionGroup label="Reports" items={visibleReportsItems} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
+            )}
+          </>
         )}
       </div>
 
@@ -366,12 +353,16 @@ export function AdminSidebar({
                     />
                   ))}
                 </div>
-                <div className="border-b border-white/10 my-3" />
-                <AccordionGroup label="Users" items={filterItems(usersItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
-                <AccordionGroup label="Operations" items={filterItems(operationsItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
-                <AccordionGroup label="Config" items={filterItems(configItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
-                {visibleReportsItems.length > 0 && (
-                  <AccordionGroup label="Reports" items={visibleReportsItems} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
+                {hasAdminOrSiteAdmin && <div className="border-b border-white/10 my-3" />}
+                {hasAdminOrSiteAdmin && (
+                  <>
+                    <AccordionGroup label="Users" items={filterItems(usersItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
+                    <AccordionGroup label="Operations" items={filterItems(operationsItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
+                    <AccordionGroup label="Config" items={filterItems(configItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
+                    {visibleReportsItems.length > 0 && (
+                      <AccordionGroup label="Reports" items={visibleReportsItems} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
+                    )}
+                  </>
                 )}
               </div>
 
