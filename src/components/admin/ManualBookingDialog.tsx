@@ -933,7 +933,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
               </Card>
             )}
 
-            {paymentMode === "manual" && (
+            {!isCorporate && paymentMode === "manual" && (
               <>
                 <div className="space-y-2">
                   {(offlineMethods ?? []).map((m) => (
