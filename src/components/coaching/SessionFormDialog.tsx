@@ -71,10 +71,20 @@ export function SessionFormDialog({
   // Booking linkage
   const [linkBooking, setLinkBooking] = useState(false);
   const [bookingId, setBookingId] = useState<string>("");
+  // Always fetch the student's recent/upcoming bookings as soon as a registered
+  // student is picked, so we can proactively surface a same-day booking match.
   const { data: studentBookings } = useStudentBookings(
-    linkBooking && studentRegistered ? studentId : undefined,
-    city || undefined
+    studentRegistered ? studentId : undefined,
+    undefined
   );
+
+  // Bookings on the currently chosen session date (any city — we'll prompt to align).
+  const sameDayBookings = useMemo(() => {
+    if (!date) return [];
+    return (studentBookings ?? []).filter(
+      (b: any) => format(parseISO(b.start_time), "yyyy-MM-dd") === date
+    );
+  }, [studentBookings, date]);
 
   useEffect(() => {
     if (!open) return;
