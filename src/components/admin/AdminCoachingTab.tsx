@@ -346,7 +346,7 @@ function CoachesManager({ city }: { city: string }) {
               <Switch checked={active} onCheckedChange={setActive} />
             </div>
             <p className="text-xs text-muted-foreground">
-              Note: After adding, also assign the user the <strong>coach</strong> role from the Settings → Roles tab so they can create sessions.
+              The <strong>coach</strong> role is granted automatically so this user can log sessions right away.
             </p>
           </div>
           <DialogFooter>
@@ -398,12 +398,19 @@ export function AdminCoachingTab() {
             Session cards with notes, drills, and links to Onform, Sportsbox AI, and Superspeed.
           </p>
         </div>
-        {showCoachView && (
+        {(showCoachView || showAdminView) && (
           <Button size="sm" onClick={openNewSession}>
             <Plus className="mr-1.5 h-4 w-4" />New Session
           </Button>
         )}
       </div>
+
+      {showAdminView && !showCoachView && (
+        <Card className="p-3 text-xs text-muted-foreground bg-muted/30">
+          Tip: Add coaches under the <strong>Coaches</strong> tab — they're automatically granted the coach role.
+          Use <strong>New Session</strong> to log a session on behalf of any coach. Students appear automatically once they have a session.
+        </Card>
+      )}
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="w-full justify-start overflow-x-auto">
@@ -448,6 +455,7 @@ export function AdminCoachingTab() {
         lockedStudentId={!editingSession && openStudent ? openStudent.id : undefined}
         lockedStudentLabel={!editingSession && openStudent ? openStudent.label : undefined}
         defaultCity={selectedCity || undefined}
+        allowCoachPick={showAdminView}
       />
     </div>
   );

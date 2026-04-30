@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useStudentSearch, useSaveSession, useDeleteSession, type CoachingSession } from "@/hooks/useCoaching";
+import { useStudentSearch, useSaveSession, useDeleteSession, useCoaches, type CoachingSession } from "@/hooks/useCoaching";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAllCities } from "@/hooks/useBookings";
 import { Trash2, Search } from "lucide-react";
@@ -18,6 +18,8 @@ interface Props {
   /** If provided, locks the student selector. */
   lockedStudentId?: string;
   lockedStudentLabel?: string;
+  /** If true, show a coach picker (admin scheduling on behalf of a coach). */
+  allowCoachPick?: boolean;
   /** Override coach (admin scheduling for someone else). Defaults to current user. */
   coachUserId?: string;
   defaultCity?: string;
@@ -29,13 +31,17 @@ export function SessionFormDialog({
   session,
   lockedStudentId,
   lockedStudentLabel,
+  allowCoachPick,
   coachUserId,
   defaultCity,
 }: Props) {
   const { user } = useAuth();
   const { data: cities } = useAllCities();
+  const { data: coachesList } = useCoaches();
   const save = useSaveSession();
   const del = useDeleteSession();
+
+  const [pickedCoachId, setPickedCoachId] = useState<string>("");
 
   const [studentId, setStudentId] = useState<string>("");
   const [studentLabel, setStudentLabel] = useState<string>("");
@@ -54,6 +60,7 @@ export function SessionFormDialog({
   useEffect(() => {
     if (!open) return;
     if (session) {
+      setPickedCoachId(session.coach_user_id);
       setStudentId(session.student_user_id);
       setStudentLabel(session.student_profile?.display_name || session.student_profile?.email || "Student");
       setCity(session.city);
@@ -65,6 +72,7 @@ export function SessionFormDialog({
       setSportsbox(session.sportsbox_url ?? "");
       setSuperspeed(session.superspeed_url ?? "");
     } else {
+      setPickedCoachId(coachUserId ?? user?.id ?? "");
       setStudentId(lockedStudentId ?? "");
       setStudentLabel(lockedStudentLabel ?? "");
       setSearch("");
@@ -77,15 +85,16 @@ export function SessionFormDialog({
       setSportsbox("");
       setSuperspeed("");
     }
-  }, [open, session, lockedStudentId, lockedStudentLabel, defaultCity]);
+  }, [open, session, lockedStudentId, lockedStudentLabel, defaultCity, coachUserId, user?.id]);
 
-  const canSubmit = !!studentId && !!city && !!date && !save.isPending;
+  const effectiveCoachId = pickedCoachId || coachUserId || user?.id || "";
+  const canSubmit = !!studentId && !!city && !!date && !!effectiveCoachId && !save.isPending;
 
   const handleSave = async () => {
-    if (!user) return;
+    if (!user || !effectiveCoachId) return;
     await save.mutateAsync({
       id: session?.id,
-      coach_user_id: coachUserId ?? user.id,
+      coach_user_id: effectiveCoachId,
       student_user_id: studentId,
       city,
       session_date: date,
@@ -114,6 +123,23 @@ export function SessionFormDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {/* Coach picker (admin only) */}
+          {allowCoachPick && (
+            <div className="space-y-1.5">
+              <Label>Coach</Label>
+              <Select value={pickedCoachId} onValueChange={setPickedCoachId}>
+                <SelectTrigger><SelectValue placeholder="Select coach" /></SelectTrigger>
+                <SelectContent>
+                  {(coachesList ?? []).filter(c => c.is_active).map((c) => (
+                    <SelectItem key={c.user_id} value={c.user_id}>
+                      {c.profile?.display_name || c.profile?.email} · {c.city}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Student */}
           <div className="space-y-1.5">
             <Label>Student</Label>
