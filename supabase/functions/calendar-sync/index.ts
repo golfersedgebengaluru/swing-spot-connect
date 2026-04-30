@@ -767,6 +767,7 @@ Deno.serve(async (req) => {
           bay_id: bay_id || null,
           calendar_event_id: calendarEventId,
           note: `Guest: ${guest_name} | ${guest_email} | ${guest_phone}`,
+          billing_status: isDeferred ? "deferred" : "immediate",
         })
         .select()
         .single();
