@@ -875,27 +875,45 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
               </CardContent>
             </Card>
 
-            {/* Payment Mode Toggle */}
-            <div className="flex gap-2">
-              <Button
-                variant={paymentMode === "manual" ? "default" : "outline"}
-                size="sm"
-                className="flex-1"
-                onClick={() => setPaymentMode("manual")}
-              >
-                <Banknote className="h-3.5 w-3.5 mr-1" /> Manual Payment
-              </Button>
-              {customerMode === "existing" && hoursBalance !== null && hoursBalance > 0 && (
+            {/* Corporate banner — replaces payment selection entirely */}
+            {isCorporate && (
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="p-3 space-y-1.5 text-sm">
+                  <div className="flex items-center gap-2 font-medium">
+                    <Building2 className="h-4 w-4 text-primary" />
+                    Corporate Account: {corporateAccount?.name}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    This session will be added to {corporateAccount?.name}'s monthly consolidated invoice.
+                    No payment is collected now.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Payment Mode Toggle (hidden for corporate) */}
+            {!isCorporate && (
+              <div className="flex gap-2">
                 <Button
-                  variant={paymentMode === "hours" ? "default" : "outline"}
+                  variant={paymentMode === "manual" ? "default" : "outline"}
                   size="sm"
                   className="flex-1"
-                  onClick={() => setPaymentMode("hours")}
+                  onClick={() => setPaymentMode("manual")}
                 >
-                  <Hourglass className="h-3.5 w-3.5 mr-1" /> Use Hours ({hoursBalance.toFixed(1)}h)
+                  <Banknote className="h-3.5 w-3.5 mr-1" /> Manual Payment
                 </Button>
-              )}
-            </div>
+                {customerMode === "existing" && hoursBalance !== null && hoursBalance > 0 && (
+                  <Button
+                    variant={paymentMode === "hours" ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setPaymentMode("hours")}
+                  >
+                    <Hourglass className="h-3.5 w-3.5 mr-1" /> Use Hours ({hoursBalance.toFixed(1)}h)
+                  </Button>
+                )}
+              </div>
+            )}
 
             {paymentMode === "hours" && (
               <Card className={cn("border", canPayWithHours ? "border-primary/30" : "border-destructive/30")}>
