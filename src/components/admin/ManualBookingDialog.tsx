@@ -30,6 +30,8 @@ import { useProducts } from "@/hooks/useProducts";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAdvanceBalance, useDrawdownAdvance } from "@/hooks/useAdvanceAccount";
+import { useProfileBillingInfo } from "@/hooks/useCorporateAccounts";
+import { Building2 } from "lucide-react";
 
 type Step = "customer" | "slot" | "payment" | "confirm";
 type CustomerMode = "existing" | "new";
