@@ -45,6 +45,8 @@ export function SessionCard({ session, perspective, onClick }: Props) {
         onform={session.onform_url}
         sportsbox={session.sportsbox_url}
         superspeed={session.superspeed_url}
+        other={session.other_url}
+        otherLabel={session.other_label}
       />
     </Card>
   );

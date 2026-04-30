@@ -15,6 +15,8 @@ export interface CoachingSession {
   onform_url: string | null;
   sportsbox_url: string | null;
   superspeed_url: string | null;
+  other_url: string | null;
+  other_label: string | null;
   booking_id: string | null;
   created_at: string;
   updated_at: string;
@@ -165,6 +167,8 @@ type SessionInput = {
   onform_url?: string | null;
   sportsbox_url?: string | null;
   superspeed_url?: string | null;
+  other_url?: string | null;
+  other_label?: string | null;
 };
 
 export function useSaveSession() {
