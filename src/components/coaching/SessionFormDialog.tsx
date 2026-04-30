@@ -56,6 +56,8 @@ export function SessionFormDialog({
   const [onform, setOnform] = useState("");
   const [sportsbox, setSportsbox] = useState("");
   const [superspeed, setSuperspeed] = useState("");
+  const [otherUrl, setOtherUrl] = useState("");
+  const [otherLabel, setOtherLabel] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -71,6 +73,8 @@ export function SessionFormDialog({
       setOnform(session.onform_url ?? "");
       setSportsbox(session.sportsbox_url ?? "");
       setSuperspeed(session.superspeed_url ?? "");
+      setOtherUrl(session.other_url ?? "");
+      setOtherLabel(session.other_label ?? "");
     } else {
       setPickedCoachId(coachUserId ?? user?.id ?? "");
       setStudentId(lockedStudentId ?? "");
@@ -84,6 +88,8 @@ export function SessionFormDialog({
       setOnform("");
       setSportsbox("");
       setSuperspeed("");
+      setOtherUrl("");
+      setOtherLabel("");
     }
   }, [open, session, lockedStudentId, lockedStudentLabel, defaultCity, coachUserId, user?.id]);
 
@@ -104,6 +110,8 @@ export function SessionFormDialog({
       onform_url: onform.trim() || null,
       sportsbox_url: sportsbox.trim() || null,
       superspeed_url: superspeed.trim() || null,
+      other_url: otherUrl.trim() || null,
+      other_label: otherLabel.trim() || null,
     });
     onOpenChange(false);
   };
@@ -236,6 +244,24 @@ export function SessionFormDialog({
             <div className="space-y-1.5">
               <Label>Superspeed link</Label>
               <Input value={superspeed} onChange={(e) => setSuperspeed(e.target.value)} placeholder="https://…" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Other link</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <Input
+                  value={otherLabel}
+                  onChange={(e) => setOtherLabel(e.target.value)}
+                  placeholder="Label (e.g. Drive, YouTube)"
+                  className="sm:col-span-1"
+                />
+                <Input
+                  value={otherUrl}
+                  onChange={(e) => setOtherUrl(e.target.value)}
+                  placeholder="https://…"
+                  className="sm:col-span-2"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Add any external resource (Google Drive, YouTube, etc.).</p>
             </div>
           </div>
         </div>
