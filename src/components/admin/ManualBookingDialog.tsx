@@ -999,6 +999,8 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             <Button className="w-full" size="lg" disabled={isProcessing || !canConfirm} onClick={handleConfirmBooking}>
               {isProcessing ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating Booking...</>
+              ) : isCorporate ? (
+                `Confirm · Defer to ${corporateAccount?.name} monthly invoice`
               ) : paymentMode === "hours" ? (
                 `Confirm · Deduct ${hoursNeeded}h`
               ) : (
