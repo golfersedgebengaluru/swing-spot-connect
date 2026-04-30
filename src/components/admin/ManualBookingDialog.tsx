@@ -457,7 +457,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
       queryClient.invalidateQueries({ queryKey: ["advance_transactions"] });
 
       setBookingComplete(true);
-      toast({ title: "Manual Booking Created!", description: paymentMode === "hours" ? `${hoursNeeded}h deducted from ${customerName}'s balance.` : `Payment via ${selectedPaymentMethod} recorded.` });
+      toast({ title: "Manual Booking Created!", description: isCorporate ? `Booking deferred to ${corporateAccount?.name} monthly invoice.` : paymentMode === "hours" ? `${hoursNeeded}h deducted from ${customerName}'s balance.` : `Payment via ${selectedPaymentMethod} recorded.` });
     } catch (err: any) {
       toast({ title: "Booking Failed", description: err.message, variant: "destructive" });
     } finally {
