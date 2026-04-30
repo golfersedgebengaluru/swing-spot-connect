@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Loader2, Pencil, Shield, ShieldCheck, Users, MapPin, Clock, Star, Mail, Phone, Calendar, User as UserIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { UserCoachAssignment } from "./UserCoachAssignment";
 
 interface Props {
   user: any | null;
@@ -181,6 +182,19 @@ export function ViewUserProfileDialog({ user, onClose, onEdit }: Props) {
         </section>
 
         <Separator />
+
+        {/* ── Coaching ── */}
+        {user.id && (
+          <>
+            <section>
+              <UserCoachAssignment
+                studentProfileId={user.id}
+                studentLabel={user.display_name || "This user"}
+              />
+            </section>
+            <Separator />
+          </>
+        )}
 
         {/* ── Access Flags ── */}
         <section className="space-y-3">

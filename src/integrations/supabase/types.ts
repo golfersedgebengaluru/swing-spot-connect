@@ -414,6 +414,54 @@ export type Database = {
           },
         ]
       }
+      coach_students: {
+        Row: {
+          assigned_by: string | null
+          coach_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          student_profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          coach_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          student_profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_by?: string | null
+          coach_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          student_profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_students_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_students_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coaches: {
         Row: {
           bio: string | null

@@ -327,6 +327,125 @@ export function useDeleteCoach() {
   });
 }
 
+/* ---------- Coach <-> Student assignment ---------- */
+export interface CoachStudentLink {
+  id: string;
+  coach_id: string;
+  student_profile_id: string;
+  notes: string | null;
+  is_active: boolean;
+  created_at: string;
+  student?: { id: string; user_id: string | null; display_name: string | null; email: string | null } | null;
+}
+
+async function attachStudentProfilesToLinks(rows: any[]): Promise<CoachStudentLink[]> {
+  if (!rows.length) return rows as CoachStudentLink[];
+  const ids = Array.from(new Set(rows.map((r) => r.student_profile_id)));
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, user_id, display_name, email")
+    .in("id", ids);
+  const map = new Map((profiles ?? []).map((p) => [p.id, p]));
+  return rows.map((r) => ({ ...r, student: map.get(r.student_profile_id) ?? null })) as CoachStudentLink[];
+}
+
+/** All students assigned to a given coach (by coaches.id). */
+export function useCoachStudents(coachId: string | undefined) {
+  return useQuery({
+    queryKey: ["coaching", "coach-students", coachId ?? "none"],
+    enabled: !!coachId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("coach_students")
+        .select("*")
+        .eq("coach_id", coachId!)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return await attachStudentProfilesToLinks(data ?? []);
+    },
+  });
+}
+
+/** Lookup the active coach assignment for a student (by profile.id). */
+export function useStudentCoach(studentProfileId: string | undefined) {
+  return useQuery({
+    queryKey: ["coaching", "student-coach", studentProfileId ?? "none"],
+    enabled: !!studentProfileId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("coach_students")
+        .select("id, coach_id, notes")
+        .eq("student_profile_id", studentProfileId!)
+        .eq("is_active", true)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const { data: coach } = await supabase
+        .from("coaches")
+        .select("id, user_id, city")
+        .eq("id", data.coach_id)
+        .maybeSingle();
+      let coachProfile = null;
+      if (coach?.user_id) {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("display_name, email")
+          .eq("user_id", coach.user_id)
+          .maybeSingle();
+        coachProfile = prof;
+      }
+      return { ...data, coach, coach_profile: coachProfile };
+    },
+  });
+}
+
+export function useAssignStudentToCoach() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (input: { coach_id: string; student_profile_id: string; notes?: string | null }) => {
+      // Upsert pattern: deactivate any existing active link for this student, then insert.
+      await supabase
+        .from("coach_students")
+        .update({ is_active: false })
+        .eq("student_profile_id", input.student_profile_id)
+        .eq("is_active", true);
+      const { error } = await supabase.from("coach_students").insert({
+        coach_id: input.coach_id,
+        student_profile_id: input.student_profile_id,
+        notes: input.notes ?? null,
+        assigned_by: user?.id ?? null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["coaching", "coach-students"] });
+      qc.invalidateQueries({ queryKey: ["coaching", "student-coach"] });
+      toast({ title: "Student assigned" });
+    },
+    onError: (e: any) => toast({ title: "Assign failed", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useUnassignStudentFromCoach() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (linkId: string) => {
+      const { error } = await supabase.from("coach_students").delete().eq("id", linkId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["coaching", "coach-students"] });
+      qc.invalidateQueries({ queryKey: ["coaching", "student-coach"] });
+      toast({ title: "Student removed from coach" });
+    },
+    onError: (e: any) => toast({ title: "Remove failed", description: e.message, variant: "destructive" }),
+  });
+}
+
 /* ---------- Am I a coach? ---------- */
 export function useIsCoach() {
   const { user } = useAuth();
