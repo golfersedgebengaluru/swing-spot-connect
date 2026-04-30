@@ -96,6 +96,23 @@ export default function MyBookings() {
     },
   });
 
+  // Map booking_id → coaching session id (for "View session card" link)
+  const { data: linkedSessionsMap } = useQuery({
+    queryKey: ["my-bookings-coaching-links", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("coaching_sessions")
+        .select("id, booking_id")
+        .eq("student_user_id", user!.id)
+        .not("booking_id", "is", null);
+      if (error) throw error;
+      const m: Record<string, string> = {};
+      (data ?? []).forEach((r: any) => { if (r.booking_id) m[r.booking_id] = r.id; });
+      return m;
+    },
+  });
+
   
 
   // Get cancellation penalty info for a booking
