@@ -209,6 +209,7 @@ type SessionInput = {
   superspeed_url?: string | null;
   other_url?: string | null;
   other_label?: string | null;
+  booking_id?: string | null;
 };
 
 export function useSaveSession() {
