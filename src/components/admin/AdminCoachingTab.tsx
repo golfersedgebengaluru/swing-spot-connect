@@ -455,6 +455,7 @@ export function AdminCoachingTab() {
         lockedStudentId={!editingSession && openStudent ? openStudent.id : undefined}
         lockedStudentLabel={!editingSession && openStudent ? openStudent.label : undefined}
         defaultCity={selectedCity || undefined}
+        allowCoachPick={showAdminView}
       />
     </div>
   );
