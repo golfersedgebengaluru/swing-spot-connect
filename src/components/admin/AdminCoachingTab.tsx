@@ -371,10 +371,18 @@ export function AdminCoachingTab() {
   const { user } = useAuth();
   const { selectedCity } = useAdminCity();
   const { data: isCoach } = useIsCoach();
+  const { data: allCoaches } = useCoaches();
 
   const hasAdminAccess = isAdmin || isSiteAdmin;
   const showCoachView = !!isCoach;
   const showAdminView = hasAdminAccess;
+
+  // Coach-only users: pre-fill the city from their roster row.
+  const myCoachCity = useMemo(
+    () => (allCoaches ?? []).find((c) => c.user_id === user?.id)?.city ?? "",
+    [allCoaches, user?.id]
+  );
+  const dialogDefaultCity = selectedCity || myCoachCity || undefined;
 
   // Default landing tab
   const defaultTab = showCoachView ? "my-students" : showAdminView ? "all-sessions" : "my-students";
