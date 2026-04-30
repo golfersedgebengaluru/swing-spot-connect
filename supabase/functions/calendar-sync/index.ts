@@ -656,7 +656,9 @@ Deno.serve(async (req) => {
         start_time, end_time, duration_minutes, city, bay_id, bay_name,
         session_type, guest_name, guest_email, guest_phone, calendar_email,
         user_id_override,
+        billing_status, // 'deferred' for corporate monthly customers
       } = params;
+      const isDeferred = billing_status === "deferred";
 
       const adminClient = createAdminClient();
 
