@@ -1,15 +1,23 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useStudentSearch, useSaveSession, useDeleteSession, useCoaches, type CoachingSession } from "@/hooks/useCoaching";
+import {
+  useStudentSearch,
+  useSaveSession,
+  useDeleteSession,
+  useCoaches,
+  useStudentBookings,
+  type CoachingSession,
+} from "@/hooks/useCoaching";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAllCities } from "@/hooks/useBookings";
-import { Trash2, Search } from "lucide-react";
-import { format } from "date-fns";
+import { Trash2, Search, Link2 } from "lucide-react";
+import { format, parseISO } from "date-fns";
 
 interface Props {
   open: boolean;
@@ -45,6 +53,7 @@ export function SessionFormDialog({
 
   const [studentId, setStudentId] = useState<string>("");
   const [studentLabel, setStudentLabel] = useState<string>("");
+  const [studentRegistered, setStudentRegistered] = useState<boolean>(true);
   const [search, setSearch] = useState("");
   const { data: searchResults } = useStudentSearch(search);
 
@@ -59,12 +68,21 @@ export function SessionFormDialog({
   const [otherUrl, setOtherUrl] = useState("");
   const [otherLabel, setOtherLabel] = useState("");
 
+  // Booking linkage
+  const [linkBooking, setLinkBooking] = useState(false);
+  const [bookingId, setBookingId] = useState<string>("");
+  const { data: studentBookings } = useStudentBookings(
+    linkBooking && studentRegistered ? studentId : undefined,
+    city || undefined
+  );
+
   useEffect(() => {
     if (!open) return;
     if (session) {
       setPickedCoachId(session.coach_user_id);
       setStudentId(session.student_user_id);
       setStudentLabel(session.student_profile?.display_name || session.student_profile?.email || "Student");
+      setStudentRegistered(true);
       setCity(session.city);
       setDate(session.session_date);
       setNotes(session.notes ?? "");
@@ -75,10 +93,13 @@ export function SessionFormDialog({
       setSuperspeed(session.superspeed_url ?? "");
       setOtherUrl(session.other_url ?? "");
       setOtherLabel(session.other_label ?? "");
+      setLinkBooking(!!session.booking_id);
+      setBookingId(session.booking_id ?? "");
     } else {
       setPickedCoachId(coachUserId ?? user?.id ?? "");
       setStudentId(lockedStudentId ?? "");
       setStudentLabel(lockedStudentLabel ?? "");
+      setStudentRegistered(true);
       setSearch("");
       setCity(defaultCity ?? "");
       setDate(format(new Date(), "yyyy-MM-dd"));
@@ -90,11 +111,31 @@ export function SessionFormDialog({
       setSuperspeed("");
       setOtherUrl("");
       setOtherLabel("");
+      setLinkBooking(false);
+      setBookingId("");
     }
   }, [open, session, lockedStudentId, lockedStudentLabel, defaultCity, coachUserId, user?.id]);
 
   const effectiveCoachId = pickedCoachId || coachUserId || user?.id || "";
   const canSubmit = !!studentId && !!city && !!date && !!effectiveCoachId && !save.isPending;
+
+  // Auto-fill date + city when a booking is selected
+  const onPickBooking = (id: string) => {
+    setBookingId(id);
+    const b = (studentBookings ?? []).find((x: any) => x.id === id);
+    if (b) {
+      setDate(format(parseISO(b.start_time), "yyyy-MM-dd"));
+      if (b.city) setCity(b.city);
+    }
+  };
+
+  const missingHint = useMemo(() => {
+    const m: string[] = [];
+    if (!studentId) m.push("student");
+    if (!city) m.push("city");
+    if (!date) m.push("date");
+    return m.length ? `Pick a ${m.join(", ")} to save.` : "";
+  }, [studentId, city, date]);
 
   const handleSave = async () => {
     if (!user || !effectiveCoachId) return;
@@ -112,6 +153,7 @@ export function SessionFormDialog({
       superspeed_url: superspeed.trim() || null,
       other_url: otherUrl.trim() || null,
       other_label: otherLabel.trim() || null,
+      booking_id: linkBooking && bookingId ? bookingId : null,
     });
     onOpenChange(false);
   };
@@ -153,9 +195,14 @@ export function SessionFormDialog({
             <Label>Student</Label>
             {lockedStudentId || studentId ? (
               <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                <span className="truncate">{studentLabel || "Selected"}</span>
+                <span className="truncate">
+                  {studentLabel || "Selected"}
+                  {!studentRegistered && (
+                    <span className="ml-2 text-xs text-muted-foreground">(pre-registered)</span>
+                  )}
+                </span>
                 {!lockedStudentId && !session && (
-                  <Button type="button" variant="ghost" size="sm" onClick={() => { setStudentId(""); setStudentLabel(""); }}>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => { setStudentId(""); setStudentLabel(""); setStudentRegistered(true); }}>
                     Change
                   </Button>
                 )}
@@ -171,6 +218,9 @@ export function SessionFormDialog({
                     className="pl-8"
                   />
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Works for both registered members and pre-registered profiles (e.g. walk-ins).
+                </p>
                 {search.length >= 2 && (
                   <div className="max-h-48 overflow-y-auto rounded-md border">
                     {(searchResults ?? []).length === 0 ? (
@@ -178,16 +228,24 @@ export function SessionFormDialog({
                     ) : (
                       (searchResults ?? []).map((p: any) => (
                         <button
-                          key={p.user_id}
+                          key={p.resolved_id}
                           type="button"
                           onClick={() => {
-                            setStudentId(p.user_id);
+                            setStudentId(p.resolved_id);
                             setStudentLabel(p.display_name || p.email);
+                            setStudentRegistered(!!p.is_registered);
                             setSearch("");
                           }}
                           className="block w-full text-left px-3 py-2 text-sm hover:bg-muted"
                         >
-                          <div className="font-medium">{p.display_name || "—"}</div>
+                          <div className="font-medium flex items-center gap-2">
+                            {p.display_name || "—"}
+                            {!p.is_registered && (
+                              <span className="text-[10px] uppercase tracking-wide rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
+                                pre-registered
+                              </span>
+                            )}
+                          </div>
                           <div className="text-xs text-muted-foreground">{p.email}</div>
                         </button>
                       ))
@@ -197,6 +255,40 @@ export function SessionFormDialog({
               </div>
             )}
           </div>
+
+          {/* Link to booking */}
+          {studentId && studentRegistered && (
+            <div className="rounded-md border p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2 cursor-pointer">
+                  <Link2 className="h-4 w-4 text-muted-foreground" />
+                  Link to a booked slot
+                </Label>
+                <Switch checked={linkBooking} onCheckedChange={(v) => { setLinkBooking(v); if (!v) setBookingId(""); }} />
+              </div>
+              {linkBooking && (
+                <div className="space-y-1.5">
+                  <Select value={bookingId} onValueChange={onPickBooking}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={
+                        (studentBookings?.length ?? 0) === 0 ? "No bookings found in last 30 / next 14 days" : "Select a booking"
+                      } />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(studentBookings ?? []).map((b: any) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {format(parseISO(b.start_time), "MMM d, h:mm a")} · {b.bay_name} · {b.session_type || "session"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Date and city auto-fill from the selected booking. Works for both practice and coaching slots.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* City + Date */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -266,12 +358,15 @@ export function SessionFormDialog({
           </div>
         </div>
 
-        <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+        <DialogFooter className="flex-col-reverse sm:flex-row gap-2 items-stretch sm:items-center">
           {session && (
             <Button type="button" variant="ghost" className="text-destructive sm:mr-auto" onClick={handleDelete}>
               <Trash2 className="mr-1.5 h-4 w-4" />
               Delete
             </Button>
+          )}
+          {!canSubmit && missingHint && (
+            <span className="text-xs text-muted-foreground sm:mr-2">{missingHint}</span>
           )}
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button type="button" onClick={handleSave} disabled={!canSubmit}>

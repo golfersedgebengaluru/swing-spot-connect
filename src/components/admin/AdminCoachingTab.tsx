@@ -49,8 +49,12 @@ function CoachStudentList({ onPick }: { onPick: (studentId: string, label: strin
   if (isLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
   if (!groups.length)
     return (
-      <Card className="p-6 text-center text-sm text-muted-foreground">
-        No students yet. Create a session to add one.
+      <Card className="p-8 text-center">
+        <GraduationCap className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
+        <p className="font-medium">No students yet</p>
+        <p className="text-sm text-muted-foreground mt-1 mb-4">
+          Log your first session — your students will appear here automatically.
+        </p>
       </Card>
     );
 
@@ -308,10 +312,10 @@ function CoachesManager({ city }: { city: string }) {
                   </div>
                   {search.length >= 2 && (
                     <div className="max-h-40 overflow-y-auto rounded-md border">
-                      {(searchResults ?? []).length === 0 ? (
-                        <div className="p-3 text-sm text-muted-foreground">No matches</div>
+                      {(searchResults ?? []).filter((p: any) => p.is_registered).length === 0 ? (
+                        <div className="p-3 text-sm text-muted-foreground">No registered users match. Coaches must have signed in at least once.</div>
                       ) : (
-                        (searchResults ?? []).map((p: any) => (
+                        (searchResults ?? []).filter((p: any) => p.is_registered).map((p: any) => (
                           <button
                             key={p.user_id}
                             type="button"
@@ -367,10 +371,18 @@ export function AdminCoachingTab() {
   const { user } = useAuth();
   const { selectedCity } = useAdminCity();
   const { data: isCoach } = useIsCoach();
+  const { data: allCoaches } = useCoaches();
 
   const hasAdminAccess = isAdmin || isSiteAdmin;
   const showCoachView = !!isCoach;
   const showAdminView = hasAdminAccess;
+
+  // Coach-only users: pre-fill the city from their roster row.
+  const myCoachCity = useMemo(
+    () => (allCoaches ?? []).find((c) => c.user_id === user?.id)?.city ?? "",
+    [allCoaches, user?.id]
+  );
+  const dialogDefaultCity = selectedCity || myCoachCity || undefined;
 
   // Default landing tab
   const defaultTab = showCoachView ? "my-students" : showAdminView ? "all-sessions" : "my-students";
@@ -454,7 +466,7 @@ export function AdminCoachingTab() {
         session={editingSession}
         lockedStudentId={!editingSession && openStudent ? openStudent.id : undefined}
         lockedStudentLabel={!editingSession && openStudent ? openStudent.label : undefined}
-        defaultCity={selectedCity || undefined}
+        defaultCity={dialogDefaultCity}
         allowCoachPick={showAdminView}
       />
     </div>

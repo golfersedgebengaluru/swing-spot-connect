@@ -135,7 +135,10 @@ export function useCoaches(city?: string) {
   });
 }
 
-/* ---------- Search students (by email or name) ---------- */
+/* ---------- Search students (by email or name) ----------
+   Returns BOTH registered (user_id set) and pre-registered (user_id null,
+   profile.id used as fallback) so admin-created members like walk-ins are findable.
+*/
 export function useStudentSearch(query: string) {
   return useQuery({
     queryKey: ["coaching", "student-search", query],
@@ -144,12 +147,49 @@ export function useStudentSearch(query: string) {
       const term = query.trim();
       const { data, error } = await supabase
         .from("profiles")
-        .select("user_id, display_name, email")
+        .select("id, user_id, display_name, email")
         .or(`display_name.ilike.%${term}%,email.ilike.%${term}%`)
-        .not("user_id", "is", null)
-        .limit(10);
+        .limit(15);
       if (error) throw error;
-      return data ?? [];
+      // Surface a single id for downstream use; prefer auth user_id, fall back to profile id.
+      return (data ?? []).map((p: any) => ({
+        ...p,
+        resolved_id: p.user_id ?? p.id,
+        is_registered: !!p.user_id,
+      }));
+    },
+  });
+}
+
+/* ---------- Bookings for a given student (for linking to a session) ---------- */
+export function useStudentBookings(studentId: string | undefined, city?: string) {
+  return useQuery({
+    queryKey: ["coaching", "student-bookings", studentId ?? "none", city ?? "all"],
+    enabled: !!studentId,
+    queryFn: async () => {
+      // Window: last 30 days → next 14 days
+      const from = new Date(Date.now() - 30 * 86400000).toISOString();
+      const to = new Date(Date.now() + 14 * 86400000).toISOString();
+      let q = supabase
+        .from("bookings")
+        .select("id, city, bay_id, start_time, end_time, session_type, status, coach_name")
+        .eq("user_id", studentId!)
+        .gte("start_time", from)
+        .lte("start_time", to)
+        .neq("status", "cancelled")
+        .order("start_time", { ascending: false })
+        .limit(50);
+      if (city) q = q.eq("city", city);
+      const { data, error } = await q;
+      if (error) throw error;
+      // Bay names
+      const bayIds = Array.from(new Set((data ?? []).map((b) => b.bay_id).filter(Boolean)));
+      let bayMap = new Map<string, string>();
+      if (bayIds.length) {
+        const { data: bays } = await supabase.from("bays").select("id, name").in("id", bayIds);
+        bayMap = new Map((bays ?? []).map((b: any) => [b.id, b.name]));
+      }
+      return (data ?? []).map((b: any) => ({ ...b, bay_name: bayMap.get(b.bay_id) || "Bay" }));
     },
   });
 }
@@ -169,6 +209,7 @@ type SessionInput = {
   superspeed_url?: string | null;
   other_url?: string | null;
   other_label?: string | null;
+  booking_id?: string | null;
 };
 
 export function useSaveSession() {
@@ -229,18 +270,31 @@ export function useSaveCoach() {
         if (error) throw error;
       }
       // Auto-grant the `coach` role so this user can create sessions immediately.
+      let roleGranted = true;
       try {
-        await supabase.functions.invoke("manage-roles", {
+        const { data, error: fnErr } = await supabase.functions.invoke("manage-roles", {
           body: { action: "grant", user_id: input.user_id, role: "coach" },
         });
+        if (fnErr || (data && (data as any).error)) {
+          roleGranted = false;
+          console.warn("Auto-grant coach role failed", fnErr || (data as any).error);
+        }
       } catch (e) {
-        console.warn("Auto-grant coach role failed (non-fatal)", e);
+        roleGranted = false;
+        console.warn("Auto-grant coach role threw", e);
       }
+      return { roleGranted };
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["coaching", "coaches"] });
       qc.invalidateQueries({ queryKey: ["admin-roles"] });
-      toast({ title: "Coach saved", description: "Coach role granted automatically." });
+      toast({
+        title: "Coach saved",
+        description: res.roleGranted
+          ? "Coach role granted automatically."
+          : "Saved, but the coach role could not be granted automatically. Assign it under Settings → Roles.",
+        variant: res.roleGranted ? "default" : "destructive",
+      });
     },
     onError: (e: any) => toast({ title: "Save failed", description: e.message, variant: "destructive" }),
   });

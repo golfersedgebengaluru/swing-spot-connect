@@ -96,6 +96,23 @@ export default function MyBookings() {
     },
   });
 
+  // Map booking_id → coaching session id (for "View session card" link)
+  const { data: linkedSessionsMap } = useQuery({
+    queryKey: ["my-bookings-coaching-links", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("coaching_sessions")
+        .select("id, booking_id")
+        .eq("student_user_id", user!.id)
+        .not("booking_id", "is", null);
+      if (error) throw error;
+      const m: Record<string, string> = {};
+      (data ?? []).forEach((r: any) => { if (r.booking_id) m[r.booking_id] = r.id; });
+      return m;
+    },
+  });
+
   
 
   // Get cancellation penalty info for a booking
@@ -272,6 +289,18 @@ export default function MyBookings() {
             </div>
           </div>
 
+          {/* Linked coaching session */}
+          {linkedSessionsMap?.[booking.id] && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => navigate(`/coaching/${linkedSessionsMap[booking.id]}`)}
+            >
+              <GraduationCap className="mr-1.5 h-3.5 w-3.5" /> View session card
+            </Button>
+          )}
+
           {/* Rebook */}
           {["confirmed", "cancelled"].includes(booking.status) && new Date(booking.start_time) < now && (
             <Button
@@ -442,6 +471,15 @@ export default function MyBookings() {
                                   <X className="mr-1 h-3 w-3" /> Cancel
                                 </Button>
                               )
+                            )}
+                            {linkedSessionsMap?.[booking.id] && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => navigate(`/coaching/${linkedSessionsMap[booking.id]}`)}
+                              >
+                                <GraduationCap className="mr-1 h-3 w-3" /> Session
+                              </Button>
                             )}
                             {isPast && ["confirmed", "cancelled"].includes(booking.status) && (
                               <Button variant="ghost" size="sm" onClick={() => navigate("/bookings")}>
