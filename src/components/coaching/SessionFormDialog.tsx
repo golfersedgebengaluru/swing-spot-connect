@@ -71,10 +71,11 @@ export function SessionFormDialog({
   // Booking linkage
   const [linkBooking, setLinkBooking] = useState(false);
   const [bookingId, setBookingId] = useState<string>("");
-  // Always fetch the student's recent/upcoming bookings as soon as a registered
-  // student is picked, so we can proactively surface a same-day booking match.
+  // Always fetch the student's recent/upcoming bookings as soon as ANY student
+  // (registered or pre-registered/walk-in) is picked. Walk-in bookings store
+  // profile.id in bookings.user_id, so the same lookup works for both.
   const { data: studentBookings } = useStudentBookings(
-    studentRegistered ? studentId : undefined,
+    studentId || undefined,
     undefined
   );
 
