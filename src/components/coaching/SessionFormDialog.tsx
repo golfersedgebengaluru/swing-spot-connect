@@ -123,6 +123,23 @@ export function SessionFormDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {/* Coach picker (admin only) */}
+          {allowCoachPick && (
+            <div className="space-y-1.5">
+              <Label>Coach</Label>
+              <Select value={pickedCoachId} onValueChange={setPickedCoachId}>
+                <SelectTrigger><SelectValue placeholder="Select coach" /></SelectTrigger>
+                <SelectContent>
+                  {(coachesList ?? []).filter(c => c.is_active).map((c) => (
+                    <SelectItem key={c.user_id} value={c.user_id}>
+                      {c.profile?.display_name || c.profile?.email} · {c.city}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Student */}
           <div className="space-y-1.5">
             <Label>Student</Label>
