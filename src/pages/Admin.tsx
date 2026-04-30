@@ -99,9 +99,12 @@ const tabComponents: Record<string, React.ComponentType<any>> = {
 
 export default function Admin() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { isAdmin, isSiteAdmin, isCoach } = useAdmin();
+  const coachOnly = !isAdmin && !isSiteAdmin && isCoach;
   const [activeTab, setActiveTab] = useState(() => {
     const urlTab = searchParams.get("tab");
-    return urlTab && tabComponents[urlTab] ? urlTab : "dashboard";
+    if (urlTab && tabComponents[urlTab]) return urlTab;
+    return coachOnly ? "coaching" : "dashboard";
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
