@@ -656,7 +656,9 @@ Deno.serve(async (req) => {
         start_time, end_time, duration_minutes, city, bay_id, bay_name,
         session_type, guest_name, guest_email, guest_phone, calendar_email,
         user_id_override,
+        billing_status, // 'deferred' for corporate monthly customers
       } = params;
+      const isDeferred = billing_status === "deferred";
 
       const adminClient = createAdminClient();
 
@@ -765,31 +767,34 @@ Deno.serve(async (req) => {
           bay_id: bay_id || null,
           calendar_event_id: calendarEventId,
           note: `Guest: ${guest_name} | ${guest_email} | ${guest_phone}`,
+          billing_status: isDeferred ? "deferred" : "immediate",
         })
         .select()
         .single();
 
       if (bookingError) throw bookingError;
 
-      // Create revenue transaction for guest booking
-      try {
-        await adminClient.from("revenue_transactions").insert({
-          transaction_type: "guest_booking",
-          amount: params.amount || 0,
-          currency: params.currency || "INR",
-          guest_name,
-          guest_email,
-          guest_phone,
-          gateway_name: params.gateway_name || "razorpay",
-          gateway_order_ref: order_id || null,
-          gateway_payment_ref: payment_id || null,
-          booking_id: booking.id,
-          description: `Guest booking - ${bay_name || city} - ${guest_name}`,
-          status: "confirmed",
-          city: city || null,
-        });
-      } catch (e) {
-        console.error("Failed to create revenue transaction for guest:", (e as Error).message);
+      // Create revenue transaction for guest booking — SKIP for deferred (corporate) bookings
+      if (!isDeferred) {
+        try {
+          await adminClient.from("revenue_transactions").insert({
+            transaction_type: "guest_booking",
+            amount: params.amount || 0,
+            currency: params.currency || "INR",
+            guest_name,
+            guest_email,
+            guest_phone,
+            gateway_name: params.gateway_name || "razorpay",
+            gateway_order_ref: order_id || null,
+            gateway_payment_ref: payment_id || null,
+            booking_id: booking.id,
+            description: `Guest booking - ${bay_name || city} - ${guest_name}`,
+            status: "confirmed",
+            city: city || null,
+          });
+        } catch (e) {
+          console.error("Failed to create revenue transaction for guest:", (e as Error).message);
+        }
       }
 
       // Get timezone once for notifications (reuse cached access token if available)
