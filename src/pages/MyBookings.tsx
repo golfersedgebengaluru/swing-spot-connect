@@ -472,6 +472,15 @@ export default function MyBookings() {
                                 </Button>
                               )
                             )}
+                            {linkedSessionsMap?.[booking.id] && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => navigate(`/coaching/${linkedSessionsMap[booking.id]}`)}
+                              >
+                                <GraduationCap className="mr-1 h-3 w-3" /> Session
+                              </Button>
+                            )}
                             {isPast && ["confirmed", "cancelled"].includes(booking.status) && (
                               <Button variant="ghost" size="sm" onClick={() => navigate("/bookings")}>
                                 <RotateCcw className="mr-1 h-3 w-3" /> Rebook
