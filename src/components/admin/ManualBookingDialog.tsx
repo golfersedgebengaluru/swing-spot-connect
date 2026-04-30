@@ -326,6 +326,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
         if (res.data?.error) throw new Error(res.data.error);
       } else {
         // Manual payment → guest_booking flow (creates revenue transaction)
+        // For corporate (deferred billing), no revenue tx is created — rolled into monthly invoice.
         const res = await supabase.functions.invoke("calendar-sync", {
           body: {
             action: "guest_booking",
@@ -340,12 +341,13 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             guest_email: customerEmail || null,
             guest_phone: customerPhone || null,
             calendar_email: currentBay.calendar_email,
-            payment_id: paymentReference || null,
+            payment_id: isCorporate ? null : (paymentReference || null),
             order_id: null,
-            amount: totalCost,
+            amount: isCorporate ? 0 : totalCost,
             currency: currentPrice?.currency || "INR",
-            gateway_name: selectedPaymentMethod,
+            gateway_name: isCorporate ? "corporate_deferred" : selectedPaymentMethod,
             user_id_override: customerUserId || undefined,
+            billing_status: isCorporate ? "deferred" : "immediate",
           },
         });
         if (res.error) {
@@ -354,6 +356,11 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
           throw new Error(errorMsg);
         }
         if (res.data?.error) throw new Error(res.data.error);
+
+        // Skip per-session invoice for corporate (issued at month-end as consolidated invoice)
+        if (isCorporate) {
+          // no-op for invoice / advance drawdown
+        } else {
 
         // Generate invoice
         try {
