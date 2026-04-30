@@ -41,13 +41,15 @@ export default function CoachingSessionDetail() {
               </div>
             </Card>
 
-            {(session.onform_url || session.sportsbox_url || session.superspeed_url) && (
+            {(session.onform_url || session.sportsbox_url || session.superspeed_url || session.other_url) && (
               <Card className="p-5">
                 <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3">Tools</h2>
                 <ExternalToolLinks
                   onform={session.onform_url}
                   sportsbox={session.sportsbox_url}
                   superspeed={session.superspeed_url}
+                  other={session.other_url}
+                  otherLabel={session.other_label}
                   size="default"
                 />
               </Card>
