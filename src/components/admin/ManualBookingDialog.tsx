@@ -425,10 +425,11 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
         } catch (invoiceErr: any) {
           console.error("Invoice generation failed (non-fatal):", invoiceErr);
         }
+        } // end else (non-corporate invoice)
       }
 
-      // Process advance drawdown if applicable
-      if (advanceDrawdown > 0 && customerUserId && selectedCity) {
+      // Process advance drawdown — skip for corporate (deferred billing)
+      if (!isCorporate && advanceDrawdown > 0 && customerUserId && selectedCity) {
         try {
           await drawdownAdvance.mutateAsync({
             customerId: customerUserId,
