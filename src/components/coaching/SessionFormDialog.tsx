@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useStudentSearch, useSaveSession, useDeleteSession, type CoachingSession } from "@/hooks/useCoaching";
+import { useStudentSearch, useSaveSession, useDeleteSession, useCoaches, type CoachingSession } from "@/hooks/useCoaching";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAllCities } from "@/hooks/useBookings";
 import { Trash2, Search } from "lucide-react";
