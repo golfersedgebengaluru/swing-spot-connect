@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -273,8 +273,8 @@ function CoachesManager({ city }: { city: string }) {
                 const isExpanded = expandedCoachId === c.id;
                 const label = c.profile?.display_name || c.profile?.email || "Coach";
                 return (
-                  <>
-                    <TableRow key={c.id}>
+                  <Fragment key={c.id}>
+                    <TableRow>
                       <TableCell className="px-2">
                         <Button
                           size="sm"
@@ -312,13 +312,13 @@ function CoachesManager({ city }: { city: string }) {
                       </TableCell>
                     </TableRow>
                     {isExpanded && (
-                      <TableRow key={`${c.id}-expand`} className="bg-muted/10 hover:bg-muted/10">
+                      <TableRow className="bg-muted/10 hover:bg-muted/10">
                         <TableCell colSpan={5} className="py-3">
                           <ManageCoachStudents coachId={c.id} coachLabel={label} />
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </TableBody>
