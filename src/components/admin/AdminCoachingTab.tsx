@@ -466,7 +466,7 @@ export function AdminCoachingTab() {
         session={editingSession}
         lockedStudentId={!editingSession && openStudent ? openStudent.id : undefined}
         lockedStudentLabel={!editingSession && openStudent ? openStudent.label : undefined}
-        defaultCity={selectedCity || undefined}
+        defaultCity={dialogDefaultCity}
         allowCoachPick={showAdminView}
       />
     </div>
