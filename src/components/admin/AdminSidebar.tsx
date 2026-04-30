@@ -353,12 +353,16 @@ export function AdminSidebar({
                     />
                   ))}
                 </div>
-                <div className="border-b border-white/10 my-3" />
-                <AccordionGroup label="Users" items={filterItems(usersItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
-                <AccordionGroup label="Operations" items={filterItems(operationsItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
-                <AccordionGroup label="Config" items={filterItems(configItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
-                {visibleReportsItems.length > 0 && (
-                  <AccordionGroup label="Reports" items={visibleReportsItems} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
+                {hasAdminOrSiteAdmin && <div className="border-b border-white/10 my-3" />}
+                {hasAdminOrSiteAdmin && (
+                  <>
+                    <AccordionGroup label="Users" items={filterItems(usersItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
+                    <AccordionGroup label="Operations" items={filterItems(operationsItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
+                    <AccordionGroup label="Config" items={filterItems(configItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
+                    {visibleReportsItems.length > 0 && (
+                      <AccordionGroup label="Reports" items={visibleReportsItems} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
+                    )}
+                  </>
                 )}
               </div>
 
