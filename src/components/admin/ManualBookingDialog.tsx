@@ -30,6 +30,8 @@ import { useProducts } from "@/hooks/useProducts";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAdvanceBalance, useDrawdownAdvance } from "@/hooks/useAdvanceAccount";
+import { useProfileBillingInfo } from "@/hooks/useCorporateAccounts";
+import { Building2 } from "lucide-react";
 
 type Step = "customer" | "slot" | "payment" | "confirm";
 type CustomerMode = "existing" | "new";
@@ -264,11 +266,25 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
   const { data: advanceBalance } = useAdvanceBalance(customerUserId);
   const drawdownAdvance = useDrawdownAdvance();
 
+  // Corporate billing detection (skips per-session payment, defers to monthly invoice)
+  const { data: billingInfo } = useProfileBillingInfo(
+    customerMode === "existing" ? selectedProfile?.id : null
+  );
+  const isCorporate = !!billingInfo?.corporate;
+  const corporateAccount = billingInfo?.corporate ?? null;
+
+  // Force manual mode for corporate (no hours, no need for offline method selection)
+  useEffect(() => {
+    if (isCorporate && paymentMode !== "manual") setPaymentMode("manual");
+  }, [isCorporate]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const canProceedFromCustomer = customerMode === "existing" ? !!selectedProfile : (!!guestName.trim() && (!!guestEmail.trim() || !!guestPhone.trim()));
   const canProceedFromSlot = !!selectedCity && !!currentBay && !!selectedDate && !!startTime;
   const hoursNeeded = sessionType === "coaching" ? (currentBay?.coaching_hours ?? 1) : duration / 60;
   const canPayWithHours = paymentMode === "hours" && hoursBalance !== null && hoursBalance >= hoursNeeded;
-  const canConfirm = paymentMode === "hours" ? canPayWithHours : !!selectedPaymentMethod;
+  const canConfirm = isCorporate
+    ? true
+    : paymentMode === "hours" ? canPayWithHours : !!selectedPaymentMethod;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -310,6 +326,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
         if (res.data?.error) throw new Error(res.data.error);
       } else {
         // Manual payment → guest_booking flow (creates revenue transaction)
+        // For corporate (deferred billing), no revenue tx is created — rolled into monthly invoice.
         const res = await supabase.functions.invoke("calendar-sync", {
           body: {
             action: "guest_booking",
@@ -324,12 +341,13 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             guest_email: customerEmail || null,
             guest_phone: customerPhone || null,
             calendar_email: currentBay.calendar_email,
-            payment_id: paymentReference || null,
+            payment_id: isCorporate ? null : (paymentReference || null),
             order_id: null,
-            amount: totalCost,
+            amount: isCorporate ? 0 : totalCost,
             currency: currentPrice?.currency || "INR",
-            gateway_name: selectedPaymentMethod,
+            gateway_name: isCorporate ? "corporate_deferred" : selectedPaymentMethod,
             user_id_override: customerUserId || undefined,
+            billing_status: isCorporate ? "deferred" : "immediate",
           },
         });
         if (res.error) {
@@ -338,6 +356,11 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
           throw new Error(errorMsg);
         }
         if (res.data?.error) throw new Error(res.data.error);
+
+        // Skip per-session invoice for corporate (issued at month-end as consolidated invoice)
+        if (isCorporate) {
+          // no-op for invoice / advance drawdown
+        } else {
 
         // Generate invoice
         try {
@@ -402,10 +425,11 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
         } catch (invoiceErr: any) {
           console.error("Invoice generation failed (non-fatal):", invoiceErr);
         }
+        } // end else (non-corporate invoice)
       }
 
-      // Process advance drawdown if applicable
-      if (advanceDrawdown > 0 && customerUserId && selectedCity) {
+      // Process advance drawdown — skip for corporate (deferred billing)
+      if (!isCorporate && advanceDrawdown > 0 && customerUserId && selectedCity) {
         try {
           await drawdownAdvance.mutateAsync({
             customerId: customerUserId,
@@ -433,7 +457,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
       queryClient.invalidateQueries({ queryKey: ["advance_transactions"] });
 
       setBookingComplete(true);
-      toast({ title: "Manual Booking Created!", description: paymentMode === "hours" ? `${hoursNeeded}h deducted from ${customerName}'s balance.` : `Payment via ${selectedPaymentMethod} recorded.` });
+      toast({ title: "Manual Booking Created!", description: isCorporate ? `Booking deferred to ${corporateAccount?.name} monthly invoice.` : paymentMode === "hours" ? `${hoursNeeded}h deducted from ${customerName}'s balance.` : `Payment via ${selectedPaymentMethod} recorded.` });
     } catch (err: any) {
       toast({ title: "Booking Failed", description: err.message, variant: "destructive" });
     } finally {
@@ -851,27 +875,45 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
               </CardContent>
             </Card>
 
-            {/* Payment Mode Toggle */}
-            <div className="flex gap-2">
-              <Button
-                variant={paymentMode === "manual" ? "default" : "outline"}
-                size="sm"
-                className="flex-1"
-                onClick={() => setPaymentMode("manual")}
-              >
-                <Banknote className="h-3.5 w-3.5 mr-1" /> Manual Payment
-              </Button>
-              {customerMode === "existing" && hoursBalance !== null && hoursBalance > 0 && (
+            {/* Corporate banner — replaces payment selection entirely */}
+            {isCorporate && (
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="p-3 space-y-1.5 text-sm">
+                  <div className="flex items-center gap-2 font-medium">
+                    <Building2 className="h-4 w-4 text-primary" />
+                    Corporate Account: {corporateAccount?.name}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    This session will be added to {corporateAccount?.name}'s monthly consolidated invoice.
+                    No payment is collected now.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Payment Mode Toggle (hidden for corporate) */}
+            {!isCorporate && (
+              <div className="flex gap-2">
                 <Button
-                  variant={paymentMode === "hours" ? "default" : "outline"}
+                  variant={paymentMode === "manual" ? "default" : "outline"}
                   size="sm"
                   className="flex-1"
-                  onClick={() => setPaymentMode("hours")}
+                  onClick={() => setPaymentMode("manual")}
                 >
-                  <Hourglass className="h-3.5 w-3.5 mr-1" /> Use Hours ({hoursBalance.toFixed(1)}h)
+                  <Banknote className="h-3.5 w-3.5 mr-1" /> Manual Payment
                 </Button>
-              )}
-            </div>
+                {customerMode === "existing" && hoursBalance !== null && hoursBalance > 0 && (
+                  <Button
+                    variant={paymentMode === "hours" ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setPaymentMode("hours")}
+                  >
+                    <Hourglass className="h-3.5 w-3.5 mr-1" /> Use Hours ({hoursBalance.toFixed(1)}h)
+                  </Button>
+                )}
+              </div>
+            )}
 
             {paymentMode === "hours" && (
               <Card className={cn("border", canPayWithHours ? "border-primary/30" : "border-destructive/30")}>
@@ -891,7 +933,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
               </Card>
             )}
 
-            {paymentMode === "manual" && (
+            {!isCorporate && paymentMode === "manual" && (
               <>
                 <div className="space-y-2">
                   {(offlineMethods ?? []).map((m) => (
@@ -957,6 +999,8 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             <Button className="w-full" size="lg" disabled={isProcessing || !canConfirm} onClick={handleConfirmBooking}>
               {isProcessing ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating Booking...</>
+              ) : isCorporate ? (
+                `Confirm · Defer to ${corporateAccount?.name} monthly invoice`
               ) : paymentMode === "hours" ? (
                 `Confirm · Deduct ${hoursNeeded}h`
               ) : (

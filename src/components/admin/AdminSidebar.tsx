@@ -19,6 +19,7 @@ import {
   Receipt,
   LogOut,
   GraduationCap,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -52,6 +53,7 @@ const coreItems = [
 const usersItems = [
   { id: "allusers", label: "All Users", icon: Users },
   { id: "members", label: "Members", icon: Users },
+  { id: "corporate", label: "Corporate Accounts", icon: Building2 },
 ];
 
 const operationsItems = [
