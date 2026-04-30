@@ -261,6 +261,7 @@ function CoachesManager({ city }: { city: string }) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-8"></TableHead>
                 <TableHead>Coach</TableHead>
                 <TableHead>City</TableHead>
                 <TableHead>Status</TableHead>
@@ -268,26 +269,58 @@ function CoachesManager({ city }: { city: string }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {coaches.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell>
-                    <div className="font-medium">{c.profile?.display_name || "—"}</div>
-                    <div className="text-xs text-muted-foreground">{c.profile?.email}</div>
-                  </TableCell>
-                  <TableCell>{c.city}</TableCell>
-                  <TableCell>
-                    <span className={`text-xs px-2 py-0.5 rounded ${c.is_active ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" : "bg-muted text-muted-foreground"}`}>
-                      {c.is_active ? "Active" : "Inactive"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap">
-                    <Button size="sm" variant="ghost" onClick={() => startEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
-                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleRemove(c)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {coaches.map((c) => {
+                const isExpanded = expandedCoachId === c.id;
+                const label = c.profile?.display_name || c.profile?.email || "Coach";
+                return (
+                  <>
+                    <TableRow key={c.id}>
+                      <TableCell className="px-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={() => setExpandedCoachId(isExpanded ? null : c.id)}
+                          aria-label={isExpanded ? "Collapse" : "Expand"}
+                        >
+                          {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                        </Button>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{c.profile?.display_name || "—"}</div>
+                        <div className="text-xs text-muted-foreground">{c.profile?.email}</div>
+                      </TableCell>
+                      <TableCell>{c.city}</TableCell>
+                      <TableCell>
+                        <span className={`text-xs px-2 py-0.5 rounded ${c.is_active ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300" : "bg-muted text-muted-foreground"}`}>
+                          {c.is_active ? "Active" : "Inactive"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setExpandedCoachId(isExpanded ? null : c.id)}
+                          title="Manage students"
+                        >
+                          <Users className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => startEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleRemove(c)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                    {isExpanded && (
+                      <TableRow key={`${c.id}-expand`} className="bg-muted/10 hover:bg-muted/10">
+                        <TableCell colSpan={5} className="py-3">
+                          <ManageCoachStudents coachId={c.id} coachLabel={label} />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
+                );
+              })}
             </TableBody>
           </Table>
         </ScrollableTable>
