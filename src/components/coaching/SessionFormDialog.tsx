@@ -60,6 +60,7 @@ export function SessionFormDialog({
   useEffect(() => {
     if (!open) return;
     if (session) {
+      setPickedCoachId(session.coach_user_id);
       setStudentId(session.student_user_id);
       setStudentLabel(session.student_profile?.display_name || session.student_profile?.email || "Student");
       setCity(session.city);
@@ -71,6 +72,7 @@ export function SessionFormDialog({
       setSportsbox(session.sportsbox_url ?? "");
       setSuperspeed(session.superspeed_url ?? "");
     } else {
+      setPickedCoachId(coachUserId ?? user?.id ?? "");
       setStudentId(lockedStudentId ?? "");
       setStudentLabel(lockedStudentLabel ?? "");
       setSearch("");
@@ -83,15 +85,16 @@ export function SessionFormDialog({
       setSportsbox("");
       setSuperspeed("");
     }
-  }, [open, session, lockedStudentId, lockedStudentLabel, defaultCity]);
+  }, [open, session, lockedStudentId, lockedStudentLabel, defaultCity, coachUserId, user?.id]);
 
-  const canSubmit = !!studentId && !!city && !!date && !save.isPending;
+  const effectiveCoachId = pickedCoachId || coachUserId || user?.id || "";
+  const canSubmit = !!studentId && !!city && !!date && !!effectiveCoachId && !save.isPending;
 
   const handleSave = async () => {
-    if (!user) return;
+    if (!user || !effectiveCoachId) return;
     await save.mutateAsync({
       id: session?.id,
-      coach_user_id: coachUserId ?? user.id,
+      coach_user_id: effectiveCoachId,
       student_user_id: studentId,
       city,
       session_date: date,
