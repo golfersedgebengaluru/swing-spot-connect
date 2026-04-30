@@ -23,9 +23,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Trash2, Pencil, GraduationCap } from "lucide-react";
+import { Plus, Search, Trash2, Pencil, GraduationCap, ChevronDown, ChevronRight, Users } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { SessionFormDialog } from "@/components/coaching/SessionFormDialog";
+import { ManageCoachStudents } from "@/components/coaching/ManageCoachStudents";
 import { useAllCities } from "@/hooks/useBookings";
 
 /* ============ COACH STUDENT LIST (grouped from my sessions) ============ */
