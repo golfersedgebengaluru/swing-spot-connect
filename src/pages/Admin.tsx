@@ -27,6 +27,7 @@ import { AdminExpensesTab } from "@/components/admin/AdminExpensesTab";
 import { AdminLeaguesTab } from "@/components/admin/AdminLeaguesTab";
 import { AdminCouponsTab } from "@/components/admin/AdminCouponsTab";
 import { AdminCoachingTab } from "@/components/admin/AdminCoachingTab";
+import { AdminCorporateAccountsTab } from "@/components/admin/AdminCorporateAccountsTab";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminTopbar, getTabTitle } from "@/components/admin/AdminTopbar";
 import { AdminCityProvider, useAdminCity } from "@/contexts/AdminCityContext";
