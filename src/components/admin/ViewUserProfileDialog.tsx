@@ -183,6 +183,19 @@ export function ViewUserProfileDialog({ user, onClose, onEdit }: Props) {
 
         <Separator />
 
+        {/* ── Coaching ── */}
+        {user.id && (
+          <>
+            <section>
+              <UserCoachAssignment
+                studentProfileId={user.id}
+                studentLabel={user.display_name || "This user"}
+              />
+            </section>
+            <Separator />
+          </>
+        )}
+
         {/* ── Access Flags ── */}
         <section className="space-y-3">
           <h4 className="text-sm font-medium text-foreground">Access Flags</h4>
