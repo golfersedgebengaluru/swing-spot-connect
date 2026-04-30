@@ -49,8 +49,12 @@ function CoachStudentList({ onPick }: { onPick: (studentId: string, label: strin
   if (isLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
   if (!groups.length)
     return (
-      <Card className="p-6 text-center text-sm text-muted-foreground">
-        No students yet. Create a session to add one.
+      <Card className="p-8 text-center">
+        <GraduationCap className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
+        <p className="font-medium">No students yet</p>
+        <p className="text-sm text-muted-foreground mt-1 mb-4">
+          Log your first session — your students will appear here automatically.
+        </p>
       </Card>
     );
 
