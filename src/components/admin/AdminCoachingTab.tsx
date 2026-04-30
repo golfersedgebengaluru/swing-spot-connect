@@ -203,6 +203,7 @@ function CoachesManager({ city }: { city: string }) {
   const [bio, setBio] = useState("");
   const [coachCity, setCoachCity] = useState(city || "");
   const [active, setActive] = useState(true);
+  const [expandedCoachId, setExpandedCoachId] = useState<string | null>(null);
 
   const reset = () => {
     setEditing(null);
