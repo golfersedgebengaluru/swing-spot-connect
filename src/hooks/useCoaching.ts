@@ -270,18 +270,31 @@ export function useSaveCoach() {
         if (error) throw error;
       }
       // Auto-grant the `coach` role so this user can create sessions immediately.
+      let roleGranted = true;
       try {
-        await supabase.functions.invoke("manage-roles", {
+        const { data, error: fnErr } = await supabase.functions.invoke("manage-roles", {
           body: { action: "grant", user_id: input.user_id, role: "coach" },
         });
+        if (fnErr || (data && (data as any).error)) {
+          roleGranted = false;
+          console.warn("Auto-grant coach role failed", fnErr || (data as any).error);
+        }
       } catch (e) {
-        console.warn("Auto-grant coach role failed (non-fatal)", e);
+        roleGranted = false;
+        console.warn("Auto-grant coach role threw", e);
       }
+      return { roleGranted };
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["coaching", "coaches"] });
       qc.invalidateQueries({ queryKey: ["admin-roles"] });
-      toast({ title: "Coach saved", description: "Coach role granted automatically." });
+      toast({
+        title: "Coach saved",
+        description: res.roleGranted
+          ? "Coach role granted automatically."
+          : "Saved, but the coach role could not be granted automatically. Assign it under Settings → Roles.",
+        variant: res.roleGranted ? "default" : "destructive",
+      });
     },
     onError: (e: any) => toast({ title: "Save failed", description: e.message, variant: "destructive" }),
   });
