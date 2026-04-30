@@ -312,10 +312,10 @@ function CoachesManager({ city }: { city: string }) {
                   </div>
                   {search.length >= 2 && (
                     <div className="max-h-40 overflow-y-auto rounded-md border">
-                      {(searchResults ?? []).length === 0 ? (
-                        <div className="p-3 text-sm text-muted-foreground">No matches</div>
+                      {(searchResults ?? []).filter((p: any) => p.is_registered).length === 0 ? (
+                        <div className="p-3 text-sm text-muted-foreground">No registered users match. Coaches must have signed in at least once.</div>
                       ) : (
-                        (searchResults ?? []).map((p: any) => (
+                        (searchResults ?? []).filter((p: any) => p.is_registered).map((p: any) => (
                           <button
                             key={p.user_id}
                             type="button"
