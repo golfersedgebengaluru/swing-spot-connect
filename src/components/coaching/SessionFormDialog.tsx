@@ -18,6 +18,8 @@ interface Props {
   /** If provided, locks the student selector. */
   lockedStudentId?: string;
   lockedStudentLabel?: string;
+  /** If true, show a coach picker (admin scheduling on behalf of a coach). */
+  allowCoachPick?: boolean;
   /** Override coach (admin scheduling for someone else). Defaults to current user. */
   coachUserId?: string;
   defaultCity?: string;
