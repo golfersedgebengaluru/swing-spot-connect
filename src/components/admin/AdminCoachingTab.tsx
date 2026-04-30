@@ -398,12 +398,19 @@ export function AdminCoachingTab() {
             Session cards with notes, drills, and links to Onform, Sportsbox AI, and Superspeed.
           </p>
         </div>
-        {showCoachView && (
+        {(showCoachView || showAdminView) && (
           <Button size="sm" onClick={openNewSession}>
             <Plus className="mr-1.5 h-4 w-4" />New Session
           </Button>
         )}
       </div>
+
+      {showAdminView && !showCoachView && (
+        <Card className="p-3 text-xs text-muted-foreground bg-muted/30">
+          Tip: Add coaches under the <strong>Coaches</strong> tab — they're automatically granted the coach role.
+          Use <strong>New Session</strong> to log a session on behalf of any coach. Students appear automatically once they have a session.
+        </Card>
+      )}
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="w-full justify-start overflow-x-auto">
