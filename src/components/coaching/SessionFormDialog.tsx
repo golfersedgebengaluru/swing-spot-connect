@@ -71,10 +71,20 @@ export function SessionFormDialog({
   // Booking linkage
   const [linkBooking, setLinkBooking] = useState(false);
   const [bookingId, setBookingId] = useState<string>("");
+  // Always fetch the student's recent/upcoming bookings as soon as a registered
+  // student is picked, so we can proactively surface a same-day booking match.
   const { data: studentBookings } = useStudentBookings(
-    linkBooking && studentRegistered ? studentId : undefined,
-    city || undefined
+    studentRegistered ? studentId : undefined,
+    undefined
   );
+
+  // Bookings on the currently chosen session date (any city — we'll prompt to align).
+  const sameDayBookings = useMemo(() => {
+    if (!date) return [];
+    return (studentBookings ?? []).filter(
+      (b: any) => format(parseISO(b.start_time), "yyyy-MM-dd") === date
+    );
+  }, [studentBookings, date]);
 
   useEffect(() => {
     if (!open) return;
@@ -256,7 +266,38 @@ export function SessionFormDialog({
             )}
           </div>
 
-          {/* Link to booking */}
+          {/* Proactive same-day booking match */}
+          {studentId && studentRegistered && sameDayBookings.length > 0 && !bookingId && (
+            <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2">
+              <div className="text-sm font-medium flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-primary" />
+                {sameDayBookings.length === 1
+                  ? "This student has a booking on this date"
+                  : `This student has ${sameDayBookings.length} bookings on this date`}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Link this session to the matching booking to avoid duplicates.
+              </p>
+              <div className="space-y-1.5">
+                {sameDayBookings.map((b: any) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => { setLinkBooking(true); onPickBooking(b.id); }}
+                    className="w-full text-left rounded border bg-background hover:bg-muted px-3 py-2 text-sm flex items-center justify-between gap-2"
+                  >
+                    <span className="truncate">
+                      {format(parseISO(b.start_time), "h:mm a")} · {b.bay_name} · {b.city}
+                      <span className="ml-1 text-xs text-muted-foreground">({b.session_type || "session"})</span>
+                    </span>
+                    <span className="text-xs text-primary font-medium shrink-0">Link</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Link to booking (manual) */}
           {studentId && studentRegistered && (
             <div className="rounded-md border p-3 space-y-2">
               <div className="flex items-center justify-between">
@@ -277,7 +318,7 @@ export function SessionFormDialog({
                     <SelectContent>
                       {(studentBookings ?? []).map((b: any) => (
                         <SelectItem key={b.id} value={b.id}>
-                          {format(parseISO(b.start_time), "MMM d, h:mm a")} · {b.bay_name} · {b.session_type || "session"}
+                          {format(parseISO(b.start_time), "MMM d, h:mm a")} · {b.bay_name} · {b.city} · {b.session_type || "session"}
                         </SelectItem>
                       ))}
                     </SelectContent>
