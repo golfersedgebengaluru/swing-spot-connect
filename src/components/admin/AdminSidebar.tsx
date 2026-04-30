@@ -261,38 +261,18 @@ export function AdminSidebar({
           ))}
         </div>
 
-        <div className="border-b border-white/10 my-3" />
+        {hasAdminOrSiteAdmin && <div className="border-b border-white/10 my-3" />}
 
-        {/* Accordion groups */}
-        <AccordionGroup
-          label="Users"
-          items={filterItems(usersItems)}
-          activeTab={activeTab}
-          onTabChange={handleNavClick}
-          collapsed={collapsed}
-        />
-        <AccordionGroup
-          label="Operations"
-          items={filterItems(operationsItems)}
-          activeTab={activeTab}
-          onTabChange={handleNavClick}
-          collapsed={collapsed}
-        />
-        <AccordionGroup
-          label="Config"
-          items={filterItems(configItems)}
-          activeTab={activeTab}
-          onTabChange={handleNavClick}
-          collapsed={collapsed}
-        />
-        {visibleReportsItems.length > 0 && (
-          <AccordionGroup
-            label="Reports"
-            items={visibleReportsItems}
-            activeTab={activeTab}
-            onTabChange={handleNavClick}
-            collapsed={collapsed}
-          />
+        {/* Accordion groups (admin & site-admin only) */}
+        {hasAdminOrSiteAdmin && (
+          <>
+            <AccordionGroup label="Users" items={filterItems(usersItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
+            <AccordionGroup label="Operations" items={filterItems(operationsItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
+            <AccordionGroup label="Config" items={filterItems(configItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
+            {visibleReportsItems.length > 0 && (
+              <AccordionGroup label="Reports" items={visibleReportsItems} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
+            )}
+          </>
         )}
       </div>
 
