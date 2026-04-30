@@ -454,6 +454,8 @@ export type Database = {
           id: string
           notes: string | null
           onform_url: string | null
+          other_label: string | null
+          other_url: string | null
           progress_summary: string | null
           session_date: string
           sportsbox_url: string | null
@@ -470,6 +472,8 @@ export type Database = {
           id?: string
           notes?: string | null
           onform_url?: string | null
+          other_label?: string | null
+          other_url?: string | null
           progress_summary?: string | null
           session_date: string
           sportsbox_url?: string | null
@@ -486,6 +490,8 @@ export type Database = {
           id?: string
           notes?: string | null
           onform_url?: string | null
+          other_label?: string | null
+          other_url?: string | null
           progress_summary?: string | null
           session_date?: string
           sportsbox_url?: string | null
