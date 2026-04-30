@@ -266,11 +266,25 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
   const { data: advanceBalance } = useAdvanceBalance(customerUserId);
   const drawdownAdvance = useDrawdownAdvance();
 
+  // Corporate billing detection (skips per-session payment, defers to monthly invoice)
+  const { data: billingInfo } = useProfileBillingInfo(
+    customerMode === "existing" ? selectedProfile?.id : null
+  );
+  const isCorporate = !!billingInfo?.corporate;
+  const corporateAccount = billingInfo?.corporate ?? null;
+
+  // Force manual mode for corporate (no hours, no need for offline method selection)
+  useEffect(() => {
+    if (isCorporate && paymentMode !== "manual") setPaymentMode("manual");
+  }, [isCorporate]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const canProceedFromCustomer = customerMode === "existing" ? !!selectedProfile : (!!guestName.trim() && (!!guestEmail.trim() || !!guestPhone.trim()));
   const canProceedFromSlot = !!selectedCity && !!currentBay && !!selectedDate && !!startTime;
   const hoursNeeded = sessionType === "coaching" ? (currentBay?.coaching_hours ?? 1) : duration / 60;
   const canPayWithHours = paymentMode === "hours" && hoursBalance !== null && hoursBalance >= hoursNeeded;
-  const canConfirm = paymentMode === "hours" ? canPayWithHours : !!selectedPaymentMethod;
+  const canConfirm = isCorporate
+    ? true
+    : paymentMode === "hours" ? canPayWithHours : !!selectedPaymentMethod;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
