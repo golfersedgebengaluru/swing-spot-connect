@@ -224,10 +224,19 @@ export function useSaveCoach() {
         const { error } = await supabase.from("coaches").insert(input);
         if (error) throw error;
       }
+      // Auto-grant the `coach` role so this user can create sessions immediately.
+      try {
+        await supabase.functions.invoke("manage-roles", {
+          body: { action: "grant", user_id: input.user_id, role: "coach" },
+        });
+      } catch (e) {
+        console.warn("Auto-grant coach role failed (non-fatal)", e);
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["coaching", "coaches"] });
-      toast({ title: "Coach saved" });
+      qc.invalidateQueries({ queryKey: ["admin-roles"] });
+      toast({ title: "Coach saved", description: "Coach role granted automatically." });
     },
     onError: (e: any) => toast({ title: "Save failed", description: e.message, variant: "destructive" }),
   });
@@ -238,11 +247,22 @@ export function useDeleteCoach() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async (id: string) => {
+      const { data: row } = await supabase.from("coaches").select("user_id").eq("id", id).maybeSingle();
       const { error } = await supabase.from("coaches").delete().eq("id", id);
       if (error) throw error;
+      if (row?.user_id) {
+        try {
+          await supabase.functions.invoke("manage-roles", {
+            body: { action: "revoke", user_id: row.user_id, role: "coach" },
+          });
+        } catch (e) {
+          console.warn("Auto-revoke coach role failed (non-fatal)", e);
+        }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["coaching", "coaches"] });
+      qc.invalidateQueries({ queryKey: ["admin-roles"] });
       toast({ title: "Coach removed" });
     },
     onError: (e: any) => toast({ title: "Remove failed", description: e.message, variant: "destructive" }),
