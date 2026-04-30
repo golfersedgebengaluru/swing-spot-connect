@@ -31,13 +31,17 @@ export function SessionFormDialog({
   session,
   lockedStudentId,
   lockedStudentLabel,
+  allowCoachPick,
   coachUserId,
   defaultCity,
 }: Props) {
   const { user } = useAuth();
   const { data: cities } = useAllCities();
+  const { data: coachesList } = useCoaches();
   const save = useSaveSession();
   const del = useDeleteSession();
+
+  const [pickedCoachId, setPickedCoachId] = useState<string>("");
 
   const [studentId, setStudentId] = useState<string>("");
   const [studentLabel, setStudentLabel] = useState<string>("");
