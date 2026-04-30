@@ -346,7 +346,7 @@ function CoachesManager({ city }: { city: string }) {
               <Switch checked={active} onCheckedChange={setActive} />
             </div>
             <p className="text-xs text-muted-foreground">
-              Note: After adding, also assign the user the <strong>coach</strong> role from the Settings → Roles tab so they can create sessions.
+              The <strong>coach</strong> role is granted automatically so this user can log sessions right away.
             </p>
           </div>
           <DialogFooter>
