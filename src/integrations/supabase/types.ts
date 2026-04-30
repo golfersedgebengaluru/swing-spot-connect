@@ -358,9 +358,11 @@ export type Database = {
       bookings: {
         Row: {
           bay_id: string | null
+          billing_status: string
           calendar_event_id: string | null
           city: string
           coach_name: string | null
+          corporate_invoice_id: string | null
           created_at: string
           duration_minutes: number
           end_time: string
@@ -374,9 +376,11 @@ export type Database = {
         }
         Insert: {
           bay_id?: string | null
+          billing_status?: string
           calendar_event_id?: string | null
           city: string
           coach_name?: string | null
+          corporate_invoice_id?: string | null
           created_at?: string
           duration_minutes: number
           end_time: string
@@ -390,9 +394,11 @@ export type Database = {
         }
         Update: {
           bay_id?: string | null
+          billing_status?: string
           calendar_event_id?: string | null
           city?: string
           coach_name?: string | null
+          corporate_invoice_id?: string | null
           created_at?: string
           duration_minutes?: number
           end_time?: string
@@ -410,6 +416,13 @@ export type Database = {
             columns: ["bay_id"]
             isOneToOne: false
             referencedRelation: "bays"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_corporate_invoice_id_fkey"
+            columns: ["corporate_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]
@@ -494,9 +507,11 @@ export type Database = {
       }
       coaching_sessions: {
         Row: {
+          billing_status: string
           booking_id: string | null
           city: string
           coach_user_id: string
+          corporate_invoice_id: string | null
           created_at: string
           drills: string | null
           id: string
@@ -512,9 +527,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          billing_status?: string
           booking_id?: string | null
           city: string
           coach_user_id: string
+          corporate_invoice_id?: string | null
           created_at?: string
           drills?: string | null
           id?: string
@@ -530,9 +547,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          billing_status?: string
           booking_id?: string | null
           city?: string
           coach_user_id?: string
+          corporate_invoice_id?: string | null
           created_at?: string
           drills?: string | null
           id?: string
@@ -553,6 +572,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coaching_sessions_corporate_invoice_id_fkey"
+            columns: ["corporate_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]
@@ -584,6 +610,54 @@ export type Database = {
           post_type?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      corporate_accounts: {
+        Row: {
+          billing_address: string | null
+          billing_cycle_day: number
+          billing_email: string | null
+          created_at: string
+          gstin: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          payment_terms_days: number
+          state: string | null
+          state_code: string | null
+          updated_at: string
+        }
+        Insert: {
+          billing_address?: string | null
+          billing_cycle_day?: number
+          billing_email?: string | null
+          created_at?: string
+          gstin?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          payment_terms_days?: number
+          state?: string | null
+          state_code?: string | null
+          updated_at?: string
+        }
+        Update: {
+          billing_address?: string | null
+          billing_cycle_day?: number
+          billing_email?: string | null
+          created_at?: string
+          gstin?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          payment_terms_days?: number
+          state?: string | null
+          state_code?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -3431,6 +3505,8 @@ export type Database = {
         Row: {
           apple_user_id: string | null
           avatar_url: string | null
+          billing_mode: string
+          corporate_account_id: string | null
           created_at: string
           display_name: string | null
           email: string | null
@@ -3449,6 +3525,8 @@ export type Database = {
         Insert: {
           apple_user_id?: string | null
           avatar_url?: string | null
+          billing_mode?: string
+          corporate_account_id?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
@@ -3467,6 +3545,8 @@ export type Database = {
         Update: {
           apple_user_id?: string | null
           avatar_url?: string | null
+          billing_mode?: string
+          corporate_account_id?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
@@ -3482,7 +3562,15 @@ export type Database = {
           user_id?: string | null
           user_type?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_corporate_account_id_fkey"
+            columns: ["corporate_account_id"]
+            isOneToOne: false
+            referencedRelation: "corporate_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       recycled_invoice_numbers: {
         Row: {
