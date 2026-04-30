@@ -83,6 +83,7 @@ const tabComponents: Record<string, React.ComponentType<any>> = {
   coupons: AdminCouponsTab,
   members: AdminMembersTab,
   allusers: AdminAllUsersTab,
+  corporate: AdminCorporateAccountsTab,
   pages: AdminPagesTab,
   bayconfig: BayConfigTab,
   bookinglogs: AdminBookingLogsTab,
