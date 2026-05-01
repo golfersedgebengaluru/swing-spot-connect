@@ -815,26 +815,28 @@ Deno.serve(async (req) => {
         console.error("Failed to get calendar timezone for notifications:", (e as Error).message);
       }
 
-      // Notify admins + site-admins about the guest booking
-      try {
-        const notifyAdminIds = await getAdminAndSiteAdminIds(adminClient, city);
-        await notifyAdminsInApp(adminClient, notifyAdminIds, "📅 New Guest Booking", `Guest ${guest_name} booked ${bay_name || city} on ${formatDateTime(start_time, calTzNotify)}.`);
-        await notifyAdmins(adminClient, notifyAdminIds, "admin_new_booking", "📅 New Guest Booking", {
-          member_name: guest_name,
-          city,
-          bay: bay_name || city,
-          date: formatDate(start_time, calTzNotify),
-          time: formatTimeRange(start_time, end_time, calTzNotify),
-          duration: `${duration_minutes} min`,
-          session_type: "practice",
-          is_guest: true,
-        });
-      } catch (e) {
-        console.error("Failed to notify admins about guest booking:", (e as Error).message);
+      // Notify admins + site-admins about the guest booking (skip for backdated entries)
+      if (!isBackdated) {
+        try {
+          const notifyAdminIds = await getAdminAndSiteAdminIds(adminClient, city);
+          await notifyAdminsInApp(adminClient, notifyAdminIds, "📅 New Guest Booking", `Guest ${guest_name} booked ${bay_name || city} on ${formatDateTime(start_time, calTzNotify)}.`);
+          await notifyAdmins(adminClient, notifyAdminIds, "admin_new_booking", "📅 New Guest Booking", {
+            member_name: guest_name,
+            city,
+            bay: bay_name || city,
+            date: formatDate(start_time, calTzNotify),
+            time: formatTimeRange(start_time, end_time, calTzNotify),
+            duration: `${duration_minutes} min`,
+            session_type: "practice",
+            is_guest: true,
+          });
+        } catch (e) {
+          console.error("Failed to notify admins about guest booking:", (e as Error).message);
+        }
       }
 
-      // Send confirmation email to the guest
-      if (guest_email) {
+      // Send confirmation email to the guest (skip for backdated entries)
+      if (!isBackdated && guest_email) {
         const addToCalendarUrl = await generateAddToCalendarUrl(adminClient, booking.id, {
           start: start_time,
           end: end_time,
