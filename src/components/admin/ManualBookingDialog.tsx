@@ -850,7 +850,12 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
               </div>
             </div>
 
-            {currentPrice && paymentMode !== "hours" && (
+            {isCorporate ? (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-2.5 text-sm flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary shrink-0" />
+                <span><span className="font-medium">Deferred billing</span> — added to {corporateAccount?.name}'s monthly invoice.</span>
+              </div>
+            ) : currentPrice && paymentMode !== "hours" && (
               <p className="text-sm text-muted-foreground">
                 ₹{currentPrice.price_per_hour}/hr · Total: <span className="font-medium text-foreground">₹{totalCost.toLocaleString()}</span>
               </p>
