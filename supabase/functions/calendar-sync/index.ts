@@ -681,28 +681,30 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Check for overlapping bookings
-      const overlapQuery = adminClient
-        .from("bookings")
-        .select("id")
-        .in("status", ["confirmed", "pending"])
-        .gt("end_time", start_time)
-        .lt("start_time", end_time);
-      if (bay_id) overlapQuery.eq("bay_id", bay_id);
-      else overlapQuery.eq("city", city);
+      // Check for overlapping bookings (skip for backdated accounting entries)
+      if (!isBackdated) {
+        const overlapQuery = adminClient
+          .from("bookings")
+          .select("id")
+          .in("status", ["confirmed", "pending"])
+          .gt("end_time", start_time)
+          .lt("start_time", end_time);
+        if (bay_id) overlapQuery.eq("bay_id", bay_id);
+        else overlapQuery.eq("city", city);
 
-      const { data: existing } = await overlapQuery;
-      if (existing && existing.length > 0) {
-        return new Response(
-          JSON.stringify({ error: "This slot is no longer available. Please refresh and try again." }),
-          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        const { data: existing } = await overlapQuery;
+        if (existing && existing.length > 0) {
+          return new Response(
+            JSON.stringify({ error: "This slot is no longer available. Please refresh and try again." }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
 
-      // Try to create Google Calendar event (skip if no service account configured)
+      // Try to create Google Calendar event (skip if no service account configured, or if backdated)
       let calendarEventId: string | null = null;
       const serviceAccountKeyStr = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
-      if (serviceAccountKeyStr && calendar_email) {
+      if (!isBackdated && serviceAccountKeyStr && calendar_email) {
         try {
           const serviceAccountKey = JSON.parse(serviceAccountKeyStr);
           const accessToken = await getAccessToken(serviceAccountKey);
