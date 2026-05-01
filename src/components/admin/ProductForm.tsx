@@ -170,6 +170,26 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
         )}
       </div>
 
+      {/* Corporate scoping */}
+      <div>
+        <Label>Restrict to Corporate Account</Label>
+        <Select
+          value={form.corporate_account_id ?? "none"}
+          onValueChange={(v) => setForm({ ...form, corporate_account_id: v === "none" ? null : v })}
+        >
+          <SelectTrigger><SelectValue placeholder="Public (everyone)" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Public — visible to everyone</SelectItem>
+            {(corporateAccounts ?? []).map((c) => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-[11px] text-muted-foreground mt-1">
+          If set, this item is reserved for that corporate account's monthly invoice.
+        </p>
+      </div>
+
       {/* Item Type Toggle */}
       <div>
         <Label>Item Type</Label>
