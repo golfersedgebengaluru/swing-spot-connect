@@ -896,15 +896,15 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             {/* Corporate banner — replaces payment selection entirely */}
             {isCorporate && (
               <Card className="border-primary/30 bg-primary/5">
-                <CardContent className="p-3 space-y-1.5 text-sm">
-                  <div className="flex items-center gap-2 font-medium">
-                    <Building2 className="h-4 w-4 text-primary" />
-                    Corporate Account: {corporateAccount?.name}
+                <CardContent className="p-3 space-y-1.5 text-sm min-w-0">
+                  <div className="flex items-start gap-2 font-medium min-w-0">
+                    <Building2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <span className="break-words min-w-0">Corporate Account: {corporateAccount?.name}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground break-words">
                     {isBackdated
-                      ? `Backdated entry for accounting only. Will be added to ${corporateAccount?.name}'s monthly consolidated invoice. No calendar event, no notifications.`
-                      : `This session will be added to ${corporateAccount?.name}'s monthly consolidated invoice. No payment is collected now.`}
+                      ? `Backdated entry for accounting only. Will be added to this corporate's monthly consolidated invoice. No calendar event, no notifications.`
+                      : `This session will be added to this corporate's monthly consolidated invoice. No payment is collected now.`}
                   </p>
                 </CardContent>
               </Card>
