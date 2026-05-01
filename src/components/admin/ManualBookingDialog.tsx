@@ -701,12 +701,17 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
                     mode="single"
                     selected={selectedDate}
                     onSelect={setSelectedDate}
-                    disabled={(date) => date < today || date > maxDate}
+                    disabled={(date) => (isCorporate ? date > maxDate : (date < today || date > maxDate))}
                     initialFocus
                     className="p-3 pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
+              {isCorporate && selectedDate && selectedDate < today && (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1.5 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" /> Backdated entry — accounting only. No calendar sync, no notifications.
+                </p>
+              )}
             </div>
 
             {/* Start Time */}
