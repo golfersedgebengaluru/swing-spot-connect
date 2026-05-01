@@ -758,6 +758,8 @@ Deno.serve(async (req) => {
       }
 
       // Insert booking
+      const noteParts = [`Guest: ${guest_name} | ${guest_email} | ${guest_phone}`];
+      if (isBackdated) noteParts.push("[Backdated accounting entry]");
       const { data: booking, error: bookingError } = await adminClient
         .from("bookings")
         .insert({
@@ -766,11 +768,11 @@ Deno.serve(async (req) => {
           start_time,
           end_time,
           duration_minutes,
-          status: "confirmed",
+          status: isBackdated ? "completed" : "confirmed",
           session_type: session_type || "practice",
           bay_id: bay_id || null,
           calendar_event_id: calendarEventId,
-          note: `Guest: ${guest_name} | ${guest_email} | ${guest_phone}`,
+          note: noteParts.join(" "),
           billing_status: isDeferred ? "deferred" : "immediate",
         })
         .select()
