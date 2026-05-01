@@ -349,6 +349,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             gateway_name: isCorporate ? "corporate_deferred" : selectedPaymentMethod,
             user_id_override: customerUserId || undefined,
             billing_status: isCorporate ? "deferred" : "immediate",
+            backdated: isBackdated,
           },
         });
         if (res.error) {
