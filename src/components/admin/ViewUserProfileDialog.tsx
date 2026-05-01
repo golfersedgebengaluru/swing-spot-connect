@@ -7,6 +7,7 @@ import { Loader2, Pencil, Shield, ShieldCheck, Users, MapPin, Clock, Star, Mail,
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { UserCoachAssignment } from "./UserCoachAssignment";
+import { UserCorporateAssignment } from "./UserCorporateAssignment";
 
 interface Props {
   user: any | null;
@@ -190,6 +191,19 @@ export function ViewUserProfileDialog({ user, onClose, onEdit }: Props) {
               <UserCoachAssignment
                 studentProfileId={user.id}
                 studentLabel={user.display_name || "This user"}
+              />
+            </section>
+            <Separator />
+          </>
+        )}
+
+        {/* ── Corporate Billing ── */}
+        {user.id && (
+          <>
+            <section>
+              <UserCorporateAssignment
+                profileId={user.id}
+                profileLabel={user.display_name || "This user"}
               />
             </section>
             <Separator />
