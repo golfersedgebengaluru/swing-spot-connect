@@ -20,14 +20,14 @@ import { useToast } from "@/hooks/use-toast";
 import {
   useCorporateAccounts, useUpsertCorporateAccount, useDeleteCorporateAccount,
   useCorporateMembers, useDeferredItemsForCorporate, useAssignProfileToCorporate,
+  useCorporateProducts,
   type CorporateAccount,
 } from "@/hooks/useCorporateAccounts";
 import { useCreateInvoice } from "@/hooks/useInvoices";
-import { useProducts } from "@/hooks/useProducts";
-import { useBayPricing } from "@/hooks/usePricing";
 import { calculateLineItems, getGstType, validateGSTIN, INDIAN_STATES } from "@/lib/gst-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { Package } from "lucide-react";
 
 export function AdminCorporateAccountsTab() {
   const { data: accounts, isLoading } = useCorporateAccounts(true);
@@ -297,10 +297,14 @@ function CorporateAccountDetail({ account }: { account: CorporateAccount }) {
         <Tabs defaultValue="billing">
           <TabsList>
             <TabsTrigger value="billing"><Receipt className="h-3.5 w-3.5 mr-1" /> Billing</TabsTrigger>
+            <TabsTrigger value="items"><Package className="h-3.5 w-3.5 mr-1" /> Billing Items</TabsTrigger>
             <TabsTrigger value="members"><Users className="h-3.5 w-3.5 mr-1" /> Members</TabsTrigger>
           </TabsList>
           <TabsContent value="billing" className="pt-4">
             <BillingPanel account={account} />
+          </TabsContent>
+          <TabsContent value="items" className="pt-4">
+            <BillingItemsPanel account={account} />
           </TabsContent>
           <TabsContent value="members" className="pt-4">
             <MembersPanel account={account} />
@@ -455,7 +459,41 @@ function useProfileSearch(query: string) {
   });
 }
 
-// ─── Billing panel: deferred items + generate invoice ─
+// ─── Billing Items panel: products linked to this corporate account ─
+function BillingItemsPanel({ account }: { account: CorporateAccount }) {
+  const { data: items, isLoading } = useCorporateProducts(account.id);
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        These products/services are reserved for <strong>{account.name}</strong> and used when generating their monthly invoice.
+        Create new ones from <strong>Products & Services</strong>, setting "Restrict to Corporate Account" to {account.name}.
+      </p>
+      {isLoading ? (
+        <Loader2 className="h-5 w-5 animate-spin" />
+      ) : !items || items.length === 0 ? (
+        <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+          No billing items yet. Add a Service in <strong>Products & Services</strong> and restrict it to this account.
+        </div>
+      ) : (
+        <div className="border rounded-lg divide-y">
+          {items.map((p: any) => (
+            <div key={p.id} className="p-3 flex items-center justify-between text-sm">
+              <div className="min-w-0">
+                <p className="font-medium truncate">{p.name}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {p.sac_code || p.hsn_code || "—"} · GST {p.gst_rate ?? 0}% · ₹{Number(p.price).toLocaleString()} {p.unit_of_measure ? `per ${p.unit_of_measure}` : ""}
+                </p>
+              </div>
+              <Badge variant="outline" className="text-[10px] capitalize">{p.item_type || "service"}</Badge>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Billing panel: deferred items + generate consolidated invoice ─
 function BillingPanel({ account }: { account: CorporateAccount }) {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -466,15 +504,32 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
   const [startDate, setStartDate] = useState(format(defaultStart, "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(defaultEnd, "yyyy-MM-dd"));
   const [generating, setGenerating] = useState(false);
+  const [billingProductId, setBillingProductId] = useState<string>("");
 
   const { data: items, isLoading } = useDeferredItemsForCorporate(
     account.id,
     `${startDate}T00:00:00`,
     `${endDate}T23:59:59`
   );
-  const { data: products } = useProducts();
-  const { data: bayPricing } = useBayPricing();
+  const { data: corporateProducts } = useCorporateProducts(account.id);
   const createInvoice = useCreateInvoice();
+
+  // Auto-pick the billing product if there's only one
+  useMemo(() => {
+    if (!billingProductId && corporateProducts && corporateProducts.length === 1) {
+      setBillingProductId(corporateProducts[0].id);
+    }
+  }, [corporateProducts, billingProductId]);
+
+  const billingProduct = useMemo(
+    () => (corporateProducts ?? []).find((p: any) => p.id === billingProductId),
+    [corporateProducts, billingProductId]
+  );
+
+  // Determine quantity: 30-min slots = each session counts as one "session"
+  // We measure in number of sessions (each booking = 1 session, regardless of duration?).
+  // For Apexlynx use case, 31 sessions = 31 units. We treat each booking row as 1 session.
+  const sessionCount = items?.length ?? 0;
 
   // City of items — use majority city for invoice (so GST profile matches)
   const city = useMemo(() => {
@@ -489,40 +544,18 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
     return top;
   }, [items]);
 
-  // Resolve a unit price for each item using bay_pricing (weekday/weekend, session_type)
-  const computeRowAmount = (row: any): { hours: number; pricePerHour: number; product?: any } => {
-    const dt = new Date(row.start_time);
-    const isWeekend = [0, 6].includes(dt.getDay());
-    const dayType = isWeekend ? "weekend" : "weekday";
-    const hours = (row.duration_minutes ?? 60) / 60;
-    let priceRow: any = null;
-    if (row.kind === "coaching") {
-      priceRow = (bayPricing ?? []).find((p: any) =>
-        p.city === row.city && p.day_type === dayType && p.session_type?.includes("coaching"));
-    } else {
-      priceRow = (bayPricing ?? []).find((p: any) =>
-        p.city === row.city && p.day_type === dayType && p.session_type === "individual");
-    }
-    const pricePerHour = priceRow?.price_per_hour ?? 0;
-    const product = priceRow?.service_product_id
-      ? (products ?? []).find((p: any) => p.id === priceRow.service_product_id)
-      : null;
-    return { hours, pricePerHour, product };
-  };
-
-  const totals = useMemo(() => {
-    if (!items) return { count: 0, gross: 0 };
-    let gross = 0;
-    for (const r of items) {
-      const { hours, pricePerHour } = computeRowAmount(r);
-      gross += hours * pricePerHour;
-    }
-    return { count: items.length, gross };
-  }, [items, bayPricing, products]);
+  const grossTotal = useMemo(() => {
+    if (!billingProduct) return 0;
+    return sessionCount * Number(billingProduct.price ?? 0);
+  }, [billingProduct, sessionCount]);
 
   const generate = async () => {
     if (!items || items.length === 0) {
       toast({ title: "Nothing to invoice", description: "No deferred sessions in this range." });
+      return;
+    }
+    if (!billingProduct) {
+      toast({ title: "Pick a billing item", description: "Select the product/service to invoice.", variant: "destructive" });
       return;
     }
     if (!city) {
@@ -532,24 +565,17 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
 
     setGenerating(true);
     try {
-      // Build line items
-      const lineItems = items.map((row) => {
-        const { hours, pricePerHour, product } = computeRowAmount(row);
-        const dt = new Date(row.start_time);
-        const dayLabel = format(dt, "dd MMM");
-        const itemName = product?.name
-          ? `${product.name} — ${dayLabel}${row.bay_name ? ` · ${row.bay_name}` : ""}${row.user_name ? ` · ${row.user_name}` : ""}`
-          : `${row.kind === "coaching" ? "Coaching" : "Practice"} session — ${dayLabel}${row.bay_name ? ` · ${row.bay_name}` : ""}${row.user_name ? ` · ${row.user_name}` : ""}`;
-        return {
-          itemName,
-          itemType: "service" as const,
-          hsnCode: product?.hsn_code || undefined,
-          sacCode: product?.sac_code || undefined,
-          quantity: hours,
-          unitPrice: pricePerHour,
-          gstRate: product?.gst_rate ?? 18,
-        };
-      });
+      // ONE consolidated line item: quantity = number of sessions
+      const monthLabel = format(new Date(startDate), "MMM yyyy");
+      const lineItem = {
+        itemName: `${billingProduct.name} — ${monthLabel}`,
+        itemType: "service" as const,
+        sacCode: billingProduct.sac_code || undefined,
+        hsnCode: billingProduct.hsn_code || undefined,
+        quantity: sessionCount,
+        unitPrice: Number(billingProduct.price ?? 0),
+        gstRate: Number(billingProduct.gst_rate ?? 0),
+      };
 
       // GST profile of the city
       const { data: gstProfile } = await supabase
@@ -559,7 +585,7 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
         .maybeSingle();
 
       const gstType = getGstType(gstProfile?.state_code || "", account.gstin || undefined);
-      const calc = calculateLineItems(lineItems, gstType);
+      const calc = calculateLineItems([lineItem], gstType);
 
       // Compute due date
       const dueDate = new Date();
@@ -583,7 +609,7 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
         amountPaid: 0,
         paymentStatus: "unpaid",
         dueDate: format(dueDate, "yyyy-MM-dd"),
-        notes: `Consolidated invoice for ${items.length} session(s) from ${startDate} to ${endDate}.`,
+        notes: `Consolidated invoice for ${sessionCount} session(s) from ${startDate} to ${endDate}.`,
       });
 
       // Mark items as invoiced
@@ -591,18 +617,18 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
       const coachingIds = items.filter((i) => i.kind === "coaching").map((i) => i.id);
       if (bookingIds.length) {
         await supabase.from("bookings")
-          .update({ billing_status: "invoiced", corporate_invoice_id: invoice.id })
+          .update({ billing_status: "invoiced", invoice_id: invoice.id })
           .in("id", bookingIds);
       }
       if (coachingIds.length) {
         await supabase.from("coaching_sessions")
-          .update({ billing_status: "invoiced", corporate_invoice_id: invoice.id })
+          .update({ billing_status: "invoiced", invoice_id: invoice.id })
           .in("id", coachingIds);
       }
 
       toast({
         title: "Invoice generated",
-        description: `${invoice.invoice_number} for ₹${calc.total.toLocaleString()} (${items.length} sessions).`,
+        description: `${invoice.invoice_number} for ₹${calc.total.toLocaleString()} (${sessionCount} sessions).`,
       });
       qc.invalidateQueries({ queryKey: ["deferred_items_corporate"] });
       qc.invalidateQueries({ queryKey: ["invoices"] });
@@ -626,6 +652,22 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
         </div>
       </div>
 
+      <div>
+        <Label className="text-xs">Billing Item (rolls all sessions into one line)</Label>
+        <Select value={billingProductId} onValueChange={setBillingProductId}>
+          <SelectTrigger className="mt-1">
+            <SelectValue placeholder={(corporateProducts ?? []).length === 0 ? "No items linked — add one in Billing Items tab" : "Select a billing item…"} />
+          </SelectTrigger>
+          <SelectContent>
+            {(corporateProducts ?? []).map((p: any) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.name} — ₹{Number(p.price).toLocaleString()} · GST {p.gst_rate ?? 0}%
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {isLoading ? (
         <Loader2 className="h-5 w-5 animate-spin" />
       ) : !items || items.length === 0 ? (
@@ -643,30 +685,27 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
                   <th className="text-left p-2">User</th>
                   <th className="text-left p-2 hidden sm:table-cell">Type</th>
                   <th className="text-left p-2 hidden md:table-cell">Bay / City</th>
-                  <th className="text-right p-2">Hours</th>
-                  <th className="text-right p-2">Amount</th>
+                  <th className="text-right p-2">Duration</th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((row) => {
-                  const { hours, pricePerHour } = computeRowAmount(row);
-                  return (
-                    <tr key={`${row.kind}-${row.id}`} className="border-t">
-                      <td className="p-2 text-xs">{format(new Date(row.start_time), "dd MMM yy")}</td>
-                      <td className="p-2 text-xs">{row.user_name || "—"}</td>
-                      <td className="p-2 hidden sm:table-cell text-xs capitalize">{row.kind}</td>
-                      <td className="p-2 hidden md:table-cell text-xs">{row.bay_name || row.city || "—"}</td>
-                      <td className="p-2 text-right text-xs">{hours.toFixed(1)}</td>
-                      <td className="p-2 text-right text-xs">₹{(hours * pricePerHour).toLocaleString()}</td>
-                    </tr>
-                  );
-                })}
+                {items.map((row) => (
+                  <tr key={`${row.kind}-${row.id}`} className="border-t">
+                    <td className="p-2 text-xs">{format(new Date(row.start_time), "dd MMM yy HH:mm")}</td>
+                    <td className="p-2 text-xs">{row.user_name || "—"}</td>
+                    <td className="p-2 hidden sm:table-cell text-xs capitalize">{row.kind}</td>
+                    <td className="p-2 hidden md:table-cell text-xs">{row.bay_name || row.city || "—"}</td>
+                    <td className="p-2 text-right text-xs">
+                      {row.duration_minutes ? `${row.duration_minutes} min` : "—"}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
               <tfoot className="bg-muted/30 font-medium">
                 <tr>
-                  <td colSpan={4} className="p-2 text-right text-xs">Subtotal (excl. GST)</td>
-                  <td className="p-2 text-right text-xs">{totals.count} items</td>
-                  <td className="p-2 text-right">₹{totals.gross.toLocaleString()}</td>
+                  <td colSpan={3} className="p-2 text-right text-xs">Sessions</td>
+                  <td className="p-2 text-right text-xs">{sessionCount} × {billingProduct ? `₹${Number(billingProduct.price).toLocaleString()}` : "—"}</td>
+                  <td className="p-2 text-right">{billingProduct ? `₹${grossTotal.toLocaleString()}` : "—"}</td>
                 </tr>
               </tfoot>
             </table>
@@ -679,13 +718,20 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
             </div>
           )}
 
+          {!billingProduct && (corporateProducts ?? []).length === 0 && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs">
+              <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+              <span>No billing items linked yet. Open the <strong>Billing Items</strong> tab to set one up first.</span>
+            </div>
+          )}
+
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5" />
               Invoice will be issued to <strong>{account.name}</strong>
               {account.billing_email ? ` (${account.billing_email})` : ""}.
             </p>
-            <Button onClick={generate} disabled={generating || !city}>
+            <Button onClick={generate} disabled={generating || !city || !billingProduct}>
               {generating ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Receipt className="h-4 w-4 mr-1" />}
               Generate Consolidated Invoice
             </Button>

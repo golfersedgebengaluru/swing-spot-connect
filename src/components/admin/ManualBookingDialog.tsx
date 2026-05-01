@@ -808,6 +808,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
               <Select value={String(duration)} onValueChange={(v) => setDuration(Number(v))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  {isCorporate && <SelectItem value="30">30 minutes</SelectItem>}
                   <SelectItem value="60">1 hour</SelectItem>
                   <SelectItem value="90">1.5 hours</SelectItem>
                   <SelectItem value="120">2 hours</SelectItem>
@@ -815,6 +816,11 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
                   <SelectItem value="180">3 hours</SelectItem>
                 </SelectContent>
               </Select>
+              {isCorporate && (
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Corporate accounts can book 30-minute slots.
+                </p>
+              )}
             </div>
 
             {/* Players & Session Type */}

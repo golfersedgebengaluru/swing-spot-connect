@@ -10,6 +10,7 @@ import { useUnitsOfMeasure } from "@/hooks/useUnitsOfMeasure";
 import { useCities } from "@/hooks/useBookings";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useSiteAdminPermissions } from "@/hooks/useSiteAdminPermissions";
+import { useCorporateAccounts } from "@/hooks/useCorporateAccounts";
 
 function generateSKU(itemType: string) {
   const prefix = itemType === "service" ? "SVC" : "PRD";
@@ -28,6 +29,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const { data: cities } = useCities();
   const { isAdmin, isSiteAdmin, assignedCities } = useAdmin();
   const { data: permissions } = useSiteAdminPermissions();
+  const { data: corporateAccounts } = useCorporateAccounts(false);
   const showCostPrice = isAdmin || (isSiteAdmin && permissions?.site_admin_cost_price_visible);
 
   const [form, setForm] = useState({
@@ -49,6 +51,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     duration_minutes: product?.duration_minutes ?? "",
     bookable: product?.bookable ?? false,
     city: product?.city ?? (isSiteAdmin && assignedCities.length === 1 ? assignedCities[0] : ""),
+    corporate_account_id: product?.corporate_account_id ?? null,
   });
 
   // Price toggle: true = inclusive entry, false = exclusive entry
@@ -132,6 +135,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
       duration_minutes: !isProduct ? (Number(form.duration_minutes) || null) : null,
       bookable: !isProduct ? form.bookable : false,
       city: cityValue,
+      corporate_account_id: form.corporate_account_id || null,
       badge: null,
       sizes: null,
       colors: null,
@@ -164,6 +168,26 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
             </SelectContent>
           </Select>
         )}
+      </div>
+
+      {/* Corporate scoping */}
+      <div>
+        <Label>Restrict to Corporate Account</Label>
+        <Select
+          value={form.corporate_account_id ?? "none"}
+          onValueChange={(v) => setForm({ ...form, corporate_account_id: v === "none" ? null : v })}
+        >
+          <SelectTrigger><SelectValue placeholder="Public (everyone)" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Public — visible to everyone</SelectItem>
+            {(corporateAccounts ?? []).map((c) => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-[11px] text-muted-foreground mt-1">
+          If set, this item is reserved for that corporate account's monthly invoice.
+        </p>
       </div>
 
       {/* Item Type Toggle */}
