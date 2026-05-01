@@ -217,7 +217,12 @@ export default function MyBookings() {
     URL.revokeObjectURL(url);
   };
 
+  const isCorporateBooking = (booking: any) =>
+    booking.billing_status === "deferred" || booking.gateway_name === "corporate_deferred";
+
   const canCancelBooking = (booking: any) => {
+    // Corporate (deferred-billed) bookings can only be cancelled by an admin
+    if (isCorporateBooking(booking)) return false;
     // Cannot cancel bookings whose end time has already passed
     if (new Date(booking.end_time) < now) return false;
     const hoursUntil = (new Date(booking.start_time).getTime() - now.getTime()) / (1000 * 60 * 60);
