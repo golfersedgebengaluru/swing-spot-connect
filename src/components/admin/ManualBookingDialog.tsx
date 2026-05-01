@@ -877,12 +877,12 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             {/* Summary */}
             <Card>
               <CardContent className="p-3 space-y-1.5 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Customer</span><span className="font-medium">{customerName}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Bay</span><span className="font-medium">{currentBay?.name}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span className="font-medium">{selectedDate && format(selectedDate, "PPP")}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Time</span><span className="font-medium">{startTime && format(new Date(startTime), "h:mm a")} – {endTime && format(new Date(endTime), "h:mm a")}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Duration</span><span className="font-medium">{duration / 60}h</span></div>
-                {currentPrice && (
+                <div className="flex justify-between gap-3 min-w-0"><span className="text-muted-foreground shrink-0">Customer</span><span className="font-medium truncate text-right">{customerName}</span></div>
+                <div className="flex justify-between gap-3 min-w-0"><span className="text-muted-foreground shrink-0">Bay</span><span className="font-medium truncate text-right">{currentBay?.name}</span></div>
+                <div className="flex justify-between gap-3 min-w-0"><span className="text-muted-foreground shrink-0">Date</span><span className="font-medium truncate text-right">{selectedDate && format(selectedDate, "PPP")}</span></div>
+                <div className="flex justify-between gap-3 min-w-0"><span className="text-muted-foreground shrink-0">Time</span><span className="font-medium truncate text-right">{startTime && format(new Date(startTime), "h:mm a")} – {endTime && format(new Date(endTime), "h:mm a")}</span></div>
+                <div className="flex justify-between gap-3 min-w-0"><span className="text-muted-foreground shrink-0">Duration</span><span className="font-medium text-right">{duration} min</span></div>
+                {!isCorporate && currentPrice && (
                   <div className="flex justify-between border-t pt-1.5 mt-1.5">
                     <span className="font-medium">Total</span>
                     <span className="font-bold text-primary">₹{totalCost.toLocaleString()}</span>
