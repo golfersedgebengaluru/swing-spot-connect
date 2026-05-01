@@ -27,7 +27,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { useBayPricing } from "@/hooks/usePricing";
 import { calculateLineItems, getGstType, validateGSTIN, INDIAN_STATES } from "@/lib/gst-utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 
 export function AdminCorporateAccountsTab() {
   const { data: accounts, isLoading } = useCorporateAccounts(true);
