@@ -150,6 +150,23 @@ export function useAssignProfileToCorporate() {
   });
 }
 
+// ─── Products linked to a corporate account ──────────
+export function useCorporateProducts(corporateAccountId?: string | null) {
+  return useQuery({
+    queryKey: ["corporate_products", corporateAccountId],
+    enabled: !!corporateAccountId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("corporate_account_id", corporateAccountId!)
+        .order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
 // ─── Profile lookup (for Manual Booking corporate banner) ──
 export function useProfileBillingInfo(profileId?: string | null) {
   return useQuery({
