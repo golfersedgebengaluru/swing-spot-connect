@@ -13,12 +13,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Building2, Plus, Pencil, Trash2, Loader2, Receipt, Users, Calendar, CheckCircle2, AlertCircle,
+  Search, X, UserPlus,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import {
   useCorporateAccounts, useUpsertCorporateAccount, useDeleteCorporateAccount,
-  useCorporateMembers, useDeferredItemsForCorporate,
+  useCorporateMembers, useDeferredItemsForCorporate, useAssignProfileToCorporate,
   type CorporateAccount,
 } from "@/hooks/useCorporateAccounts";
 import { useCreateInvoice } from "@/hooks/useInvoices";
@@ -26,7 +27,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { useBayPricing } from "@/hooks/usePricing";
 import { calculateLineItems, getGstType, validateGSTIN, INDIAN_STATES } from "@/lib/gst-utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 
 export function AdminCorporateAccountsTab() {
   const { data: accounts, isLoading } = useCorporateAccounts(true);
@@ -311,33 +312,147 @@ function CorporateAccountDetail({ account }: { account: CorporateAccount }) {
 }
 
 function MembersPanel({ account }: { account: CorporateAccount }) {
+  const { toast } = useToast();
   const { data: members, isLoading } = useCorporateMembers(account.id);
-  if (isLoading) return <Loader2 className="h-5 w-5 animate-spin" />;
-  if (!members || members.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No members assigned yet. Open a user's profile from the <strong>All Users</strong> tab and link them to <strong>{account.name}</strong>.
-      </p>
-    );
-  }
+  const assign = useAssignProfileToCorporate();
+  const [search, setSearch] = useState("");
+
+  const { data: searchResults, isFetching } = useProfileSearch(search);
+  const assignedIds = new Set((members ?? []).map((m: any) => m.id));
+
+  const handleAdd = async (profileId: string, name: string) => {
+    try {
+      await assign.mutateAsync({ profileId, corporateAccountId: account.id });
+      toast({ title: "Member added", description: `${name} is now billed under ${account.name}.` });
+      setSearch("");
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const handleRemove = async (profileId: string, name: string) => {
+    if (!confirm(`Remove ${name} from ${account.name}? Future bookings will revert to standard billing.`)) return;
+    try {
+      await assign.mutateAsync({ profileId, corporateAccountId: null });
+      toast({ title: "Removed", description: `${name} reverted to standard billing.` });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
+
   return (
-    <div className="space-y-2">
-      <p className="text-xs text-muted-foreground">
-        {members.length} {members.length === 1 ? "member" : "members"} billed under this account.
-      </p>
-      <div className="border rounded-lg divide-y">
-        {members.map((m: any) => (
-          <div key={m.id} className="p-3 flex items-center justify-between text-sm">
-            <div>
-              <p className="font-medium">{m.display_name || "Unnamed"}</p>
-              <p className="text-xs text-muted-foreground">{m.email} {m.phone && `· ${m.phone}`}</p>
-            </div>
-            <Badge variant="outline" className="text-[10px]">monthly</Badge>
+    <div className="space-y-3">
+      {/* Current roster */}
+      {isLoading ? (
+        <Loader2 className="h-5 w-5 animate-spin" />
+      ) : !members || members.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic">No members assigned yet. Search below to add one.</p>
+      ) : (
+        <>
+          <p className="text-xs text-muted-foreground">
+            {members.length} {members.length === 1 ? "member" : "members"} billed under this account.
+          </p>
+          <div className="border rounded-lg divide-y">
+            {members.map((m: any) => (
+              <div key={m.id} className="p-3 flex items-center justify-between text-sm">
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{m.display_name || "Unnamed"}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {m.email || "no email"} {m.phone && `· ${m.phone}`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge variant="outline" className="text-[10px]">monthly</Badge>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => handleRemove(m.id, m.display_name || m.email || "this member")}
+                    title="Remove from account"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        </>
+      )}
+
+      {/* Add new */}
+      <div className="space-y-2 pt-2 border-t">
+        <Label className="text-xs text-muted-foreground">Add a member</Label>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name or email…"
+            className="pl-8 h-9 text-sm"
+          />
+        </div>
+        {search.length >= 2 && (
+          <Card className="max-h-56 overflow-y-auto p-1">
+            {isFetching && !searchResults ? (
+              <div className="p-2 text-xs text-muted-foreground flex items-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin" /> Searching…
+              </div>
+            ) : (searchResults ?? []).length === 0 ? (
+              <div className="p-2 text-xs text-muted-foreground">No matches.</div>
+            ) : (
+              (searchResults ?? []).map((p: any) => {
+                const already = assignedIds.has(p.id);
+                const inOtherAccount = !!p.corporate_account_id && p.corporate_account_id !== account.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    disabled={already || assign.isPending}
+                    onClick={() => handleAdd(p.id, p.display_name || p.email || "Member")}
+                    className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-muted disabled:opacity-50"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{p.display_name || "—"}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {p.email || "no email"}
+                        {inOtherAccount && " · already in another corporate account (will move)"}
+                      </div>
+                    </div>
+                    {already ? (
+                      <span className="text-[10px] text-muted-foreground">Assigned</span>
+                    ) : (
+                      <UserPlus className="h-3.5 w-3.5 text-primary" />
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </Card>
+        )}
+        <p className="text-[11px] text-muted-foreground">
+          A user can belong to <strong>one</strong> corporate account at a time. Adding moves them automatically.
+        </p>
       </div>
     </div>
   );
+}
+
+// Lightweight profile search for corporate member assignment
+function useProfileSearch(query: string) {
+  return useQuery({
+    queryKey: ["profile_search_corporate", query],
+    enabled: query.trim().length >= 2,
+    queryFn: async () => {
+      const q = query.trim();
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, display_name, email, phone, corporate_account_id")
+        .or(`display_name.ilike.%${q}%,email.ilike.%${q}%`)
+        .limit(20);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 }
 
 // ─── Billing panel: deferred items + generate invoice ─
