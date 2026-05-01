@@ -135,6 +135,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
       duration_minutes: !isProduct ? (Number(form.duration_minutes) || null) : null,
       bookable: !isProduct ? form.bookable : false,
       city: cityValue,
+      corporate_account_id: form.corporate_account_id || null,
       badge: null,
       sizes: null,
       colors: null,
