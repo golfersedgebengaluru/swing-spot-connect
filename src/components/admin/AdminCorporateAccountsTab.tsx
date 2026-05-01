@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   useCorporateAccounts, useUpsertCorporateAccount, useDeleteCorporateAccount,
   useCorporateMembers, useDeferredItemsForCorporate, useAssignProfileToCorporate,
+  useCorporateProducts,
   type CorporateAccount,
 } from "@/hooks/useCorporateAccounts";
 import { useCreateInvoice } from "@/hooks/useInvoices";
@@ -28,6 +29,7 @@ import { useBayPricing } from "@/hooks/usePricing";
 import { calculateLineItems, getGstType, validateGSTIN, INDIAN_STATES } from "@/lib/gst-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { Package } from "lucide-react";
 
 export function AdminCorporateAccountsTab() {
   const { data: accounts, isLoading } = useCorporateAccounts(true);
