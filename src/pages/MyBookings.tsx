@@ -16,6 +16,7 @@ import {
   ArrowUpDown,
   Filter,
   CalendarPlus,
+  Building2,
 } from "lucide-react";
 import {
   Table,
@@ -247,6 +248,11 @@ export default function MyBookings() {
                     <GraduationCap className="h-3 w-3" /> Coaching
                   </Badge>
                 )}
+                {isCorporateBooking(booking) && (
+                  <Badge variant="outline" className="text-xs flex items-center gap-1 border-amber-300 text-amber-700 dark:text-amber-400">
+                    <Building2 className="h-3 w-3" /> Corporate
+                  </Badge>
+                )}
               </div>
               <p className="font-medium text-foreground text-sm">{format(start, "EEE, MMM d, yyyy")}</p>
             </div>
@@ -444,13 +450,20 @@ export default function MyBookings() {
                         <TableCell className="text-foreground">{booking.bay_name || "—"}</TableCell>
                         <TableCell className="text-muted-foreground">{booking.city}</TableCell>
                         <TableCell>
-                          {booking.session_type === "coaching" ? (
-                            <Badge variant="outline" className="text-xs flex items-center gap-1 w-fit">
-                              <GraduationCap className="h-3 w-3" /> Coaching
-                            </Badge>
-                          ) : (
-                            <span className="text-sm text-muted-foreground capitalize">{booking.session_type || "Practice"}</span>
-                          )}
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {booking.session_type === "coaching" ? (
+                              <Badge variant="outline" className="text-xs flex items-center gap-1 w-fit">
+                                <GraduationCap className="h-3 w-3" /> Coaching
+                              </Badge>
+                            ) : (
+                              <span className="text-sm text-muted-foreground capitalize">{booking.session_type || "Practice"}</span>
+                            )}
+                            {isCorporateBooking(booking) && (
+                              <Badge variant="outline" className="text-xs flex items-center gap-1 border-amber-300 text-amber-700 dark:text-amber-400">
+                                <Building2 className="h-3 w-3" /> Corporate
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>{statusBadge(booking.status)}</TableCell>
                         <TableCell className="text-right font-medium">{booking.duration_minutes / 60}h</TableCell>
