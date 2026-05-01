@@ -517,7 +517,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
               <p><span className="font-medium">Bay:</span> {currentBay?.name}</p>
               <p><span className="font-medium">Date:</span> {selectedDate && format(selectedDate, "PPP")}</p>
               <p><span className="font-medium">Time:</span> {startTime && format(new Date(startTime), "h:mm a")} – {endTime && format(new Date(endTime), "h:mm a")}</p>
-              <p><span className="font-medium">Payment:</span> {paymentMode === "hours" ? `${hoursNeeded}h from balance` : `₹${totalCost.toLocaleString()} via ${selectedPaymentMethod}`}</p>
+              <p><span className="font-medium">Payment:</span> {isCorporate ? `Deferred — ${corporateAccount?.name} monthly invoice` : paymentMode === "hours" ? `${hoursNeeded}h from balance` : `₹${totalCost.toLocaleString()} via ${selectedPaymentMethod}`}</p>
             </div>
             <div className="flex gap-2 mt-4">
               <Button className="flex-1" variant="outline" onClick={handleClose}>Close</Button>
