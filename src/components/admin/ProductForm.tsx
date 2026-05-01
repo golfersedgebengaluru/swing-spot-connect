@@ -29,6 +29,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const { data: cities } = useCities();
   const { isAdmin, isSiteAdmin, assignedCities } = useAdmin();
   const { data: permissions } = useSiteAdminPermissions();
+  const { data: corporateAccounts } = useCorporateAccounts(false);
   const showCostPrice = isAdmin || (isSiteAdmin && permissions?.site_admin_cost_price_visible);
 
   const [form, setForm] = useState({
@@ -50,6 +51,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     duration_minutes: product?.duration_minutes ?? "",
     bookable: product?.bookable ?? false,
     city: product?.city ?? (isSiteAdmin && assignedCities.length === 1 ? assignedCities[0] : ""),
+    corporate_account_id: product?.corporate_account_id ?? null,
   });
 
   // Price toggle: true = inclusive entry, false = exclusive entry
