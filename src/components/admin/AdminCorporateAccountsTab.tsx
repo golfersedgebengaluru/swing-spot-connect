@@ -299,10 +299,14 @@ function CorporateAccountDetail({ account }: { account: CorporateAccount }) {
         <Tabs defaultValue="billing">
           <TabsList>
             <TabsTrigger value="billing"><Receipt className="h-3.5 w-3.5 mr-1" /> Billing</TabsTrigger>
+            <TabsTrigger value="items"><Package className="h-3.5 w-3.5 mr-1" /> Billing Items</TabsTrigger>
             <TabsTrigger value="members"><Users className="h-3.5 w-3.5 mr-1" /> Members</TabsTrigger>
           </TabsList>
           <TabsContent value="billing" className="pt-4">
             <BillingPanel account={account} />
+          </TabsContent>
+          <TabsContent value="items" className="pt-4">
+            <BillingItemsPanel account={account} />
           </TabsContent>
           <TabsContent value="members" className="pt-4">
             <MembersPanel account={account} />
