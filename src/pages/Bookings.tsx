@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, Clock, MapPin, Loader2, AlertTriangle, LayoutGrid, GraduationCap } from "lucide-react";
+import { CalendarIcon, Clock, MapPin, Loader2, AlertTriangle, LayoutGrid, GraduationCap, Building2, Info } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -160,6 +160,23 @@ export default function Bookings() {
             <h1 className="font-display text-3xl font-bold text-foreground">Book a Bay</h1>
             <p className="mt-1 text-muted-foreground">Reserve your indoor golf bay session</p>
           </div>
+
+          {/* Corporate member info banner */}
+          {(profile as any)?.corporate_account_id && (
+            <Card className="mb-6 border-amber-300/60 bg-amber-50 dark:bg-amber-950/20 shadow-elegant">
+              <CardContent className="flex items-start gap-3 p-4">
+                <div className="rounded-xl bg-amber-100 dark:bg-amber-900/40 p-2 shrink-0">
+                  <Building2 className="h-5 w-5 text-amber-700 dark:text-amber-400" />
+                </div>
+                <div className="text-sm space-y-1">
+                  <p className="font-medium text-foreground">You're a corporate member</p>
+                  <p className="text-muted-foreground">
+                    Corporate (deferred-billed) sessions are booked and cancelled <span className="font-medium">only by an admin</span>. The page below lets you book personally — using your own purchased hours or pay-per-use.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Balance Card */}
           <Card className="mb-6 shadow-elegant">

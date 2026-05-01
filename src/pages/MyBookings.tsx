@@ -16,6 +16,7 @@ import {
   ArrowUpDown,
   Filter,
   CalendarPlus,
+  Building2,
 } from "lucide-react";
 import {
   Table,
@@ -217,7 +218,12 @@ export default function MyBookings() {
     URL.revokeObjectURL(url);
   };
 
+  const isCorporateBooking = (booking: any) =>
+    booking.billing_status === "deferred" || booking.gateway_name === "corporate_deferred";
+
   const canCancelBooking = (booking: any) => {
+    // Corporate (deferred-billed) bookings can only be cancelled by an admin
+    if (isCorporateBooking(booking)) return false;
     // Cannot cancel bookings whose end time has already passed
     if (new Date(booking.end_time) < now) return false;
     const hoursUntil = (new Date(booking.start_time).getTime() - now.getTime()) / (1000 * 60 * 60);
@@ -240,6 +246,11 @@ export default function MyBookings() {
                 {booking.session_type === "coaching" && (
                   <Badge variant="outline" className="text-xs flex items-center gap-1">
                     <GraduationCap className="h-3 w-3" /> Coaching
+                  </Badge>
+                )}
+                {isCorporateBooking(booking) && (
+                  <Badge variant="outline" className="text-xs flex items-center gap-1 border-amber-300 text-amber-700 dark:text-amber-400">
+                    <Building2 className="h-3 w-3" /> Corporate
                   </Badge>
                 )}
               </div>
@@ -439,13 +450,20 @@ export default function MyBookings() {
                         <TableCell className="text-foreground">{booking.bay_name || "—"}</TableCell>
                         <TableCell className="text-muted-foreground">{booking.city}</TableCell>
                         <TableCell>
-                          {booking.session_type === "coaching" ? (
-                            <Badge variant="outline" className="text-xs flex items-center gap-1 w-fit">
-                              <GraduationCap className="h-3 w-3" /> Coaching
-                            </Badge>
-                          ) : (
-                            <span className="text-sm text-muted-foreground capitalize">{booking.session_type || "Practice"}</span>
-                          )}
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {booking.session_type === "coaching" ? (
+                              <Badge variant="outline" className="text-xs flex items-center gap-1 w-fit">
+                                <GraduationCap className="h-3 w-3" /> Coaching
+                              </Badge>
+                            ) : (
+                              <span className="text-sm text-muted-foreground capitalize">{booking.session_type || "Practice"}</span>
+                            )}
+                            {isCorporateBooking(booking) && (
+                              <Badge variant="outline" className="text-xs flex items-center gap-1 border-amber-300 text-amber-700 dark:text-amber-400">
+                                <Building2 className="h-3 w-3" /> Corporate
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>{statusBadge(booking.status)}</TableCell>
                         <TableCell className="text-right font-medium">{booking.duration_minutes / 60}h</TableCell>
