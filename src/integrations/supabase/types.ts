@@ -367,6 +367,7 @@ export type Database = {
           duration_minutes: number
           end_time: string
           id: string
+          invoice_id: string | null
           note: string | null
           session_type: string
           start_time: string
@@ -385,6 +386,7 @@ export type Database = {
           duration_minutes: number
           end_time: string
           id?: string
+          invoice_id?: string | null
           note?: string | null
           session_type?: string
           start_time: string
@@ -403,6 +405,7 @@ export type Database = {
           duration_minutes?: number
           end_time?: string
           id?: string
+          invoice_id?: string | null
           note?: string | null
           session_type?: string
           start_time?: string
@@ -421,6 +424,13 @@ export type Database = {
           {
             foreignKeyName: "bookings_corporate_invoice_id_fkey"
             columns: ["corporate_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_invoice_id_fkey"
+            columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
@@ -515,6 +525,7 @@ export type Database = {
           created_at: string
           drills: string | null
           id: string
+          invoice_id: string | null
           notes: string | null
           onform_url: string | null
           other_label: string | null
@@ -535,6 +546,7 @@ export type Database = {
           created_at?: string
           drills?: string | null
           id?: string
+          invoice_id?: string | null
           notes?: string | null
           onform_url?: string | null
           other_label?: string | null
@@ -555,6 +567,7 @@ export type Database = {
           created_at?: string
           drills?: string | null
           id?: string
+          invoice_id?: string | null
           notes?: string | null
           onform_url?: string | null
           other_label?: string | null
@@ -577,6 +590,13 @@ export type Database = {
           {
             foreignKeyName: "coaching_sessions_corporate_invoice_id_fkey"
             columns: ["corporate_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coaching_sessions_invoice_id_fkey"
+            columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
             referencedColumns: ["id"]
@@ -3418,6 +3438,7 @@ export type Database = {
           category: string
           city: string | null
           colors: string[] | null
+          corporate_account_id: string | null
           cost_price: number
           created_at: string
           description: string | null
@@ -3447,6 +3468,7 @@ export type Database = {
           category?: string
           city?: string | null
           colors?: string[] | null
+          corporate_account_id?: string | null
           cost_price?: number
           created_at?: string
           description?: string | null
@@ -3476,6 +3498,7 @@ export type Database = {
           category?: string
           city?: string | null
           colors?: string[] | null
+          corporate_account_id?: string | null
           cost_price?: number
           created_at?: string
           description?: string | null
@@ -3499,7 +3522,15 @@ export type Database = {
           unit_of_measure?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_corporate_account_id_fkey"
+            columns: ["corporate_account_id"]
+            isOneToOne: false
+            referencedRelation: "corporate_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
