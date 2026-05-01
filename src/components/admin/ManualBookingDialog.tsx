@@ -902,8 +902,9 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
                     Corporate Account: {corporateAccount?.name}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    This session will be added to {corporateAccount?.name}'s monthly consolidated invoice.
-                    No payment is collected now.
+                    {isBackdated
+                      ? `Backdated entry for accounting only. Will be added to ${corporateAccount?.name}'s monthly consolidated invoice. No calendar event, no notifications.`
+                      : `This session will be added to ${corporateAccount?.name}'s monthly consolidated invoice. No payment is collected now.`}
                   </p>
                 </CardContent>
               </Card>
