@@ -657,8 +657,10 @@ Deno.serve(async (req) => {
         session_type, guest_name, guest_email, guest_phone, calendar_email,
         user_id_override,
         billing_status, // 'deferred' for corporate monthly customers
+        backdated, // true for corporate accounting entries in the past
       } = params;
       const isDeferred = billing_status === "deferred";
+      const isBackdated = backdated === true;
 
       const adminClient = createAdminClient();
 
