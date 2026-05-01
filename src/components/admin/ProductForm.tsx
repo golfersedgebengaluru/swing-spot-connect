@@ -10,6 +10,7 @@ import { useUnitsOfMeasure } from "@/hooks/useUnitsOfMeasure";
 import { useCities } from "@/hooks/useBookings";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useSiteAdminPermissions } from "@/hooks/useSiteAdminPermissions";
+import { useCorporateAccounts } from "@/hooks/useCorporateAccounts";
 
 function generateSKU(itemType: string) {
   const prefix = itemType === "service" ? "SVC" : "PRD";
