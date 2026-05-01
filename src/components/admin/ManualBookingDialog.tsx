@@ -289,6 +289,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const maxDate = addDays(today, 90);
+  const isBackdated = isCorporate && !!selectedDate && selectedDate < today;
 
   const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
   const minutes = ["00", "30"];
