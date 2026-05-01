@@ -24,8 +24,6 @@ import {
   type CorporateAccount,
 } from "@/hooks/useCorporateAccounts";
 import { useCreateInvoice } from "@/hooks/useInvoices";
-import { useProducts } from "@/hooks/useProducts";
-import { useBayPricing } from "@/hooks/usePricing";
 import { calculateLineItems, getGstType, validateGSTIN, INDIAN_STATES } from "@/lib/gst-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
