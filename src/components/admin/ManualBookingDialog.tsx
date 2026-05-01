@@ -289,6 +289,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const maxDate = addDays(today, 90);
+  const isBackdated = isCorporate && !!selectedDate && selectedDate < today;
 
   const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
   const minutes = ["00", "30"];
@@ -348,6 +349,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             gateway_name: isCorporate ? "corporate_deferred" : selectedPaymentMethod,
             user_id_override: customerUserId || undefined,
             billing_status: isCorporate ? "deferred" : "immediate",
+            backdated: isBackdated,
           },
         });
         if (res.error) {
@@ -515,7 +517,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
               <p><span className="font-medium">Bay:</span> {currentBay?.name}</p>
               <p><span className="font-medium">Date:</span> {selectedDate && format(selectedDate, "PPP")}</p>
               <p><span className="font-medium">Time:</span> {startTime && format(new Date(startTime), "h:mm a")} – {endTime && format(new Date(endTime), "h:mm a")}</p>
-              <p><span className="font-medium">Payment:</span> {paymentMode === "hours" ? `${hoursNeeded}h from balance` : `₹${totalCost.toLocaleString()} via ${selectedPaymentMethod}`}</p>
+              <p><span className="font-medium">Payment:</span> {isCorporate ? `Deferred — ${corporateAccount?.name} monthly invoice` : paymentMode === "hours" ? `${hoursNeeded}h from balance` : `₹${totalCost.toLocaleString()} via ${selectedPaymentMethod}`}</p>
             </div>
             <div className="flex gap-2 mt-4">
               <Button className="flex-1" variant="outline" onClick={handleClose}>Close</Button>
@@ -529,7 +531,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Manual Booking</DialogTitle>
         </DialogHeader>
@@ -701,12 +703,17 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
                     mode="single"
                     selected={selectedDate}
                     onSelect={setSelectedDate}
-                    disabled={(date) => date < today || date > maxDate}
+                    disabled={(date) => (isCorporate ? date > maxDate : (date < today || date > maxDate))}
                     initialFocus
                     className="p-3 pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
+              {isCorporate && selectedDate && selectedDate < today && (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1.5 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" /> Backdated entry — accounting only. No calendar sync, no notifications.
+                </p>
+              )}
             </div>
 
             {/* Start Time */}
@@ -845,7 +852,12 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
               </div>
             </div>
 
-            {currentPrice && paymentMode !== "hours" && (
+            {isCorporate ? (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-2.5 text-sm flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary shrink-0" />
+                <span><span className="font-medium">Deferred billing</span> — added to {corporateAccount?.name}'s monthly invoice.</span>
+              </div>
+            ) : currentPrice && paymentMode !== "hours" && (
               <p className="text-sm text-muted-foreground">
                 ₹{currentPrice.price_per_hour}/hr · Total: <span className="font-medium text-foreground">₹{totalCost.toLocaleString()}</span>
               </p>
@@ -867,12 +879,12 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             {/* Summary */}
             <Card>
               <CardContent className="p-3 space-y-1.5 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Customer</span><span className="font-medium">{customerName}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Bay</span><span className="font-medium">{currentBay?.name}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span className="font-medium">{selectedDate && format(selectedDate, "PPP")}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Time</span><span className="font-medium">{startTime && format(new Date(startTime), "h:mm a")} – {endTime && format(new Date(endTime), "h:mm a")}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Duration</span><span className="font-medium">{duration / 60}h</span></div>
-                {currentPrice && (
+                <div className="flex justify-between gap-3 min-w-0"><span className="text-muted-foreground shrink-0">Customer</span><span className="font-medium truncate text-right">{customerName}</span></div>
+                <div className="flex justify-between gap-3 min-w-0"><span className="text-muted-foreground shrink-0">Bay</span><span className="font-medium truncate text-right">{currentBay?.name}</span></div>
+                <div className="flex justify-between gap-3 min-w-0"><span className="text-muted-foreground shrink-0">Date</span><span className="font-medium truncate text-right">{selectedDate && format(selectedDate, "PPP")}</span></div>
+                <div className="flex justify-between gap-3 min-w-0"><span className="text-muted-foreground shrink-0">Time</span><span className="font-medium truncate text-right">{startTime && format(new Date(startTime), "h:mm a")} – {endTime && format(new Date(endTime), "h:mm a")}</span></div>
+                <div className="flex justify-between gap-3 min-w-0"><span className="text-muted-foreground shrink-0">Duration</span><span className="font-medium text-right">{duration} min</span></div>
+                {!isCorporate && currentPrice && (
                   <div className="flex justify-between border-t pt-1.5 mt-1.5">
                     <span className="font-medium">Total</span>
                     <span className="font-bold text-primary">₹{totalCost.toLocaleString()}</span>
@@ -890,8 +902,9 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
                     Corporate Account: {corporateAccount?.name}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    This session will be added to {corporateAccount?.name}'s monthly consolidated invoice.
-                    No payment is collected now.
+                    {isBackdated
+                      ? `Backdated entry for accounting only. Will be added to ${corporateAccount?.name}'s monthly consolidated invoice. No calendar event, no notifications.`
+                      : `This session will be added to ${corporateAccount?.name}'s monthly consolidated invoice. No payment is collected now.`}
                   </p>
                 </CardContent>
               </Card>

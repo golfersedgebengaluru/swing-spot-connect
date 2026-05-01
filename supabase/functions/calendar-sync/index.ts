@@ -657,8 +657,10 @@ Deno.serve(async (req) => {
         session_type, guest_name, guest_email, guest_phone, calendar_email,
         user_id_override,
         billing_status, // 'deferred' for corporate monthly customers
+        backdated, // true for corporate accounting entries in the past
       } = params;
       const isDeferred = billing_status === "deferred";
+      const isBackdated = backdated === true;
 
       const adminClient = createAdminClient();
 
@@ -679,28 +681,30 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Check for overlapping bookings
-      const overlapQuery = adminClient
-        .from("bookings")
-        .select("id")
-        .in("status", ["confirmed", "pending"])
-        .gt("end_time", start_time)
-        .lt("start_time", end_time);
-      if (bay_id) overlapQuery.eq("bay_id", bay_id);
-      else overlapQuery.eq("city", city);
+      // Check for overlapping bookings (skip for backdated accounting entries)
+      if (!isBackdated) {
+        const overlapQuery = adminClient
+          .from("bookings")
+          .select("id")
+          .in("status", ["confirmed", "pending"])
+          .gt("end_time", start_time)
+          .lt("start_time", end_time);
+        if (bay_id) overlapQuery.eq("bay_id", bay_id);
+        else overlapQuery.eq("city", city);
 
-      const { data: existing } = await overlapQuery;
-      if (existing && existing.length > 0) {
-        return new Response(
-          JSON.stringify({ error: "This slot is no longer available. Please refresh and try again." }),
-          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        const { data: existing } = await overlapQuery;
+        if (existing && existing.length > 0) {
+          return new Response(
+            JSON.stringify({ error: "This slot is no longer available. Please refresh and try again." }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
 
-      // Try to create Google Calendar event (skip if no service account configured)
+      // Try to create Google Calendar event (skip if no service account configured, or if backdated)
       let calendarEventId: string | null = null;
       const serviceAccountKeyStr = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
-      if (serviceAccountKeyStr && calendar_email) {
+      if (!isBackdated && serviceAccountKeyStr && calendar_email) {
         try {
           const serviceAccountKey = JSON.parse(serviceAccountKeyStr);
           const accessToken = await getAccessToken(serviceAccountKey);
@@ -754,6 +758,8 @@ Deno.serve(async (req) => {
       }
 
       // Insert booking
+      const noteParts = [`Guest: ${guest_name} | ${guest_email} | ${guest_phone}`];
+      if (isBackdated) noteParts.push("[Backdated accounting entry]");
       const { data: booking, error: bookingError } = await adminClient
         .from("bookings")
         .insert({
@@ -762,11 +768,11 @@ Deno.serve(async (req) => {
           start_time,
           end_time,
           duration_minutes,
-          status: "confirmed",
+          status: isBackdated ? "completed" : "confirmed",
           session_type: session_type || "practice",
           bay_id: bay_id || null,
           calendar_event_id: calendarEventId,
-          note: `Guest: ${guest_name} | ${guest_email} | ${guest_phone}`,
+          note: noteParts.join(" "),
           billing_status: isDeferred ? "deferred" : "immediate",
         })
         .select()
@@ -809,26 +815,28 @@ Deno.serve(async (req) => {
         console.error("Failed to get calendar timezone for notifications:", (e as Error).message);
       }
 
-      // Notify admins + site-admins about the guest booking
-      try {
-        const notifyAdminIds = await getAdminAndSiteAdminIds(adminClient, city);
-        await notifyAdminsInApp(adminClient, notifyAdminIds, "📅 New Guest Booking", `Guest ${guest_name} booked ${bay_name || city} on ${formatDateTime(start_time, calTzNotify)}.`);
-        await notifyAdmins(adminClient, notifyAdminIds, "admin_new_booking", "📅 New Guest Booking", {
-          member_name: guest_name,
-          city,
-          bay: bay_name || city,
-          date: formatDate(start_time, calTzNotify),
-          time: formatTimeRange(start_time, end_time, calTzNotify),
-          duration: `${duration_minutes} min`,
-          session_type: "practice",
-          is_guest: true,
-        });
-      } catch (e) {
-        console.error("Failed to notify admins about guest booking:", (e as Error).message);
+      // Notify admins + site-admins about the guest booking (skip for backdated entries)
+      if (!isBackdated) {
+        try {
+          const notifyAdminIds = await getAdminAndSiteAdminIds(adminClient, city);
+          await notifyAdminsInApp(adminClient, notifyAdminIds, "📅 New Guest Booking", `Guest ${guest_name} booked ${bay_name || city} on ${formatDateTime(start_time, calTzNotify)}.`);
+          await notifyAdmins(adminClient, notifyAdminIds, "admin_new_booking", "📅 New Guest Booking", {
+            member_name: guest_name,
+            city,
+            bay: bay_name || city,
+            date: formatDate(start_time, calTzNotify),
+            time: formatTimeRange(start_time, end_time, calTzNotify),
+            duration: `${duration_minutes} min`,
+            session_type: "practice",
+            is_guest: true,
+          });
+        } catch (e) {
+          console.error("Failed to notify admins about guest booking:", (e as Error).message);
+        }
       }
 
-      // Send confirmation email to the guest
-      if (guest_email) {
+      // Send confirmation email to the guest (skip for backdated entries)
+      if (!isBackdated && guest_email) {
         const addToCalendarUrl = await generateAddToCalendarUrl(adminClient, booking.id, {
           start: start_time,
           end: end_time,
