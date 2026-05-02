@@ -527,13 +527,17 @@ export type Database = {
           id: string
           invoice_id: string | null
           notes: string | null
+          onform_links: Json
           onform_url: string | null
           other_label: string | null
+          other_links: Json
           other_url: string | null
           progress_summary: string | null
           session_date: string
+          sportsbox_links: Json
           sportsbox_url: string | null
           student_user_id: string
+          superspeed_links: Json
           superspeed_url: string | null
           updated_at: string
         }
@@ -548,13 +552,17 @@ export type Database = {
           id?: string
           invoice_id?: string | null
           notes?: string | null
+          onform_links?: Json
           onform_url?: string | null
           other_label?: string | null
+          other_links?: Json
           other_url?: string | null
           progress_summary?: string | null
           session_date: string
+          sportsbox_links?: Json
           sportsbox_url?: string | null
           student_user_id: string
+          superspeed_links?: Json
           superspeed_url?: string | null
           updated_at?: string
         }
@@ -569,13 +577,17 @@ export type Database = {
           id?: string
           invoice_id?: string | null
           notes?: string | null
+          onform_links?: Json
           onform_url?: string | null
           other_label?: string | null
+          other_links?: Json
           other_url?: string | null
           progress_summary?: string | null
           session_date?: string
+          sportsbox_links?: Json
           sportsbox_url?: string | null
           student_user_id?: string
+          superspeed_links?: Json
           superspeed_url?: string | null
           updated_at?: string
         }
