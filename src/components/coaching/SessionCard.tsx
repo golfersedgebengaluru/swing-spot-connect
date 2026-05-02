@@ -42,6 +42,10 @@ export function SessionCard({ session, perspective, onClick }: Props) {
       )}
 
       <ExternalToolLinks
+        onformLinks={session.onform_links}
+        sportsboxLinks={session.sportsbox_links}
+        superspeedLinks={session.superspeed_links}
+        otherLinks={session.other_links}
         onform={session.onform_url}
         sportsbox={session.sportsbox_url}
         superspeed={session.superspeed_url}
