@@ -359,6 +359,7 @@ const TEMPLATE_PREF_MAP: Record<string, string> = {
   coaching_pending: "booking_confirmed",
   coaching_approved: "booking_confirmed",
   coaching_rejected: "booking_confirmed",
+  coaching_session_added: "booking_confirmed",
   booking_cancelled: "booking_cancelled",
   booking_rescheduled: "booking_rescheduled",
   points_earned: "points_earned",
