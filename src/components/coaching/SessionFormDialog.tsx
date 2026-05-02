@@ -422,3 +422,68 @@ export function SessionFormDialog({
     </Dialog>
   );
 }
+
+interface MultiLinkEditorProps {
+  title: string;
+  links: ToolLink[];
+  onChange: (next: ToolLink[]) => void;
+  addLabel: string;
+  hint?: string;
+}
+
+function MultiLinkEditor({ title, links, onChange, addLabel, hint }: MultiLinkEditorProps) {
+  const update = (i: number, patch: Partial<ToolLink>) => {
+    const next = links.slice();
+    next[i] = { ...next[i], ...patch };
+    onChange(next);
+  };
+  const remove = (i: number) => {
+    const next = links.slice();
+    next.splice(i, 1);
+    onChange(next);
+  };
+  const add = () => onChange([...links, { url: "", label: "" }]);
+
+  return (
+    <div className="space-y-2 rounded-md border p-3">
+      <div className="flex items-center justify-between">
+        <Label>{title}</Label>
+        <Button type="button" size="sm" variant="ghost" onClick={add}>
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          {addLabel}
+        </Button>
+      </div>
+      {links.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No links yet. Click “{addLabel}” to add one.</p>
+      ) : (
+        <div className="space-y-2">
+          {links.map((l, i) => (
+            <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_2fr_auto] gap-2 items-center">
+              <Input
+                value={l.label || ""}
+                onChange={(e) => update(i, { label: e.target.value })}
+                placeholder="Label (optional)"
+              />
+              <Input
+                value={l.url}
+                onChange={(e) => update(i, { url: e.target.value })}
+                placeholder="https://…"
+              />
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="text-destructive hover:text-destructive justify-self-end"
+                onClick={() => remove(i)}
+                aria-label="Remove link"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
