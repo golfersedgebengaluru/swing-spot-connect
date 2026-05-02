@@ -373,38 +373,33 @@ export function SessionFormDialog({
             <Textarea value={progress} onChange={(e) => setProgress(e.target.value)} rows={2} placeholder="Summary visible on the card…" />
           </div>
 
-          {/* External tools */}
-          <div className="grid grid-cols-1 gap-3">
-            <div className="space-y-1.5">
-              <Label>Onform link</Label>
-              <Input value={onform} onChange={(e) => setOnform(e.target.value)} placeholder="https://…" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Sportsbox AI link</Label>
-              <Input value={sportsbox} onChange={(e) => setSportsbox(e.target.value)} placeholder="https://…" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Superspeed link</Label>
-              <Input value={superspeed} onChange={(e) => setSuperspeed(e.target.value)} placeholder="https://…" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Other link</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <Input
-                  value={otherLabel}
-                  onChange={(e) => setOtherLabel(e.target.value)}
-                  placeholder="Label (e.g. Drive, YouTube)"
-                  className="sm:col-span-1"
-                />
-                <Input
-                  value={otherUrl}
-                  onChange={(e) => setOtherUrl(e.target.value)}
-                  placeholder="https://…"
-                  className="sm:col-span-2"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">Add any external resource (Google Drive, YouTube, etc.).</p>
-            </div>
+          {/* External tools — multi-link */}
+          <div className="space-y-4">
+            <MultiLinkEditor
+              title="Onform links"
+              links={onformLinks}
+              onChange={setOnformLinks}
+              addLabel="Add Onform link"
+            />
+            <MultiLinkEditor
+              title="Sportsbox AI links"
+              links={sportsboxLinks}
+              onChange={setSportsboxLinks}
+              addLabel="Add Sportsbox link"
+            />
+            <MultiLinkEditor
+              title="Superspeed links"
+              links={superspeedLinks}
+              onChange={setSuperspeedLinks}
+              addLabel="Add Superspeed link"
+            />
+            <MultiLinkEditor
+              title="Other links"
+              links={otherLinks}
+              onChange={setOtherLinks}
+              addLabel="Add other link"
+              hint="Any external resource (Google Drive, YouTube, etc.)."
+            />
           </div>
         </div>
 
