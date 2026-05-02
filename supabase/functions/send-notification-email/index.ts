@@ -492,6 +492,7 @@ Deno.serve(async (req) => {
         "coaching_pending",
         "coaching_approved",
         "coaching_rejected",
+        "coaching_session_added",
         "low_hours_alert",
         "admin_new_booking",
         "admin_coaching_request",
