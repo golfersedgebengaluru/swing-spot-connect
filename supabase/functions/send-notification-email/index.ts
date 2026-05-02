@@ -324,6 +324,33 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
         <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
       </div>
     </div>`,
+
+  coaching_session_added: (d) => `
+    <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff">
+      <div style="background:#2b3544;padding:32px 24px;text-align:center">
+        <h1 style="color:#f5f0eb;margin:0;font-family:'Playfair Display',Georgia,serif;font-size:24px">${d.is_new ? "📘 New Coaching Session" : "📘 Coaching Session Updated"}</h1>
+      </div>
+      <div style="padding:32px 24px">
+        <p style="color:#1a2332;font-size:16px;margin:0 0 16px">Hi ${d.display_name || "there"},</p>
+        <p style="color:#1a2332;font-size:16px;margin:0 0 24px">
+          ${d.coach_name || "Your coach"} ${d.is_new ? "has added new session notes for you" : "updated your session notes"}.
+        </p>
+        <div style="background:#f0f3f7;border-radius:8px;padding:20px;margin:0 0 24px">
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Coach</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.coach_name || "—"}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Session Date</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.session_date || "—"}</td></tr>
+          </table>
+        </div>
+        ${d.session_url ? `
+        <div style="text-align:center;margin:0 0 24px">
+          <a href="${d.session_url}" style="display:inline-block;background:#2b3544;color:#f5f0eb;text-decoration:none;font-weight:600;font-size:14px;padding:12px 24px;border-radius:6px">View Session Notes</a>
+        </div>` : ""}
+        <p style="color:#6b7a8d;font-size:14px;margin:0">Login to your account to view drills, progress notes, and any video links your coach attached.</p>
+      </div>
+      <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
+        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
+      </div>
+    </div>`,
 };
 
 // Template to preference field mapping
@@ -332,6 +359,7 @@ const TEMPLATE_PREF_MAP: Record<string, string> = {
   coaching_pending: "booking_confirmed",
   coaching_approved: "booking_confirmed",
   coaching_rejected: "booking_confirmed",
+  coaching_session_added: "booking_confirmed",
   booking_cancelled: "booking_cancelled",
   booking_rescheduled: "booking_rescheduled",
   points_earned: "points_earned",
@@ -464,6 +492,7 @@ Deno.serve(async (req) => {
         "coaching_pending",
         "coaching_approved",
         "coaching_rejected",
+        "coaching_session_added",
         "low_hours_alert",
         "admin_new_booking",
         "admin_coaching_request",

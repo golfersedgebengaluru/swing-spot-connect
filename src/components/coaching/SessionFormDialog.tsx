@@ -13,10 +13,11 @@ import {
   useCoaches,
   useStudentBookings,
   type CoachingSession,
+  type ToolLink,
 } from "@/hooks/useCoaching";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAllCities } from "@/hooks/useBookings";
-import { Trash2, Search, Link2 } from "lucide-react";
+import { Trash2, Search, Link2, Plus, X } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 interface Props {
@@ -62,11 +63,10 @@ export function SessionFormDialog({
   const [notes, setNotes] = useState("");
   const [drills, setDrills] = useState("");
   const [progress, setProgress] = useState("");
-  const [onform, setOnform] = useState("");
-  const [sportsbox, setSportsbox] = useState("");
-  const [superspeed, setSuperspeed] = useState("");
-  const [otherUrl, setOtherUrl] = useState("");
-  const [otherLabel, setOtherLabel] = useState("");
+  const [onformLinks, setOnformLinks] = useState<ToolLink[]>([]);
+  const [sportsboxLinks, setSportsboxLinks] = useState<ToolLink[]>([]);
+  const [superspeedLinks, setSuperspeedLinks] = useState<ToolLink[]>([]);
+  const [otherLinks, setOtherLinks] = useState<ToolLink[]>([]);
 
   // Booking linkage
   const [linkBooking, setLinkBooking] = useState(false);
@@ -99,11 +99,16 @@ export function SessionFormDialog({
       setNotes(session.notes ?? "");
       setDrills(session.drills ?? "");
       setProgress(session.progress_summary ?? "");
-      setOnform(session.onform_url ?? "");
-      setSportsbox(session.sportsbox_url ?? "");
-      setSuperspeed(session.superspeed_url ?? "");
-      setOtherUrl(session.other_url ?? "");
-      setOtherLabel(session.other_label ?? "");
+      // Prefer new array fields; fall back to legacy single-URL fields
+      const fromArrayOrLegacy = (arr: any, url?: string | null, label?: string | null): ToolLink[] => {
+        if (Array.isArray(arr) && arr.length > 0) return arr.filter((l: any) => l && l.url);
+        if (url && url.trim()) return [{ url, label: label || "" }];
+        return [];
+      };
+      setOnformLinks(fromArrayOrLegacy((session as any).onform_links, session.onform_url));
+      setSportsboxLinks(fromArrayOrLegacy((session as any).sportsbox_links, session.sportsbox_url));
+      setSuperspeedLinks(fromArrayOrLegacy((session as any).superspeed_links, session.superspeed_url));
+      setOtherLinks(fromArrayOrLegacy((session as any).other_links, session.other_url, session.other_label));
       setLinkBooking(!!session.booking_id);
       setBookingId(session.booking_id ?? "");
     } else {
@@ -117,11 +122,10 @@ export function SessionFormDialog({
       setNotes("");
       setDrills("");
       setProgress("");
-      setOnform("");
-      setSportsbox("");
-      setSuperspeed("");
-      setOtherUrl("");
-      setOtherLabel("");
+      setOnformLinks([]);
+      setSportsboxLinks([]);
+      setSuperspeedLinks([]);
+      setOtherLinks([]);
       setLinkBooking(false);
       setBookingId("");
     }
@@ -148,6 +152,11 @@ export function SessionFormDialog({
     return m.length ? `Pick a ${m.join(", ")} to save.` : "";
   }, [studentId, city, date]);
 
+  const cleanLinks = (arr: ToolLink[]) =>
+    arr
+      .map((l) => ({ url: (l.url || "").trim(), label: (l.label || "").trim() }))
+      .filter((l) => l.url);
+
   const handleSave = async () => {
     if (!user || !effectiveCoachId) return;
     await save.mutateAsync({
@@ -159,11 +168,10 @@ export function SessionFormDialog({
       notes: notes || null,
       drills: drills || null,
       progress_summary: progress || null,
-      onform_url: onform.trim() || null,
-      sportsbox_url: sportsbox.trim() || null,
-      superspeed_url: superspeed.trim() || null,
-      other_url: otherUrl.trim() || null,
-      other_label: otherLabel.trim() || null,
+      onform_links: cleanLinks(onformLinks),
+      sportsbox_links: cleanLinks(sportsboxLinks),
+      superspeed_links: cleanLinks(superspeedLinks),
+      other_links: cleanLinks(otherLinks),
       booking_id: linkBooking && bookingId ? bookingId : null,
     });
     onOpenChange(false);
@@ -365,38 +373,33 @@ export function SessionFormDialog({
             <Textarea value={progress} onChange={(e) => setProgress(e.target.value)} rows={2} placeholder="Summary visible on the card…" />
           </div>
 
-          {/* External tools */}
-          <div className="grid grid-cols-1 gap-3">
-            <div className="space-y-1.5">
-              <Label>Onform link</Label>
-              <Input value={onform} onChange={(e) => setOnform(e.target.value)} placeholder="https://…" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Sportsbox AI link</Label>
-              <Input value={sportsbox} onChange={(e) => setSportsbox(e.target.value)} placeholder="https://…" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Superspeed link</Label>
-              <Input value={superspeed} onChange={(e) => setSuperspeed(e.target.value)} placeholder="https://…" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Other link</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <Input
-                  value={otherLabel}
-                  onChange={(e) => setOtherLabel(e.target.value)}
-                  placeholder="Label (e.g. Drive, YouTube)"
-                  className="sm:col-span-1"
-                />
-                <Input
-                  value={otherUrl}
-                  onChange={(e) => setOtherUrl(e.target.value)}
-                  placeholder="https://…"
-                  className="sm:col-span-2"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">Add any external resource (Google Drive, YouTube, etc.).</p>
-            </div>
+          {/* External tools — multi-link */}
+          <div className="space-y-4">
+            <MultiLinkEditor
+              title="Onform links"
+              links={onformLinks}
+              onChange={setOnformLinks}
+              addLabel="Add Onform link"
+            />
+            <MultiLinkEditor
+              title="Sportsbox AI links"
+              links={sportsboxLinks}
+              onChange={setSportsboxLinks}
+              addLabel="Add Sportsbox link"
+            />
+            <MultiLinkEditor
+              title="Superspeed links"
+              links={superspeedLinks}
+              onChange={setSuperspeedLinks}
+              addLabel="Add Superspeed link"
+            />
+            <MultiLinkEditor
+              title="Other links"
+              links={otherLinks}
+              onChange={setOtherLinks}
+              addLabel="Add other link"
+              hint="Any external resource (Google Drive, YouTube, etc.)."
+            />
           </div>
         </div>
 
@@ -417,5 +420,70 @@ export function SessionFormDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+interface MultiLinkEditorProps {
+  title: string;
+  links: ToolLink[];
+  onChange: (next: ToolLink[]) => void;
+  addLabel: string;
+  hint?: string;
+}
+
+function MultiLinkEditor({ title, links, onChange, addLabel, hint }: MultiLinkEditorProps) {
+  const update = (i: number, patch: Partial<ToolLink>) => {
+    const next = links.slice();
+    next[i] = { ...next[i], ...patch };
+    onChange(next);
+  };
+  const remove = (i: number) => {
+    const next = links.slice();
+    next.splice(i, 1);
+    onChange(next);
+  };
+  const add = () => onChange([...links, { url: "", label: "" }]);
+
+  return (
+    <div className="space-y-2 rounded-md border p-3">
+      <div className="flex items-center justify-between">
+        <Label>{title}</Label>
+        <Button type="button" size="sm" variant="ghost" onClick={add}>
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          {addLabel}
+        </Button>
+      </div>
+      {links.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No links yet. Click “{addLabel}” to add one.</p>
+      ) : (
+        <div className="space-y-2">
+          {links.map((l, i) => (
+            <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_2fr_auto] gap-2 items-center">
+              <Input
+                value={l.label || ""}
+                onChange={(e) => update(i, { label: e.target.value })}
+                placeholder="Label (optional)"
+              />
+              <Input
+                value={l.url}
+                onChange={(e) => update(i, { url: e.target.value })}
+                placeholder="https://…"
+              />
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="text-destructive hover:text-destructive justify-self-end"
+                onClick={() => remove(i)}
+                aria-label="Remove link"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
   );
 }

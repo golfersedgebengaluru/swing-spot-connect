@@ -41,10 +41,18 @@ export default function CoachingSessionDetail() {
               </div>
             </Card>
 
-            {(session.onform_url || session.sportsbox_url || session.superspeed_url || session.other_url) && (
+            {((session.onform_links?.length ?? 0) > 0 ||
+              (session.sportsbox_links?.length ?? 0) > 0 ||
+              (session.superspeed_links?.length ?? 0) > 0 ||
+              (session.other_links?.length ?? 0) > 0 ||
+              session.onform_url || session.sportsbox_url || session.superspeed_url || session.other_url) && (
               <Card className="p-5">
                 <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3">Tools</h2>
                 <ExternalToolLinks
+                  onformLinks={session.onform_links}
+                  sportsboxLinks={session.sportsbox_links}
+                  superspeedLinks={session.superspeed_links}
+                  otherLinks={session.other_links}
                   onform={session.onform_url}
                   sportsbox={session.sportsbox_url}
                   superspeed={session.superspeed_url}
