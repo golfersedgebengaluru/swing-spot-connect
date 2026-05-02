@@ -99,11 +99,16 @@ export function SessionFormDialog({
       setNotes(session.notes ?? "");
       setDrills(session.drills ?? "");
       setProgress(session.progress_summary ?? "");
-      setOnform(session.onform_url ?? "");
-      setSportsbox(session.sportsbox_url ?? "");
-      setSuperspeed(session.superspeed_url ?? "");
-      setOtherUrl(session.other_url ?? "");
-      setOtherLabel(session.other_label ?? "");
+      // Prefer new array fields; fall back to legacy single-URL fields
+      const fromArrayOrLegacy = (arr: any, url?: string | null, label?: string | null): ToolLink[] => {
+        if (Array.isArray(arr) && arr.length > 0) return arr.filter((l: any) => l && l.url);
+        if (url && url.trim()) return [{ url, label: label || "" }];
+        return [];
+      };
+      setOnformLinks(fromArrayOrLegacy((session as any).onform_links, session.onform_url));
+      setSportsboxLinks(fromArrayOrLegacy((session as any).sportsbox_links, session.sportsbox_url));
+      setSuperspeedLinks(fromArrayOrLegacy((session as any).superspeed_links, session.superspeed_url));
+      setOtherLinks(fromArrayOrLegacy((session as any).other_links, session.other_url, session.other_label));
       setLinkBooking(!!session.booking_id);
       setBookingId(session.booking_id ?? "");
     } else {
@@ -117,11 +122,10 @@ export function SessionFormDialog({
       setNotes("");
       setDrills("");
       setProgress("");
-      setOnform("");
-      setSportsbox("");
-      setSuperspeed("");
-      setOtherUrl("");
-      setOtherLabel("");
+      setOnformLinks([]);
+      setSportsboxLinks([]);
+      setSuperspeedLinks([]);
+      setOtherLinks([]);
       setLinkBooking(false);
       setBookingId("");
     }
@@ -148,6 +152,11 @@ export function SessionFormDialog({
     return m.length ? `Pick a ${m.join(", ")} to save.` : "";
   }, [studentId, city, date]);
 
+  const cleanLinks = (arr: ToolLink[]) =>
+    arr
+      .map((l) => ({ url: (l.url || "").trim(), label: (l.label || "").trim() }))
+      .filter((l) => l.url);
+
   const handleSave = async () => {
     if (!user || !effectiveCoachId) return;
     await save.mutateAsync({
@@ -159,11 +168,10 @@ export function SessionFormDialog({
       notes: notes || null,
       drills: drills || null,
       progress_summary: progress || null,
-      onform_url: onform.trim() || null,
-      sportsbox_url: sportsbox.trim() || null,
-      superspeed_url: superspeed.trim() || null,
-      other_url: otherUrl.trim() || null,
-      other_label: otherLabel.trim() || null,
+      onform_links: cleanLinks(onformLinks),
+      sportsbox_links: cleanLinks(sportsboxLinks),
+      superspeed_links: cleanLinks(superspeedLinks),
+      other_links: cleanLinks(otherLinks),
       booking_id: linkBooking && bookingId ? bookingId : null,
     });
     onOpenChange(false);
