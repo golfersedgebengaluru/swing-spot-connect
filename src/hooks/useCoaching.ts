@@ -2,6 +2,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
+
+export interface ToolLink {
+  url: string;
+  label?: string;
+}
 
 export interface CoachingSession {
   id: string;
@@ -17,6 +23,10 @@ export interface CoachingSession {
   superspeed_url: string | null;
   other_url: string | null;
   other_label: string | null;
+  onform_links: ToolLink[];
+  sportsbox_links: ToolLink[];
+  superspeed_links: ToolLink[];
+  other_links: ToolLink[];
   booking_id: string | null;
   created_at: string;
   updated_at: string;
