@@ -13,10 +13,11 @@ import {
   useCoaches,
   useStudentBookings,
   type CoachingSession,
+  type ToolLink,
 } from "@/hooks/useCoaching";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAllCities } from "@/hooks/useBookings";
-import { Trash2, Search, Link2 } from "lucide-react";
+import { Trash2, Search, Link2, Plus, X } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 interface Props {
@@ -62,11 +63,10 @@ export function SessionFormDialog({
   const [notes, setNotes] = useState("");
   const [drills, setDrills] = useState("");
   const [progress, setProgress] = useState("");
-  const [onform, setOnform] = useState("");
-  const [sportsbox, setSportsbox] = useState("");
-  const [superspeed, setSuperspeed] = useState("");
-  const [otherUrl, setOtherUrl] = useState("");
-  const [otherLabel, setOtherLabel] = useState("");
+  const [onformLinks, setOnformLinks] = useState<ToolLink[]>([]);
+  const [sportsboxLinks, setSportsboxLinks] = useState<ToolLink[]>([]);
+  const [superspeedLinks, setSuperspeedLinks] = useState<ToolLink[]>([]);
+  const [otherLinks, setOtherLinks] = useState<ToolLink[]>([]);
 
   // Booking linkage
   const [linkBooking, setLinkBooking] = useState(false);
