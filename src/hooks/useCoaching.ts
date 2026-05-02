@@ -214,33 +214,126 @@ type SessionInput = {
   notes?: string | null;
   drills?: string | null;
   progress_summary?: string | null;
-  onform_url?: string | null;
-  sportsbox_url?: string | null;
-  superspeed_url?: string | null;
-  other_url?: string | null;
-  other_label?: string | null;
+  onform_links?: ToolLink[];
+  sportsbox_links?: ToolLink[];
+  superspeed_links?: ToolLink[];
+  other_links?: ToolLink[];
   booking_id?: string | null;
 };
+
+function linksChanged(a: ToolLink[] = [], b: ToolLink[] = []) {
+  if (a.length !== b.length) return true;
+  return JSON.stringify(a) !== JSON.stringify(b);
+}
+
+async function notifyStudentOfSession(opts: {
+  sessionId: string;
+  studentUserId: string;
+  coachName: string;
+  sessionDate: string;
+  isNew: boolean;
+}) {
+  const { sessionId, studentUserId, coachName, sessionDate, isNew } = opts;
+  // Resolve auth user_id (student_user_id may be a profile.id for pre-registered)
+  const { data: prof } = await supabase
+    .from("profiles")
+    .select("user_id, display_name, email")
+    .or(`user_id.eq.${studentUserId},id.eq.${studentUserId}`)
+    .maybeSingle();
+  const targetUserId = prof?.user_id ?? null;
+
+  // In-app notification (only if a real auth user exists)
+  if (targetUserId) {
+    await supabase.from("notifications").insert({
+      user_id: targetUserId,
+      title: isNew ? "New coaching session added" : "Your coaching session was updated",
+      message: `${coachName} ${isNew ? "added" : "updated"} a session for ${sessionDate}.`,
+      type: "coaching_session",
+      action_url: `/coaching/${sessionId}`,
+    });
+  }
+
+  // Email
+  if (targetUserId || prof?.email) {
+    await sendNotificationEmail({
+      user_id: targetUserId ?? studentUserId,
+      template: "coaching_session_added",
+      subject: isNew ? "New coaching session notes from your coach" : "Your coaching session was updated",
+      data: {
+        display_name: prof?.display_name || undefined,
+        coach_name: coachName,
+        session_date: sessionDate,
+        is_new: isNew,
+        session_url: `${window.location.origin}/coaching/${sessionId}`,
+      },
+    });
+  }
+}
 
 export function useSaveSession() {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
     mutationFn: async (input: SessionInput) => {
+      // Snapshot prior session for change detection
+      let prior: any = null;
+      if (input.id) {
+        const { data } = await supabase
+          .from("coaching_sessions")
+          .select("*")
+          .eq("id", input.id)
+          .maybeSingle();
+        prior = data;
+      }
+
+      let resultId: string;
       if (input.id) {
         const { id, ...patch } = input;
-        const { error } = await supabase.from("coaching_sessions").update(patch).eq("id", id);
+        const { error } = await supabase.from("coaching_sessions").update(patch as any).eq("id", id);
         if (error) throw error;
-        return id;
+        resultId = id;
       } else {
         const { data, error } = await supabase
           .from("coaching_sessions")
-          .insert(input)
+          .insert(input as any)
           .select("id")
           .single();
         if (error) throw error;
-        return data.id;
+        resultId = data.id;
       }
+
+      // Detect meaningful change
+      const isNew = !input.id;
+      let meaningful = isNew;
+      if (!isNew && prior) {
+        meaningful =
+          (input.progress_summary ?? null) !== (prior.progress_summary ?? null) ||
+          (input.notes ?? null) !== (prior.notes ?? null) ||
+          (input.drills ?? null) !== (prior.drills ?? null) ||
+          linksChanged(input.onform_links ?? [], prior.onform_links ?? []) ||
+          linksChanged(input.sportsbox_links ?? [], prior.sportsbox_links ?? []) ||
+          linksChanged(input.superspeed_links ?? [], prior.superspeed_links ?? []) ||
+          linksChanged(input.other_links ?? [], prior.other_links ?? []);
+      }
+
+      if (meaningful) {
+        // Fetch coach name
+        const { data: coachProf } = await supabase
+          .from("profiles")
+          .select("display_name, email")
+          .eq("user_id", input.coach_user_id)
+          .maybeSingle();
+        const coachName = coachProf?.display_name || coachProf?.email || "Your coach";
+        notifyStudentOfSession({
+          sessionId: resultId,
+          studentUserId: input.student_user_id,
+          coachName,
+          sessionDate: input.session_date,
+          isNew,
+        }).catch((e) => console.warn("[Coaching] notify failed", e));
+      }
+
+      return resultId;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["coaching"] });
