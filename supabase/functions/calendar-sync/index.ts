@@ -133,18 +133,37 @@ async function updateEvent(
   return data;
 }
 
+/**
+ * Cancels a Google Calendar event by PATCHing its status to "cancelled".
+ *
+ * We deliberately use PATCH (not DELETE) because:
+ *  - PATCH only requires "Make changes to events" (Writer) on the calendar.
+ *  - DELETE requires the higher "Make changes and manage sharing" role,
+ *    which Google has tightened over time and which silently breaks deletes
+ *    if anyone downgrades sharing later.
+ *
+ * From the user's perspective the result is identical: the event disappears
+ * from the calendar grid and the slot is freed for new bookings.
+ *
+ * 404 (already gone) and 410 (resource gone) are treated as success — the
+ * event is no longer there, which is exactly what we wanted.
+ */
 async function deleteEvent(accessToken: string, calendarId: string, eventId: string) {
   const res = await fetch(
     `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
     {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${accessToken}` },
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status: "cancelled" }),
     }
   );
-  if (!res.ok && res.status !== 404) {
-    const data = await res.text();
-    throw new Error(`Calendar delete error [${res.status}]: ${data}`);
-  }
+  if (res.ok) return;
+  if (res.status === 404 || res.status === 410) return; // already gone — benign
+  const data = await res.text();
+  throw new Error(`Calendar cancel error [${res.status}]: ${data}`);
 }
 
 function createAdminClient() {
@@ -1532,12 +1551,13 @@ Deno.serve(async (req) => {
       // Get the calendar's timezone for consistent formatting
       const calTz = calendarEmail ? await getCalendarTimezone(accessToken, calendarEmail) : "UTC";
 
-      // Delete calendar event to free slot
+      // Cancel calendar event to free slot
       if (booking.calendar_event_id && calendarEmail) {
         try {
           await deleteEvent(accessToken, calendarEmail, booking.calendar_event_id);
+          await supabase.from("bookings").update({ calendar_event_id: null }).eq("id", booking_id);
         } catch (e) {
-          console.error("Failed to delete calendar event:", (e as Error).message);
+          console.error("Failed to cancel calendar event:", (e as Error).message);
         }
       }
 
@@ -1648,12 +1668,13 @@ Deno.serve(async (req) => {
       // Get the calendar's timezone for consistent formatting
       const calTz = calendarEmail ? await getCalendarTimezone(accessToken, calendarEmail) : "UTC";
 
-      // Delete calendar event
+      // Cancel calendar event
       if (booking.calendar_event_id && calendarEmail) {
         try {
           await deleteEvent(accessToken, calendarEmail, booking.calendar_event_id);
+          await adminClient.from("bookings").update({ calendar_event_id: null }).eq("id", booking_id);
         } catch (e) {
-          console.error("Failed to delete calendar event:", (e as Error).message);
+          console.error("Failed to cancel calendar event:", (e as Error).message);
         }
       }
 
@@ -1848,9 +1869,17 @@ Deno.serve(async (req) => {
 
       const calTz = calendarEmail ? await getCalendarTimezone(accessToken, calendarEmail) : "UTC";
 
-      // Delete calendar event
+      // Cancel calendar event (PATCH status=cancelled). Surface failures so admin sees them.
+      let calendarCancelError: string | null = null;
       if (booking.calendar_event_id && calendarEmail) {
-        try { await deleteEvent(accessToken, calendarEmail, booking.calendar_event_id); } catch (e) { console.error("Failed to delete calendar event:", (e as Error).message); }
+        try {
+          await deleteEvent(accessToken, calendarEmail, booking.calendar_event_id);
+          // Null out the event id so we don't try to cancel it again and so audits are clean.
+          await adminClient.from("bookings").update({ calendar_event_id: null }).eq("id", booking_id);
+        } catch (e) {
+          calendarCancelError = (e as Error).message;
+          console.error("Failed to cancel calendar event:", calendarCancelError);
+        }
       }
 
       // Update booking status
@@ -1946,7 +1975,7 @@ Deno.serve(async (req) => {
         });
       } catch (e) { console.error("Failed to notify admins about admin cancellation:", (e as Error).message); }
 
-      return new Response(JSON.stringify({ success: true }), {
+      return new Response(JSON.stringify({ success: true, calendar_warning: calendarCancelError }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

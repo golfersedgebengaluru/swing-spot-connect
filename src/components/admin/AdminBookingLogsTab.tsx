@@ -161,8 +161,16 @@ export function AdminBookingLogsTab() {
   const handleAdminCancel = async (id: string) => {
     setCancelConfirmId(null);
     try {
-      await adminCancelBooking.mutateAsync(id);
-      toast({ title: "Booking Cancelled", description: "Booking has been cancelled and hours refunded." });
+      const result: any = await adminCancelBooking.mutateAsync(id);
+      if (result?.calendar_warning) {
+        toast({
+          title: "Booking Cancelled (calendar issue)",
+          description: `Hours refunded, but the Google Calendar event could not be removed automatically: ${result.calendar_warning}. Please remove it manually if it still appears.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Booking Cancelled", description: "Booking has been cancelled and hours refunded." });
+      }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
