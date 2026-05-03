@@ -58,6 +58,9 @@ export function SessionFormDialog({
   const [studentRegistered, setStudentRegistered] = useState<boolean>(true);
   const [search, setSearch] = useState("");
   const { data: searchResults } = useStudentSearch(search);
+  const { data: myAssignedStudents } = useMyAssignedStudents();
+  // Coaches (non-admins) are restricted to their assigned students.
+  const restrictToAssigned = !allowCoachPick;
 
   const [city, setCity] = useState("");
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
