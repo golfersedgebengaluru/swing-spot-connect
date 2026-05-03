@@ -10,6 +10,8 @@ import {
   useSaveCoach,
   useDeleteCoach,
   useIsCoach,
+  useMyCoachRow,
+  useMyAssignedStudents,
   type CoachingSession,
   type CoachRow,
 } from "@/hooks/useCoaching";
