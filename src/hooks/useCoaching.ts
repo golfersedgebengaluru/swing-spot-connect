@@ -372,31 +372,14 @@ export function useSaveCoach() {
         const { error } = await supabase.from("coaches").insert(input);
         if (error) throw error;
       }
-      // Auto-grant the `coach` role so this user can create sessions immediately.
-      let roleGranted = true;
-      try {
-        const { data, error: fnErr } = await supabase.functions.invoke("manage-roles", {
-          body: { action: "grant", user_id: input.user_id, role: "coach" },
-        });
-        if (fnErr || (data && (data as any).error)) {
-          roleGranted = false;
-          console.warn("Auto-grant coach role failed", fnErr || (data as any).error);
-        }
-      } catch (e) {
-        roleGranted = false;
-        console.warn("Auto-grant coach role threw", e);
-      }
-      return { roleGranted };
+      // The `trg_coaches_sync_role` trigger automatically grants the `coach` role.
     },
-    onSuccess: (res) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["coaching", "coaches"] });
       qc.invalidateQueries({ queryKey: ["admin-roles"] });
       toast({
         title: "Coach saved",
-        description: res.roleGranted
-          ? "Coach role granted automatically."
-          : "Saved, but the coach role could not be granted automatically. Assign it under Settings → Roles.",
-        variant: res.roleGranted ? "default" : "destructive",
+        description: "Coach role granted automatically.",
       });
     },
     onError: (e: any) => toast({ title: "Save failed", description: e.message, variant: "destructive" }),
@@ -560,6 +543,53 @@ export function useIsCoach() {
       const { data, error } = await supabase.rpc("is_coach", { _user_id: user!.id });
       if (error) throw error;
       return data === true;
+    },
+  });
+}
+
+/** The coaches row for the currently signed-in user (if any). */
+export function useMyCoachRow() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["coaching", "my-coach-row", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("coaches")
+        .select("id, user_id, city, is_active")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+/** Students currently assigned to me (the signed-in coach). */
+export function useMyAssignedStudents() {
+  const { data: coachRow } = useMyCoachRow();
+  return useQuery({
+    queryKey: ["coaching", "my-assigned-students", coachRow?.id],
+    enabled: !!coachRow?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("coach_students")
+        .select("id, student_profile_id")
+        .eq("coach_id", coachRow!.id)
+        .eq("is_active", true);
+      if (error) throw error;
+      const ids = (data ?? []).map((r) => r.student_profile_id);
+      if (!ids.length) return [];
+      const { data: profiles, error: pErr } = await supabase
+        .from("profiles")
+        .select("id, user_id, display_name, email")
+        .in("id", ids);
+      if (pErr) throw pErr;
+      return (profiles ?? []).map((p: any) => ({
+        ...p,
+        resolved_id: p.user_id ?? p.id,
+        is_registered: !!p.user_id,
+      }));
     },
   });
 }

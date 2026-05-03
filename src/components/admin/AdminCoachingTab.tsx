@@ -10,6 +10,8 @@ import {
   useSaveCoach,
   useDeleteCoach,
   useIsCoach,
+  useMyCoachRow,
+  useMyAssignedStudents,
   type CoachingSession,
   type CoachRow,
 } from "@/hooks/useCoaching";
@@ -29,65 +31,105 @@ import { SessionFormDialog } from "@/components/coaching/SessionFormDialog";
 import { ManageCoachStudents } from "@/components/coaching/ManageCoachStudents";
 import { useAllCities } from "@/hooks/useBookings";
 
-/* ============ COACH STUDENT LIST (grouped from my sessions) ============ */
+/* ============ COACH STUDENT LIST (assigned + grouped from my sessions) ============ */
 function CoachStudentList({ onPick }: { onPick: (studentId: string, label: string) => void }) {
   const { data: sessions, isLoading } = useMyCoachSessions();
+  const { data: assigned } = useMyAssignedStudents();
+  const { data: myCoach } = useMyCoachRow();
+  const [showRoster, setShowRoster] = useState(false);
 
   const groups = useMemo(() => {
-    const m = new Map<string, { id: string; label: string; count: number; last: string }>();
+    const m = new Map<string, { id: string; label: string; count: number; last: string | null }>();
+    // Seed with assigned students (so they appear before any session is logged)
+    (assigned ?? []).forEach((s: any) => {
+      const id = s.resolved_id as string;
+      if (!m.has(id)) {
+        m.set(id, {
+          id,
+          label: s.display_name || s.email || "Student",
+          count: 0,
+          last: null,
+        });
+      }
+    });
     (sessions ?? []).forEach((s) => {
       const label = s.student_profile?.display_name || s.student_profile?.email || "Student";
       const cur = m.get(s.student_user_id);
       if (!cur) m.set(s.student_user_id, { id: s.student_user_id, label, count: 1, last: s.session_date });
       else {
         cur.count += 1;
-        if (s.session_date > cur.last) cur.last = s.session_date;
+        if (!cur.last || s.session_date > cur.last) cur.last = s.session_date;
+        // Prefer a richer label if we now have one
+        if (cur.label === "Student" && label !== "Student") cur.label = label;
       }
     });
-    return Array.from(m.values()).sort((a, b) => b.last.localeCompare(a.last));
-  }, [sessions]);
-
-  if (isLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
-  if (!groups.length)
-    return (
-      <Card className="p-8 text-center">
-        <GraduationCap className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
-        <p className="font-medium">No students yet</p>
-        <p className="text-sm text-muted-foreground mt-1 mb-4">
-          Log your first session — your students will appear here automatically.
-        </p>
-      </Card>
-    );
+    return Array.from(m.values()).sort((a, b) => {
+      if (a.last && b.last) return b.last.localeCompare(a.last);
+      if (a.last) return -1;
+      if (b.last) return 1;
+      return a.label.localeCompare(b.label);
+    });
+  }, [sessions, assigned]);
 
   return (
-    <ScrollableTable>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Student</TableHead>
-            <TableHead className="text-right">Sessions</TableHead>
-            <TableHead>Last Session</TableHead>
-            <TableHead></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {groups.map((g) => (
-            <TableRow key={g.id}>
-              <TableCell className="font-medium">{g.label}</TableCell>
-              <TableCell className="text-right">{g.count}</TableCell>
-              <TableCell className="text-muted-foreground">
-                {format(parseISO(g.last), "MMM d, yyyy")}
-              </TableCell>
-              <TableCell className="text-right">
-                <Button size="sm" variant="outline" onClick={() => onPick(g.id, g.label)}>
-                  Open
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </ScrollableTable>
+    <div className="space-y-3">
+      {myCoach?.id && (
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">
+            Add or remove the students you coach. They'll show up here and in the New Session form.
+          </p>
+          <Button size="sm" variant="outline" onClick={() => setShowRoster((v) => !v)}>
+            <Users className="mr-1.5 h-3.5 w-3.5" />
+            {showRoster ? "Hide roster" : "Manage students"}
+          </Button>
+        </div>
+      )}
+
+      {showRoster && myCoach?.id && (
+        <ManageCoachStudents coachId={myCoach.id} coachLabel="you" />
+      )}
+
+      {isLoading ? (
+        <div className="text-sm text-muted-foreground">Loading…</div>
+      ) : !groups.length ? (
+        <Card className="p-8 text-center">
+          <GraduationCap className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
+          <p className="font-medium">No students yet</p>
+          <p className="text-sm text-muted-foreground mt-1 mb-4">
+            Click <strong>Manage students</strong> above to add the players you coach, then log your first session.
+          </p>
+        </Card>
+      ) : (
+        <ScrollableTable>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Student</TableHead>
+                <TableHead className="text-right">Sessions</TableHead>
+                <TableHead>Last Session</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {groups.map((g) => (
+                <TableRow key={g.id}>
+                  <TableCell className="font-medium">{g.label}</TableCell>
+                  <TableCell className="text-right">{g.count}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {g.last ? format(parseISO(g.last), "MMM d, yyyy") : "—"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button size="sm" variant="outline" onClick={() => onPick(g.id, g.label)}>
+                      Open
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </ScrollableTable>
+      )}
+    </div>
   );
 }
 

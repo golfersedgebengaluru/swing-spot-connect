@@ -12,6 +12,7 @@ import {
   useDeleteSession,
   useCoaches,
   useStudentBookings,
+  useMyAssignedStudents,
   type CoachingSession,
   type ToolLink,
 } from "@/hooks/useCoaching";
@@ -57,6 +58,9 @@ export function SessionFormDialog({
   const [studentRegistered, setStudentRegistered] = useState<boolean>(true);
   const [search, setSearch] = useState("");
   const { data: searchResults } = useStudentSearch(search);
+  const { data: myAssignedStudents } = useMyAssignedStudents();
+  // Coaches (non-admins) are restricted to their assigned students.
+  const restrictToAssigned = !allowCoachPick;
 
   const [city, setCity] = useState("");
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -225,6 +229,38 @@ export function SessionFormDialog({
                     Change
                   </Button>
                 )}
+              </div>
+            ) : restrictToAssigned ? (
+              <div className="space-y-2">
+                {(myAssignedStudents ?? []).length === 0 ? (
+                  <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                    No students assigned yet. Add students from the <strong>My Students</strong> tab to log a session.
+                  </div>
+                ) : (
+                  <Select
+                    value=""
+                    onValueChange={(val) => {
+                      const p = (myAssignedStudents ?? []).find((s: any) => s.resolved_id === val);
+                      if (!p) return;
+                      setStudentId(p.resolved_id);
+                      setStudentLabel(p.display_name || p.email || "Student");
+                      setStudentRegistered(!!p.is_registered);
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select one of your students" /></SelectTrigger>
+                    <SelectContent>
+                      {(myAssignedStudents ?? []).map((p: any) => (
+                        <SelectItem key={p.resolved_id} value={p.resolved_id}>
+                          {p.display_name || p.email || "Student"}
+                          {!p.is_registered && " (pre-registered)"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Only students assigned to you appear here.
+                </p>
               </div>
             ) : (
               <div className="space-y-2">
