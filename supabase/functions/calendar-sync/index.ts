@@ -1973,7 +1973,7 @@ Deno.serve(async (req) => {
         });
       } catch (e) { console.error("Failed to notify admins about admin cancellation:", (e as Error).message); }
 
-      return new Response(JSON.stringify({ success: true }), {
+      return new Response(JSON.stringify({ success: true, calendar_warning: calendarCancelError }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
