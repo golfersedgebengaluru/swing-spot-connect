@@ -1867,9 +1867,17 @@ Deno.serve(async (req) => {
 
       const calTz = calendarEmail ? await getCalendarTimezone(accessToken, calendarEmail) : "UTC";
 
-      // Delete calendar event
+      // Cancel calendar event (PATCH status=cancelled). Surface failures so admin sees them.
+      let calendarCancelError: string | null = null;
       if (booking.calendar_event_id && calendarEmail) {
-        try { await deleteEvent(accessToken, calendarEmail, booking.calendar_event_id); } catch (e) { console.error("Failed to delete calendar event:", (e as Error).message); }
+        try {
+          await deleteEvent(accessToken, calendarEmail, booking.calendar_event_id);
+          // Null out the event id so we don't try to cancel it again and so audits are clean.
+          await adminClient.from("bookings").update({ calendar_event_id: null }).eq("id", booking_id);
+        } catch (e) {
+          calendarCancelError = (e as Error).message;
+          console.error("Failed to cancel calendar event:", calendarCancelError);
+        }
       }
 
       // Update booking status
