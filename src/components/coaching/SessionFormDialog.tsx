@@ -12,6 +12,7 @@ import {
   useDeleteSession,
   useCoaches,
   useStudentBookings,
+  useMyAssignedStudents,
   type CoachingSession,
   type ToolLink,
 } from "@/hooks/useCoaching";
