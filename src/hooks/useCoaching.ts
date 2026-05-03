@@ -546,3 +546,50 @@ export function useIsCoach() {
     },
   });
 }
+
+/** The coaches row for the currently signed-in user (if any). */
+export function useMyCoachRow() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["coaching", "my-coach-row", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("coaches")
+        .select("id, user_id, city, is_active")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+/** Students currently assigned to me (the signed-in coach). */
+export function useMyAssignedStudents() {
+  const { data: coachRow } = useMyCoachRow();
+  return useQuery({
+    queryKey: ["coaching", "my-assigned-students", coachRow?.id],
+    enabled: !!coachRow?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("coach_students")
+        .select("id, student_profile_id")
+        .eq("coach_id", coachRow!.id)
+        .eq("is_active", true);
+      if (error) throw error;
+      const ids = (data ?? []).map((r) => r.student_profile_id);
+      if (!ids.length) return [];
+      const { data: profiles, error: pErr } = await supabase
+        .from("profiles")
+        .select("id, user_id, display_name, email")
+        .in("id", ids);
+      if (pErr) throw pErr;
+      return (profiles ?? []).map((p: any) => ({
+        ...p,
+        resolved_id: p.user_id ?? p.id,
+        is_registered: !!p.user_id,
+      }));
+    },
+  });
+}
