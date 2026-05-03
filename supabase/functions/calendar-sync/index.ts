@@ -1551,12 +1551,13 @@ Deno.serve(async (req) => {
       // Get the calendar's timezone for consistent formatting
       const calTz = calendarEmail ? await getCalendarTimezone(accessToken, calendarEmail) : "UTC";
 
-      // Delete calendar event to free slot
+      // Cancel calendar event to free slot
       if (booking.calendar_event_id && calendarEmail) {
         try {
           await deleteEvent(accessToken, calendarEmail, booking.calendar_event_id);
+          await supabase.from("bookings").update({ calendar_event_id: null }).eq("id", booking_id);
         } catch (e) {
-          console.error("Failed to delete calendar event:", (e as Error).message);
+          console.error("Failed to cancel calendar event:", (e as Error).message);
         }
       }
 
