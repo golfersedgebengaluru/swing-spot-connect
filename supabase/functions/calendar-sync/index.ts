@@ -133,18 +133,37 @@ async function updateEvent(
   return data;
 }
 
+/**
+ * Cancels a Google Calendar event by PATCHing its status to "cancelled".
+ *
+ * We deliberately use PATCH (not DELETE) because:
+ *  - PATCH only requires "Make changes to events" (Writer) on the calendar.
+ *  - DELETE requires the higher "Make changes and manage sharing" role,
+ *    which Google has tightened over time and which silently breaks deletes
+ *    if anyone downgrades sharing later.
+ *
+ * From the user's perspective the result is identical: the event disappears
+ * from the calendar grid and the slot is freed for new bookings.
+ *
+ * 404 (already gone) and 410 (resource gone) are treated as success — the
+ * event is no longer there, which is exactly what we wanted.
+ */
 async function deleteEvent(accessToken: string, calendarId: string, eventId: string) {
   const res = await fetch(
     `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
     {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${accessToken}` },
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status: "cancelled" }),
     }
   );
-  if (!res.ok && res.status !== 404) {
-    const data = await res.text();
-    throw new Error(`Calendar delete error [${res.status}]: ${data}`);
-  }
+  if (res.ok) return;
+  if (res.status === 404 || res.status === 410) return; // already gone — benign
+  const data = await res.text();
+  throw new Error(`Calendar cancel error [${res.status}]: ${data}`);
 }
 
 function createAdminClient() {
