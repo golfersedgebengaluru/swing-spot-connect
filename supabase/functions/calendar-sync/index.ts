@@ -721,6 +721,9 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Resolve bracket tag: corporate name's first word if profile is corporate-linked, else "Guest"
+      const bracketTag = await resolveCorporateTag(adminClient, user_id_override ?? null, "Guest");
+
       // Try to create Google Calendar event (skip if no service account configured, or if backdated)
       let calendarEventId: string | null = null;
       const serviceAccountKeyStr = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
@@ -729,7 +732,7 @@ Deno.serve(async (req) => {
           const serviceAccountKey = JSON.parse(serviceAccountKeyStr);
           const accessToken = await getAccessToken(serviceAccountKey);
           const calTz = await getCalendarTimezone(accessToken, calendar_email);
-          const summary = `${bay_name || city} - ${guest_name} (Guest)`;
+          const summary = `${bay_name || city} - ${guest_name} (${bracketTag})`;
           const desc = `Guest booking by ${guest_name}\nEmail: ${guest_email}\nPhone: ${guest_phone}`;
           const calEvent = await createEvent(accessToken, calendar_email, summary, start_time, end_time, calTz, desc);
           calendarEventId = calEvent.id;
