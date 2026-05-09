@@ -37,7 +37,7 @@ function buildCardSvg(opts: {
   const formatted = `${opts.value.toFixed(1)} ${opts.unit}`;
   const sponsor = opts.sponsorLogoUrl
     ? `<image href="${escapeXml(opts.sponsorLogoUrl)}" x="430" y="940" width="240" height="80" preserveAspectRatio="xMidYMid meet" />
-       <text x="550" y="920" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="20" fill="#888">Proudly sponsored by</text>`
+       <text x="550" y="920" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="20" fill="#888">Brought to you by</text>`
     : "";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
