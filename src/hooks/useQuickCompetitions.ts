@@ -251,6 +251,67 @@ export function useDeleteAttempt(competitionId: string) {
   });
 }
 
+export function useUpdateQuickCompetition() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (input: {
+      competition_id: string;
+      name?: string;
+      sponsor_enabled?: boolean;
+      sponsor_logo_file?: File | null;
+      remove_sponsor_logo?: boolean;
+    }) => {
+      const patch: Record<string, unknown> = {};
+      if (input.name !== undefined) patch.name = input.name.trim();
+      if (input.sponsor_enabled !== undefined) patch.sponsor_enabled = input.sponsor_enabled;
+      if (input.remove_sponsor_logo) patch.sponsor_logo_url = null;
+      if (input.sponsor_logo_file) {
+        const ext = input.sponsor_logo_file.name.split(".").pop() || "png";
+        const path = `logos/${crypto.randomUUID()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("quick-comp-sponsors")
+          .upload(path, input.sponsor_logo_file, { upsert: false });
+        if (upErr) throw upErr;
+        patch.sponsor_logo_url = supabase.storage.from("quick-comp-sponsors").getPublicUrl(path).data.publicUrl;
+        patch.sponsor_enabled = true;
+      }
+      const { data, error } = await supabase
+        .from("quick_competitions")
+        .update(patch)
+        .eq("id", input.competition_id)
+        .select()
+        .single();
+      if (error) throw error;
+      await audit(input.competition_id, "update", patch);
+      return data as QuickCompetition;
+    },
+    onSuccess: (d) => {
+      qc.invalidateQueries({ queryKey: ["quick-comp", d.id] });
+      qc.invalidateQueries({ queryKey: ["quick-comps", d.tenant_id] });
+      toast({ title: "Competition updated" });
+    },
+    onError: (e: Error) => toast({ title: "Update failed", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useDeleteQuickCompetition() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (input: { competition_id: string; tenant_id: string }) => {
+      const { error } = await supabase.from("quick_competitions").delete().eq("id", input.competition_id);
+      if (error) throw error;
+      return input;
+    },
+    onSuccess: (i) => {
+      qc.invalidateQueries({ queryKey: ["quick-comps", i.tenant_id] });
+      toast({ title: "Competition deleted" });
+    },
+    onError: (e: Error) => toast({ title: "Delete failed", description: e.message, variant: "destructive" }),
+  });
+}
+
 export function useEndQuickCompetition() {
   const qc = useQueryClient();
   const { toast } = useToast();
