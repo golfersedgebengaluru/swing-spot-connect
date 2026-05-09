@@ -3615,6 +3615,186 @@ export type Database = {
           },
         ]
       }
+      quick_competition_attempts: {
+        Row: {
+          competition_id: string
+          created_at: string
+          created_by: string | null
+          distance: number
+          id: string
+          offline: number
+          player_id: string
+        }
+        Insert: {
+          competition_id: string
+          created_at?: string
+          created_by?: string | null
+          distance: number
+          id?: string
+          offline: number
+          player_id: string
+        }
+        Update: {
+          competition_id?: string
+          created_at?: string
+          created_by?: string | null
+          distance?: number
+          id?: string
+          offline?: number
+          player_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quick_competition_attempts_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "quick_competitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quick_competition_attempts_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "quick_competition_players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quick_competition_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          competition_id: string
+          created_at: string
+          details: Json | null
+          id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          competition_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          competition_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quick_competition_audit_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "quick_competitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quick_competition_players: {
+        Row: {
+          competition_id: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          competition_id: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          competition_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quick_competition_players_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "quick_competitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quick_competitions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          longest_card_url: string | null
+          longest_winner_player_id: string | null
+          longest_winner_value: number | null
+          max_attempts: number
+          name: string
+          sponsor_enabled: boolean
+          sponsor_logo_url: string | null
+          status: string
+          straightest_card_url: string | null
+          straightest_winner_player_id: string | null
+          straightest_winner_value: number | null
+          tenant_id: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          longest_card_url?: string | null
+          longest_winner_player_id?: string | null
+          longest_winner_value?: number | null
+          max_attempts?: number
+          name: string
+          sponsor_enabled?: boolean
+          sponsor_logo_url?: string | null
+          status?: string
+          straightest_card_url?: string | null
+          straightest_winner_player_id?: string | null
+          straightest_winner_value?: number | null
+          tenant_id: string
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          longest_card_url?: string | null
+          longest_winner_player_id?: string | null
+          longest_winner_value?: number | null
+          max_attempts?: number
+          name?: string
+          sponsor_enabled?: boolean
+          sponsor_logo_url?: string | null
+          status?: string
+          straightest_card_url?: string | null
+          straightest_winner_player_id?: string | null
+          straightest_winner_value?: number | null
+          tenant_id?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quick_competitions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recycled_invoice_numbers: {
         Row: {
           created_at: string
