@@ -1573,6 +1573,62 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
   );
 }
 
+function QuickCompetitionsCard({
+  tenantId,
+  selectedQcId,
+  onSelect,
+}: { tenantId: string; selectedQcId: string | null; onSelect: (id: string) => void }) {
+  const { data: comps = [], isLoading } = useQuickCompetitions(tenantId);
+  const active = comps.filter((c) => c.status === "active");
+  const past = comps.filter((c) => c.status === "completed");
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <CardTitle className="text-base flex items-center gap-2"><Zap className="h-4 w-4" /> Quick Competitions</CardTitle>
+        <QuickCompetitionDialog tenantId={tenantId} onCreated={onSelect} />
+      </CardHeader>
+      <CardContent className="p-0">
+        {isLoading ? (
+          <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin" /></div>
+        ) : comps.length === 0 ? (
+          <p className="text-sm text-muted-foreground px-6 py-6 text-center">No quick competitions yet.</p>
+        ) : (
+          <div className="divide-y">
+            {active.length > 0 && <div className="px-4 pt-2 pb-1 text-xs uppercase tracking-wider text-muted-foreground">Active</div>}
+            {active.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => onSelect(c.id)}
+                className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors ${selectedQcId === c.id ? "bg-muted" : ""}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-sm">{c.name}</span>
+                  <Badge variant="default" className="text-[10px]">Live</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">{c.unit === "yd" ? "Yards" : "Metres"} · {c.max_attempts >= 999 ? "unlimited" : c.max_attempts} attempts</p>
+              </button>
+            ))}
+            {past.length > 0 && <div className="px-4 pt-2 pb-1 text-xs uppercase tracking-wider text-muted-foreground">Past</div>}
+            {past.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => onSelect(c.id)}
+                className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors ${selectedQcId === c.id ? "bg-muted" : ""}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-sm">{c.name}</span>
+                  <Badge variant="secondary" className="text-[10px]">Done</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(c.created_at), "d MMM yyyy")}</p>
+              </button>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ══════════════════════════════════════════════════════════════
 // MAIN ADMIN LEAGUES TAB
 // ══════════════════════════════════════════════════════════════
