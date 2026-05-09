@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
 import { Switch } from "@/components/ui/switch";
 import { Zap, Loader2 } from "lucide-react";
 import { useCreateQuickCompetition } from "@/hooks/useQuickCompetitions";
@@ -34,11 +35,12 @@ export function QuickCompetitionDialog({
   }
 
   async function handleStart() {
+    const n = Math.max(1, Math.min(50, parseInt(maxAttempts, 10) || 1));
     const result = await create.mutateAsync({
       tenant_id: tenantId,
       name: name.trim(),
       unit,
-      max_attempts: maxAttempts === "unlimited" ? 999 : Number(maxAttempts),
+      max_attempts: n,
       sponsor_enabled: sponsorEnabled,
       sponsor_logo_file: sponsorEnabled ? logoFile : null,
     });
@@ -79,15 +81,17 @@ export function QuickCompetitionDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Attempts per player</Label>
-            <RadioGroup value={maxAttempts} onValueChange={setMaxAttempts} className="flex gap-4 flex-wrap">
-              {["1", "2", "3", "unlimited"].map((v) => (
-                <div key={v} className="flex items-center gap-2">
-                  <RadioGroupItem value={v} id={`a-${v}`} />
-                  <Label htmlFor={`a-${v}`} className="font-normal cursor-pointer capitalize">{v}</Label>
-                </div>
-              ))}
-            </RadioGroup>
+            <Label htmlFor="qc-attempts">Attempts per player</Label>
+            <Input
+              id="qc-attempts"
+              type="number"
+              min={1}
+              max={50}
+              value={maxAttempts}
+              onChange={(e) => setMaxAttempts(e.target.value)}
+              className="w-32"
+            />
+            <p className="text-xs text-muted-foreground">Each player can record up to this many attempts.</p>
           </div>
 
           <div className="space-y-2 border-t pt-3">
