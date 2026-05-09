@@ -121,12 +121,12 @@ export function useQCRealtime(competitionId: string | null) {
 
 async function audit(competitionId: string, action: string, details?: Record<string, unknown>) {
   const { data: u } = await supabase.auth.getUser();
-  await supabase.from("quick_competition_audit").insert({
+  await supabase.from("quick_competition_audit").insert([{
     competition_id: competitionId,
     actor_id: u.user?.id ?? null,
     action,
-    details: details ?? {},
-  });
+    details: (details ?? {}) as never,
+  }]);
 }
 
 export function useCreateQuickCompetition() {
