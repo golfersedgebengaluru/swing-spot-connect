@@ -40,6 +40,13 @@ export default function QuickCompetitionPublic() {
         </p>
       </header>
 
+      {comp.sponsor_enabled && comp.sponsor_logo_url && (
+        <div className="flex flex-col items-center mb-10">
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-3">Brought to you by</p>
+          <img src={comp.sponsor_logo_url} alt="Sponsor" className="h-20 sm:h-24 object-contain" />
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2 max-w-7xl mx-auto">
         <Board
           icon={<Trophy className="h-7 w-7 text-amber-400" />}
