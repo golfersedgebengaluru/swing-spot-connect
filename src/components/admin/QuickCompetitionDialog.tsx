@@ -79,15 +79,17 @@ export function QuickCompetitionDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Attempts per player</Label>
-            <RadioGroup value={maxAttempts} onValueChange={setMaxAttempts} className="flex gap-4 flex-wrap">
-              {["1", "2", "3", "unlimited"].map((v) => (
-                <div key={v} className="flex items-center gap-2">
-                  <RadioGroupItem value={v} id={`a-${v}`} />
-                  <Label htmlFor={`a-${v}`} className="font-normal cursor-pointer capitalize">{v}</Label>
-                </div>
-              ))}
-            </RadioGroup>
+            <Label htmlFor="qc-attempts">Attempts per player</Label>
+            <Input
+              id="qc-attempts"
+              type="number"
+              min={1}
+              max={50}
+              value={maxAttempts}
+              onChange={(e) => setMaxAttempts(e.target.value)}
+              className="w-32"
+            />
+            <p className="text-xs text-muted-foreground">Each player can record up to this many attempts.</p>
           </div>
 
           <div className="space-y-2 border-t pt-3">
