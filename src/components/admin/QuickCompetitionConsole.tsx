@@ -265,7 +265,7 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                   const pAttempts = attemptsByPlayer[p.id] ?? [];
                   const bestDist = pAttempts.reduce((m, a) => Math.max(m, Number(a.distance)), 0);
                   const bestOff = pAttempts.length ? pAttempts.reduce((m, a) => Math.min(m, Number(a.offline)), Infinity) : null;
-                  const reachedMax = comp.max_attempts < 999 && pAttempts.length >= comp.max_attempts;
+                  const reachedMax = pAttempts.length >= comp.max_attempts;
                   const draft = drafts[p.id] ?? { distance: "", offline: "" };
                   return (
                     <TableRow key={p.id}>
