@@ -1,0 +1,303 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+export type QuickCompetition = {
+  id: string;
+  tenant_id: string;
+  name: string;
+  unit: "m" | "yd";
+  max_attempts: number;
+  status: "active" | "completed";
+  sponsor_enabled: boolean;
+  sponsor_logo_url: string | null;
+  longest_winner_player_id: string | null;
+  longest_winner_value: number | null;
+  straightest_winner_player_id: string | null;
+  straightest_winner_value: number | null;
+  longest_card_url: string | null;
+  straightest_card_url: string | null;
+  created_at: string;
+  completed_at: string | null;
+};
+
+export type QCPlayer = { id: string; competition_id: string; name: string; created_at: string };
+export type QCAttempt = {
+  id: string;
+  competition_id: string;
+  player_id: string;
+  distance: number;
+  offline: number;
+  created_at: string;
+};
+
+export function useQuickCompetitions(tenantId: string | null) {
+  return useQuery({
+    queryKey: ["quick-comps", tenantId],
+    enabled: !!tenantId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("quick_competitions")
+        .select("*")
+        .eq("tenant_id", tenantId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as QuickCompetition[];
+    },
+  });
+}
+
+export function useQuickCompetition(competitionId: string | null) {
+  return useQuery({
+    queryKey: ["quick-comp", competitionId],
+    enabled: !!competitionId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("quick_competitions")
+        .select("*")
+        .eq("id", competitionId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as QuickCompetition | null;
+    },
+  });
+}
+
+export function useQCPlayers(competitionId: string | null) {
+  return useQuery({
+    queryKey: ["qc-players", competitionId],
+    enabled: !!competitionId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("quick_competition_players")
+        .select("*")
+        .eq("competition_id", competitionId!)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as QCPlayer[];
+    },
+  });
+}
+
+export function useQCAttempts(competitionId: string | null) {
+  return useQuery({
+    queryKey: ["qc-attempts", competitionId],
+    enabled: !!competitionId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("quick_competition_attempts")
+        .select("*")
+        .eq("competition_id", competitionId!)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as QCAttempt[];
+    },
+  });
+}
+
+/** Live updates for players + attempts. */
+export function useQCRealtime(competitionId: string | null) {
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!competitionId) return;
+    const channel = supabase
+      .channel(`qc-${competitionId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "quick_competition_players", filter: `competition_id=eq.${competitionId}` }, () => {
+        qc.invalidateQueries({ queryKey: ["qc-players", competitionId] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "quick_competition_attempts", filter: `competition_id=eq.${competitionId}` }, () => {
+        qc.invalidateQueries({ queryKey: ["qc-attempts", competitionId] });
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "quick_competitions", filter: `id=eq.${competitionId}` }, () => {
+        qc.invalidateQueries({ queryKey: ["quick-comp", competitionId] });
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [competitionId, qc]);
+}
+
+async function audit(competitionId: string, action: string, details?: Record<string, unknown>) {
+  const { data: u } = await supabase.auth.getUser();
+  await supabase.from("quick_competition_audit").insert({
+    competition_id: competitionId,
+    actor_id: u.user?.id ?? null,
+    action,
+    details: details ?? {},
+  });
+}
+
+export function useCreateQuickCompetition() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (input: {
+      tenant_id: string;
+      name: string;
+      unit: "m" | "yd";
+      max_attempts: number;
+      sponsor_enabled: boolean;
+      sponsor_logo_file?: File | null;
+    }) => {
+      let sponsor_logo_url: string | null = null;
+      if (input.sponsor_enabled && input.sponsor_logo_file) {
+        const ext = input.sponsor_logo_file.name.split(".").pop() || "png";
+        const path = `logos/${crypto.randomUUID()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("quick-comp-sponsors")
+          .upload(path, input.sponsor_logo_file, { upsert: false });
+        if (upErr) throw upErr;
+        sponsor_logo_url = supabase.storage.from("quick-comp-sponsors").getPublicUrl(path).data.publicUrl;
+      }
+      const { data: u } = await supabase.auth.getUser();
+      const { data, error } = await supabase
+        .from("quick_competitions")
+        .insert({
+          tenant_id: input.tenant_id,
+          name: input.name,
+          unit: input.unit,
+          max_attempts: input.max_attempts,
+          sponsor_enabled: input.sponsor_enabled,
+          sponsor_logo_url,
+          created_by: u.user?.id ?? null,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      await audit(data.id, "create", { name: input.name, unit: input.unit, max_attempts: input.max_attempts });
+      return data as QuickCompetition;
+    },
+    onSuccess: (d) => {
+      qc.invalidateQueries({ queryKey: ["quick-comps", d.tenant_id] });
+      toast({ title: "Quick competition started" });
+    },
+    onError: (e: Error) => toast({ title: "Could not start", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useAddPlayer(competitionId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) throw new Error("Name required");
+      const { data, error } = await supabase
+        .from("quick_competition_players")
+        .insert({ competition_id: competitionId, name: trimmed })
+        .select()
+        .single();
+      if (error) throw error;
+      await audit(competitionId, "add_player", { player_id: data.id, name: trimmed });
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["qc-players", competitionId] }),
+    onError: (e: Error) => toast({ title: "Could not add player", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useRemovePlayer(competitionId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (playerId: string) => {
+      const { error } = await supabase.from("quick_competition_players").delete().eq("id", playerId);
+      if (error) throw error;
+      await audit(competitionId, "remove_player", { player_id: playerId });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["qc-players", competitionId] });
+      qc.invalidateQueries({ queryKey: ["qc-attempts", competitionId] });
+    },
+  });
+}
+
+export function useSaveAttempt(competitionId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (input: { player_id: string; distance: number; offline: number }) => {
+      const { data: u } = await supabase.auth.getUser();
+      const { data, error } = await supabase
+        .from("quick_competition_attempts")
+        .insert({
+          competition_id: competitionId,
+          player_id: input.player_id,
+          distance: input.distance,
+          offline: input.offline,
+          created_by: u.user?.id ?? null,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      await audit(competitionId, "save_attempt", { player_id: input.player_id, distance: input.distance, offline: input.offline });
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["qc-attempts", competitionId] }),
+    onError: (e: Error) => toast({ title: "Save failed", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useDeleteAttempt(competitionId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (attemptId: string) => {
+      const { error } = await supabase.from("quick_competition_attempts").delete().eq("id", attemptId);
+      if (error) throw error;
+      await audit(competitionId, "delete_attempt", { attempt_id: attemptId });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["qc-attempts", competitionId] }),
+  });
+}
+
+export function useEndQuickCompetition() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (competitionId: string) => {
+      const { data, error } = await supabase.functions.invoke("quick-competition-end", {
+        body: { competition_id: competitionId },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Failed to end competition");
+      return data.competition as QuickCompetition;
+    },
+    onSuccess: (d) => {
+      qc.invalidateQueries({ queryKey: ["quick-comp", d.id] });
+      qc.invalidateQueries({ queryKey: ["quick-comps", d.tenant_id] });
+      toast({ title: "Competition ended", description: "Winner cards generated." });
+    },
+    onError: (e: Error) => toast({ title: "Could not end", description: e.message, variant: "destructive" }),
+  });
+}
+
+/** Compute leaderboards from attempts. Tie-break: earliest qualifying attempt. */
+export function buildLeaderboards(players: QCPlayer[], attempts: QCAttempt[]) {
+  type Row = { player_id: string; name: string; value: number; ts: string; attempts: number };
+  const longest = new Map<string, Row>();
+  const straight = new Map<string, Row>();
+  const playerName = new Map(players.map((p) => [p.id, p.name]));
+  const counts = new Map<string, number>();
+  for (const a of attempts) {
+    counts.set(a.player_id, (counts.get(a.player_id) ?? 0) + 1);
+    const name = playerName.get(a.player_id) ?? "—";
+    const dist = Number(a.distance);
+    const off = Number(a.offline);
+    const lc = longest.get(a.player_id);
+    if (!lc || dist > lc.value) {
+      longest.set(a.player_id, { player_id: a.player_id, name, value: dist, ts: a.created_at, attempts: 0 });
+    }
+    const sc = straight.get(a.player_id);
+    if (!sc || off < sc.value) {
+      straight.set(a.player_id, { player_id: a.player_id, name, value: off, ts: a.created_at, attempts: 0 });
+    }
+  }
+  const longestArr = [...longest.values()]
+    .map((r) => ({ ...r, attempts: counts.get(r.player_id) ?? 0 }))
+    .sort((a, b) => b.value - a.value || a.ts.localeCompare(b.ts));
+  const straightArr = [...straight.values()]
+    .map((r) => ({ ...r, attempts: counts.get(r.player_id) ?? 0 }))
+    .sort((a, b) => a.value - b.value || a.ts.localeCompare(b.ts));
+  return { longest: longestArr, straightest: straightArr };
+}
