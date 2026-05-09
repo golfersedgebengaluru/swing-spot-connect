@@ -1615,46 +1615,56 @@ export function AdminLeaguesTab() {
 
       {selectedTenantId && (
         <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
-          {/* League list */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-base flex items-center gap-2"><Trophy className="h-4 w-4" /> Leagues</CardTitle>
-              <CreateLeagueDialog tenantId={selectedTenantId} />
-            </CardHeader>
-            <CardContent className="p-0">
-              {leaguesLoading ? (
-                <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>
-              ) : (!leagues || leagues.length === 0) ? (
-                <p className="text-sm text-muted-foreground px-6 py-8 text-center">No leagues yet. Create one to get started.</p>
-              ) : (
-                <div className="divide-y">
-                  {leagues.map((l) => (
-                    <button
-                      key={l.id}
-                      onClick={() => setSelectedLeague(l)}
-                      className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors ${selectedLeague?.id === l.id ? "bg-muted" : ""}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-sm">{l.name}</span>
-                        <StatusBadge status={l.status} />
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{l.format.replace(/_/g, " ")}</p>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Leagues + Quick Competitions list */}
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <CardTitle className="text-base flex items-center gap-2"><Trophy className="h-4 w-4" /> Leagues</CardTitle>
+                <CreateLeagueDialog tenantId={selectedTenantId} />
+              </CardHeader>
+              <CardContent className="p-0">
+                {leaguesLoading ? (
+                  <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>
+                ) : (!leagues || leagues.length === 0) ? (
+                  <p className="text-sm text-muted-foreground px-6 py-8 text-center">No leagues yet. Create one to get started.</p>
+                ) : (
+                  <div className="divide-y">
+                    {leagues.map((l) => (
+                      <button
+                        key={l.id}
+                        onClick={() => { setSelectedLeague(l); setSelectedQcId(null); }}
+                        className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors ${selectedLeague?.id === l.id && !selectedQcId ? "bg-muted" : ""}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">{l.name}</span>
+                          <StatusBadge status={l.status} />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{l.format.replace(/_/g, " ")}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <QuickCompetitionsCard
+              tenantId={selectedTenantId}
+              selectedQcId={selectedQcId}
+              onSelect={(id) => { setSelectedQcId(id); setSelectedLeague(null); }}
+            />
+          </div>
 
           {/* Detail panel */}
           <Card>
             <CardContent className="pt-6">
-              {selectedLeague && selectedTenant ? (
+              {selectedQcId ? (
+                <QuickCompetitionConsole competitionId={selectedQcId} onClose={() => setSelectedQcId(null)} />
+              ) : selectedLeague && selectedTenant ? (
                 <LeagueDetail league={selectedLeague} tenant={selectedTenant} />
               ) : (
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                   <Eye className="h-10 w-10 mb-3 opacity-30" />
-                  <p className="text-sm">Select a league to view details</p>
+                  <p className="text-sm">Select a league or quick competition to view details</p>
                 </div>
               )}
             </CardContent>
