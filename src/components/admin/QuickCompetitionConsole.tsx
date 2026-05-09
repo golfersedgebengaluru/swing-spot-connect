@@ -68,13 +68,18 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h2 className="text-xl font-semibold">{comp.name}</h2>
-          <div className="flex items-center gap-2 mt-1">
-            <Badge variant={isCompleted ? "secondary" : "default"}>{isCompleted ? "Completed" : "Live"}</Badge>
-            <span className="text-xs text-muted-foreground">
-              {comp.max_attempts >= 999 ? "Unlimited attempts" : `Up to ${comp.max_attempts} attempts`} · {unitLabel}
-            </span>
+        <div className="flex items-center gap-3">
+          {comp.sponsor_enabled && comp.sponsor_logo_url && (
+            <img src={comp.sponsor_logo_url} alt="Sponsor" className="h-12 w-auto rounded border bg-white p-1" />
+          )}
+          <div>
+            <h2 className="text-xl font-semibold">{comp.name}</h2>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant={isCompleted ? "secondary" : "default"}>{isCompleted ? "Completed" : "Live"}</Badge>
+              <span className="text-xs text-muted-foreground">
+                Up to {comp.max_attempts} attempts · {unitLabel}
+              </span>
+            </div>
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
