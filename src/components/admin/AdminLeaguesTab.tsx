@@ -21,6 +21,10 @@ import { CitiesLocationsPanel } from "@/components/admin/league/CitiesLocationsP
 import { SeasonWrapUpPanel } from "@/components/admin/league/SeasonWrapUpPanel";
 import { LocationAssignCell } from "@/components/admin/league/LocationAssignCell";
 import { AdminScoreEntryDialog } from "@/components/admin/league/AdminScoreEntryDialog";
+import { QuickCompetitionDialog } from "@/components/admin/QuickCompetitionDialog";
+import { QuickCompetitionConsole } from "@/components/admin/QuickCompetitionConsole";
+import { useQuickCompetitions } from "@/hooks/useQuickCompetitions";
+import { Zap } from "lucide-react";
 import { format } from "date-fns";
 import {
   useTenants,
@@ -1569,6 +1573,62 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
   );
 }
 
+function QuickCompetitionsCard({
+  tenantId,
+  selectedQcId,
+  onSelect,
+}: { tenantId: string; selectedQcId: string | null; onSelect: (id: string) => void }) {
+  const { data: comps = [], isLoading } = useQuickCompetitions(tenantId);
+  const active = comps.filter((c) => c.status === "active");
+  const past = comps.filter((c) => c.status === "completed");
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <CardTitle className="text-base flex items-center gap-2"><Zap className="h-4 w-4" /> Quick Competitions</CardTitle>
+        <QuickCompetitionDialog tenantId={tenantId} onCreated={onSelect} />
+      </CardHeader>
+      <CardContent className="p-0">
+        {isLoading ? (
+          <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin" /></div>
+        ) : comps.length === 0 ? (
+          <p className="text-sm text-muted-foreground px-6 py-6 text-center">No quick competitions yet.</p>
+        ) : (
+          <div className="divide-y">
+            {active.length > 0 && <div className="px-4 pt-2 pb-1 text-xs uppercase tracking-wider text-muted-foreground">Active</div>}
+            {active.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => onSelect(c.id)}
+                className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors ${selectedQcId === c.id ? "bg-muted" : ""}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-sm">{c.name}</span>
+                  <Badge variant="default" className="text-[10px]">Live</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">{c.unit === "yd" ? "Yards" : "Metres"} · {c.max_attempts >= 999 ? "unlimited" : c.max_attempts} attempts</p>
+              </button>
+            ))}
+            {past.length > 0 && <div className="px-4 pt-2 pb-1 text-xs uppercase tracking-wider text-muted-foreground">Past</div>}
+            {past.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => onSelect(c.id)}
+                className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors ${selectedQcId === c.id ? "bg-muted" : ""}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-sm">{c.name}</span>
+                  <Badge variant="secondary" className="text-[10px]">Done</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(c.created_at), "d MMM yyyy")}</p>
+              </button>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ══════════════════════════════════════════════════════════════
 // MAIN ADMIN LEAGUES TAB
 // ══════════════════════════════════════════════════════════════
@@ -1576,6 +1636,7 @@ export function AdminLeaguesTab() {
   const { data: tenants, isLoading: tenantsLoading } = useTenants();
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
   const [selectedLeague, setSelectedLeague] = useState<League | null>(null);
+  const [selectedQcId, setSelectedQcId] = useState<string | null>(null);
 
   const selectedTenant = tenants?.find((t) => t.id === selectedTenantId) ?? null;
   const { data: leagues, isLoading: leaguesLoading } = useLeagues(selectedTenantId);
@@ -1611,46 +1672,56 @@ export function AdminLeaguesTab() {
 
       {selectedTenantId && (
         <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
-          {/* League list */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-base flex items-center gap-2"><Trophy className="h-4 w-4" /> Leagues</CardTitle>
-              <CreateLeagueDialog tenantId={selectedTenantId} />
-            </CardHeader>
-            <CardContent className="p-0">
-              {leaguesLoading ? (
-                <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>
-              ) : (!leagues || leagues.length === 0) ? (
-                <p className="text-sm text-muted-foreground px-6 py-8 text-center">No leagues yet. Create one to get started.</p>
-              ) : (
-                <div className="divide-y">
-                  {leagues.map((l) => (
-                    <button
-                      key={l.id}
-                      onClick={() => setSelectedLeague(l)}
-                      className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors ${selectedLeague?.id === l.id ? "bg-muted" : ""}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-sm">{l.name}</span>
-                        <StatusBadge status={l.status} />
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{l.format.replace(/_/g, " ")}</p>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Leagues + Quick Competitions list */}
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <CardTitle className="text-base flex items-center gap-2"><Trophy className="h-4 w-4" /> Leagues</CardTitle>
+                <CreateLeagueDialog tenantId={selectedTenantId} />
+              </CardHeader>
+              <CardContent className="p-0">
+                {leaguesLoading ? (
+                  <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>
+                ) : (!leagues || leagues.length === 0) ? (
+                  <p className="text-sm text-muted-foreground px-6 py-8 text-center">No leagues yet. Create one to get started.</p>
+                ) : (
+                  <div className="divide-y">
+                    {leagues.map((l) => (
+                      <button
+                        key={l.id}
+                        onClick={() => { setSelectedLeague(l); setSelectedQcId(null); }}
+                        className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors ${selectedLeague?.id === l.id && !selectedQcId ? "bg-muted" : ""}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">{l.name}</span>
+                          <StatusBadge status={l.status} />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{l.format.replace(/_/g, " ")}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <QuickCompetitionsCard
+              tenantId={selectedTenantId}
+              selectedQcId={selectedQcId}
+              onSelect={(id) => { setSelectedQcId(id); setSelectedLeague(null); }}
+            />
+          </div>
 
           {/* Detail panel */}
           <Card>
             <CardContent className="pt-6">
-              {selectedLeague && selectedTenant ? (
+              {selectedQcId ? (
+                <QuickCompetitionConsole competitionId={selectedQcId} onClose={() => setSelectedQcId(null)} />
+              ) : selectedLeague && selectedTenant ? (
                 <LeagueDetail league={selectedLeague} tenant={selectedTenant} />
               ) : (
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                   <Eye className="h-10 w-10 mb-3 opacity-30" />
-                  <p className="text-sm">Select a league to view details</p>
+                  <p className="text-sm">Select a league or quick competition to view details</p>
                 </div>
               )}
             </CardContent>
