@@ -34,11 +34,12 @@ export function QuickCompetitionDialog({
   }
 
   async function handleStart() {
+    const n = Math.max(1, Math.min(50, parseInt(maxAttempts, 10) || 1));
     const result = await create.mutateAsync({
       tenant_id: tenantId,
       name: name.trim(),
       unit,
-      max_attempts: maxAttempts === "unlimited" ? 999 : Number(maxAttempts),
+      max_attempts: n,
       sponsor_enabled: sponsorEnabled,
       sponsor_logo_file: sponsorEnabled ? logoFile : null,
     });
