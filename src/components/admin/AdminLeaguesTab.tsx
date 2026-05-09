@@ -1580,6 +1580,7 @@ export function AdminLeaguesTab() {
   const { data: tenants, isLoading: tenantsLoading } = useTenants();
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
   const [selectedLeague, setSelectedLeague] = useState<League | null>(null);
+  const [selectedQcId, setSelectedQcId] = useState<string | null>(null);
 
   const selectedTenant = tenants?.find((t) => t.id === selectedTenantId) ?? null;
   const { data: leagues, isLoading: leaguesLoading } = useLeagues(selectedTenantId);
