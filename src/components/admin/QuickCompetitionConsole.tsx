@@ -184,27 +184,6 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
           <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>
         </div>
       </div>
-                <Button size="sm" variant="default" disabled={attempts.length === 0}>
-                  <Flag className="h-4 w-4" /> End Competition
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>End this competition?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Winners will be locked in and shareable result cards will be generated. This cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => endComp.mutate(competitionId)}>End and declare winners</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-          <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>
-        </div>
-      </div>
 
       {isCompleted && (
         <div className="grid gap-4 sm:grid-cols-2">
