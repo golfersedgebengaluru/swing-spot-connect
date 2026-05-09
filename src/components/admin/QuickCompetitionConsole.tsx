@@ -10,10 +10,14 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trophy, Target, Trash2, Plus, ExternalLink, Flag, Loader2, Image as ImageIcon } from "lucide-react";
+import { Trophy, Target, Trash2, Plus, ExternalLink, Flag, Loader2, Image as ImageIcon, Pencil } from "lucide-react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   useQuickCompetition, useQCPlayers, useQCAttempts, useQCRealtime,
   useAddPlayer, useRemovePlayer, useSaveAttempt, useDeleteAttempt, useEndQuickCompetition,
+  useUpdateQuickCompetition, useDeleteQuickCompetition,
   buildLeaderboards,
 } from "@/hooks/useQuickCompetitions";
 
@@ -28,9 +32,15 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
   const saveAttempt = useSaveAttempt(competitionId);
   const deleteAttempt = useDeleteAttempt(competitionId);
   const endComp = useEndQuickCompetition();
+  const updateComp = useUpdateQuickCompetition();
+  const deleteComp = useDeleteQuickCompetition();
 
   const [newName, setNewName] = useState("");
   const [drafts, setDrafts] = useState<Record<string, { distance: string; offline: string }>>({});
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editSponsorEnabled, setEditSponsorEnabled] = useState(false);
+  const [editSponsorFile, setEditSponsorFile] = useState<File | null>(null);
 
   if (!comp) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
@@ -74,6 +84,58 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
             </a>
           </Button>
           {!isCompleted && (
+            <Dialog open={editOpen} onOpenChange={(o) => {
+              setEditOpen(o);
+              if (o) {
+                setEditName(comp.name);
+                setEditSponsorEnabled(comp.sponsor_enabled);
+                setEditSponsorFile(null);
+              }
+            }}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline"><Pencil className="h-4 w-4" /> Edit</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Edit competition</DialogTitle></DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label>Name</Label>
+                    <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="sp-toggle">Sponsor logo on result cards</Label>
+                    <Switch id="sp-toggle" checked={editSponsorEnabled} onCheckedChange={setEditSponsorEnabled} />
+                  </div>
+                  {editSponsorEnabled && (
+                    <div className="space-y-1.5">
+                      <Label>Upload logo {comp.sponsor_logo_url ? "(replaces current)" : ""}</Label>
+                      <Input type="file" accept="image/*" onChange={(e) => setEditSponsorFile(e.target.files?.[0] ?? null)} />
+                      {comp.sponsor_logo_url && !editSponsorFile && (
+                        <img src={comp.sponsor_logo_url} alt="Current sponsor" className="h-12 mt-2 rounded border bg-white p-1" />
+                      )}
+                    </div>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setEditOpen(false)}>Cancel</Button>
+                  <Button
+                    disabled={updateComp.isPending || !editName.trim()}
+                    onClick={async () => {
+                      await updateComp.mutateAsync({
+                        competition_id: competitionId,
+                        name: editName,
+                        sponsor_enabled: editSponsorEnabled,
+                        sponsor_logo_file: editSponsorFile,
+                        remove_sponsor_logo: !editSponsorEnabled && !!comp.sponsor_logo_url,
+                      });
+                      setEditOpen(false);
+                    }}
+                  >Save changes</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+          {!isCompleted && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button size="sm" variant="default" disabled={attempts.length === 0}>
@@ -94,6 +156,31 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
               </AlertDialogContent>
             </AlertDialog>
           )}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="sm" variant="outline" className="text-destructive hover:text-destructive">
+                <Trash2 className="h-4 w-4" /> Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this competition?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  All players, attempts and result cards will be permanently removed. This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={async () => {
+                    await deleteComp.mutateAsync({ competition_id: competitionId, tenant_id: comp.tenant_id });
+                    onClose();
+                  }}
+                >Delete permanently</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>
         </div>
       </div>
