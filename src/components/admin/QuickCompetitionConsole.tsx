@@ -32,9 +32,15 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
   const saveAttempt = useSaveAttempt(competitionId);
   const deleteAttempt = useDeleteAttempt(competitionId);
   const endComp = useEndQuickCompetition();
+  const updateComp = useUpdateQuickCompetition();
+  const deleteComp = useDeleteQuickCompetition();
 
   const [newName, setNewName] = useState("");
   const [drafts, setDrafts] = useState<Record<string, { distance: string; offline: string }>>({});
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editSponsorEnabled, setEditSponsorEnabled] = useState(false);
+  const [editSponsorFile, setEditSponsorFile] = useState<File | null>(null);
 
   if (!comp) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
