@@ -10,10 +10,14 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trophy, Target, Trash2, Plus, ExternalLink, Flag, Loader2, Image as ImageIcon } from "lucide-react";
+import { Trophy, Target, Trash2, Plus, ExternalLink, Flag, Loader2, Image as ImageIcon, Pencil } from "lucide-react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   useQuickCompetition, useQCPlayers, useQCAttempts, useQCRealtime,
   useAddPlayer, useRemovePlayer, useSaveAttempt, useDeleteAttempt, useEndQuickCompetition,
+  useUpdateQuickCompetition, useDeleteQuickCompetition,
   buildLeaderboards,
 } from "@/hooks/useQuickCompetitions";
 
