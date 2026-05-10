@@ -95,13 +95,15 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
     setEntryOffline("");
   }
 
-  async function handleCreateAndSelect() {
+  async function handleCreateAndSelect(opts?: { keepOpen?: boolean }) {
     const name = newName.trim();
     if (!name) return;
     const created: any = await addPlayer.mutateAsync(name);
     setNewName("");
-    setShowNewPlayer(false);
-    if (created?.id) setEntryPlayerId(created.id);
+    // Auto-select only if nothing is selected yet, so rapid pre-adding doesn't
+    // hijack the player currently lined up to hit.
+    if (created?.id && !entryPlayerId) setEntryPlayerId(created.id);
+    if (!opts?.keepOpen) setShowNewPlayer(false);
   }
 
   return (
@@ -310,12 +312,12 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
                       placeholder="New player name"
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleCreateAndSelect(); } }}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleCreateAndSelect({ keepOpen: true }); } }}
                     />
-                    <Button size="sm" onClick={handleCreateAndSelect} disabled={addPlayer.isPending || !newName.trim()}>
+                    <Button size="sm" onClick={() => handleCreateAndSelect({ keepOpen: true })} disabled={addPlayer.isPending || !newName.trim()} title="Add and keep adding">
                       {addPlayer.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => { setShowNewPlayer(false); setNewName(""); }}>Cancel</Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setShowNewPlayer(false); setNewName(""); }}>Done</Button>
                   </div>
                 ) : (
                   <div className="flex gap-1">
