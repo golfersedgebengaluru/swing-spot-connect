@@ -30,6 +30,7 @@ const Coaching = lazy(() => import("./pages/Coaching"));
 const CoachingSessionDetail = lazy(() => import("./pages/CoachingSessionDetail"));
 const QuickCompetitionPublic = lazy(() => import("./pages/QuickCompetitionPublic"));
 const QuickCompetitionJoin = lazy(() => import("./pages/QuickCompetitionJoin"));
+const ChangePassword = lazy(() => import("./pages/ChangePassword"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -71,6 +72,7 @@ const App = () => (
               <Route path="/admin" element={<ErrorBoundary><AdminRoute><Admin /></AdminRoute></ErrorBoundary>} />
               <Route path="/qc/:id" element={<ErrorBoundary><QuickCompetitionPublic /></ErrorBoundary>} />
               <Route path="/qc/:id/join" element={<ErrorBoundary><QuickCompetitionJoin /></ErrorBoundary>} />
+              <Route path="/change-password" element={<ErrorBoundary><ChangePassword /></ErrorBoundary>} />
               <Route path="/page/:slug" element={<ErrorBoundary><PageView /></ErrorBoundary>} />
               <Route path="*" element={<ErrorBoundary><NotFound /></ErrorBoundary>} />
             </Routes>

@@ -20,7 +20,7 @@ import {
   LogOut,
   GraduationCap,
   Building2,
-} from "lucide-react";
+  KeyRound,
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/useAdmin";
