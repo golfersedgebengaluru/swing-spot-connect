@@ -1,9 +1,41 @@
 import { useParams } from "react-router-dom";
-import { Trophy, Target, Loader2 } from "lucide-react";
+import { Trophy, Target, Loader2, Download } from "lucide-react";
 import {
   useQuickCompetition, useQCPlayers, useQCAttempts, useQCCategories, useQCRealtime,
   buildLeaderboards, buildLeaderboardsByCategory,
+  type QCCategoryWinners,
 } from "@/hooks/useQuickCompetitions";
+
+async function downloadCard(url: string, filename: string) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
+  } catch {
+    window.open(url, "_blank");
+  }
+}
+
+function CertificateCard({ url, label, filename }: { url: string; label: string; filename: string }) {
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <img src={url} alt={label} className="w-full rounded-xl shadow-2xl bg-white" />
+      <button
+        onClick={() => downloadCard(url, filename)}
+        className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-stone-900 text-white text-sm font-medium hover:bg-stone-700 transition-colors"
+      >
+        <Download className="h-4 w-4" /> Download {label}
+      </button>
+    </div>
+  );
+}
 
 export default function QuickCompetitionPublic() {
   const { id } = useParams<{ id: string }>();
@@ -97,12 +129,46 @@ export default function QuickCompetitionPublic() {
         ))}
       </div>
 
-      {isCompleted && !useCats && (comp.longest_card_url || comp.straightest_card_url) && (
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 max-w-4xl mx-auto">
-          {comp.longest_card_url && <img src={comp.longest_card_url} alt="Longest winner" className="w-full rounded-xl shadow-2xl" />}
-          {comp.straightest_card_url && <img src={comp.straightest_card_url} alt="Straightest winner" className="w-full rounded-xl shadow-2xl" />}
-        </div>
-      )}
+      {isCompleted && (() => {
+        const certs: { url: string; label: string; filename: string }[] = [];
+        if (useCats) {
+          const winners = (comp.category_winners as QCCategoryWinners | null) ?? [];
+          for (const w of winners) {
+            if (w.longest?.card_url) certs.push({
+              url: w.longest.card_url,
+              label: `${w.name} — Longest Drive`,
+              filename: `${comp.name}-${w.name}-longest.svg`,
+            });
+            if (w.straightest?.card_url) certs.push({
+              url: w.straightest.card_url,
+              label: `${w.name} — Straightest Drive`,
+              filename: `${comp.name}-${w.name}-straightest.svg`,
+            });
+          }
+        } else {
+          if (comp.longest_card_url) certs.push({
+            url: comp.longest_card_url,
+            label: "Longest Drive",
+            filename: `${comp.name}-longest.svg`,
+          });
+          if (comp.straightest_card_url) certs.push({
+            url: comp.straightest_card_url,
+            label: "Straightest Drive",
+            filename: `${comp.name}-straightest.svg`,
+          });
+        }
+        if (certs.length === 0) return null;
+        return (
+          <div className="mt-12 max-w-6xl mx-auto">
+            <h2 className="text-center text-xs uppercase tracking-[0.3em] text-stone-500 mb-6">Winner Certificates</h2>
+            <div className="grid gap-8 sm:grid-cols-2">
+              {certs.map((c) => (
+                <CertificateCard key={c.url} url={c.url} label={c.label} filename={c.filename} />
+              ))}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
