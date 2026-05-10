@@ -24,6 +24,24 @@ export type QuickCompetition = {
   refunds_allowed: boolean;
   created_at: string;
   completed_at: string | null;
+  categories_enabled: boolean;
+  category_winners: QCCategoryWinners | null;
+};
+
+export type QCCategoryWinner = {
+  category_id: string;
+  name: string;
+  longest: { player_id: string; player_name: string; value: number; card_url: string | null } | null;
+  straightest: { player_id: string; player_name: string; value: number; card_url: string | null } | null;
+};
+export type QCCategoryWinners = QCCategoryWinner[];
+
+export type QCCategory = {
+  id: string;
+  competition_id: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
 };
 
 export type QCEntry = {
