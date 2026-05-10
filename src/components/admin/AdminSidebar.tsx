@@ -21,6 +21,7 @@ import {
   GraduationCap,
   Building2,
   KeyRound,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/useAdmin";
