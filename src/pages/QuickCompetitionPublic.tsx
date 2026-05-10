@@ -14,14 +14,14 @@ export default function QuickCompetitionPublic() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center text-stone-700">
+      <div className="min-h-screen bg-white flex items-center justify-center text-stone-700">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
   if (!comp) {
     return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center text-stone-700">
+      <div className="min-h-screen bg-white flex items-center justify-center text-stone-700">
         <p>Competition not found.</p>
       </div>
     );
@@ -32,7 +32,7 @@ export default function QuickCompetitionPublic() {
   const isCompleted = comp.status === "completed";
 
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-900 p-6 sm:p-10">
+    <div className="min-h-screen bg-white text-stone-900 p-6 sm:p-10">
       <header className="text-center mb-10">
         <h1 className="text-4xl sm:text-6xl font-serif italic text-stone-900">{comp.name}</h1>
         <p className="mt-2 text-sm sm:text-base text-stone-500 uppercase tracking-[0.3em]">
@@ -103,9 +103,9 @@ function Board({
   completed: boolean;
 }) {
   const accentText = accent === "amber" ? "text-amber-600" : "text-sky-600";
-  const accentBg = accent === "amber" ? "bg-amber-50 border-amber-300" : "bg-sky-50 border-sky-300";
+  const accentBg = accent === "amber" ? "bg-amber-50/60 border-amber-200" : "bg-sky-50/60 border-sky-200";
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6 sm:p-8">
+    <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-6 sm:p-8">
       <div className="flex items-center gap-3 mb-6">
         {icon}
         <h2 className={`text-2xl sm:text-3xl font-bold ${accentText}`}>{title}</h2>
@@ -121,7 +121,7 @@ function Board({
               <li
                 key={r.player_id}
                 className={`flex items-center justify-between rounded-lg px-4 py-3 border transition-all ${
-                  isWinner || isLeader ? accentBg : "bg-stone-50 border-stone-200"
+                  isWinner || isLeader ? accentBg : "bg-white border-stone-100"
                 }`}
               >
                 <div className="flex items-center gap-4">
