@@ -185,6 +185,8 @@ export function useCreateQuickCompetition() {
       entry_fee?: number | null;
       entry_currency?: string;
       refunds_allowed?: boolean;
+      categories_enabled?: boolean;
+      categories?: string[];
     }) => {
       let sponsor_logo_url: string | null = null;
       if (input.sponsor_enabled && input.sponsor_logo_file) {
@@ -210,12 +212,24 @@ export function useCreateQuickCompetition() {
           entry_fee: input.entry_type === "paid" ? input.entry_fee ?? null : null,
           entry_currency: input.entry_currency || "INR",
           refunds_allowed: input.refunds_allowed ?? false,
+          categories_enabled: input.categories_enabled ?? false,
           created_by: u.user?.id ?? null,
         })
         .select()
         .single();
       if (error) throw error;
-      await audit(data.id, "create", { name: input.name, unit: input.unit, max_attempts: input.max_attempts, entry_type: input.entry_type, entry_fee: input.entry_fee ?? null });
+
+      // Seed categories if requested
+      if (input.categories_enabled && input.categories && input.categories.length > 0) {
+        const rows = input.categories
+          .map((n, i) => ({ competition_id: data.id, name: n.trim(), sort_order: i }))
+          .filter((r) => r.name.length > 0);
+        if (rows.length > 0) {
+          await supabase.from("quick_competition_categories").insert(rows);
+        }
+      }
+
+      await audit(data.id, "create", { name: input.name, unit: input.unit, max_attempts: input.max_attempts, entry_type: input.entry_type, entry_fee: input.entry_fee ?? null, categories_enabled: input.categories_enabled ?? false });
       return data as QuickCompetition;
     },
     onSuccess: (d) => {
