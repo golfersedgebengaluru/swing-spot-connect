@@ -38,10 +38,16 @@ export async function resolveCorporateTag(
 
   const { data: corp } = await adminClient
     .from("corporate_accounts")
-    .select("name")
+    .select("name, nickname")
     .eq("id", corporateAccountId)
     .maybeSingle();
 
+  // Prefer admin-defined nickname; fall back to first word of full name.
+  const nickname: string | null | undefined = corp?.nickname;
+  if (nickname && nickname.trim().length > 0) {
+    const cleaned = nickname.trim().replace(/[^\p{L}\p{N} _-]/gu, "");
+    if (cleaned.length > 0) return cleaned;
+  }
   const name: string | null | undefined = corp?.name;
   if (!name) return fallback;
   const firstWord = name.trim().split(/\s+/)[0]?.replace(/[^\p{L}\p{N}]/gu, "");
