@@ -1,7 +1,8 @@
 import { useParams } from "react-router-dom";
 import { Trophy, Target, Loader2 } from "lucide-react";
 import {
-  useQuickCompetition, useQCPlayers, useQCAttempts, useQCRealtime, buildLeaderboards,
+  useQuickCompetition, useQCPlayers, useQCAttempts, useQCCategories, useQCRealtime,
+  buildLeaderboards, buildLeaderboardsByCategory,
 } from "@/hooks/useQuickCompetitions";
 
 export default function QuickCompetitionPublic() {
@@ -10,6 +11,7 @@ export default function QuickCompetitionPublic() {
   const { data: comp, isLoading } = useQuickCompetition(competitionId);
   const { data: players = [] } = useQCPlayers(competitionId);
   const { data: attempts = [] } = useQCAttempts(competitionId);
+  const { data: categories = [] } = useQCCategories(competitionId);
   useQCRealtime(competitionId);
 
   if (isLoading) {
@@ -28,8 +30,11 @@ export default function QuickCompetitionPublic() {
   }
 
   const unitLabel = comp.unit === "yd" ? "yd" : "m";
-  const { longest, straightest } = buildLeaderboards(players, attempts);
   const isCompleted = comp.status === "completed";
+  const useCats = comp.categories_enabled && categories.length > 0;
+  const groups = useCats
+    ? buildLeaderboardsByCategory(players, attempts, categories)
+    : [{ id: null as string | null, name: "", ...buildLeaderboards(players, attempts) }];
 
   return (
     <div className="min-h-screen bg-white text-stone-900 p-6 sm:p-10">
@@ -60,28 +65,39 @@ export default function QuickCompetitionPublic() {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2 max-w-7xl mx-auto">
-        <Board
-          icon={<Trophy className="h-7 w-7 text-amber-600" />}
-          title="Longest Drive"
-          accent="amber"
-          rows={longest}
-          unit={unitLabel}
-          highlight={comp.longest_winner_player_id}
-          completed={isCompleted}
-        />
-        <Board
-          icon={<Target className="h-7 w-7 text-sky-600" />}
-          title="Straightest Drive"
-          accent="sky"
-          rows={straightest}
-          unit={unitLabel}
-          highlight={comp.straightest_winner_player_id}
-          completed={isCompleted}
-        />
+      <div className="space-y-10 max-w-7xl mx-auto">
+        {groups.map((g) => (
+          <section key={g.id ?? "all"}>
+            {useCats && (
+              <h2 className="text-center text-xs uppercase tracking-[0.3em] text-stone-500 mb-4">
+                {g.name}
+              </h2>
+            )}
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Board
+                icon={<Trophy className="h-7 w-7 text-amber-600" />}
+                title="Longest Drive"
+                accent="amber"
+                rows={g.longest}
+                unit={unitLabel}
+                highlight={!useCats ? comp.longest_winner_player_id : null}
+                completed={isCompleted}
+              />
+              <Board
+                icon={<Target className="h-7 w-7 text-sky-600" />}
+                title="Straightest Drive"
+                accent="sky"
+                rows={g.straightest}
+                unit={unitLabel}
+                highlight={!useCats ? comp.straightest_winner_player_id : null}
+                completed={isCompleted}
+              />
+            </div>
+          </section>
+        ))}
       </div>
 
-      {isCompleted && (comp.longest_card_url || comp.straightest_card_url) && (
+      {isCompleted && !useCats && (comp.longest_card_url || comp.straightest_card_url) && (
         <div className="mt-12 grid gap-6 sm:grid-cols-2 max-w-4xl mx-auto">
           {comp.longest_card_url && <img src={comp.longest_card_url} alt="Longest winner" className="w-full rounded-xl shadow-2xl" />}
           {comp.straightest_card_url && <img src={comp.straightest_card_url} alt="Straightest winner" className="w-full rounded-xl shadow-2xl" />}

@@ -26,6 +26,8 @@ export function QuickCompetitionDialog({
   const [entryType, setEntryType] = useState<"free" | "paid">("free");
   const [entryFee, setEntryFee] = useState<string>("");
   const [refundsAllowed, setRefundsAllowed] = useState(false);
+  const [categoriesEnabled, setCategoriesEnabled] = useState(false);
+  const [categoriesText, setCategoriesText] = useState("Men, Ladies");
 
   const create = useCreateQuickCompetition();
 
@@ -38,12 +40,17 @@ export function QuickCompetitionDialog({
     setEntryType("free");
     setEntryFee("");
     setRefundsAllowed(false);
+    setCategoriesEnabled(false);
+    setCategoriesText("Men, Ladies");
   }
 
   async function handleStart() {
     const n = Math.max(1, Math.min(50, parseInt(maxAttempts, 10) || 1));
     const fee = parseFloat(entryFee);
     if (entryType === "paid" && (!Number.isFinite(fee) || fee <= 0)) return;
+    const cats = categoriesEnabled
+      ? categoriesText.split(",").map((s) => s.trim()).filter(Boolean)
+      : [];
     const result = await create.mutateAsync({
       tenant_id: tenantId,
       name: name.trim(),
@@ -55,6 +62,8 @@ export function QuickCompetitionDialog({
       entry_fee: entryType === "paid" ? fee : null,
       entry_currency: "INR",
       refunds_allowed: entryType === "paid" ? refundsAllowed : false,
+      categories_enabled: categoriesEnabled,
+      categories: cats,
     });
     setOpen(false);
     reset();
@@ -117,6 +126,23 @@ export function QuickCompetitionDialog({
                 accept="image/png,image/jpeg,image/svg+xml"
                 onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
               />
+            )}
+          </div>
+
+          <div className="space-y-2 border-t pt-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="qc-cats" className="cursor-pointer">Use categories (e.g. Men / Ladies)</Label>
+              <Switch id="qc-cats" checked={categoriesEnabled} onCheckedChange={setCategoriesEnabled} />
+            </div>
+            {categoriesEnabled && (
+              <>
+                <Input
+                  value={categoriesText}
+                  onChange={(e) => setCategoriesText(e.target.value)}
+                  placeholder="Men, Ladies, Juniors"
+                />
+                <p className="text-xs text-muted-foreground">Comma-separated. Each category gets its own Longest &amp; Straightest board on the bay screen.</p>
+              </>
             )}
           </div>
 

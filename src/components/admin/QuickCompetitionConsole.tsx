@@ -20,14 +20,17 @@ import {
   useAddPlayer, useRemovePlayer, useSaveAttempt, useDeleteAttempt, useEndQuickCompetition,
   useUpdateQuickCompetition, useDeleteQuickCompetition,
   useQCEntries, useRefundQCEntry,
-  buildLeaderboards,
+  useQCCategories, useAddCategory, useRenameCategory, useRemoveCategory,
+  useToggleCategoriesEnabled, useUpdatePlayerCategory,
+  buildLeaderboards, buildLeaderboardsByCategory,
 } from "@/hooks/useQuickCompetitions";
-import { Copy, RotateCcw } from "lucide-react";
+import { Copy, RotateCcw, X } from "lucide-react";
 
 export function QuickCompetitionConsole({ competitionId, onClose }: { competitionId: string; onClose: () => void }) {
   const { data: comp } = useQuickCompetition(competitionId);
   const { data: players = [] } = useQCPlayers(competitionId);
   const { data: attempts = [] } = useQCAttempts(competitionId);
+  const { data: categories = [] } = useQCCategories(competitionId);
   useQCRealtime(competitionId);
 
   const addPlayer = useAddPlayer(competitionId);
@@ -39,6 +42,11 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
   const deleteComp = useDeleteQuickCompetition();
   const { data: entries = [] } = useQCEntries(competitionId);
   const refundEntry = useRefundQCEntry(competitionId);
+  const addCategory = useAddCategory(competitionId);
+  const renameCategory = useRenameCategory(competitionId);
+  const removeCategory = useRemoveCategory(competitionId);
+  const toggleCats = useToggleCategoriesEnabled(competitionId);
+  const updatePlayerCat = useUpdatePlayerCategory(competitionId);
 
   const [newName, setNewName] = useState("");
   const [drafts, setDrafts] = useState<Record<string, { distance: string; offline: string }>>({});
@@ -51,6 +59,10 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
   const [entryDistance, setEntryDistance] = useState("");
   const [entryOffline, setEntryOffline] = useState("");
   const [showNewPlayer, setShowNewPlayer] = useState(false);
+  const [newPlayerCategoryId, setNewPlayerCategoryId] = useState<string>("__none");
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [renamingCatId, setRenamingCatId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   if (!comp) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
@@ -98,12 +110,18 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
   async function handleCreateAndSelect(opts?: { keepOpen?: boolean }) {
     const name = newName.trim();
     if (!name) return;
-    const created: any = await addPlayer.mutateAsync(name);
+    const cat = comp.categories_enabled && newPlayerCategoryId !== "__none" ? newPlayerCategoryId : null;
+    const created: { id?: string } = await addPlayer.mutateAsync({ name, category_id: cat });
     setNewName("");
-    // Auto-select only if nothing is selected yet, so rapid pre-adding doesn't
-    // hijack the player currently lined up to hit.
     if (created?.id && !entryPlayerId) setEntryPlayerId(created.id);
     if (!opts?.keepOpen) setShowNewPlayer(false);
+  }
+
+  async function handleAddCategory() {
+    const n = newCategoryName.trim();
+    if (!n) return;
+    await addCategory.mutateAsync({ name: n, sort_order: categories.length });
+    setNewCategoryName("");
   }
 
   return (
@@ -295,6 +313,91 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
         </Card>
       )}
 
+      {/* Categories */}
+      {!isCompleted && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center justify-between">
+              <span>Categories</span>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="cats-toggle" className="text-xs font-normal cursor-pointer">Use categories</Label>
+                <Switch
+                  id="cats-toggle"
+                  checked={comp.categories_enabled}
+                  onCheckedChange={async (on) => {
+                    await toggleCats.mutateAsync(on);
+                    if (on && categories.length === 0) {
+                      await addCategory.mutateAsync({ name: "Men", sort_order: 0 });
+                      await addCategory.mutateAsync({ name: "Ladies", sort_order: 1 });
+                    }
+                  }}
+                />
+              </div>
+            </CardTitle>
+          </CardHeader>
+          {comp.categories_enabled && (
+            <CardContent className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {categories.map((c) => (
+                  <div key={c.id} className="inline-flex items-center gap-1 rounded-full border bg-muted/40 pl-3 pr-1 py-1">
+                    {renamingCatId === c.id ? (
+                      <>
+                        <Input
+                          autoFocus
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          className="h-6 w-28 text-xs"
+                          onKeyDown={async (e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              await renameCategory.mutateAsync({ category_id: c.id, name: renameValue });
+                              setRenamingCatId(null);
+                            } else if (e.key === "Escape") {
+                              setRenamingCatId(null);
+                            }
+                          }}
+                        />
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={async () => {
+                          await renameCategory.mutateAsync({ category_id: c.id, name: renameValue });
+                          setRenamingCatId(null);
+                        }}>Save</Button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className="text-sm hover:underline"
+                          onClick={() => { setRenamingCatId(c.id); setRenameValue(c.name); }}
+                          title="Rename"
+                        >
+                          {c.name}
+                        </button>
+                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0"
+                          onClick={() => removeCategory.mutate(c.id)}
+                          title="Delete category"
+                        ><X className="h-3 w-3" /></Button>
+                      </>
+                    )}
+                  </div>
+                ))}
+                <div className="inline-flex items-center gap-1">
+                  <Input
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="New category"
+                    className="h-8 w-36 text-xs"
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddCategory(); } }}
+                  />
+                  <Button size="sm" variant="outline" className="h-8" onClick={handleAddCategory} disabled={!newCategoryName.trim() || addCategory.isPending}>
+                    <Plus className="h-3 w-3" /> Add
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">Click a chip to rename. Each category gets its own Longest &amp; Straightest board on the bay screen.</p>
+            </CardContent>
+          )}
+        </Card>
+      )}
+
       {/* Add Player & Score (top, single compact card) */}
       {!isCompleted && (
         <Card>
@@ -306,14 +409,26 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
               <div className="flex-1 min-w-[180px]">
                 <Label className="text-xs text-muted-foreground">Player</Label>
                 {showNewPlayer ? (
-                  <div className="flex gap-1">
+                  <div className="flex flex-wrap gap-1">
                     <Input
                       autoFocus
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
                       placeholder="New player name"
+                      className="flex-1 min-w-[140px]"
                       onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleCreateAndSelect({ keepOpen: true }); } }}
                     />
+                    {comp.categories_enabled && categories.length > 0 && (
+                      <Select value={newPlayerCategoryId} onValueChange={setNewPlayerCategoryId}>
+                        <SelectTrigger className="h-9 w-32"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none">No category</SelectItem>
+                          {categories.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                     <Button size="sm" onClick={() => handleCreateAndSelect({ keepOpen: true })} disabled={addPlayer.isPending || !newName.trim()} title="Add and keep adding">
                       {addPlayer.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
                     </Button>
@@ -326,9 +441,10 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                       <SelectContent>
                         {players.map((p) => {
                           const ct = (attemptsByPlayer[p.id] ?? []).length;
+                          const cat = categories.find((c) => c.id === p.category_id);
                           return (
                             <SelectItem key={p.id} value={p.id}>
-                              {p.name} <span className="text-muted-foreground">· {ct}/{comp.max_attempts}</span>
+                              {p.name}{cat ? ` (${cat.name})` : ""} <span className="text-muted-foreground">· {ct}/{comp.max_attempts}</span>
                             </SelectItem>
                           );
                         })}
@@ -441,6 +557,7 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
               <TableHeader>
                 <TableRow>
                   <TableHead>Player</TableHead>
+                  {comp.categories_enabled && <TableHead>Category</TableHead>}
                   <TableHead>Best dist.</TableHead>
                   <TableHead>Best offline</TableHead>
                   <TableHead>Attempts</TableHead>
@@ -455,6 +572,23 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                   return (
                     <TableRow key={p.id}>
                       <TableCell className="font-medium">{p.name}</TableCell>
+                      {comp.categories_enabled && (
+                        <TableCell>
+                          <Select
+                            value={p.category_id ?? "__none"}
+                            onValueChange={(v) => updatePlayerCat.mutate({ player_id: p.id, category_id: v === "__none" ? null : v })}
+                            disabled={isCompleted}
+                          >
+                            <SelectTrigger className="h-7 w-32 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none">—</SelectItem>
+                              {categories.map((c) => (
+                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      )}
                       <TableCell>{pAttempts.length ? `${bestDist.toFixed(1)} ${unitLabel}` : "—"}</TableCell>
                       <TableCell>{bestOff !== null ? `${bestOff.toFixed(1)} ${unitLabel}` : "—"}</TableCell>
                       <TableCell>

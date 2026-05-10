@@ -24,6 +24,24 @@ export type QuickCompetition = {
   refunds_allowed: boolean;
   created_at: string;
   completed_at: string | null;
+  categories_enabled: boolean;
+  category_winners: unknown;
+};
+
+export type QCCategoryWinner = {
+  category_id: string;
+  name: string;
+  longest: { player_id: string; player_name: string; value: number; card_url: string | null } | null;
+  straightest: { player_id: string; player_name: string; value: number; card_url: string | null } | null;
+};
+export type QCCategoryWinners = QCCategoryWinner[];
+
+export type QCCategory = {
+  id: string;
+  competition_id: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
 };
 
 export type QCEntry = {
@@ -42,7 +60,7 @@ export type QCEntry = {
   created_at: string;
 };
 
-export type QCPlayer = { id: string; competition_id: string; name: string; created_at: string };
+export type QCPlayer = { id: string; competition_id: string; name: string; created_at: string; category_id: string | null };
 export type QCAttempt = {
   id: string;
   competition_id: string;
@@ -129,6 +147,9 @@ export function useQCRealtime(competitionId: string | null) {
       .on("postgres_changes", { event: "*", schema: "public", table: "quick_competition_attempts", filter: `competition_id=eq.${competitionId}` }, () => {
         qc.invalidateQueries({ queryKey: ["qc-attempts", competitionId] });
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "quick_competition_categories", filter: `competition_id=eq.${competitionId}` }, () => {
+        qc.invalidateQueries({ queryKey: ["qc-categories", competitionId] });
+      })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "quick_competitions", filter: `id=eq.${competitionId}` }, () => {
         qc.invalidateQueries({ queryKey: ["quick-comp", competitionId] });
       })
@@ -164,6 +185,8 @@ export function useCreateQuickCompetition() {
       entry_fee?: number | null;
       entry_currency?: string;
       refunds_allowed?: boolean;
+      categories_enabled?: boolean;
+      categories?: string[];
     }) => {
       let sponsor_logo_url: string | null = null;
       if (input.sponsor_enabled && input.sponsor_logo_file) {
@@ -189,12 +212,24 @@ export function useCreateQuickCompetition() {
           entry_fee: input.entry_type === "paid" ? input.entry_fee ?? null : null,
           entry_currency: input.entry_currency || "INR",
           refunds_allowed: input.refunds_allowed ?? false,
+          categories_enabled: input.categories_enabled ?? false,
           created_by: u.user?.id ?? null,
         })
         .select()
         .single();
       if (error) throw error;
-      await audit(data.id, "create", { name: input.name, unit: input.unit, max_attempts: input.max_attempts, entry_type: input.entry_type, entry_fee: input.entry_fee ?? null });
+
+      // Seed categories if requested
+      if (input.categories_enabled && input.categories && input.categories.length > 0) {
+        const rows = input.categories
+          .map((n, i) => ({ competition_id: data.id, name: n.trim(), sort_order: i }))
+          .filter((r) => r.name.length > 0);
+        if (rows.length > 0) {
+          await supabase.from("quick_competition_categories").insert(rows);
+        }
+      }
+
+      await audit(data.id, "create", { name: input.name, unit: input.unit, max_attempts: input.max_attempts, entry_type: input.entry_type, entry_fee: input.entry_fee ?? null, categories_enabled: input.categories_enabled ?? false });
       return data as QuickCompetition;
     },
     onSuccess: (d) => {
@@ -209,20 +244,131 @@ export function useAddPlayer(competitionId: string) {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async (name: string) => {
-      const trimmed = name.trim();
+    mutationFn: async (input: { name: string; category_id?: string | null }) => {
+      const trimmed = input.name.trim();
       if (!trimmed) throw new Error("Name required");
       const { data, error } = await supabase
         .from("quick_competition_players")
-        .insert({ competition_id: competitionId, name: trimmed })
+        .insert({ competition_id: competitionId, name: trimmed, category_id: input.category_id ?? null })
         .select()
         .single();
       if (error) throw error;
-      await audit(competitionId, "add_player", { player_id: data.id, name: trimmed });
+      await audit(competitionId, "add_player", { player_id: data.id, name: trimmed, category_id: input.category_id ?? null });
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["qc-players", competitionId] }),
     onError: (e: Error) => toast({ title: "Could not add player", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useUpdatePlayerCategory(competitionId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (input: { player_id: string; category_id: string | null }) => {
+      const { error } = await supabase
+        .from("quick_competition_players")
+        .update({ category_id: input.category_id })
+        .eq("id", input.player_id);
+      if (error) throw error;
+      await audit(competitionId, "set_player_category", input);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["qc-players", competitionId] }),
+    onError: (e: Error) => toast({ title: "Update failed", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useQCCategories(competitionId: string | null) {
+  return useQuery({
+    queryKey: ["qc-categories", competitionId],
+    enabled: !!competitionId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("quick_competition_categories")
+        .select("*")
+        .eq("competition_id", competitionId!)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as QCCategory[];
+    },
+  });
+}
+
+export function useAddCategory(competitionId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (input: { name: string; sort_order?: number }) => {
+      const trimmed = input.name.trim();
+      if (!trimmed) throw new Error("Name required");
+      const { data, error } = await supabase
+        .from("quick_competition_categories")
+        .insert({ competition_id: competitionId, name: trimmed, sort_order: input.sort_order ?? 0 })
+        .select()
+        .single();
+      if (error) throw error;
+      await audit(competitionId, "add_category", { category_id: data.id, name: trimmed });
+      return data as QCCategory;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["qc-categories", competitionId] }),
+    onError: (e: Error) => toast({ title: "Could not add category", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useRenameCategory(competitionId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (input: { category_id: string; name: string }) => {
+      const trimmed = input.name.trim();
+      if (!trimmed) throw new Error("Name required");
+      const { error } = await supabase
+        .from("quick_competition_categories")
+        .update({ name: trimmed })
+        .eq("id", input.category_id);
+      if (error) throw error;
+      await audit(competitionId, "rename_category", input);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["qc-categories", competitionId] }),
+    onError: (e: Error) => toast({ title: "Rename failed", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useRemoveCategory(competitionId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (categoryId: string) => {
+      const { error } = await supabase
+        .from("quick_competition_categories")
+        .delete()
+        .eq("id", categoryId);
+      if (error) throw error;
+      await audit(competitionId, "remove_category", { category_id: categoryId });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["qc-categories", competitionId] });
+      qc.invalidateQueries({ queryKey: ["qc-players", competitionId] });
+    },
+    onError: (e: Error) => toast({ title: "Delete failed", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useToggleCategoriesEnabled(competitionId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const { error } = await supabase
+        .from("quick_competitions")
+        .update({ categories_enabled: enabled })
+        .eq("id", competitionId);
+      if (error) throw error;
+      await audit(competitionId, "toggle_categories", { enabled });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["quick-comp", competitionId] }),
+    onError: (e: Error) => toast({ title: "Update failed", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -436,4 +582,28 @@ export function buildLeaderboards(players: QCPlayer[], attempts: QCAttempt[]) {
     .map((r) => ({ ...r, attempts: counts.get(r.player_id) ?? 0 }))
     .sort((a, b) => a.value - b.value || a.ts.localeCompare(b.ts));
   return { longest: longestArr, straightest: straightArr };
+}
+
+/** Group leaderboards by category. Players without a category fall under "Unassigned". */
+export function buildLeaderboardsByCategory(
+  players: QCPlayer[],
+  attempts: QCAttempt[],
+  categories: QCCategory[],
+) {
+  const groups: { id: string | null; name: string; longest: ReturnType<typeof buildLeaderboards>["longest"]; straightest: ReturnType<typeof buildLeaderboards>["straightest"] }[] = [];
+  for (const cat of categories) {
+    const ids = new Set(players.filter((p) => p.category_id === cat.id).map((p) => p.id));
+    const subPlayers = players.filter((p) => ids.has(p.id));
+    const subAttempts = attempts.filter((a) => ids.has(a.player_id));
+    const lb = buildLeaderboards(subPlayers, subAttempts);
+    groups.push({ id: cat.id, name: cat.name, ...lb });
+  }
+  const unassigned = players.filter((p) => !p.category_id);
+  if (unassigned.length > 0) {
+    const ids = new Set(unassigned.map((p) => p.id));
+    const subAttempts = attempts.filter((a) => ids.has(a.player_id));
+    const lb = buildLeaderboards(unassigned, subAttempts);
+    groups.push({ id: null, name: "Unassigned", ...lb });
+  }
+  return groups;
 }
