@@ -199,6 +199,16 @@ function CorporateAccountFormDialog({
           </div>
 
           <div>
+            <Label>Nickname</Label>
+            <Input className="mt-1" value={form.nickname} maxLength={20}
+              onChange={(e) => setForm({ ...form, nickname: e.target.value })}
+              placeholder="e.g. Apexlynx" />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Short label shown in calendar events and dashboard tags. Falls back to Name if blank.
+            </p>
+          </div>
+
+          <div>
             <Label>GSTIN</Label>
             <Input className="mt-1" value={form.gstin} maxLength={15}
               onChange={(e) => handleGstin(e.target.value)} placeholder="22AAAAA0000A1Z5" />
