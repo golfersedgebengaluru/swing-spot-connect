@@ -95,13 +95,15 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
     setEntryOffline("");
   }
 
-  async function handleCreateAndSelect() {
+  async function handleCreateAndSelect(opts?: { keepOpen?: boolean }) {
     const name = newName.trim();
     if (!name) return;
     const created: any = await addPlayer.mutateAsync(name);
     setNewName("");
-    setShowNewPlayer(false);
-    if (created?.id) setEntryPlayerId(created.id);
+    // Auto-select only if nothing is selected yet, so rapid pre-adding doesn't
+    // hijack the player currently lined up to hit.
+    if (created?.id && !entryPlayerId) setEntryPlayerId(created.id);
+    if (!opts?.keepOpen) setShowNewPlayer(false);
   }
 
   return (
