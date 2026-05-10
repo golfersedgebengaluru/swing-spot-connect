@@ -14,7 +14,7 @@ export default function QuickCompetitionPublic() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center text-stone-700">
+      <div className="min-h-screen bg-white flex items-center justify-center text-stone-700">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
