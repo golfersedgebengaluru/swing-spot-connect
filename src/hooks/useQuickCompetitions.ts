@@ -359,6 +359,7 @@ export function useEndQuickCompetition() {
     },
     onError: (e: Error) => toast({ title: "Could not end", description: e.message, variant: "destructive" }),
   });
+}
 
 export function useQCEntries(competitionId: string | null) {
   const qc = useQueryClient();
