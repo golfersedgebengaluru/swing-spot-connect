@@ -20,7 +20,8 @@ const Index = () => {
 
   useEffect(() => {
     if (!loading && !adminLoading && user) {
-      navigate(hasAdminAccess ? "/admin" : "/dashboard");
+      const isContests = user.email?.toLowerCase().startsWith("contests@golfers-edge");
+      navigate(hasAdminAccess || isContests ? "/admin" : "/dashboard");
     }
   }, [user, loading, adminLoading, hasAdminAccess, navigate]);
 

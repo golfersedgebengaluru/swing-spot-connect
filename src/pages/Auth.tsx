@@ -40,6 +40,12 @@ export default function Auth() {
         return;
       }
 
+      // Special case: contests user always lands on admin
+      if (user.email?.toLowerCase().startsWith("contests@golfers-edge")) {
+        navigate("/admin");
+        return;
+      }
+
       // Check if user has admin role
       const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
       const { data: isSiteAdmin } = await supabase.rpc("has_role", { _user_id: user.id, _role: "site_admin" as any });
