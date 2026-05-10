@@ -54,7 +54,8 @@ function buildCardSvg(opts: {
   <rect x="60" y="60" width="980" height="980" fill="none" stroke="${accent}" stroke-width="1" opacity="0.35" rx="12"/>
   <text x="550" y="180" text-anchor="middle" font-family="Playfair Display, serif" font-size="48" fill="#2C2C2C" font-style="italic">Champion</text>
   <text x="550" y="270" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="56" fill="${accent}" font-weight="bold" letter-spacing="6">${title}</text>
-  <line x1="350" y1="320" x2="750" y2="320" stroke="${accent}" stroke-width="2"/>
+  ${opts.categoryLabel ? `<text x="550" y="310" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="24" fill="#666" letter-spacing="3">${escapeXml(opts.categoryLabel.toUpperCase())}</text>` : ""}
+  <line x1="350" y1="340" x2="750" y2="340" stroke="${accent}" stroke-width="2"/>
   <text x="550" y="490" text-anchor="middle" font-family="Playfair Display, serif" font-size="84" fill="#1A1A1A" font-weight="bold">${escapeXml(opts.winnerName)}</text>
   <text x="550" y="600" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="28" fill="#777" letter-spacing="3">${valueLabel.toUpperCase()}</text>
   <text x="550" y="720" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="120" fill="${accent}" font-weight="bold">${formatted}</text>
