@@ -60,7 +60,42 @@ function useAdminDashboardStats(cityFilter: string) {
         .order("start_time", { ascending: true })
         .limit(5);
       if (cityFilter) upcomingQuery = upcomingQuery.eq("city", cityFilter);
-...
+
+      let topQuery = supabase
+        .from("profiles")
+        .select("id, display_name, email, points, tier, total_rounds, user_id, preferred_city")
+        .in("user_type", ["birdie", "coaching"])
+        .order("points", { ascending: false })
+        .limit(5);
+      if (cityFilter) topQuery = topQuery.eq("preferred_city", cityFilter);
+
+      // Execute ALL independent queries in parallel
+      const [
+        { count: totalBookings },
+        { count: memberCount },
+        { data: revData },
+        { data: hoursData },
+        { data: bookingsData },
+        { data: topMembers },
+      ] = await Promise.all([
+        totalBookingsQuery,
+        membersQuery,
+        revenueQuery,
+        hoursQuery,
+        upcomingQuery,
+        topQuery,
+      ]);
+
+      const revenue = (revData ?? []).reduce((sum, t) => {
+        if (t.transaction_type === "refund") return sum - (t.amount ?? 0);
+        return sum + (t.amount ?? 0);
+      }, 0);
+
+      const hoursSold = (hoursData ?? []).reduce(
+        (sum, b) => sum + (b.duration_minutes ?? 0),
+        0
+      ) / 60;
+
       // Resolve bay names and user profiles (dependent on bookingsData).
       // NOTE: bookings.user_id may hold either profiles.user_id (auth members)
       // OR profiles.id (admin-created profile-only members). Dual-key lookup.
