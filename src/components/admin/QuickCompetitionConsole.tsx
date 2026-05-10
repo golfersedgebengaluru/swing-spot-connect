@@ -14,6 +14,7 @@ import { Trophy, Target, Trash2, Plus, ExternalLink, Flag, Loader2, Image as Ima
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   useQuickCompetition, useQCPlayers, useQCAttempts, useQCRealtime,
   useAddPlayer, useRemovePlayer, useSaveAttempt, useDeleteAttempt, useEndQuickCompetition,
