@@ -557,6 +557,7 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
               <TableHeader>
                 <TableRow>
                   <TableHead>Player</TableHead>
+                  {comp.categories_enabled && <TableHead>Category</TableHead>}
                   <TableHead>Best dist.</TableHead>
                   <TableHead>Best offline</TableHead>
                   <TableHead>Attempts</TableHead>
@@ -571,6 +572,23 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                   return (
                     <TableRow key={p.id}>
                       <TableCell className="font-medium">{p.name}</TableCell>
+                      {comp.categories_enabled && (
+                        <TableCell>
+                          <Select
+                            value={p.category_id ?? "__none"}
+                            onValueChange={(v) => updatePlayerCat.mutate({ player_id: p.id, category_id: v === "__none" ? null : v })}
+                            disabled={isCompleted}
+                          >
+                            <SelectTrigger className="h-7 w-32 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none">—</SelectItem>
+                              {categories.map((c) => (
+                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      )}
                       <TableCell>{pAttempts.length ? `${bestDist.toFixed(1)} ${unitLabel}` : "—"}</TableCell>
                       <TableCell>{bestOff !== null ? `${bestOff.toFixed(1)} ${unitLabel}` : "—"}</TableCell>
                       <TableCell>
