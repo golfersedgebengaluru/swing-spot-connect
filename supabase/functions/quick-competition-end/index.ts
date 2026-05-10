@@ -32,32 +32,33 @@ function buildCardSvg(opts: {
   sponsorLogoUrl?: string | null;
 }): string {
   const title = opts.category === "longest" ? "LONGEST DRIVE" : "STRAIGHTEST DRIVE";
-  const accent = opts.category === "longest" ? "#D4AF37" : "#5A8FB0";
+  const accent = opts.category === "longest" ? "#B8860B" : "#3E7090";
   const valueLabel = opts.category === "longest" ? "Distance" : "Offline";
   const formatted = `${opts.value.toFixed(1)} ${opts.unit}`;
   const sponsor = opts.sponsorLogoUrl
     ? `<image href="${escapeXml(opts.sponsorLogoUrl)}" x="430" y="940" width="240" height="80" preserveAspectRatio="xMidYMid meet" />
-       <text x="550" y="920" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="20" fill="#888">Brought to you by</text>`
+       <text x="550" y="920" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="20" fill="#999">Brought to you by</text>`
     : "";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1100" height="1100" viewBox="0 0 1100 1100">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#0F172A"/>
-      <stop offset="1" stop-color="#1E293B"/>
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F5F1E8"/>
     </linearGradient>
   </defs>
   <rect width="1100" height="1100" fill="url(#bg)"/>
   <rect x="40" y="40" width="1020" height="1020" fill="none" stroke="${accent}" stroke-width="3" rx="20"/>
-  <text x="550" y="180" text-anchor="middle" font-family="Playfair Display, serif" font-size="48" fill="#F9F8F6" font-style="italic">Champion</text>
+  <rect x="60" y="60" width="980" height="980" fill="none" stroke="${accent}" stroke-width="1" opacity="0.4" rx="12"/>
+  <text x="550" y="180" text-anchor="middle" font-family="Playfair Display, serif" font-size="48" fill="#2C2C2C" font-style="italic">Champion</text>
   <text x="550" y="270" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="56" fill="${accent}" font-weight="bold" letter-spacing="6">${title}</text>
   <line x1="350" y1="320" x2="750" y2="320" stroke="${accent}" stroke-width="2"/>
-  <text x="550" y="490" text-anchor="middle" font-family="Playfair Display, serif" font-size="84" fill="#F9F8F6" font-weight="bold">${escapeXml(opts.winnerName)}</text>
-  <text x="550" y="600" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="28" fill="#94A3B8" letter-spacing="3">${valueLabel.toUpperCase()}</text>
+  <text x="550" y="490" text-anchor="middle" font-family="Playfair Display, serif" font-size="84" fill="#1A1A1A" font-weight="bold">${escapeXml(opts.winnerName)}</text>
+  <text x="550" y="600" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="28" fill="#777" letter-spacing="3">${valueLabel.toUpperCase()}</text>
   <text x="550" y="720" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="120" fill="${accent}" font-weight="bold">${formatted}</text>
-  <text x="550" y="830" text-anchor="middle" font-family="Playfair Display, serif" font-size="36" fill="#F9F8F6" font-style="italic">${escapeXml(opts.competitionName)}</text>
-  <text x="550" y="880" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="22" fill="#94A3B8">${escapeXml(opts.date)}</text>
+  <text x="550" y="830" text-anchor="middle" font-family="Playfair Display, serif" font-size="36" fill="#2C2C2C" font-style="italic">${escapeXml(opts.competitionName)}</text>
+  <text x="550" y="880" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="22" fill="#888">${escapeXml(opts.date)}</text>
   ${sponsor}
 </svg>`;
 }
