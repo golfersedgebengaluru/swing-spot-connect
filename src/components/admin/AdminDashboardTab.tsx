@@ -294,7 +294,24 @@ export function AdminDashboardTab({ onNavigate }: AdminDashboardTabProps = {}) {
                       {getBayShort(b.bayName)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{b.userName}</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-sm font-medium text-foreground truncate">{b.userName}</p>
+                        {b.isCoaching && (
+                          <span className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-purple-100 text-purple-700">
+                            Coaching
+                          </span>
+                        )}
+                        {b.isCorporate && (
+                          <span className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700">
+                            {b.corporateName ? `Corporate · ${b.corporateName}` : "Corporate"}
+                          </span>
+                        )}
+                        {b.usingHours && (
+                          <span className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700">
+                            Hours
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         {b.bayName} · {timeStr}
                       </p>
