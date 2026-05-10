@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +74,21 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
     (acc[a.player_id] ||= []).push(a);
     return acc;
   }, {});
+
+  useEffect(() => {
+    if (isCompleted) return;
+
+    if (players.length === 0) {
+      if (entryPlayerId) setEntryPlayerId("");
+      return;
+    }
+
+    const stillExists = players.some((player) => player.id === entryPlayerId);
+    if (stillExists) return;
+
+    const nextAvailablePlayer = players.find((player) => (attemptsByPlayer[player.id] ?? []).length < comp.max_attempts) ?? players[0];
+    if (nextAvailablePlayer) setEntryPlayerId(nextAvailablePlayer.id);
+  }, [attempts, comp.max_attempts, entryPlayerId, isCompleted, players]);
 
   const publicUrl = `${window.location.origin}/qc/${competitionId}`;
 
