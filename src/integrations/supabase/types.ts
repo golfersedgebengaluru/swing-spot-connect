@@ -1202,6 +1202,8 @@ export type Database = {
           address: string
           city: string
           created_at: string
+          default_sac_code: string | null
+          default_service_gst_rate: number
           gstin: string
           id: string
           invoice_prefix: string
@@ -1215,6 +1217,8 @@ export type Database = {
           address?: string
           city: string
           created_at?: string
+          default_sac_code?: string | null
+          default_service_gst_rate?: number
           gstin?: string
           id?: string
           invoice_prefix?: string
@@ -1228,6 +1232,8 @@ export type Database = {
           address?: string
           city?: string
           created_at?: string
+          default_sac_code?: string | null
+          default_service_gst_rate?: number
           gstin?: string
           id?: string
           invoice_prefix?: string
@@ -4115,6 +4121,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_create_invoice_for_revenue: {
+        Args: { p_revenue_id: string }
+        Returns: string
+      }
+      backfill_missing_invoices: {
+        Args: never
+        Returns: {
+          invoice_id: string
+          revenue_id: string
+        }[]
+      }
       cancel_booking_with_clawback: {
         Args: { p_booking_id: string; p_cancelled_by?: string }
         Returns: Json
