@@ -75,6 +75,35 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
     setDrafts((prev) => ({ ...prev, [playerId]: { distance: "", offline: "" } }));
   }
 
+  const selectedPlayer = players.find((p) => p.id === entryPlayerId);
+  const selectedAttempts = selectedPlayer
+    ? (attemptsByPlayer[selectedPlayer.id] ?? []).length
+    : 0;
+  const selectedReachedMax = selectedPlayer ? selectedAttempts >= comp.max_attempts : false;
+  const distNum = parseFloat(entryDistance);
+  const offNum = parseFloat(entryOffline);
+  const entryValid =
+    !!selectedPlayer &&
+    !selectedReachedMax &&
+    Number.isFinite(distNum) && distNum >= 0 &&
+    Number.isFinite(offNum) && offNum >= 0;
+
+  async function handleTopSave() {
+    if (!entryValid || !selectedPlayer) return;
+    await saveAttempt.mutateAsync({ player_id: selectedPlayer.id, distance: distNum, offline: offNum });
+    setEntryDistance("");
+    setEntryOffline("");
+  }
+
+  async function handleCreateAndSelect() {
+    const name = newName.trim();
+    if (!name) return;
+    const created: any = await addPlayer.mutateAsync(name);
+    setNewName("");
+    setShowNewPlayer(false);
+    if (created?.id) setEntryPlayerId(created.id);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
