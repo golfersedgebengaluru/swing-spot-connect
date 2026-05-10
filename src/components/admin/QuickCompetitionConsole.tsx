@@ -442,7 +442,6 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                   <TableHead>Best dist.</TableHead>
                   <TableHead>Best offline</TableHead>
                   <TableHead>Attempts</TableHead>
-                  {!isCompleted && <TableHead>New attempt ({unitLabel})</TableHead>}
                   {!isCompleted && <TableHead></TableHead>}
                 </TableRow>
               </TableHeader>
@@ -451,8 +450,6 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                   const pAttempts = attemptsByPlayer[p.id] ?? [];
                   const bestDist = pAttempts.reduce((m, a) => Math.max(m, Number(a.distance)), 0);
                   const bestOff = pAttempts.length ? pAttempts.reduce((m, a) => Math.min(m, Number(a.offline)), Infinity) : null;
-                  const reachedMax = pAttempts.length >= comp.max_attempts;
-                  const draft = drafts[p.id] ?? { distance: "", offline: "" };
                   return (
                     <TableRow key={p.id}>
                       <TableCell className="font-medium">{p.name}</TableCell>
@@ -476,45 +473,13 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                         </div>
                       </TableCell>
                       {!isCompleted && (
-                        <>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <Input
-                                className="w-20 h-8"
-                                placeholder="dist"
-                                inputMode="decimal"
-                                value={draft.distance}
-                                onChange={(e) => setDrafts((s) => ({ ...s, [p.id]: { ...draft, distance: e.target.value } }))}
-                                disabled={reachedMax}
-                              />
-                              <Input
-                                className="w-20 h-8"
-                                placeholder="offline"
-                                inputMode="decimal"
-                                value={draft.offline}
-                                onChange={(e) => setDrafts((s) => ({ ...s, [p.id]: { ...draft, offline: e.target.value } }))}
-                                disabled={reachedMax}
-                              />
-                            </div>
-                            {reachedMax && <p className="text-xs text-muted-foreground mt-1">Max attempts reached</p>}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                onClick={() => handleSave(p.id)}
-                                disabled={reachedMax || !draft.distance || !draft.offline || saveAttempt.isPending}
-                              >
-                                Save
-                              </Button>
-                              {pAttempts.length === 0 && (
-                                <Button size="sm" variant="ghost" onClick={() => removePlayer.mutate(p.id)} title="Remove player">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </>
+                        <TableCell>
+                          {pAttempts.length === 0 && comp.entry_type === "free" && (
+                            <Button size="sm" variant="ghost" onClick={() => removePlayer.mutate(p.id)} title="Remove player">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </TableCell>
                       )}
                     </TableRow>
                   );
