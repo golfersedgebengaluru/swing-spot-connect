@@ -20,9 +20,11 @@ import {
   useAddPlayer, useRemovePlayer, useSaveAttempt, useDeleteAttempt, useEndQuickCompetition,
   useUpdateQuickCompetition, useDeleteQuickCompetition,
   useQCEntries, useRefundQCEntry,
-  buildLeaderboards,
+  useQCCategories, useAddCategory, useRenameCategory, useRemoveCategory,
+  useToggleCategoriesEnabled, useUpdatePlayerCategory,
+  buildLeaderboards, buildLeaderboardsByCategory,
 } from "@/hooks/useQuickCompetitions";
-import { Copy, RotateCcw } from "lucide-react";
+import { Copy, RotateCcw, X } from "lucide-react";
 
 export function QuickCompetitionConsole({ competitionId, onClose }: { competitionId: string; onClose: () => void }) {
   const { data: comp } = useQuickCompetition(competitionId);
