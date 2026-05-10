@@ -36,6 +36,8 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
   const endComp = useEndQuickCompetition();
   const updateComp = useUpdateQuickCompetition();
   const deleteComp = useDeleteQuickCompetition();
+  const { data: entries = [] } = useQCEntries(competitionId);
+  const refundEntry = useRefundQCEntry(competitionId);
 
   const [newName, setNewName] = useState("");
   const [drafts, setDrafts] = useState<Record<string, { distance: string; offline: string }>>({});
