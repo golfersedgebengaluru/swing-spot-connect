@@ -2779,6 +2779,21 @@ export type Database = {
           },
         ]
       }
+      leagues_only_admins: {
+        Row: {
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       loyalty_bonuses: {
         Row: {
           bonus_type: string

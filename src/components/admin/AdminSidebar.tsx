@@ -20,6 +20,7 @@ import {
   LogOut,
   GraduationCap,
   Building2,
+  KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -187,17 +188,20 @@ export function AdminSidebar({
 }: AdminSidebarProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const { role, isAdmin, isSiteAdmin } = useAdmin();
+  const { role, isAdmin, isSiteAdmin, isLeaguesOnly } = useAdmin();
   const { data: permissions } = useSiteAdminPermissions();
   const { data: branding } = useBranding();
   const studioName = branding?.studio_name || "Admin";
   const initials = user?.email
     ? user.email.substring(0, 2).toUpperCase()
     : "AD";
-  const roleLabel = role === "admin" ? "Administrator" : role === "site_admin" ? "Site-Admin" : "Coach";
-  const hasAdminOrSiteAdmin = isAdmin || isSiteAdmin;
+  const roleLabel = isLeaguesOnly
+    ? "Leagues Admin"
+    : role === "admin" ? "Administrator" : role === "site_admin" ? "Site-Admin" : "Coach";
+  const hasAdminOrSiteAdmin = (isAdmin || isSiteAdmin) && !isLeaguesOnly;
 
   const visibleReportsItems = reportsItems.filter((item) => {
+    if (isLeaguesOnly) return false;
     if (isAdmin) return true;
     if (!isSiteAdmin) return false;
     if (item.id === "reports_revenue") return true;
@@ -210,6 +214,7 @@ export function AdminSidebar({
 
   const filterItems = (items: typeof coreItems) =>
     items.filter((i) => {
+      if (isLeaguesOnly) return i.id === "leagues";
       if ((i as any).adminOnly && !isAdmin) return false;
       if ((i as any).adminOrSiteAdminOnly && !hasAdminOrSiteAdmin) return false;
       return true;
@@ -293,13 +298,22 @@ export function AdminSidebar({
             </div>
           )}
           {!collapsed && (
-            <button
-              onClick={async () => { await signOut(); navigate("/auth"); }}
-              className="flex items-center justify-center rounded-md p-1.5 text-white/50 hover:bg-white/[0.08] hover:text-destructive min-h-[36px] min-w-[36px]"
-              title="Sign Out"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
+            <>
+              <button
+                onClick={() => navigate("/change-password")}
+                className="flex items-center justify-center rounded-md p-1.5 text-white/50 hover:bg-white/[0.08] hover:text-white min-h-[36px] min-w-[36px]"
+                title="Change Password"
+              >
+                <KeyRound className="h-4 w-4" />
+              </button>
+              <button
+                onClick={async () => { await signOut(); navigate("/auth"); }}
+                className="flex items-center justify-center rounded-md p-1.5 text-white/50 hover:bg-white/[0.08] hover:text-destructive min-h-[36px] min-w-[36px]"
+                title="Sign Out"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -380,6 +394,13 @@ export function AdminSidebar({
                     </p>
                     <p className="text-xs text-white/40">{roleLabel}</p>
                   </div>
+                  <button
+                    onClick={() => navigate("/change-password")}
+                    className="flex items-center justify-center rounded-md p-1.5 text-white/50 hover:bg-white/[0.08] hover:text-white min-h-[44px] min-w-[44px] touch-manipulation"
+                    title="Change Password"
+                  >
+                    <KeyRound className="h-4 w-4" />
+                  </button>
                   <button
                     onClick={async () => { await signOut(); navigate("/auth"); }}
                     className="flex items-center justify-center rounded-md p-1.5 text-white/50 hover:bg-white/[0.08] hover:text-destructive min-h-[44px] min-w-[44px] touch-manipulation"

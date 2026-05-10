@@ -101,23 +101,34 @@ const tabComponents: Record<string, React.ComponentType<any>> = {
 
 export default function Admin() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isAdmin, isSiteAdmin, isCoach } = useAdmin();
+  const { isAdmin, isSiteAdmin, isCoach, isLeaguesOnly } = useAdmin();
   const coachOnly = !isAdmin && !isSiteAdmin && isCoach;
   const [activeTab, setActiveTab] = useState(() => {
     const urlTab = searchParams.get("tab");
+    if (isLeaguesOnly) return "leagues";
     if (urlTab && tabComponents[urlTab]) return urlTab;
     return coachOnly ? "coaching" : "dashboard";
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
+  // Force leagues-only admins onto the leagues tab
+  useEffect(() => {
+    if (!isLeaguesOnly) return;
+    if (activeTab !== "leagues") setActiveTab("leagues");
+    if (searchParams.get("tab") !== "leagues") {
+      setSearchParams({ tab: "leagues" }, { replace: true });
+    }
+  }, [isLeaguesOnly, activeTab, searchParams, setSearchParams]);
+
   // React to URL ?tab= changes (e.g. from notification clicks)
   useEffect(() => {
+    if (isLeaguesOnly) return;
     const urlTab = searchParams.get("tab");
     if (urlTab && tabComponents[urlTab] && urlTab !== activeTab) {
       setActiveTab(urlTab);
     }
-  }, [searchParams]);
+  }, [searchParams, isLeaguesOnly]);
 
   const ActiveComponent = tabComponents[activeTab] ?? AdminDashboardTab;
 
