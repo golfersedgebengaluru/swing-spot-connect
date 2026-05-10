@@ -137,8 +137,8 @@ function useAdminDashboardStats(cityFilter: string) {
         ...new Set(Object.values(profilesMap).map((p) => p.corporate_account_id).filter(Boolean) as string[]),
       ];
       const corporateMap: Record<string, string> = corporateIds.length > 0
-        ? await supabase.from("corporate_accounts").select("id, name").in("id", corporateIds).then(({ data }) =>
-            Object.fromEntries((data ?? []).map((c: any) => [c.id, c.name]))
+        ? await supabase.from("corporate_accounts").select("id, name, nickname").in("id", corporateIds).then(({ data }) =>
+            Object.fromEntries((data ?? []).map((c: any) => [c.id, (c.nickname && c.nickname.trim()) || c.name]))
           )
         : {};
 
