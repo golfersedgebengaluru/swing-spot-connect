@@ -121,7 +121,7 @@ function Board({
               <li
                 key={r.player_id}
                 className={`flex items-center justify-between rounded-lg px-4 py-3 border transition-all ${
-                  isWinner || isLeader ? accentBg : "bg-stone-50 border-stone-200"
+                  isWinner || isLeader ? accentBg : "bg-white border-stone-100"
                 }`}
               >
                 <div className="flex items-center gap-4">
