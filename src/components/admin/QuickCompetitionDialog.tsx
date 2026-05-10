@@ -26,6 +26,8 @@ export function QuickCompetitionDialog({
   const [entryType, setEntryType] = useState<"free" | "paid">("free");
   const [entryFee, setEntryFee] = useState<string>("");
   const [refundsAllowed, setRefundsAllowed] = useState(false);
+  const [categoriesEnabled, setCategoriesEnabled] = useState(false);
+  const [categoriesText, setCategoriesText] = useState("Men, Ladies");
 
   const create = useCreateQuickCompetition();
 
