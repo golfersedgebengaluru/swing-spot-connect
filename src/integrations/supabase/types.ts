@@ -3624,6 +3624,72 @@ export type Database = {
           },
         ]
       }
+      qc_entries: {
+        Row: {
+          amount: number
+          competition_id: string
+          created_at: string
+          currency: string
+          id: string
+          phone: string
+          player_id: string | null
+          player_name: string
+          razorpay_order_id: string | null
+          razorpay_payment_id: string | null
+          refund_id: string | null
+          refunded_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          competition_id: string
+          created_at?: string
+          currency?: string
+          id?: string
+          phone: string
+          player_id?: string | null
+          player_name: string
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          refund_id?: string | null
+          refunded_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          competition_id?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          phone?: string
+          player_id?: string | null
+          player_name?: string
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          refund_id?: string | null
+          refunded_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qc_entries_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "quick_competitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "qc_entries_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "quick_competition_players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quick_competition_attempts: {
         Row: {
           competition_id: string
@@ -3738,12 +3804,16 @@ export type Database = {
           completed_at: string | null
           created_at: string
           created_by: string | null
+          entry_currency: string
+          entry_fee: number | null
+          entry_type: string
           id: string
           longest_card_url: string | null
           longest_winner_player_id: string | null
           longest_winner_value: number | null
           max_attempts: number
           name: string
+          refunds_allowed: boolean
           sponsor_enabled: boolean
           sponsor_logo_url: string | null
           status: string
@@ -3758,12 +3828,16 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
+          entry_currency?: string
+          entry_fee?: number | null
+          entry_type?: string
           id?: string
           longest_card_url?: string | null
           longest_winner_player_id?: string | null
           longest_winner_value?: number | null
           max_attempts?: number
           name: string
+          refunds_allowed?: boolean
           sponsor_enabled?: boolean
           sponsor_logo_url?: string | null
           status?: string
@@ -3778,12 +3852,16 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
+          entry_currency?: string
+          entry_fee?: number | null
+          entry_type?: string
           id?: string
           longest_card_url?: string | null
           longest_winner_player_id?: string | null
           longest_winner_value?: number | null
           max_attempts?: number
           name?: string
+          refunds_allowed?: boolean
           sponsor_enabled?: boolean
           sponsor_logo_url?: string | null
           status?: string
