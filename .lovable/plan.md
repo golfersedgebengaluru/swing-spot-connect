@@ -1,56 +1,62 @@
 ## Goal
 
-In the Quick Competition admin console, stop the per-row "New attempt" inputs from drifting off-screen as more players are added. Combine player creation and shot entry into a single compact card pinned at the top, and make the bay-screen view and winner certificates pure white so a sponsor logo merges cleanly.
+Let each Quick Competition have multiple categories (e.g. Men, Ladies, Juniors…), assign each player to a category, and show a separate Longest / Straightest board per category on the bay-screen view. Categories are flexible — admin can add/rename/remove them per competition.
 
-## 1. Quick Competition Console — UI cleanup
+## 1. Database (migration)
 
-File: `src/components/admin/QuickCompetitionConsole.tsx`
-
-**Replace the existing "Add player" card with a single top card titled "Add Player & Score":**
+New table `quick_competition_categories`:
 
 ```text
-┌─ Add Player & Score ──────────────────────────────────────┐
-│  [ Player ▼  +New ]   Distance [ __ ]  Offline [ __ ]     │
-│                                                  [ Save ] │
-└────────────────────────────────────────────────────────────┘
+id            uuid pk
+competition_id uuid fk → quick_competitions(id) on delete cascade
+name          text not null   -- "Men", "Ladies", "Juniors"...
+sort_order    int  not null default 0
+created_at    timestamptz default now()
+unique (competition_id, lower(name))
 ```
 
-- Single row of controls (wraps on mobile):
-  - **Player picker** — `Select` listing existing players + a "+ Add new player…" item that swaps the picker for a name input and an inline confirm button. After creation the new player is auto-selected.
-  - **Distance** input (number, unit label from `comp.unit`).
-  - **Offline** input (number, same unit).
-  - **Save** button — calls `addPlayer` if needed, then `saveAttempt` for the selected player, then clears the distance/offline inputs (keeps the player selected for fast repeat entry).
-- Disable Save when no player is selected, when distance/offline are blank/invalid, or when the selected player has hit `comp.max_attempts`.
-- Hidden when `isCompleted` is true.
-- For paid comps, the player picker is populated from the existing paid `players` list; "+ Add new" is hidden (paid players self-register via the join link, same as today).
+`quick_competition_players`: add nullable `category_id uuid references quick_competition_categories(id) on delete set null`.
 
-**Strip per-row entry from the "Players & attempts" table:**
-- Remove the `New attempt ({unitLabel})` and trailing Save column from the table head and body.
-- Keep: Player, Best dist., Best offline, Attempts (chips remain click-to-delete).
-- Result: the table becomes a clean read-only leaderboard; score entry never moves.
+`quick_competitions`: add `categories_enabled boolean default false` so existing single-board comps keep working unchanged.
 
-No changes to hooks, mutations, or data model — purely a re-arrangement of existing pieces.
+**Winner columns**: keep existing `longest_winner_*` / `straightest_winner_*` for the overall winner (used when categories are off). Add a JSONB `category_winners` column on `quick_competitions` that the end-competition function fills with `[{ category_id, name, longest:{player_id,value}, straightest:{player_id,value} }]` so each category gets its own certificate references.
 
-## 2. Bay-screen view — pure white
+Add `longest_card_url` and `straightest_card_url` *per category* by extending the JSONB rather than adding columns — simpler and flexible.
 
-File: `src/pages/QuickCompetitionPublic.tsx`
+RLS: same policies as existing tables (tenant-scoped via competition).
 
-- Page background: `bg-stone-50` → `bg-white`.
-- Board cards: keep `bg-white` but soften border to `border-stone-100` and drop the off-white "leader" tint to a very light neutral (`bg-stone-50 border-stone-200`) so the page stays uniformly white.
-- Header subtitle and muted text stay stone-500 for contrast.
-- No structural changes — colour-token swaps only.
+## 2. Admin console — `QuickCompetitionConsole.tsx`
 
-## 3. Winner certificates — pure white
+- New small "Categories" panel above "Add Player & Score":
+  - Toggle: **Use categories** (writes `categories_enabled`).
+  - When on: chip list of categories with inline rename + delete; an "Add category" input. Defaults seeded once when toggled on: **Men**, **Ladies**.
+- "Add Player & Score" card: when categories are on, add a **Category** select next to the player picker. New-player flow accepts a category too. Existing players show their category as a small badge in the picker and can be re-assigned via a tiny dropdown in the leaderboard table row.
+- Leaderboard table: when categories are on, group rows by category (sub-headings) so admin sees the same split as the bay screen.
 
-File: `supabase/functions/quick-competition-end/index.ts`
+## 3. Create dialog — `QuickCompetitionDialog.tsx`
 
-- SVG background gradient `#FFFFFF → #F5F1E8` becomes a flat `#FFFFFF` (or near-flat `#FFFFFF → #FAFAFA` for a faint sheen).
-- Inner border stroke stays amber/teal but slightly lighter (`opacity=0.35`) so a transparent-PNG sponsor logo sits on a clean white field.
-- Text colours unchanged.
-- Existing certificates keep their current look until the competition is re-ended (same as before).
+Add an optional **Categories** field (comma-separated, default `Men, Ladies`) only shown when the new "Use categories" switch is ticked. On submit, the categories are inserted alongside the competition.
+
+## 4. Bay-screen view — `QuickCompetitionPublic.tsx`
+
+- Fetch categories + players (with category_id) + attempts.
+- If `categories_enabled` is false → render exactly as today (one Longest + one Straightest board).
+- If true → render a section per category, each with its own **Longest Drive** and **Straightest Drive** white cards. Players without a category fall under an "Unassigned" section (hidden if empty). Existing realtime subscriptions cover the new tables (add a channel for `quick_competition_categories`).
+
+## 5. End-competition edge function — `quick-competition-end/index.ts`
+
+- If `categories_enabled` is false → unchanged (overall winners + 2 cards).
+- If true → for each category compute longest/straightest from that category's attempts, generate one SVG per (category × award), upload to `quick-comp-sponsors` bucket (existing), and write the array into `category_winners`. The SVG template gets a small "{Category Name}" line under the title so the cert is self-explanatory. Overall winner columns stay null in this mode.
+
+## 6. Hooks — `useQuickCompetitions.ts`
+
+- New `useQCCategories(competitionId)` query + realtime.
+- `useAddCategory`, `useRenameCategory`, `useRemoveCategory`, `useToggleCategoriesEnabled`.
+- `useAddPlayer` accepts an optional `category_id`.
+- `useUpdatePlayerCategory(playerId, category_id | null)`.
+- Extend `buildLeaderboards` to accept an optional `category_id` filter, or add `buildLeaderboardsByCategory(players, attempts, categories)` returning a map.
 
 ## Out of scope
 
-- No DB migrations.
-- No edge-function logic changes beyond the SVG palette.
-- Leagues admin tab (`AdminLeaguesTab`) is untouched — its Add Player and Score Entry already live on separate tabs.
+- No change to paid-entry flow — paid players land in "Unassigned" until admin assigns them a category (or we can add a category picker on the join page later if you want).
+- Existing certificates for already-ended comps stay as-is.

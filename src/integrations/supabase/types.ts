@@ -3785,26 +3785,68 @@ export type Database = {
           },
         ]
       }
-      quick_competition_players: {
+      quick_competition_categories: {
         Row: {
           competition_id: string
           created_at: string
           id: string
           name: string
+          sort_order: number
         }
         Insert: {
           competition_id: string
           created_at?: string
           id?: string
           name: string
+          sort_order?: number
         }
         Update: {
           competition_id?: string
           created_at?: string
           id?: string
           name?: string
+          sort_order?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "quick_competition_categories_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "quick_competitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quick_competition_players: {
+        Row: {
+          category_id: string | null
+          competition_id: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          category_id?: string | null
+          competition_id: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          category_id?: string | null
+          competition_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quick_competition_players_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "quick_competition_categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "quick_competition_players_competition_id_fkey"
             columns: ["competition_id"]
@@ -3816,6 +3858,8 @@ export type Database = {
       }
       quick_competitions: {
         Row: {
+          categories_enabled: boolean
+          category_winners: Json | null
           completed_at: string | null
           created_at: string
           created_by: string | null
@@ -3840,6 +3884,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          categories_enabled?: boolean
+          category_winners?: Json | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -3864,6 +3910,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          categories_enabled?: boolean
+          category_winners?: Json | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
