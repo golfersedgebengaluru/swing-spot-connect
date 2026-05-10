@@ -40,12 +40,17 @@ export function QuickCompetitionDialog({
     setEntryType("free");
     setEntryFee("");
     setRefundsAllowed(false);
+    setCategoriesEnabled(false);
+    setCategoriesText("Men, Ladies");
   }
 
   async function handleStart() {
     const n = Math.max(1, Math.min(50, parseInt(maxAttempts, 10) || 1));
     const fee = parseFloat(entryFee);
     if (entryType === "paid" && (!Number.isFinite(fee) || fee <= 0)) return;
+    const cats = categoriesEnabled
+      ? categoriesText.split(",").map((s) => s.trim()).filter(Boolean)
+      : [];
     const result = await create.mutateAsync({
       tenant_id: tenantId,
       name: name.trim(),
@@ -57,6 +62,8 @@ export function QuickCompetitionDialog({
       entry_fee: entryType === "paid" ? fee : null,
       entry_currency: "INR",
       refunds_allowed: entryType === "paid" ? refundsAllowed : false,
+      categories_enabled: categoriesEnabled,
+      categories: cats,
     });
     setOpen(false);
     reset();
