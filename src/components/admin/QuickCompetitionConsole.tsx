@@ -78,8 +78,15 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
           )}
           <div>
             <h2 className="text-xl font-semibold">{comp.name}</h2>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <Badge variant={isCompleted ? "secondary" : "default"}>{isCompleted ? "Completed" : "Live"}</Badge>
+              {comp.entry_type === "paid" ? (
+                <Badge variant="outline" className="border-amber-400/60 text-amber-700">
+                  Paid · ₹{Number(comp.entry_fee ?? 0).toFixed(0)}
+                </Badge>
+              ) : (
+                <Badge variant="outline">Free entry</Badge>
+              )}
               <span className="text-xs text-muted-foreground">
                 Up to {comp.max_attempts} attempts · {unitLabel}
               </span>
