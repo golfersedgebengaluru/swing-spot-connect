@@ -129,12 +129,46 @@ export default function QuickCompetitionPublic() {
         ))}
       </div>
 
-      {isCompleted && !useCats && (comp.longest_card_url || comp.straightest_card_url) && (
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 max-w-4xl mx-auto">
-          {comp.longest_card_url && <img src={comp.longest_card_url} alt="Longest winner" className="w-full rounded-xl shadow-2xl" />}
-          {comp.straightest_card_url && <img src={comp.straightest_card_url} alt="Straightest winner" className="w-full rounded-xl shadow-2xl" />}
-        </div>
-      )}
+      {isCompleted && (() => {
+        const certs: { url: string; label: string; filename: string }[] = [];
+        if (useCats) {
+          const winners = (comp.category_winners as QCCategoryWinners | null) ?? [];
+          for (const w of winners) {
+            if (w.longest?.card_url) certs.push({
+              url: w.longest.card_url,
+              label: `${w.name} — Longest Drive`,
+              filename: `${comp.name}-${w.name}-longest.svg`,
+            });
+            if (w.straightest?.card_url) certs.push({
+              url: w.straightest.card_url,
+              label: `${w.name} — Straightest Drive`,
+              filename: `${comp.name}-${w.name}-straightest.svg`,
+            });
+          }
+        } else {
+          if (comp.longest_card_url) certs.push({
+            url: comp.longest_card_url,
+            label: "Longest Drive",
+            filename: `${comp.name}-longest.svg`,
+          });
+          if (comp.straightest_card_url) certs.push({
+            url: comp.straightest_card_url,
+            label: "Straightest Drive",
+            filename: `${comp.name}-straightest.svg`,
+          });
+        }
+        if (certs.length === 0) return null;
+        return (
+          <div className="mt-12 max-w-6xl mx-auto">
+            <h2 className="text-center text-xs uppercase tracking-[0.3em] text-stone-500 mb-6">Winner Certificates</h2>
+            <div className="grid gap-8 sm:grid-cols-2">
+              {certs.map((c) => (
+                <CertificateCard key={c.url} url={c.url} label={c.label} filename={c.filename} />
+              ))}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
