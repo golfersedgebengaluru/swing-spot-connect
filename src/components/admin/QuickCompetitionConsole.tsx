@@ -408,55 +408,27 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
             <div className="flex flex-wrap items-end gap-2">
               <div className="flex-1 min-w-[180px]">
                 <Label className="text-xs text-muted-foreground">Player</Label>
-                {showNewPlayer ? (
-                  <div className="flex flex-wrap gap-1">
-                    <Input
-                      autoFocus
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      placeholder="New player name"
-                      className="flex-1 min-w-[140px]"
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleCreateAndSelect({ keepOpen: true }); } }}
-                    />
-                    {comp.categories_enabled && categories.length > 0 && (
-                      <Select value={newPlayerCategoryId} onValueChange={setNewPlayerCategoryId}>
-                        <SelectTrigger className="h-9 w-32"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none">No category</SelectItem>
-                          {categories.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    <Button size="sm" onClick={() => handleCreateAndSelect({ keepOpen: true })} disabled={addPlayer.isPending || !newName.trim()} title="Add and keep adding">
-                      {addPlayer.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
+                <div className="flex gap-1">
+                  <Select value={entryPlayerId} onValueChange={setEntryPlayerId}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder={players.length === 0 ? "No players yet" : "Select player"} /></SelectTrigger>
+                    <SelectContent>
+                      {players.map((p) => {
+                        const ct = (attemptsByPlayer[p.id] ?? []).length;
+                        const cat = categories.find((c) => c.id === p.category_id);
+                        return (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}{cat ? ` (${cat.name})` : ""} <span className="text-muted-foreground">· {ct}/{comp.max_attempts}</span>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                  {comp.entry_type === "free" && (
+                    <Button size="sm" variant={showNewPlayer ? "secondary" : "outline"} onClick={() => setShowNewPlayer((v) => !v)} title="Add new player">
+                      <Plus className="h-4 w-4" />
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => { setShowNewPlayer(false); setNewName(""); }}>Done</Button>
-                  </div>
-                ) : (
-                  <div className="flex gap-1">
-                    <Select value={entryPlayerId} onValueChange={setEntryPlayerId}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder={players.length === 0 ? "No players yet" : "Select player"} /></SelectTrigger>
-                      <SelectContent>
-                        {players.map((p) => {
-                          const ct = (attemptsByPlayer[p.id] ?? []).length;
-                          const cat = categories.find((c) => c.id === p.category_id);
-                          return (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.name}{cat ? ` (${cat.name})` : ""} <span className="text-muted-foreground">· {ct}/{comp.max_attempts}</span>
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                    {comp.entry_type === "free" && (
-                      <Button size="sm" variant="outline" onClick={() => setShowNewPlayer(true)} title="Add new player">
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
               <div className="w-24">
                 <Label className="text-xs text-muted-foreground">Distance ({unitLabel})</Label>
@@ -485,6 +457,39 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                 {saveAttempt.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save score"}
               </Button>
             </div>
+            {showNewPlayer && (
+              <div className="flex flex-wrap items-end gap-2 pt-2 border-t">
+                <div className="flex-1 min-w-[180px]">
+                  <Label className="text-xs text-muted-foreground">New player name</Label>
+                  <Input
+                    autoFocus
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="e.g. John Smith"
+                    className="h-9"
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleCreateAndSelect({ keepOpen: true }); } }}
+                  />
+                </div>
+                {comp.categories_enabled && categories.length > 0 && (
+                  <div className="w-32">
+                    <Label className="text-xs text-muted-foreground">Category</Label>
+                    <Select value={newPlayerCategoryId} onValueChange={setNewPlayerCategoryId}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">No category</SelectItem>
+                        {categories.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <Button size="sm" onClick={() => handleCreateAndSelect({ keepOpen: true })} disabled={addPlayer.isPending || !newName.trim()}>
+                  {addPlayer.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add player"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => { setShowNewPlayer(false); setNewName(""); }}>Done</Button>
+              </div>
+            )}
             {selectedPlayer && selectedReachedMax && (
               <p className="text-xs text-muted-foreground">{selectedPlayer.name} has reached the max of {comp.max_attempts} attempts.</p>
             )}
