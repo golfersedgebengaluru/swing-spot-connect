@@ -230,20 +230,131 @@ export function useAddPlayer(competitionId: string) {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async (name: string) => {
-      const trimmed = name.trim();
+    mutationFn: async (input: { name: string; category_id?: string | null }) => {
+      const trimmed = input.name.trim();
       if (!trimmed) throw new Error("Name required");
       const { data, error } = await supabase
         .from("quick_competition_players")
-        .insert({ competition_id: competitionId, name: trimmed })
+        .insert({ competition_id: competitionId, name: trimmed, category_id: input.category_id ?? null })
         .select()
         .single();
       if (error) throw error;
-      await audit(competitionId, "add_player", { player_id: data.id, name: trimmed });
+      await audit(competitionId, "add_player", { player_id: data.id, name: trimmed, category_id: input.category_id ?? null });
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["qc-players", competitionId] }),
     onError: (e: Error) => toast({ title: "Could not add player", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useUpdatePlayerCategory(competitionId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (input: { player_id: string; category_id: string | null }) => {
+      const { error } = await supabase
+        .from("quick_competition_players")
+        .update({ category_id: input.category_id })
+        .eq("id", input.player_id);
+      if (error) throw error;
+      await audit(competitionId, "set_player_category", input);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["qc-players", competitionId] }),
+    onError: (e: Error) => toast({ title: "Update failed", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useQCCategories(competitionId: string | null) {
+  return useQuery({
+    queryKey: ["qc-categories", competitionId],
+    enabled: !!competitionId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("quick_competition_categories")
+        .select("*")
+        .eq("competition_id", competitionId!)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as QCCategory[];
+    },
+  });
+}
+
+export function useAddCategory(competitionId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (input: { name: string; sort_order?: number }) => {
+      const trimmed = input.name.trim();
+      if (!trimmed) throw new Error("Name required");
+      const { data, error } = await supabase
+        .from("quick_competition_categories")
+        .insert({ competition_id: competitionId, name: trimmed, sort_order: input.sort_order ?? 0 })
+        .select()
+        .single();
+      if (error) throw error;
+      await audit(competitionId, "add_category", { category_id: data.id, name: trimmed });
+      return data as QCCategory;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["qc-categories", competitionId] }),
+    onError: (e: Error) => toast({ title: "Could not add category", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useRenameCategory(competitionId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (input: { category_id: string; name: string }) => {
+      const trimmed = input.name.trim();
+      if (!trimmed) throw new Error("Name required");
+      const { error } = await supabase
+        .from("quick_competition_categories")
+        .update({ name: trimmed })
+        .eq("id", input.category_id);
+      if (error) throw error;
+      await audit(competitionId, "rename_category", input);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["qc-categories", competitionId] }),
+    onError: (e: Error) => toast({ title: "Rename failed", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useRemoveCategory(competitionId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (categoryId: string) => {
+      const { error } = await supabase
+        .from("quick_competition_categories")
+        .delete()
+        .eq("id", categoryId);
+      if (error) throw error;
+      await audit(competitionId, "remove_category", { category_id: categoryId });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["qc-categories", competitionId] });
+      qc.invalidateQueries({ queryKey: ["qc-players", competitionId] });
+    },
+    onError: (e: Error) => toast({ title: "Delete failed", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useToggleCategoriesEnabled(competitionId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const { error } = await supabase
+        .from("quick_competitions")
+        .update({ categories_enabled: enabled })
+        .eq("id", competitionId);
+      if (error) throw error;
+      await audit(competitionId, "toggle_categories", { enabled });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["quick-comp", competitionId] }),
+    onError: (e: Error) => toast({ title: "Update failed", description: e.message, variant: "destructive" }),
   });
 }
 
