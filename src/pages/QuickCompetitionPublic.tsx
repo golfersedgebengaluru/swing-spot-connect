@@ -103,9 +103,9 @@ function Board({
   completed: boolean;
 }) {
   const accentText = accent === "amber" ? "text-amber-600" : "text-sky-600";
-  const accentBg = accent === "amber" ? "bg-amber-50 border-amber-300" : "bg-sky-50 border-sky-300";
+  const accentBg = accent === "amber" ? "bg-amber-50/60 border-amber-200" : "bg-sky-50/60 border-sky-200";
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-6 sm:p-8">
+    <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-6 sm:p-8">
       <div className="flex items-center gap-3 mb-6">
         {icon}
         <h2 className={`text-2xl sm:text-3xl font-bold ${accentText}`}>{title}</h2>
