@@ -18,8 +18,10 @@ import {
   useQuickCompetition, useQCPlayers, useQCAttempts, useQCRealtime,
   useAddPlayer, useRemovePlayer, useSaveAttempt, useDeleteAttempt, useEndQuickCompetition,
   useUpdateQuickCompetition, useDeleteQuickCompetition,
+  useQCEntries, useRefundQCEntry,
   buildLeaderboards,
 } from "@/hooks/useQuickCompetitions";
+import { Copy, RotateCcw } from "lucide-react";
 
 export function QuickCompetitionConsole({ competitionId, onClose }: { competitionId: string; onClose: () => void }) {
   const { data: comp } = useQuickCompetition(competitionId);
@@ -34,6 +36,8 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
   const endComp = useEndQuickCompetition();
   const updateComp = useUpdateQuickCompetition();
   const deleteComp = useDeleteQuickCompetition();
+  const { data: entries = [] } = useQCEntries(competitionId);
+  const refundEntry = useRefundQCEntry(competitionId);
 
   const [newName, setNewName] = useState("");
   const [drafts, setDrafts] = useState<Record<string, { distance: string; offline: string }>>({});
@@ -74,8 +78,15 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
           )}
           <div>
             <h2 className="text-xl font-semibold">{comp.name}</h2>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <Badge variant={isCompleted ? "secondary" : "default"}>{isCompleted ? "Completed" : "Live"}</Badge>
+              {comp.entry_type === "paid" ? (
+                <Badge variant="outline" className="border-amber-400/60 text-amber-700">
+                  Paid · ₹{Number(comp.entry_fee ?? 0).toFixed(0)}
+                </Badge>
+              ) : (
+                <Badge variant="outline">Free entry</Badge>
+              )}
               <span className="text-xs text-muted-foreground">
                 Up to {comp.max_attempts} attempts · {unitLabel}
               </span>
@@ -221,8 +232,34 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
         </div>
       )}
 
-      {/* Add players + record attempts */}
-      {!isCompleted && (
+      {/* Paid comp: join link + entries */}
+      {comp.entry_type === "paid" && !isCompleted && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Player join link</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex gap-2 items-center">
+              <Input readOnly value={`${window.location.origin}/qc/${competitionId}/join`} className="font-mono text-xs" />
+              <Button size="sm" variant="outline" onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/qc/${competitionId}/join`);
+              }}><Copy className="h-4 w-4" /></Button>
+              <Button size="sm" variant="outline" asChild>
+                <a
+                  href={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(`${window.location.origin}/qc/${competitionId}/join`)}`}
+                  target="_blank" rel="noopener noreferrer"
+                >QR</a>
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Share this link or QR with players. They pay ₹{Number(comp.entry_fee ?? 0).toFixed(0)} to enter and are automatically added to the leaderboard.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Add players (free comps only) */}
+      {!isCompleted && comp.entry_type === "free" && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Add player</CardTitle>
@@ -241,6 +278,59 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                 <Plus className="h-4 w-4" /> Add
               </Button>
             </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Paid entries list */}
+      {comp.entry_type === "paid" && entries.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center justify-between">
+              <span>Entries</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                Collected: ₹{entries.filter(e => e.status === "paid").reduce((s, e) => s + Number(e.amount), 0).toFixed(0)}
+                {" · "}{entries.filter(e => e.status === "paid").length} paid
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Player</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {entries.map((e) => (
+                  <TableRow key={e.id}>
+                    <TableCell className="font-medium">{e.player_name}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{e.phone}</TableCell>
+                    <TableCell>₹{Number(e.amount).toFixed(0)}</TableCell>
+                    <TableCell>
+                      <Badge variant={
+                        e.status === "paid" ? "default" :
+                        e.status === "refunded" ? "secondary" :
+                        e.status === "failed" ? "destructive" : "outline"
+                      }>{e.status}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {e.status === "paid" && comp.refunds_allowed && !isCompleted && (
+                        <Button
+                          size="sm" variant="ghost"
+                          onClick={() => refundEntry.mutate(e.id)}
+                          disabled={refundEntry.isPending}
+                        ><RotateCcw className="h-3 w-3" /> Refund</Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       )}

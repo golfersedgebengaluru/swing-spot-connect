@@ -23,6 +23,9 @@ export function QuickCompetitionDialog({
   const [maxAttempts, setMaxAttempts] = useState<string>("3");
   const [sponsorEnabled, setSponsorEnabled] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [entryType, setEntryType] = useState<"free" | "paid">("free");
+  const [entryFee, setEntryFee] = useState<string>("");
+  const [refundsAllowed, setRefundsAllowed] = useState(false);
 
   const create = useCreateQuickCompetition();
 
@@ -32,10 +35,15 @@ export function QuickCompetitionDialog({
     setMaxAttempts("3");
     setSponsorEnabled(false);
     setLogoFile(null);
+    setEntryType("free");
+    setEntryFee("");
+    setRefundsAllowed(false);
   }
 
   async function handleStart() {
     const n = Math.max(1, Math.min(50, parseInt(maxAttempts, 10) || 1));
+    const fee = parseFloat(entryFee);
+    if (entryType === "paid" && (!Number.isFinite(fee) || fee <= 0)) return;
     const result = await create.mutateAsync({
       tenant_id: tenantId,
       name: name.trim(),
@@ -43,6 +51,10 @@ export function QuickCompetitionDialog({
       max_attempts: n,
       sponsor_enabled: sponsorEnabled,
       sponsor_logo_file: sponsorEnabled ? logoFile : null,
+      entry_type: entryType,
+      entry_fee: entryType === "paid" ? fee : null,
+      entry_currency: "INR",
+      refunds_allowed: entryType === "paid" ? refundsAllowed : false,
     });
     setOpen(false);
     reset();
@@ -105,6 +117,44 @@ export function QuickCompetitionDialog({
                 accept="image/png,image/jpeg,image/svg+xml"
                 onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
               />
+            )}
+          </div>
+
+          <div className="space-y-2 border-t pt-3">
+            <Label>Entry</Label>
+            <RadioGroup value={entryType} onValueChange={(v) => setEntryType(v as "free" | "paid")} className="flex gap-6">
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="free" id="e-free" />
+                <Label htmlFor="e-free" className="font-normal cursor-pointer">Free</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="paid" id="e-paid" />
+                <Label htmlFor="e-paid" className="font-normal cursor-pointer">Paid (Razorpay)</Label>
+              </div>
+            </RadioGroup>
+            {entryType === "paid" && (
+              <div className="space-y-2 pl-1 pt-1">
+                <div className="space-y-1.5">
+                  <Label htmlFor="qc-fee" className="text-xs">Entry fee (₹)</Label>
+                  <Input
+                    id="qc-fee"
+                    type="number"
+                    min={1}
+                    inputMode="decimal"
+                    value={entryFee}
+                    onChange={(e) => setEntryFee(e.target.value)}
+                    placeholder="200"
+                    className="w-32"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="qc-refunds" className="font-normal cursor-pointer text-xs">Allow refunds before competition ends</Label>
+                  <Switch id="qc-refunds" checked={refundsAllowed} onCheckedChange={setRefundsAllowed} />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Players will scan a QR or visit the join page to pay and enter. Uses your city's existing Razorpay account.
+                </p>
+              </div>
             )}
           </div>
         </div>

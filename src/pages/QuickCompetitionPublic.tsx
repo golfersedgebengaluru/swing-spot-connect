@@ -40,6 +40,19 @@ export default function QuickCompetitionPublic() {
         </p>
       </header>
 
+      {comp.entry_type === "paid" && !isCompleted && (
+        <div className="flex flex-col items-center mb-8">
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-2">Join the competition</p>
+          <a
+            href={`/qc/${comp.id}/join`}
+            className="px-6 py-3 rounded-full bg-amber-400 text-slate-950 font-bold text-lg hover:bg-amber-300 transition-colors"
+          >
+            Pay ₹{Number(comp.entry_fee ?? 0).toFixed(0)} & Enter
+          </a>
+          <p className="mt-2 text-xs text-slate-500">Scan or visit /qc/{comp.id.slice(0, 8)}/join</p>
+        </div>
+      )}
+
       {comp.sponsor_enabled && comp.sponsor_logo_url && (
         <div className="flex flex-col items-center mb-10">
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-3">Brought to you by</p>

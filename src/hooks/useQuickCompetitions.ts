@@ -18,8 +18,28 @@ export type QuickCompetition = {
   straightest_winner_value: number | null;
   longest_card_url: string | null;
   straightest_card_url: string | null;
+  entry_type: "free" | "paid";
+  entry_fee: number | null;
+  entry_currency: string;
+  refunds_allowed: boolean;
   created_at: string;
   completed_at: string | null;
+};
+
+export type QCEntry = {
+  id: string;
+  competition_id: string;
+  player_id: string | null;
+  player_name: string;
+  phone: string;
+  amount: number;
+  currency: string;
+  razorpay_order_id: string | null;
+  razorpay_payment_id: string | null;
+  status: "pending" | "paid" | "refunded" | "failed";
+  refund_id: string | null;
+  refunded_at: string | null;
+  created_at: string;
 };
 
 export type QCPlayer = { id: string; competition_id: string; name: string; created_at: string };
@@ -140,6 +160,10 @@ export function useCreateQuickCompetition() {
       max_attempts: number;
       sponsor_enabled: boolean;
       sponsor_logo_file?: File | null;
+      entry_type: "free" | "paid";
+      entry_fee?: number | null;
+      entry_currency?: string;
+      refunds_allowed?: boolean;
     }) => {
       let sponsor_logo_url: string | null = null;
       if (input.sponsor_enabled && input.sponsor_logo_file) {
@@ -161,12 +185,16 @@ export function useCreateQuickCompetition() {
           max_attempts: input.max_attempts,
           sponsor_enabled: input.sponsor_enabled,
           sponsor_logo_url,
+          entry_type: input.entry_type,
+          entry_fee: input.entry_type === "paid" ? input.entry_fee ?? null : null,
+          entry_currency: input.entry_currency || "INR",
+          refunds_allowed: input.refunds_allowed ?? false,
           created_by: u.user?.id ?? null,
         })
         .select()
         .single();
       if (error) throw error;
-      await audit(data.id, "create", { name: input.name, unit: input.unit, max_attempts: input.max_attempts });
+      await audit(data.id, "create", { name: input.name, unit: input.unit, max_attempts: input.max_attempts, entry_type: input.entry_type, entry_fee: input.entry_fee ?? null });
       return data as QuickCompetition;
     },
     onSuccess: (d) => {
@@ -330,6 +358,53 @@ export function useEndQuickCompetition() {
       toast({ title: "Competition ended", description: "Winner cards generated." });
     },
     onError: (e: Error) => toast({ title: "Could not end", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useQCEntries(competitionId: string | null) {
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!competitionId) return;
+    const ch = supabase
+      .channel(`qc-entries-${competitionId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "qc_entries", filter: `competition_id=eq.${competitionId}` }, () => {
+        qc.invalidateQueries({ queryKey: ["qc-entries", competitionId] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [competitionId, qc]);
+  return useQuery({
+    queryKey: ["qc-entries", competitionId],
+    enabled: !!competitionId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("qc_entries").select("*")
+        .eq("competition_id", competitionId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as QCEntry[];
+    },
+  });
+}
+
+export function useRefundQCEntry(competitionId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (entryId: string) => {
+      const { data, error } = await supabase.functions.invoke("qc-refund-entry", {
+        body: { entry_id: entryId },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Refund failed");
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["qc-entries", competitionId] });
+      qc.invalidateQueries({ queryKey: ["qc-players", competitionId] });
+      toast({ title: "Refund issued" });
+    },
+    onError: (e: Error) => toast({ title: "Refund failed", description: e.message, variant: "destructive" }),
   });
 }
 
