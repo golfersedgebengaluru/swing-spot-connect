@@ -32,7 +32,7 @@ export default function QuickCompetitionPublic() {
   const isCompleted = comp.status === "completed";
 
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-900 p-6 sm:p-10">
+    <div className="min-h-screen bg-white text-stone-900 p-6 sm:p-10">
       <header className="text-center mb-10">
         <h1 className="text-4xl sm:text-6xl font-serif italic text-stone-900">{comp.name}</h1>
         <p className="mt-2 text-sm sm:text-base text-stone-500 uppercase tracking-[0.3em]">
