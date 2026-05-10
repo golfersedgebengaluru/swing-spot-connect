@@ -45,12 +45,12 @@ function buildCardSvg(opts: {
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FFFFFF"/>
-      <stop offset="1" stop-color="#F5F1E8"/>
+      <stop offset="1" stop-color="#FAFAFA"/>
     </linearGradient>
   </defs>
   <rect width="1100" height="1100" fill="url(#bg)"/>
-  <rect x="40" y="40" width="1020" height="1020" fill="none" stroke="${accent}" stroke-width="3" rx="20"/>
-  <rect x="60" y="60" width="980" height="980" fill="none" stroke="${accent}" stroke-width="1" opacity="0.4" rx="12"/>
+  <rect x="40" y="40" width="1020" height="1020" fill="none" stroke="${accent}" stroke-width="3" opacity="0.7" rx="20"/>
+  <rect x="60" y="60" width="980" height="980" fill="none" stroke="${accent}" stroke-width="1" opacity="0.35" rx="12"/>
   <text x="550" y="180" text-anchor="middle" font-family="Playfair Display, serif" font-size="48" fill="#2C2C2C" font-style="italic">Champion</text>
   <text x="550" y="270" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="56" fill="${accent}" font-weight="bold" letter-spacing="6">${title}</text>
   <line x1="350" y1="320" x2="750" y2="320" stroke="${accent}" stroke-width="2"/>
