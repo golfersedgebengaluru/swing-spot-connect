@@ -313,6 +313,91 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
         </Card>
       )}
 
+      {/* Categories */}
+      {!isCompleted && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center justify-between">
+              <span>Categories</span>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="cats-toggle" className="text-xs font-normal cursor-pointer">Use categories</Label>
+                <Switch
+                  id="cats-toggle"
+                  checked={comp.categories_enabled}
+                  onCheckedChange={async (on) => {
+                    await toggleCats.mutateAsync(on);
+                    if (on && categories.length === 0) {
+                      await addCategory.mutateAsync({ name: "Men", sort_order: 0 });
+                      await addCategory.mutateAsync({ name: "Ladies", sort_order: 1 });
+                    }
+                  }}
+                />
+              </div>
+            </CardTitle>
+          </CardHeader>
+          {comp.categories_enabled && (
+            <CardContent className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {categories.map((c) => (
+                  <div key={c.id} className="inline-flex items-center gap-1 rounded-full border bg-muted/40 pl-3 pr-1 py-1">
+                    {renamingCatId === c.id ? (
+                      <>
+                        <Input
+                          autoFocus
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          className="h-6 w-28 text-xs"
+                          onKeyDown={async (e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              await renameCategory.mutateAsync({ category_id: c.id, name: renameValue });
+                              setRenamingCatId(null);
+                            } else if (e.key === "Escape") {
+                              setRenamingCatId(null);
+                            }
+                          }}
+                        />
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={async () => {
+                          await renameCategory.mutateAsync({ category_id: c.id, name: renameValue });
+                          setRenamingCatId(null);
+                        }}>Save</Button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className="text-sm hover:underline"
+                          onClick={() => { setRenamingCatId(c.id); setRenameValue(c.name); }}
+                          title="Rename"
+                        >
+                          {c.name}
+                        </button>
+                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0"
+                          onClick={() => removeCategory.mutate(c.id)}
+                          title="Delete category"
+                        ><X className="h-3 w-3" /></Button>
+                      </>
+                    )}
+                  </div>
+                ))}
+                <div className="inline-flex items-center gap-1">
+                  <Input
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="New category"
+                    className="h-8 w-36 text-xs"
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddCategory(); } }}
+                  />
+                  <Button size="sm" variant="outline" className="h-8" onClick={handleAddCategory} disabled={!newCategoryName.trim() || addCategory.isPending}>
+                    <Plus className="h-3 w-3" /> Add
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">Click a chip to rename. Each category gets its own Longest &amp; Straightest board on the bay screen.</p>
+            </CardContent>
+          )}
+        </Card>
+      )}
+
       {/* Add Player & Score (top, single compact card) */}
       {!isCompleted && (
         <Card>
