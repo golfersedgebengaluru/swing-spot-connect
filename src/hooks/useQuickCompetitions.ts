@@ -18,8 +18,28 @@ export type QuickCompetition = {
   straightest_winner_value: number | null;
   longest_card_url: string | null;
   straightest_card_url: string | null;
+  entry_type: "free" | "paid";
+  entry_fee: number | null;
+  entry_currency: string;
+  refunds_allowed: boolean;
   created_at: string;
   completed_at: string | null;
+};
+
+export type QCEntry = {
+  id: string;
+  competition_id: string;
+  player_id: string | null;
+  player_name: string;
+  phone: string;
+  amount: number;
+  currency: string;
+  razorpay_order_id: string | null;
+  razorpay_payment_id: string | null;
+  status: "pending" | "paid" | "refunded" | "failed";
+  refund_id: string | null;
+  refunded_at: string | null;
+  created_at: string;
 };
 
 export type QCPlayer = { id: string; competition_id: string; name: string; created_at: string };
