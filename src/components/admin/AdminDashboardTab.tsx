@@ -54,7 +54,7 @@ function useAdminDashboardStats(cityFilter: string) {
 
       let upcomingQuery = supabase
         .from("bookings")
-        .select("id, status, start_time, end_time, bay_id, user_id, duration_minutes, session_type, city")
+        .select("id, status, start_time, end_time, bay_id, user_id, duration_minutes, session_type, city, invoice_id, corporate_invoice_id")
         .eq("status", "confirmed")
         .gte("start_time", now.toISOString())
         .order("start_time", { ascending: true })
@@ -96,38 +96,77 @@ function useAdminDashboardStats(cityFilter: string) {
         0
       ) / 60;
 
-      // Resolve bay names and user names in parallel (dependent on bookingsData)
+      // Resolve bay names and user profiles (dependent on bookingsData).
+      // NOTE: bookings.user_id may hold either profiles.user_id (auth members)
+      // OR profiles.id (admin-created profile-only members). Dual-key lookup.
       const bayIds = [...new Set((bookingsData ?? []).map((b) => b.bay_id).filter(Boolean))];
-      const userIds = [...new Set((bookingsData ?? []).map((b) => b.user_id).filter(Boolean))];
+      const userKeys = [...new Set((bookingsData ?? []).map((b) => b.user_id).filter(Boolean))];
 
-      const [baysMap, usersMap] = await Promise.all([
+      type ProfileInfo = { name: string; user_type: string | null; corporate_account_id: string | null };
+
+      const [baysMap, profilesMap] = await Promise.all([
         bayIds.length > 0
           ? supabase.from("bays").select("id, name").in("id", bayIds).then(({ data }) =>
               Object.fromEntries((data ?? []).map((b) => [b.id, b.name]))
             )
           : Promise.resolve({} as Record<string, string>),
-        userIds.length > 0
-          ? supabase.from("profiles").select("id, user_id, display_name, email").in("user_id", userIds).then(({ data }) => {
-              const m: Record<string, string> = {};
-              for (const p of data ?? []) {
-                const name = p.display_name || p.email || "Unknown";
-                if (p.user_id) m[p.user_id] = name;
-              }
+        userKeys.length > 0
+          ? Promise.all([
+              supabase.from("profiles")
+                .select("id, user_id, display_name, email, user_type, corporate_account_id")
+                .in("user_id", userKeys),
+              supabase.from("profiles")
+                .select("id, user_id, display_name, email, user_type, corporate_account_id")
+                .in("id", userKeys),
+            ]).then(([{ data: byUid }, { data: byId }]) => {
+              const m: Record<string, ProfileInfo> = {};
+              const toInfo = (p: any): ProfileInfo => ({
+                name: p.display_name || p.email || "Unknown",
+                user_type: p.user_type ?? null,
+                corporate_account_id: p.corporate_account_id ?? null,
+              });
+              for (const p of byUid ?? []) if (p.user_id) m[p.user_id] = toInfo(p);
+              for (const p of byId ?? []) if (!m[p.id]) m[p.id] = toInfo(p);
               return m;
             })
-          : Promise.resolve({} as Record<string, string>),
+          : Promise.resolve({} as Record<string, ProfileInfo>),
       ]);
+
+      // Resolve corporate account names
+      const corporateIds = [
+        ...new Set(Object.values(profilesMap).map((p) => p.corporate_account_id).filter(Boolean) as string[]),
+      ];
+      const corporateMap: Record<string, string> = corporateIds.length > 0
+        ? await supabase.from("corporate_accounts").select("id, name").in("id", corporateIds).then(({ data }) =>
+            Object.fromEntries((data ?? []).map((c: any) => [c.id, c.name]))
+          )
+        : {};
 
       return {
         totalBookings: totalBookings ?? 0,
         memberCount: memberCount ?? 0,
         revenue,
         hoursSold,
-        upcomingBookings: (bookingsData ?? []).map((b) => ({
-          ...b,
-          bayName: b.bay_id ? baysMap[b.bay_id] ?? "Bay" : "Bay",
-          userName: usersMap[b.user_id] ?? "Unknown",
-        })),
+        upcomingBookings: (bookingsData ?? []).map((b) => {
+          const profile = profilesMap[b.user_id];
+          const corporateName = profile?.corporate_account_id
+            ? corporateMap[profile.corporate_account_id] ?? null
+            : null;
+          // "Hours" tag: member (birdie/coaching) + practice session + no invoice + no corporate
+          const isMember = profile?.user_type === "birdie" || profile?.user_type === "coaching";
+          const isCoaching = b.session_type === "coaching";
+          const isCorporate = !!corporateName || !!b.corporate_invoice_id;
+          const usingHours = isMember && !isCoaching && !isCorporate && !b.invoice_id;
+          return {
+            ...b,
+            bayName: b.bay_id ? baysMap[b.bay_id] ?? "Bay" : "Bay",
+            userName: profile?.name ?? "Unknown",
+            corporateName,
+            isCoaching,
+            isCorporate,
+            usingHours,
+          };
+        }),
         topMembers: topMembers ?? [],
       };
     },
@@ -255,7 +294,24 @@ export function AdminDashboardTab({ onNavigate }: AdminDashboardTabProps = {}) {
                       {getBayShort(b.bayName)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{b.userName}</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-sm font-medium text-foreground truncate">{b.userName}</p>
+                        {b.isCoaching && (
+                          <span className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-purple-100 text-purple-700">
+                            Coaching
+                          </span>
+                        )}
+                        {b.isCorporate && (
+                          <span className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700">
+                            {b.corporateName ? `Corporate · ${b.corporateName}` : "Corporate"}
+                          </span>
+                        )}
+                        {b.usingHours && (
+                          <span className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700">
+                            Hours
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">
                         {b.bayName} · {timeStr}
                       </p>
