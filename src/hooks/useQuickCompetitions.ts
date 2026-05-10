@@ -583,3 +583,27 @@ export function buildLeaderboards(players: QCPlayer[], attempts: QCAttempt[]) {
     .sort((a, b) => a.value - b.value || a.ts.localeCompare(b.ts));
   return { longest: longestArr, straightest: straightArr };
 }
+
+/** Group leaderboards by category. Players without a category fall under "Unassigned". */
+export function buildLeaderboardsByCategory(
+  players: QCPlayer[],
+  attempts: QCAttempt[],
+  categories: QCCategory[],
+) {
+  const groups: { id: string | null; name: string; longest: ReturnType<typeof buildLeaderboards>["longest"]; straightest: ReturnType<typeof buildLeaderboards>["straightest"] }[] = [];
+  for (const cat of categories) {
+    const ids = new Set(players.filter((p) => p.category_id === cat.id).map((p) => p.id));
+    const subPlayers = players.filter((p) => ids.has(p.id));
+    const subAttempts = attempts.filter((a) => ids.has(a.player_id));
+    const lb = buildLeaderboards(subPlayers, subAttempts);
+    groups.push({ id: cat.id, name: cat.name, ...lb });
+  }
+  const unassigned = players.filter((p) => !p.category_id);
+  if (unassigned.length > 0) {
+    const ids = new Set(unassigned.map((p) => p.id));
+    const subAttempts = attempts.filter((a) => ids.has(a.player_id));
+    const lb = buildLeaderboards(unassigned, subAttempts);
+    groups.push({ id: null, name: "Unassigned", ...lb });
+  }
+  return groups;
+}
