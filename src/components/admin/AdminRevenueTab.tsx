@@ -257,23 +257,23 @@ export function AdminRevenueTab() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between">
-              <div>
+          <CardContent className="p-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Total Revenue</p>
-                <p className="mt-1 font-display text-xl font-bold text-foreground">
+                <p className="mt-1 font-display text-lg font-bold text-foreground truncate">
                   {loadingSummary ? "…" : (summary?.totalRevenue ?? 0).toLocaleString()}
                 </p>
                 {revenueChange !== null && (
-                  <p className={`mt-1 text-xs flex items-center gap-1 ${revenueChange >= 0 ? "text-green-600" : "text-red-600"}`}>
+                  <p className={`mt-1 text-[11px] flex items-center gap-1 ${revenueChange >= 0 ? "text-green-600" : "text-red-600"}`}>
                     {revenueChange >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                     {revenueChange >= 0 ? "+" : ""}{revenueChange.toFixed(1)}% vs prev
                   </p>
                 )}
               </div>
-              <div className="rounded-lg bg-primary/10 p-2">
+              <div className="rounded-lg bg-primary/10 p-1.5 shrink-0">
                 <span className="text-sm font-semibold text-primary">{currencySymbol}</span>
               </div>
             </div>
@@ -286,25 +286,27 @@ export function AdminRevenueTab() {
             { label: "F&B", key: "Food & Beverage" },
             { label: "Equipment", key: "Equipment" },
             { label: "Apparel", key: "Apparel" },
+            { label: "Membership", key: "Membership" },
             { label: "Bay Usage", key: "Bay Usage" },
           ];
           const catColors = [
             { bg: "bg-green-100", text: "text-green-800" },
             { bg: "bg-amber-100", text: "text-amber-800" },
             { bg: "bg-purple-100", text: "text-purple-800" },
+            { bg: "bg-rose-100", text: "text-rose-800" },
             { bg: "bg-blue-100", text: "text-blue-800" },
           ];
           return displayCategories.map((cat, i) => (
             <Card key={cat.key}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div>
+              <CardContent className="p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">{cat.label}</p>
-                    <p className="mt-1 font-display text-xl font-bold text-foreground">
+                    <p className="mt-1 font-display text-lg font-bold text-foreground truncate">
                       {loadingSummary ? "…" : `${currencySymbol}${(summary?.byCategory?.[cat.key] ?? 0).toLocaleString()}`}
                     </p>
                   </div>
-                  <div className={`rounded-lg ${catColors[i].bg} p-2`}>
+                  <div className={`rounded-lg ${catColors[i].bg} p-1.5 shrink-0`}>
                     <CreditCard className={`h-4 w-4 ${catColors[i].text}`} />
                   </div>
                 </div>

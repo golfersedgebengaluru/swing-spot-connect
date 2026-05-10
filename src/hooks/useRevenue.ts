@@ -277,7 +277,9 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
         byCategory["Bay Usage"] = bayUsageTotal;
       }
 
-      // For non-bay transactions, break down by invoice line-item product categories
+      // For non-bay transactions, break down by invoice line-item product categories.
+      // Any non-bay transaction without invoice line items (e.g. hour/membership package
+      // purchases) is attributed to "Membership" so totals reconcile with Total Revenue.
       if (otherTxns.length > 0) {
         const otherIds = otherTxns.map((t: any) => t.id).filter(Boolean);
         const { data: invoices } = await supabase
@@ -285,7 +287,13 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
           .select("id, revenue_transaction_id")
           .in("revenue_transaction_id", otherIds);
 
+        const invoiceByTxn = new Map<string, string>();
+        for (const inv of invoices ?? []) {
+          if (inv.revenue_transaction_id) invoiceByTxn.set(inv.revenue_transaction_id, inv.id);
+        }
+
         const invoiceIds = (invoices ?? []).map((inv) => inv.id);
+        const lineTotalsByInvoice = new Map<string, number>();
         if (invoiceIds.length > 0) {
           const { data: lineItems } = await supabase
             .from("invoice_line_items")
@@ -303,8 +311,20 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
           }
 
           for (const li of lineItems ?? []) {
-            const cat = li.product_id ? (productCategoryMap[li.product_id] || "Other") : "Other";
+            const cat = li.product_id ? (productCategoryMap[li.product_id] || "Membership") : "Membership";
             byCategory[cat] = (byCategory[cat] || 0) + Number(li.line_total);
+            lineTotalsByInvoice.set(li.invoice_id, (lineTotalsByInvoice.get(li.invoice_id) ?? 0) + Number(li.line_total));
+          }
+        }
+
+        // Residual: transactions without an invoice OR whose invoice has no line items
+        // → attribute to Membership (covers hour packages, prepaid membership, etc.)
+        for (const t of otherTxns) {
+          const invId = invoiceByTxn.get((t as any).id);
+          const lineSum = invId ? (lineTotalsByInvoice.get(invId) ?? 0) : 0;
+          const residual = Number(t.amount) - lineSum;
+          if (residual > 0) {
+            byCategory["Membership"] = (byCategory["Membership"] || 0) + residual;
           }
         }
       }
