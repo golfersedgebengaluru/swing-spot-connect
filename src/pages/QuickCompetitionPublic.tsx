@@ -1,9 +1,41 @@
 import { useParams } from "react-router-dom";
-import { Trophy, Target, Loader2 } from "lucide-react";
+import { Trophy, Target, Loader2, Download } from "lucide-react";
 import {
   useQuickCompetition, useQCPlayers, useQCAttempts, useQCCategories, useQCRealtime,
   buildLeaderboards, buildLeaderboardsByCategory,
+  type QCCategoryWinners,
 } from "@/hooks/useQuickCompetitions";
+
+async function downloadCard(url: string, filename: string) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
+  } catch {
+    window.open(url, "_blank");
+  }
+}
+
+function CertificateCard({ url, label, filename }: { url: string; label: string; filename: string }) {
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <img src={url} alt={label} className="w-full rounded-xl shadow-2xl bg-white" />
+      <button
+        onClick={() => downloadCard(url, filename)}
+        className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-stone-900 text-white text-sm font-medium hover:bg-stone-700 transition-colors"
+      >
+        <Download className="h-4 w-4" /> Download {label}
+      </button>
+    </div>
+  );
+}
 
 export default function QuickCompetitionPublic() {
   const { id } = useParams<{ id: string }>();
