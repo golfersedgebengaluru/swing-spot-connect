@@ -359,6 +359,52 @@ export function useEndQuickCompetition() {
     },
     onError: (e: Error) => toast({ title: "Could not end", description: e.message, variant: "destructive" }),
   });
+
+export function useQCEntries(competitionId: string | null) {
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!competitionId) return;
+    const ch = supabase
+      .channel(`qc-entries-${competitionId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "qc_entries", filter: `competition_id=eq.${competitionId}` }, () => {
+        qc.invalidateQueries({ queryKey: ["qc-entries", competitionId] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [competitionId, qc]);
+  return useQuery({
+    queryKey: ["qc-entries", competitionId],
+    enabled: !!competitionId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("qc_entries").select("*")
+        .eq("competition_id", competitionId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as QCEntry[];
+    },
+  });
+}
+
+export function useRefundQCEntry(competitionId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (entryId: string) => {
+      const { data, error } = await supabase.functions.invoke("qc-refund-entry", {
+        body: { entry_id: entryId },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Refund failed");
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["qc-entries", competitionId] });
+      qc.invalidateQueries({ queryKey: ["qc-players", competitionId] });
+      toast({ title: "Refund issued" });
+    },
+    onError: (e: Error) => toast({ title: "Refund failed", description: e.message, variant: "destructive" }),
+  });
 }
 
 /** Compute leaderboards from attempts. Tie-break: earliest qualifying attempt. */
