@@ -298,13 +298,22 @@ export function AdminSidebar({
             </div>
           )}
           {!collapsed && (
-            <button
-              onClick={async () => { await signOut(); navigate("/auth"); }}
-              className="flex items-center justify-center rounded-md p-1.5 text-white/50 hover:bg-white/[0.08] hover:text-destructive min-h-[36px] min-w-[36px]"
-              title="Sign Out"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
+            <>
+              <button
+                onClick={() => navigate("/change-password")}
+                className="flex items-center justify-center rounded-md p-1.5 text-white/50 hover:bg-white/[0.08] hover:text-white min-h-[36px] min-w-[36px]"
+                title="Change Password"
+              >
+                <KeyRound className="h-4 w-4" />
+              </button>
+              <button
+                onClick={async () => { await signOut(); navigate("/auth"); }}
+                className="flex items-center justify-center rounded-md p-1.5 text-white/50 hover:bg-white/[0.08] hover:text-destructive min-h-[36px] min-w-[36px]"
+                title="Sign Out"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -385,6 +394,13 @@ export function AdminSidebar({
                     </p>
                     <p className="text-xs text-white/40">{roleLabel}</p>
                   </div>
+                  <button
+                    onClick={() => navigate("/change-password")}
+                    className="flex items-center justify-center rounded-md p-1.5 text-white/50 hover:bg-white/[0.08] hover:text-white min-h-[44px] min-w-[44px] touch-manipulation"
+                    title="Change Password"
+                  >
+                    <KeyRound className="h-4 w-4" />
+                  </button>
                   <button
                     onClick={async () => { await signOut(); navigate("/auth"); }}
                     className="flex items-center justify-center rounded-md p-1.5 text-white/50 hover:bg-white/[0.08] hover:text-destructive min-h-[44px] min-w-[44px] touch-manipulation"
