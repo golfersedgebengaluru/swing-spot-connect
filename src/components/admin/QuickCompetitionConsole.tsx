@@ -46,6 +46,11 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
   const [editName, setEditName] = useState("");
   const [editSponsorEnabled, setEditSponsorEnabled] = useState(false);
   const [editSponsorFile, setEditSponsorFile] = useState<File | null>(null);
+  // Top "Add Player & Score" card state
+  const [entryPlayerId, setEntryPlayerId] = useState<string>("");
+  const [entryDistance, setEntryDistance] = useState("");
+  const [entryOffline, setEntryOffline] = useState("");
+  const [showNewPlayer, setShowNewPlayer] = useState(false);
 
   if (!comp) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
