@@ -110,12 +110,18 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
   async function handleCreateAndSelect(opts?: { keepOpen?: boolean }) {
     const name = newName.trim();
     if (!name) return;
-    const created: any = await addPlayer.mutateAsync(name);
+    const cat = comp.categories_enabled && newPlayerCategoryId !== "__none" ? newPlayerCategoryId : null;
+    const created: { id?: string } = await addPlayer.mutateAsync({ name, category_id: cat });
     setNewName("");
-    // Auto-select only if nothing is selected yet, so rapid pre-adding doesn't
-    // hijack the player currently lined up to hit.
     if (created?.id && !entryPlayerId) setEntryPlayerId(created.id);
     if (!opts?.keepOpen) setShowNewPlayer(false);
+  }
+
+  async function handleAddCategory() {
+    const n = newCategoryName.trim();
+    if (!n) return;
+    await addCategory.mutateAsync({ name: n, sort_order: categories.length });
+    setNewCategoryName("");
   }
 
   return (
