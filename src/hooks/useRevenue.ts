@@ -254,32 +254,36 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
       }
 
       // --- Revenue by product category ---
-      // All booking & guest_booking transactions are Bay Usage.
-      // Other transaction types use invoice line-item product categories.
-      const BAY_USAGE_TYPES = new Set(["booking", "guest_booking"]);
+      // Classification rules (strict, no silent fallbacks):
+      //   • Bay Usage   → transaction_type in (booking, guest_booking) OR booking_id IS NOT NULL
+      //                   (covers `payment`-type online bay payments via Razorpay/Stripe)
+      //   • Membership  → hours_transaction_id IS NOT NULL (hour/coaching/birdie packages)
+      //   • Otherwise   → break down by invoice line-item product category; anything still
+      //                   unclassified goes to "Other" (NEVER to Membership).
       const nonRefundConfirmed = confirmed.filter((t) => t.transaction_type !== "refund");
 
       const byCategory: Record<string, number> = {};
 
       const bayUsageTxns: typeof nonRefundConfirmed = [];
+      const membershipTxns: typeof nonRefundConfirmed = [];
       const otherTxns: typeof nonRefundConfirmed = [];
       for (const t of nonRefundConfirmed) {
-        if (BAY_USAGE_TYPES.has(t.transaction_type)) {
-          bayUsageTxns.push(t);
-        } else {
-          otherTxns.push(t);
-        }
+        const isBay = t.transaction_type === "booking"
+          || t.transaction_type === "guest_booking"
+          || !!(t as any).booking_id;
+        const isMembership = !!(t as any).hours_transaction_id;
+        if (isBay) bayUsageTxns.push(t);
+        else if (isMembership) membershipTxns.push(t);
+        else otherTxns.push(t);
       }
 
-      // Bay Usage = sum of all booking/guest_booking amounts
       const bayUsageTotal = bayUsageTxns.reduce((s, t) => s + Number(t.amount), 0);
-      if (bayUsageTotal > 0) {
-        byCategory["Bay Usage"] = bayUsageTotal;
-      }
+      if (bayUsageTotal > 0) byCategory["Bay Usage"] = bayUsageTotal;
 
-      // For non-bay transactions, break down by invoice line-item product categories.
-      // Any non-bay transaction without invoice line items (e.g. hour/membership package
-      // purchases) is attributed to "Membership" so totals reconcile with Total Revenue.
+      const membershipTotal = membershipTxns.reduce((s, t) => s + Number(t.amount), 0);
+      if (membershipTotal > 0) byCategory["Membership"] = membershipTotal;
+
+      // For remaining (purchase invoices etc.), break down by invoice line-item product categories.
       if (otherTxns.length > 0) {
         const otherIds = otherTxns.map((t: any) => t.id).filter(Boolean);
         const { data: invoices } = await supabase
@@ -311,20 +315,19 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
           }
 
           for (const li of lineItems ?? []) {
-            const cat = li.product_id ? (productCategoryMap[li.product_id] || "Membership") : "Membership";
+            const cat = li.product_id ? (productCategoryMap[li.product_id] || "Other") : "Other";
             byCategory[cat] = (byCategory[cat] || 0) + Number(li.line_total);
             lineTotalsByInvoice.set(li.invoice_id, (lineTotalsByInvoice.get(li.invoice_id) ?? 0) + Number(li.line_total));
           }
         }
 
-        // Residual: transactions without an invoice OR whose invoice has no line items
-        // → attribute to Membership (covers hour packages, prepaid membership, etc.)
+        // Residual (txn amount not covered by line items) → "Other", never Membership.
         for (const t of otherTxns) {
           const invId = invoiceByTxn.get((t as any).id);
           const lineSum = invId ? (lineTotalsByInvoice.get(invId) ?? 0) : 0;
           const residual = Number(t.amount) - lineSum;
           if (residual > 0) {
-            byCategory["Membership"] = (byCategory["Membership"] || 0) + residual;
+            byCategory["Other"] = (byCategory["Other"] || 0) + residual;
           }
         }
       }
