@@ -1,66 +1,56 @@
-# Leagues-only Admin Login
+## Goal
 
-Create a dedicated admin account `contests@golfers-edge.com` that, on login, sees **only the Leagues screen** in the admin panel — nothing else. Password changeable later by the user themselves from their Profile page.
+In the Quick Competition admin console, stop the per-row "New attempt" inputs from drifting off-screen as more players are added. Combine player creation and shot entry into a single compact card pinned at the top, and make the bay-screen view and winner certificates pure white so a sponsor logo merges cleanly.
 
-## Approach (pragmatic, fastest to ship)
+## 1. Quick Competition Console — UI cleanup
 
-The account gets the regular `admin` role (full DB write power on league tables), but we add a tiny "leagues-only" flag that the UI uses to:
-- force the admin panel to land on the **Leagues** tab,
-- hide every other sidebar group/item,
-- block URL tampering (`/admin?tab=settings` → snaps back to Leagues),
-- redirect them to `/admin?tab=leagues` from `/`, `/dashboard`, etc.
+File: `src/components/admin/QuickCompetitionConsole.tsx`
 
-This avoids rewriting every league-related RLS policy across ~15 tables. Security model: this account is for trusted contests staff; restriction is UI-enforced. We can upgrade to a separate DB role later if needed.
+**Replace the existing "Add player" card with a single top card titled "Add Player & Score":**
 
-## Backend changes
+```text
+┌─ Add Player & Score ──────────────────────────────────────┐
+│  [ Player ▼  +New ]   Distance [ __ ]  Offline [ __ ]     │
+│                                                  [ Save ] │
+└────────────────────────────────────────────────────────────┘
+```
 
-1. **Migration** — create one tiny table:
-   ```sql
-   create table public.leagues_only_admins (
-     user_id uuid primary key references auth.users(id) on delete cascade,
-     created_at timestamptz not null default now()
-   );
-   alter table public.leagues_only_admins enable row level security;
-   create policy "Self can read" on public.leagues_only_admins
-     for select to authenticated using (auth.uid() = user_id);
-   create policy "Admins manage" on public.leagues_only_admins
-     for all to authenticated
-     using (public.has_role(auth.uid(), 'admin'))
-     with check (public.has_role(auth.uid(), 'admin'));
-   ```
+- Single row of controls (wraps on mobile):
+  - **Player picker** — `Select` listing existing players + a "+ Add new player…" item that swaps the picker for a name input and an inline confirm button. After creation the new player is auto-selected.
+  - **Distance** input (number, unit label from `comp.unit`).
+  - **Offline** input (number, same unit).
+  - **Save** button — calls `addPlayer` if needed, then `saveAttempt` for the selected player, then clears the distance/offline inputs (keeps the player selected for fast repeat entry).
+- Disable Save when no player is selected, when distance/offline are blank/invalid, or when the selected player has hit `comp.max_attempts`.
+- Hidden when `isCompleted` is true.
+- For paid comps, the player picker is populated from the existing paid `players` list; "+ Add new" is hidden (paid players self-register via the join link, same as today).
 
-2. **Edge function `seed-leagues-admin`** (idempotent, one-shot):
-   - Uses service role to:
-     - find or create auth user `contests@golfers-edge.com` with password `Passwd@geb1234!` and `email_confirm: true`
-     - upsert `user_roles { user_id, role: 'admin' }`
-     - insert into `leagues_only_admins`
-   - I'll deploy + curl it once to provision the account, then it stays available if needed.
+**Strip per-row entry from the "Players & attempts" table:**
+- Remove the `New attempt ({unitLabel})` and trailing Save column from the table head and body.
+- Keep: Player, Best dist., Best offline, Attempts (chips remain click-to-delete).
+- Result: the table becomes a clean read-only leaderboard; score entry never moves.
 
-## Frontend changes
+No changes to hooks, mutations, or data model — purely a re-arrangement of existing pieces.
 
-3. **`useAdmin.ts`** — add a `isLeaguesOnly` flag (cheap select on `leagues_only_admins` for the current user; cached 5 min).
+## 2. Bay-screen view — pure white
 
-4. **`AdminSidebar.tsx`** — when `isLeaguesOnly`:
-   - render only the **Leagues** nav item (skip all groups/sections)
-   - keep the sign-out + collapse controls
+File: `src/pages/QuickCompetitionPublic.tsx`
 
-5. **`Admin.tsx`** — when `isLeaguesOnly`:
-   - force `activeTab = "leagues"` on mount and any URL-`?tab=` change
-   - if the URL has another tab, rewrite it to `?tab=leagues`
+- Page background: `bg-stone-50` → `bg-white`.
+- Board cards: keep `bg-white` but soften border to `border-stone-100` and drop the off-white "leader" tint to a very light neutral (`bg-stone-50 border-stone-200`) so the page stays uniformly white.
+- Header subtitle and muted text stay stone-500 for contrast.
+- No structural changes — colour-token swaps only.
 
-6. **Route gating** — in `Index.tsx` (and `Dashboard.tsx` if needed), if `isLeaguesOnly`, redirect to `/admin?tab=leagues` so they can't browse the member site.
+## 3. Winner certificates — pure white
 
-7. **Password change** — add a small "Change password" card in `src/pages/Profile.tsx` (current + new password fields, calls `supabase.auth.updateUser({ password })`). Available to all logged-in users, not just this account.
+File: `supabase/functions/quick-competition-end/index.ts`
+
+- SVG background gradient `#FFFFFF → #F5F1E8` becomes a flat `#FFFFFF` (or near-flat `#FFFFFF → #FAFAFA` for a faint sheen).
+- Inner border stroke stays amber/teal but slightly lighter (`opacity=0.35`) so a transparent-PNG sponsor logo sits on a clean white field.
+- Text colours unchanged.
+- Existing certificates keep their current look until the competition is re-ended (same as before).
 
 ## Out of scope
 
-- No new DB role / no rewriting of league RLS
-- No separate `/league-admin` route — reuses `/admin` with tab pinned to `leagues`
-- No restriction on which leagues they can manage (full admin within Leagues)
-
-## What you'll be able to do after this ships
-
-- Log in at `/auth` as `contests@golfers-edge.com` / `Passwd@geb1234!`
-- Land directly on the Leagues admin screen with full league management powers
-- See no other tabs, no dashboard, no settings, no members, etc.
-- Change password anytime from `/profile`
+- No DB migrations.
+- No edge-function logic changes beyond the SVG palette.
+- Leagues admin tab (`AdminLeaguesTab`) is untouched — its Add Player and Score Entry already live on separate tabs.
