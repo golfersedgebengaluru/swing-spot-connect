@@ -30,6 +30,7 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
   const { data: comp } = useQuickCompetition(competitionId);
   const { data: players = [] } = useQCPlayers(competitionId);
   const { data: attempts = [] } = useQCAttempts(competitionId);
+  const { data: categories = [] } = useQCCategories(competitionId);
   useQCRealtime(competitionId);
 
   const addPlayer = useAddPlayer(competitionId);
@@ -41,6 +42,11 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
   const deleteComp = useDeleteQuickCompetition();
   const { data: entries = [] } = useQCEntries(competitionId);
   const refundEntry = useRefundQCEntry(competitionId);
+  const addCategory = useAddCategory(competitionId);
+  const renameCategory = useRenameCategory(competitionId);
+  const removeCategory = useRemoveCategory(competitionId);
+  const toggleCats = useToggleCategoriesEnabled(competitionId);
+  const updatePlayerCat = useUpdatePlayerCategory(competitionId);
 
   const [newName, setNewName] = useState("");
   const [drafts, setDrafts] = useState<Record<string, { distance: string; offline: string }>>({});
@@ -53,6 +59,10 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
   const [entryDistance, setEntryDistance] = useState("");
   const [entryOffline, setEntryOffline] = useState("");
   const [showNewPlayer, setShowNewPlayer] = useState(false);
+  const [newPlayerCategoryId, setNewPlayerCategoryId] = useState<string>("__none");
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [renamingCatId, setRenamingCatId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   if (!comp) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
