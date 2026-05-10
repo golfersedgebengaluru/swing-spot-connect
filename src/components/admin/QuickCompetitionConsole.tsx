@@ -64,11 +64,8 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
   const [renamingCatId, setRenamingCatId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
-  if (!comp) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
-
-  const unitLabel = comp.unit === "yd" ? "yd" : "m";
-  const isCompleted = comp.status === "completed";
-  const { longest, straightest } = buildLeaderboards(players, attempts);
+  const isCompleted = comp?.status === "completed";
+  const maxAttempts = comp?.max_attempts ?? 0;
 
   const attemptsByPlayer = attempts.reduce<Record<string, typeof attempts>>((acc, a) => {
     (acc[a.player_id] ||= []).push(a);
@@ -76,19 +73,21 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
   }, {});
 
   useEffect(() => {
-    if (isCompleted) return;
-
+    if (!comp || isCompleted) return;
     if (players.length === 0) {
       if (entryPlayerId) setEntryPlayerId("");
       return;
     }
-
     const stillExists = players.some((player) => player.id === entryPlayerId);
     if (stillExists) return;
-
-    const nextAvailablePlayer = players.find((player) => (attemptsByPlayer[player.id] ?? []).length < comp.max_attempts) ?? players[0];
+    const nextAvailablePlayer = players.find((player) => (attemptsByPlayer[player.id] ?? []).length < maxAttempts) ?? players[0];
     if (nextAvailablePlayer) setEntryPlayerId(nextAvailablePlayer.id);
-  }, [attempts, comp.max_attempts, entryPlayerId, isCompleted, players]);
+  }, [attempts, maxAttempts, entryPlayerId, isCompleted, players, comp]);
+
+  if (!comp) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+
+  const unitLabel = comp.unit === "yd" ? "yd" : "m";
+  const { longest, straightest } = buildLeaderboards(players, attempts);
 
   const publicUrl = `${window.location.origin}/qc/${competitionId}`;
 
