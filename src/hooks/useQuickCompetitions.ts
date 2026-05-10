@@ -160,6 +160,10 @@ export function useCreateQuickCompetition() {
       max_attempts: number;
       sponsor_enabled: boolean;
       sponsor_logo_file?: File | null;
+      entry_type: "free" | "paid";
+      entry_fee?: number | null;
+      entry_currency?: string;
+      refunds_allowed?: boolean;
     }) => {
       let sponsor_logo_url: string | null = null;
       if (input.sponsor_enabled && input.sponsor_logo_file) {
@@ -181,12 +185,16 @@ export function useCreateQuickCompetition() {
           max_attempts: input.max_attempts,
           sponsor_enabled: input.sponsor_enabled,
           sponsor_logo_url,
+          entry_type: input.entry_type,
+          entry_fee: input.entry_type === "paid" ? input.entry_fee ?? null : null,
+          entry_currency: input.entry_currency || "INR",
+          refunds_allowed: input.refunds_allowed ?? false,
           created_by: u.user?.id ?? null,
         })
         .select()
         .single();
       if (error) throw error;
-      await audit(data.id, "create", { name: input.name, unit: input.unit, max_attempts: input.max_attempts });
+      await audit(data.id, "create", { name: input.name, unit: input.unit, max_attempts: input.max_attempts, entry_type: input.entry_type, entry_fee: input.entry_fee ?? null });
       return data as QuickCompetition;
     },
     onSuccess: (d) => {
