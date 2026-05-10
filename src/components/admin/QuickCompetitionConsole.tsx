@@ -293,29 +293,90 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
         </Card>
       )}
 
-      {/* Add players (free comps only) */}
-      {!isCompleted && comp.entry_type === "free" && (
+      {/* Add Player & Score (top, single compact card) */}
+      {!isCompleted && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Add player</CardTitle>
+            <CardTitle className="text-sm">Add Player &amp; Score</CardTitle>
           </CardHeader>
-          <CardContent>
-            <form
-              className="flex gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!newName.trim()) return;
-                addPlayer.mutate(newName, { onSuccess: () => setNewName("") });
-              }}
-            >
-              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Player name" />
-              <Button type="submit" size="sm" disabled={addPlayer.isPending || !newName.trim()}>
-                <Plus className="h-4 w-4" /> Add
+          <CardContent className="space-y-2">
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="flex-1 min-w-[180px]">
+                <Label className="text-xs text-muted-foreground">Player</Label>
+                {showNewPlayer ? (
+                  <div className="flex gap-1">
+                    <Input
+                      autoFocus
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      placeholder="New player name"
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleCreateAndSelect(); } }}
+                    />
+                    <Button size="sm" onClick={handleCreateAndSelect} disabled={addPlayer.isPending || !newName.trim()}>
+                      {addPlayer.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setShowNewPlayer(false); setNewName(""); }}>Cancel</Button>
+                  </div>
+                ) : (
+                  <div className="flex gap-1">
+                    <Select value={entryPlayerId} onValueChange={setEntryPlayerId}>
+                      <SelectTrigger className="h-9"><SelectValue placeholder={players.length === 0 ? "No players yet" : "Select player"} /></SelectTrigger>
+                      <SelectContent>
+                        {players.map((p) => {
+                          const ct = (attemptsByPlayer[p.id] ?? []).length;
+                          return (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name} <span className="text-muted-foreground">· {ct}/{comp.max_attempts}</span>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                    {comp.entry_type === "free" && (
+                      <Button size="sm" variant="outline" onClick={() => setShowNewPlayer(true)} title="Add new player">
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="w-24">
+                <Label className="text-xs text-muted-foreground">Distance ({unitLabel})</Label>
+                <Input
+                  className="h-9"
+                  inputMode="decimal"
+                  value={entryDistance}
+                  onChange={(e) => setEntryDistance(e.target.value)}
+                  placeholder="0"
+                  disabled={!selectedPlayer || selectedReachedMax}
+                />
+              </div>
+              <div className="w-24">
+                <Label className="text-xs text-muted-foreground">Offline ({unitLabel})</Label>
+                <Input
+                  className="h-9"
+                  inputMode="decimal"
+                  value={entryOffline}
+                  onChange={(e) => setEntryOffline(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && entryValid) { e.preventDefault(); handleTopSave(); } }}
+                  placeholder="0"
+                  disabled={!selectedPlayer || selectedReachedMax}
+                />
+              </div>
+              <Button size="sm" onClick={handleTopSave} disabled={!entryValid || saveAttempt.isPending}>
+                {saveAttempt.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save score"}
               </Button>
-            </form>
+            </div>
+            {selectedPlayer && selectedReachedMax && (
+              <p className="text-xs text-muted-foreground">{selectedPlayer.name} has reached the max of {comp.max_attempts} attempts.</p>
+            )}
+            {comp.entry_type === "paid" && players.length === 0 && (
+              <p className="text-xs text-muted-foreground">Players appear here once they pay via the join link.</p>
+            )}
           </CardContent>
         </Card>
       )}
+
 
       {/* Paid entries list */}
       {comp.entry_type === "paid" && entries.length > 0 && (
