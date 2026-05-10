@@ -30,6 +30,7 @@ function buildCardSvg(opts: {
   unit: string;
   date: string;
   sponsorLogoUrl?: string | null;
+  categoryLabel?: string;
 }): string {
   const title = opts.category === "longest" ? "LONGEST DRIVE" : "STRAIGHTEST DRIVE";
   const accent = opts.category === "longest" ? "#B8860B" : "#3E7090";
