@@ -23,6 +23,9 @@ export function QuickCompetitionDialog({
   const [maxAttempts, setMaxAttempts] = useState<string>("3");
   const [sponsorEnabled, setSponsorEnabled] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [entryType, setEntryType] = useState<"free" | "paid">("free");
+  const [entryFee, setEntryFee] = useState<string>("");
+  const [refundsAllowed, setRefundsAllowed] = useState(false);
 
   const create = useCreateQuickCompetition();
 
@@ -32,10 +35,15 @@ export function QuickCompetitionDialog({
     setMaxAttempts("3");
     setSponsorEnabled(false);
     setLogoFile(null);
+    setEntryType("free");
+    setEntryFee("");
+    setRefundsAllowed(false);
   }
 
   async function handleStart() {
     const n = Math.max(1, Math.min(50, parseInt(maxAttempts, 10) || 1));
+    const fee = parseFloat(entryFee);
+    if (entryType === "paid" && (!Number.isFinite(fee) || fee <= 0)) return;
     const result = await create.mutateAsync({
       tenant_id: tenantId,
       name: name.trim(),
@@ -43,6 +51,10 @@ export function QuickCompetitionDialog({
       max_attempts: n,
       sponsor_enabled: sponsorEnabled,
       sponsor_logo_file: sponsorEnabled ? logoFile : null,
+      entry_type: entryType,
+      entry_fee: entryType === "paid" ? fee : null,
+      entry_currency: "INR",
+      refunds_allowed: entryType === "paid" ? refundsAllowed : false,
     });
     setOpen(false);
     reset();
