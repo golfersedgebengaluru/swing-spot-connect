@@ -25,7 +25,7 @@ export type QuickCompetition = {
   created_at: string;
   completed_at: string | null;
   categories_enabled: boolean;
-  category_winners: QCCategoryWinners | null;
+  category_winners: unknown;
 };
 
 export type QCCategoryWinner = {
