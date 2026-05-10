@@ -133,6 +133,7 @@ function CorporateAccountFormDialog({
   const remove = useDeleteCorporateAccount();
   const [form, setForm] = useState({
     name: account?.name ?? "",
+    nickname: account?.nickname ?? "",
     gstin: account?.gstin ?? "",
     billing_email: account?.billing_email ?? "",
     billing_address: account?.billing_address ?? "",
@@ -195,6 +196,16 @@ function CorporateAccountFormDialog({
             <Input className="mt-1" value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="e.g. Apexlynx Pvt Ltd" />
+          </div>
+
+          <div>
+            <Label>Nickname</Label>
+            <Input className="mt-1" value={form.nickname} maxLength={20}
+              onChange={(e) => setForm({ ...form, nickname: e.target.value })}
+              placeholder="e.g. Apexlynx" />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Short label shown in calendar events and dashboard tags. Falls back to Name if blank.
+            </p>
           </div>
 
           <div>

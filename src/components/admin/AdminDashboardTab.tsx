@@ -137,8 +137,8 @@ function useAdminDashboardStats(cityFilter: string) {
         ...new Set(Object.values(profilesMap).map((p) => p.corporate_account_id).filter(Boolean) as string[]),
       ];
       const corporateMap: Record<string, string> = corporateIds.length > 0
-        ? await supabase.from("corporate_accounts").select("id, name").in("id", corporateIds).then(({ data }) =>
-            Object.fromEntries((data ?? []).map((c: any) => [c.id, c.name]))
+        ? await supabase.from("corporate_accounts").select("id, name, nickname").in("id", corporateIds).then(({ data }) =>
+            Object.fromEntries((data ?? []).map((c: any) => [c.id, (c.nickname && c.nickname.trim()) || c.name]))
           )
         : {};
 
@@ -294,20 +294,20 @@ export function AdminDashboardTab({ onNavigate }: AdminDashboardTabProps = {}) {
                       {getBayShort(b.bayName)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-1 flex-wrap">
                         <p className="text-sm font-medium text-foreground truncate">{b.userName}</p>
                         {b.isCoaching && (
-                          <span className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-purple-100 text-purple-700">
+                          <span className="rounded px-1.5 py-px text-[9px] font-medium leading-tight bg-purple-100 text-purple-700">
                             Coaching
                           </span>
                         )}
                         {b.isCorporate && (
-                          <span className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700">
-                            {b.corporateName ? `Corporate · ${b.corporateName}` : "Corporate"}
+                          <span className="rounded px-1.5 py-px text-[9px] font-medium leading-tight bg-blue-100 text-blue-700 max-w-[140px] truncate">
+                            {b.corporateName ? `Corp · ${b.corporateName}` : "Corp"}
                           </span>
                         )}
                         {b.usingHours && (
-                          <span className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700">
+                          <span className="rounded px-1.5 py-px text-[9px] font-medium leading-tight bg-amber-100 text-amber-700">
                             Hours
                           </span>
                         )}

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export interface CorporateAccount {
   id: string;
   name: string;
+  nickname: string | null;
   gstin: string | null;
   billing_email: string | null;
   billing_address: string | null;
@@ -59,6 +60,7 @@ export function useUpsertCorporateAccount() {
     mutationFn: async (input: CorporateAccountInput & { id?: string }) => {
       const payload = {
         name: input.name,
+        nickname: input.nickname ?? null,
         gstin: input.gstin ?? null,
         billing_email: input.billing_email ?? null,
         billing_address: input.billing_address ?? null,

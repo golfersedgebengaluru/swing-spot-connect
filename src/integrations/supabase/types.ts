@@ -655,6 +655,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          nickname: string | null
           notes: string | null
           payment_terms_days: number
           state: string | null
@@ -670,6 +671,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          nickname?: string | null
           notes?: string | null
           payment_terms_days?: number
           state?: string | null
@@ -685,6 +687,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          nickname?: string | null
           notes?: string | null
           payment_terms_days?: number
           state?: string | null
