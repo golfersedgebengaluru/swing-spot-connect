@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export interface CorporateAccount {
   id: string;
   name: string;
+  nickname: string | null;
   gstin: string | null;
   billing_email: string | null;
   billing_address: string | null;
