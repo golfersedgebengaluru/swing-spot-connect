@@ -60,7 +60,7 @@ export type QCEntry = {
   created_at: string;
 };
 
-export type QCPlayer = { id: string; competition_id: string; name: string; created_at: string };
+export type QCPlayer = { id: string; competition_id: string; name: string; created_at: string; category_id: string | null };
 export type QCAttempt = {
   id: string;
   competition_id: string;
