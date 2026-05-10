@@ -133,6 +133,7 @@ function CorporateAccountFormDialog({
   const remove = useDeleteCorporateAccount();
   const [form, setForm] = useState({
     name: account?.name ?? "",
+    nickname: account?.nickname ?? "",
     gstin: account?.gstin ?? "",
     billing_email: account?.billing_email ?? "",
     billing_address: account?.billing_address ?? "",
