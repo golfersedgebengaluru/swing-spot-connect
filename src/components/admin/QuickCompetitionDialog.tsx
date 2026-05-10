@@ -130,6 +130,23 @@ export function QuickCompetitionDialog({
           </div>
 
           <div className="space-y-2 border-t pt-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="qc-cats" className="cursor-pointer">Use categories (e.g. Men / Ladies)</Label>
+              <Switch id="qc-cats" checked={categoriesEnabled} onCheckedChange={setCategoriesEnabled} />
+            </div>
+            {categoriesEnabled && (
+              <>
+                <Input
+                  value={categoriesText}
+                  onChange={(e) => setCategoriesText(e.target.value)}
+                  placeholder="Men, Ladies, Juniors"
+                />
+                <p className="text-xs text-muted-foreground">Comma-separated. Each category gets its own Longest &amp; Straightest board on the bay screen.</p>
+              </>
+            )}
+          </div>
+
+          <div className="space-y-2 border-t pt-3">
             <Label>Entry</Label>
             <RadioGroup value={entryType} onValueChange={(v) => setEntryType(v as "free" | "paid")} className="flex gap-6">
               <div className="flex items-center gap-2">
