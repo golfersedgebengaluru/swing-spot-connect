@@ -187,17 +187,20 @@ export function AdminSidebar({
 }: AdminSidebarProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const { role, isAdmin, isSiteAdmin } = useAdmin();
+  const { role, isAdmin, isSiteAdmin, isLeaguesOnly } = useAdmin();
   const { data: permissions } = useSiteAdminPermissions();
   const { data: branding } = useBranding();
   const studioName = branding?.studio_name || "Admin";
   const initials = user?.email
     ? user.email.substring(0, 2).toUpperCase()
     : "AD";
-  const roleLabel = role === "admin" ? "Administrator" : role === "site_admin" ? "Site-Admin" : "Coach";
-  const hasAdminOrSiteAdmin = isAdmin || isSiteAdmin;
+  const roleLabel = isLeaguesOnly
+    ? "Leagues Admin"
+    : role === "admin" ? "Administrator" : role === "site_admin" ? "Site-Admin" : "Coach";
+  const hasAdminOrSiteAdmin = (isAdmin || isSiteAdmin) && !isLeaguesOnly;
 
   const visibleReportsItems = reportsItems.filter((item) => {
+    if (isLeaguesOnly) return false;
     if (isAdmin) return true;
     if (!isSiteAdmin) return false;
     if (item.id === "reports_revenue") return true;
@@ -210,6 +213,7 @@ export function AdminSidebar({
 
   const filterItems = (items: typeof coreItems) =>
     items.filter((i) => {
+      if (isLeaguesOnly) return i.id === "leagues";
       if ((i as any).adminOnly && !isAdmin) return false;
       if ((i as any).adminOrSiteAdminOnly && !hasAdminOrSiteAdmin) return false;
       return true;
