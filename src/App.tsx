@@ -29,6 +29,7 @@ const Profile = lazy(() => import("./pages/Profile"));
 const Coaching = lazy(() => import("./pages/Coaching"));
 const CoachingSessionDetail = lazy(() => import("./pages/CoachingSessionDetail"));
 const QuickCompetitionPublic = lazy(() => import("./pages/QuickCompetitionPublic"));
+const QuickCompetitionJoin = lazy(() => import("./pages/QuickCompetitionJoin"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
