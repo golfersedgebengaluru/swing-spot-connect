@@ -456,25 +456,6 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                       </Button>
                     )}
                   </div>
-                    <Select value={entryPlayerId} onValueChange={setEntryPlayerId}>
-                      <SelectTrigger className="h-9"><SelectValue placeholder={players.length === 0 ? "No players yet" : "Select player"} /></SelectTrigger>
-                      <SelectContent>
-                        {players.map((p) => {
-                          const ct = (attemptsByPlayer[p.id] ?? []).length;
-                          return (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.name} <span className="text-muted-foreground">· {ct}/{comp.max_attempts}</span>
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                    {comp.entry_type === "free" && (
-                      <Button size="sm" variant="outline" onClick={() => setShowNewPlayer(true)} title="Add new player">
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
                 )}
               </div>
               <div className="w-24">
