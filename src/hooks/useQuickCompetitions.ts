@@ -147,6 +147,9 @@ export function useQCRealtime(competitionId: string | null) {
       .on("postgres_changes", { event: "*", schema: "public", table: "quick_competition_attempts", filter: `competition_id=eq.${competitionId}` }, () => {
         qc.invalidateQueries({ queryKey: ["qc-attempts", competitionId] });
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "quick_competition_categories", filter: `competition_id=eq.${competitionId}` }, () => {
+        qc.invalidateQueries({ queryKey: ["qc-categories", competitionId] });
+      })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "quick_competitions", filter: `id=eq.${competitionId}` }, () => {
         qc.invalidateQueries({ queryKey: ["quick-comp", competitionId] });
       })
