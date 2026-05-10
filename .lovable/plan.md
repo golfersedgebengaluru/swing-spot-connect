@@ -1,84 +1,101 @@
-## Quick Competition — Longest Drive (and Straightest Drive)
+## Quick Competition SaaS — Admin-controlled monetisation (v1)
 
-A lightweight, "no-login-needed" mini event the admin can spin up in under a minute and display on a bay screen. Two winners always come out of one session: **Longest Drive** and **Straightest Drive**.
+Reuses the existing Razorpay integration. Admin decides per competition whether players join free or pay an entry fee. No Stripe, no credits, no subscription engine.
 
-### Where it lives
+### What changes for the admin
 
-- A new **+ Quick Competition** button appears directly below **+ New League** on the admin **Leagues** tab.
-- Quick Competitions are listed in their own small section on the same screen ("Active" and "Past"), separate from full leagues so they don't clutter the league list.
+In the **Quick Competition setup dialog** (existing `QuickCompetitionDialog.tsx`), add a new section **"Entry"**:
 
-### Setup (3 fields, takes ~10 seconds)
+- **Entry type** — radio:
+  - `Free` (default) — anyone with the join link/QR can enter.
+  - `Paid` — players must pay to join.
+- When **Paid** is selected, reveal:
+  - **Entry fee** (numeric, in the workspace's currency, e.g. ₹200)
+  - **Razorpay account** — auto-selected from the city's existing Razorpay config (read-only label, e.g. "Using city Razorpay: Bangalore"). No new credentials needed.
+  - **Refund on no-show?** — toggle (default off). If on, an unused entry can be refunded by admin from the console.
 
-A simple dialog with:
-1. **Name** — pre-filled as `Longest Drive · {today's date}`, editable.
-2. **Unit** — Metres or Yards (radio).
-3. **Attempts per player** — 1, 2, 3, or Unlimited.
-4. *(Optional)* **Sponsor** — toggle on/off; if on, upload a sponsor logo (used on the winner cards).
+That's the entire admin-side change. Everything else (name, unit, attempts, sponsor) stays as-is.
 
-Tap **Start** → competition is live immediately. No course, no holes, no handicap, no team setup.
+### What changes for the player (paid comps)
 
-### Adding players (anytime)
+Player flow on `/qc/:id/join` (new public page, only shown when comp is paid):
 
-- Admin types a name and taps **Add**. That's it — no email, no account, no invite.
-- Players can be added **before or after** the competition starts, even mid-event.
-- A name can be edited or removed before any score is entered for them.
+1. Enter name + phone (phone is the unique key, no login).
+2. Tap **Pay ₹X & Join** → Razorpay checkout opens.
+3. On success → entry confirmed, name appears in the leaderboard pool, player can record attempts via the existing console (admin still enters scores, OR via the v2 self-entry path later).
+4. Receipt emailed/SMS-linked.
 
-### Recording attempts
+For **free** comps, the existing flow stays — admin just adds players by name in the console.
 
-For each player the admin sees one row with two inputs:
-- **Distance** (in the chosen unit)
-- **Offline** (how far left/right of the centre line, in the same unit — always positive)
+### Admin console additions (paid comps only)
 
-Tap **Save Attempt**. If multiple attempts are allowed, the system automatically keeps:
-- the **best (longest) distance**, and
-- the **best (lowest) offline**
-…for that player. Admin always sees the full attempt history per player and can delete a bad entry (e.g. mishit, wrong player).
+A new **"Entries"** sub-tab inside `QuickCompetitionConsole.tsx`:
+- List of paid players with: name, phone, amount paid, payment status, payment ID, joined-at.
+- **Refund** button per row (only if comp's "refund allowed" is on and comp is not yet completed).
+- Total collected amount shown at top.
 
-### The live leaderboard (the bay-screen view)
+### Tech changes
 
-- A dedicated, **public, no-login** URL that can be opened on a TV/bay screen.
-- Shows **both leaderboards side by side at all times** — never toggled, never hidden:
-  - **Longest Drive** — sorted highest distance first.
-  - **Straightest Drive** — sorted lowest offline first.
-- Updates **in real time** the instant the admin saves an attempt (server pushes the update — not just a client refresh).
-- Big, bold, screen-friendly typography; current leader highlighted in each column.
+```text
+DB (migration):
+  ALTER quick_competitions
+    ADD entry_type text NOT NULL DEFAULT 'free'        -- 'free' | 'paid'
+    ADD entry_fee numeric(10,2)                         -- nullable, required when paid
+    ADD entry_currency text                             -- inherited from city/workspace
+    ADD refunds_allowed boolean NOT NULL DEFAULT false
+    ADD razorpay_account_ref text                       -- which city/account the fee routes to
 
-### Finishing & winner cards
+  CREATE TABLE qc_entries (
+    id uuid pk,
+    competition_id uuid fk → quick_competitions,
+    player_name text NOT NULL,
+    phone text NOT NULL,
+    amount numeric(10,2) NOT NULL,
+    currency text NOT NULL,
+    razorpay_order_id text,
+    razorpay_payment_id text,
+    status text NOT NULL DEFAULT 'pending',  -- pending|paid|refunded|failed
+    refunded_at timestamptz,
+    refund_id text,
+    created_at timestamptz default now(),
+    UNIQUE (competition_id, phone)
+  )
+  -- RLS: public can SELECT own row by phone via edge function; admin full access scoped to tenant.
 
-- Admin taps **End Competition**. The system locks scoring and declares **two winners** — one per category (ties broken by earliest qualifying attempt).
-- Two **shareable result cards** are generated as images on the server (so they look identical everywhere, on WhatsApp, Instagram, etc.):
-  - Competition name + date + venue
-  - Winner name, winning distance / offline, unit
-  - Sponsor logo (only if sponsorship was enabled at setup)
-- Admin can **download** or **copy share link** for each card. Cards are also visible on the public leaderboard page after the event ends.
+  -- When status flips to 'paid', auto-insert into existing qc_players table
+  -- (trigger or done in the webhook handler).
 
-### Audit & scoping
+Edge functions:
+  + qc-create-entry-order   -- public; validates comp is paid + open, creates Razorpay order, returns order_id + key
+  + qc-verify-payment       -- public; webhook + client confirm; verifies signature, marks entry paid, creates qc_player row
+  + qc-refund-entry         -- admin; calls Razorpay refund API, flips status, removes player if no attempts logged
 
-- Every add-player, attempt, edit, delete, and end-competition action is logged with timestamp and the admin who did it.
-- Each Quick Competition is scoped to a single **franchisee/city** — admins from other cities never see it; site admins see all.
+Reuse:
+  - Existing Razorpay key resolution per city (from city payment gateway config).
+  - Existing payment-before-commitment pattern (see mem://features/payment-processing-flow).
+  - Existing 200-OK error envelope for edge functions.
 
-### Refinements added on top of your brief
+Frontend:
+  - QuickCompetitionDialog.tsx → add Entry section (radio + fee + refund toggle).
+  - QuickCompetitionConsole.tsx → add Entries tab when entry_type === 'paid'.
+  - New page src/pages/QuickCompetitionJoin.tsx at /qc/:id/join with Razorpay checkout.
+  - QuickCompetitionPublic.tsx (TV mode) → if paid, show "Join — ₹X" CTA + QR pointing to /qc/:id/join.
 
-A few small upgrades that make this much more usable on a real range night:
+Validation:
+  - Cannot switch entry_type after first paid entry exists.
+  - Free comps: no /join page, admin adds players manually as today.
+  - Paid comps: admin cannot manually add players (must come through paid join), unless they tick a "comp guest" override that records ₹0 in the entries table for audit.
+```
 
-1. **Sponsor toggle at setup** — keeps the result card clean when there's no sponsor, branded when there is.
-2. **Per-attempt audit + delete** — mishits happen; admin needs an undo without losing the player's other attempts.
-3. **Tie-breaker rule** — earliest qualifying attempt wins ties. Predictable and fair, no admin judgement call needed.
-4. **Public leaderboard URL with QR code** — admin can show a QR code on the bay screen so participants can pull up the live leaderboard on their own phones too.
-5. **"End at time X" optional auto-close** — admin can optionally set an end time (e.g. 9:30 PM) so the competition closes itself and winner cards generate automatically — useful when the admin is running the bay and forgets.
-6. **Re-open within 15 min** — if the admin ends it by accident, they can re-open within 15 minutes; after that it's locked.
-7. **Bay-screen mode** — the public leaderboard has a "TV mode" (full-screen, no chrome, larger fonts, auto-refresh) toggled by a button on the page itself.
+### Out of scope for this iteration
 
-### What this does NOT do (intentionally, to stay "quick")
+- Stripe, credits, subscriptions, sponsor marketplace — all deferred.
+- Player self-entry of *scores* via QR — separate v2 task; this plan only adds paid *join*.
+- Tax invoices / GST receipts on entry fees — note for follow-up; for v1 the Razorpay receipt suffices.
 
-- No payments, no entry fees, no prizes ledger.
-- No player profiles, no loyalty points, no league standings impact.
-- No course/hole data, no handicap, no Peoria — pure single-shot contest.
+### Decisions needed before I build
 
-### Approval needed before I build
-
-Please confirm:
-- Both leaderboards on **one** screen side by side (not two tabs)? ✅ as briefed
-- Sponsor logo: **upload per competition** (not pulled from a global sponsors library)? — I'm assuming **yes, per competition** to keep it simple.
-- Public leaderboard URL: **anyone with the link** can view (no login)? — assuming **yes**, as briefed.
-- Are the 7 refinements above OK to include, or should I drop any of them for v1?
+1. Confirm fee currency = workspace city's currency (not a free-text per comp).
+2. Confirm phone number is the player's unique key (vs email, vs both).
+3. Refund window: only before comp ends, or also up to N hours after? Default: only before end + admin override.
+4. For paid comps, do players still need admin to enter their scores, or should we also ship the player score self-entry now? (I recommend keeping it admin-entered for v1 — simpler, matches your current trust model.)
