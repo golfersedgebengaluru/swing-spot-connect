@@ -30,6 +30,7 @@ function buildCardSvg(opts: {
   unit: string;
   date: string;
   sponsorLogoUrl?: string | null;
+  categoryLabel?: string;
 }): string {
   const title = opts.category === "longest" ? "LONGEST DRIVE" : "STRAIGHTEST DRIVE";
   const accent = opts.category === "longest" ? "#B8860B" : "#3E7090";
@@ -53,7 +54,8 @@ function buildCardSvg(opts: {
   <rect x="60" y="60" width="980" height="980" fill="none" stroke="${accent}" stroke-width="1" opacity="0.35" rx="12"/>
   <text x="550" y="180" text-anchor="middle" font-family="Playfair Display, serif" font-size="48" fill="#2C2C2C" font-style="italic">Champion</text>
   <text x="550" y="270" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="56" fill="${accent}" font-weight="bold" letter-spacing="6">${title}</text>
-  <line x1="350" y1="320" x2="750" y2="320" stroke="${accent}" stroke-width="2"/>
+  ${opts.categoryLabel ? `<text x="550" y="310" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="24" fill="#666" letter-spacing="3">${escapeXml(opts.categoryLabel.toUpperCase())}</text>` : ""}
+  <line x1="350" y1="340" x2="750" y2="340" stroke="${accent}" stroke-width="2"/>
   <text x="550" y="490" text-anchor="middle" font-family="Playfair Display, serif" font-size="84" fill="#1A1A1A" font-weight="bold">${escapeXml(opts.winnerName)}</text>
   <text x="550" y="600" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="28" fill="#777" letter-spacing="3">${valueLabel.toUpperCase()}</text>
   <text x="550" y="720" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="120" fill="${accent}" font-weight="bold">${formatted}</text>
@@ -106,15 +108,19 @@ Deno.serve(async (req) => {
       return ok({ success: true, already_completed: true, competition: comp });
     }
 
-    // Load attempts + players
-    const [{ data: players }, { data: attempts }, { data: tenant }] = await Promise.all([
-      admin.from("quick_competition_players").select("id,name").eq("competition_id", competitionId),
+    // Load attempts + players + categories
+    const [{ data: players }, { data: attempts }, { data: categories }] = await Promise.all([
+      admin.from("quick_competition_players").select("id,name,category_id").eq("competition_id", competitionId),
       admin
         .from("quick_competition_attempts")
         .select("player_id,distance,offline,created_at")
         .eq("competition_id", competitionId)
         .order("created_at", { ascending: true }),
-      admin.from("tenants").select("name,city").eq("id", comp.tenant_id).maybeSingle(),
+      admin
+        .from("quick_competition_categories")
+        .select("id,name,sort_order")
+        .eq("competition_id", competitionId)
+        .order("sort_order", { ascending: true }),
     ]);
 
     if (!players || players.length === 0 || !attempts || attempts.length === 0) {
@@ -122,92 +128,137 @@ Deno.serve(async (req) => {
     }
 
     const playerName = new Map(players.map((p) => [p.id, p.name]));
+    const playerCategory = new Map(players.map((p) => [p.id, p.category_id as string | null]));
 
-    // Best per player + earliest-qualifying-attempt timestamp for tie-breaking
     type Best = { playerId: string; value: number; ts: string };
-    const bestLongest = new Map<string, Best>();
-    const bestStraightest = new Map<string, Best>();
-    for (const a of attempts) {
-      const cur = bestLongest.get(a.player_id);
-      if (!cur || a.distance > cur.value) {
-        bestLongest.set(a.player_id, { playerId: a.player_id, value: Number(a.distance), ts: a.created_at });
+
+    function computeBests(playerIds: Set<string>): { longest: Best | null; straightest: Best | null } {
+      const bestL = new Map<string, Best>();
+      const bestS = new Map<string, Best>();
+      for (const a of attempts) {
+        if (!playerIds.has(a.player_id)) continue;
+        const cur = bestL.get(a.player_id);
+        if (!cur || a.distance > cur.value) {
+          bestL.set(a.player_id, { playerId: a.player_id, value: Number(a.distance), ts: a.created_at });
+        }
+        const curS = bestS.get(a.player_id);
+        if (!curS || a.offline < curS.value) {
+          bestS.set(a.player_id, { playerId: a.player_id, value: Number(a.offline), ts: a.created_at });
+        }
       }
-      const curS = bestStraightest.get(a.player_id);
-      if (!curS || a.offline < curS.value) {
-        bestStraightest.set(a.player_id, { playerId: a.player_id, value: Number(a.offline), ts: a.created_at });
-      }
+      const lArr = [...bestL.values()].sort((a, b) => b.value - a.value || a.ts.localeCompare(b.ts));
+      const sArr = [...bestS.values()].sort((a, b) => a.value - b.value || a.ts.localeCompare(b.ts));
+      return { longest: lArr[0] ?? null, straightest: sArr[0] ?? null };
     }
 
-    const longestArr = [...bestLongest.values()].sort((a, b) =>
-      b.value - a.value || a.ts.localeCompare(b.ts)
-    );
-    const straightArr = [...bestStraightest.values()].sort((a, b) =>
-      a.value - b.value || a.ts.localeCompare(b.ts)
-    );
-
-    const longestWinner = longestArr[0];
-    const straightWinner = straightArr[0];
     const dateStr = new Date(comp.created_at).toLocaleDateString("en-GB", {
       day: "numeric", month: "long", year: "numeric",
     });
-    const venue = tenant ? `${tenant.name} · ${tenant.city}` : "";
-    const compTitle = `${comp.name}${venue ? " — " + venue : ""}`;
-
+    const compTitle = comp.name;
     const sponsorLogo = comp.sponsor_enabled ? comp.sponsor_logo_url : null;
+    const unitLabel = comp.unit === "yd" ? "yards" : "metres";
 
-    // Render + upload both cards
-    async function uploadCard(category: "longest" | "straightest", winner: Best): Promise<string> {
+    async function uploadCard(
+      pathKey: string,
+      category: "longest" | "straightest",
+      winner: Best,
+      categoryName?: string,
+    ): Promise<string> {
       const svg = buildCardSvg({
         category,
         competitionName: compTitle,
         winnerName: playerName.get(winner.playerId) ?? "Unknown",
         value: winner.value,
-        unit: comp.unit === "yd" ? "yards" : "metres",
+        unit: unitLabel,
         date: dateStr,
         sponsorLogoUrl: sponsorLogo,
+        categoryLabel: categoryName,
       });
-      const path = `${competitionId}/${category}-${Date.now()}.svg`;
+      const path = `${competitionId}/${pathKey}-${Date.now()}.svg`;
       const { error: upErr } = await admin.storage
         .from("quick-comp-sponsors")
         .upload(path, new Blob([svg], { type: "image/svg+xml" }), {
           contentType: "image/svg+xml",
           upsert: true,
         });
-      if (upErr) throw new Error(`Upload ${category}: ${upErr.message}`);
+      if (upErr) throw new Error(`Upload ${pathKey}: ${upErr.message}`);
       const { data: pub } = admin.storage.from("quick-comp-sponsors").getPublicUrl(path);
       return pub.publicUrl;
     }
 
-    const longestUrl = await uploadCard("longest", longestWinner);
-    const straightUrl = await uploadCard("straightest", straightWinner);
+    const updatePayload: Record<string, unknown> = {
+      status: "completed",
+      completed_at: new Date().toISOString(),
+    };
 
-    // Mark complete
+    const auditDetails: Record<string, unknown> = {};
+
+    if (comp.categories_enabled && categories && categories.length > 0) {
+      const categoryWinners: Array<Record<string, unknown>> = [];
+      for (const cat of categories) {
+        const ids = new Set(players.filter((p) => p.category_id === cat.id).map((p) => p.id));
+        if (ids.size === 0) continue;
+        const { longest, straightest } = computeBests(ids);
+        const entry: Record<string, unknown> = {
+          category_id: cat.id,
+          name: cat.name,
+        };
+        if (longest) {
+          const url = await uploadCard(`longest-${cat.id}`, "longest", longest, cat.name);
+          entry.longest = {
+            player_id: longest.playerId,
+            player_name: playerName.get(longest.playerId) ?? "Unknown",
+            value: longest.value,
+            card_url: url,
+          };
+        }
+        if (straightest) {
+          const url = await uploadCard(`straightest-${cat.id}`, "straightest", straightest, cat.name);
+          entry.straightest = {
+            player_id: straightest.playerId,
+            player_name: playerName.get(straightest.playerId) ?? "Unknown",
+            value: straightest.value,
+            card_url: url,
+          };
+        }
+        categoryWinners.push(entry);
+      }
+      if (categoryWinners.length === 0) {
+        return ok({ success: false, error: "No attempts in any category — cannot end competition" });
+      }
+      updatePayload.category_winners = categoryWinners;
+      auditDetails.category_winners = categoryWinners;
+    } else {
+      const allIds = new Set(players.map((p) => p.id));
+      const { longest: longestWinner, straightest: straightWinner } = computeBests(allIds);
+      if (!longestWinner || !straightWinner) {
+        return ok({ success: false, error: "No attempts recorded — cannot end competition" });
+      }
+      const longestUrl = await uploadCard("longest", "longest", longestWinner);
+      const straightUrl = await uploadCard("straightest", "straightest", straightWinner);
+      updatePayload.longest_winner_player_id = longestWinner.playerId;
+      updatePayload.longest_winner_value = longestWinner.value;
+      updatePayload.straightest_winner_player_id = straightWinner.playerId;
+      updatePayload.straightest_winner_value = straightWinner.value;
+      updatePayload.longest_card_url = longestUrl;
+      updatePayload.straightest_card_url = straightUrl;
+      auditDetails.longest = { player_id: longestWinner.playerId, value: longestWinner.value };
+      auditDetails.straightest = { player_id: straightWinner.playerId, value: straightWinner.value };
+    }
+
     const { data: updated, error: upErr } = await admin
       .from("quick_competitions")
-      .update({
-        status: "completed",
-        completed_at: new Date().toISOString(),
-        longest_winner_player_id: longestWinner.playerId,
-        longest_winner_value: longestWinner.value,
-        straightest_winner_player_id: straightWinner.playerId,
-        straightest_winner_value: straightWinner.value,
-        longest_card_url: longestUrl,
-        straightest_card_url: straightUrl,
-      })
+      .update(updatePayload)
       .eq("id", competitionId)
       .select()
       .single();
     if (upErr) return ok({ success: false, error: upErr.message });
 
-    // Audit
     await admin.from("quick_competition_audit").insert({
       competition_id: competitionId,
       actor_id: userId,
       action: "end",
-      details: {
-        longest: { player_id: longestWinner.playerId, value: longestWinner.value },
-        straightest: { player_id: straightWinner.playerId, value: straightWinner.value },
-      },
+      details: auditDetails,
     });
 
     return ok({ success: true, competition: updated });
