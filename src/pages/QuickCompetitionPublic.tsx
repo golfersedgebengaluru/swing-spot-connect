@@ -21,7 +21,7 @@ export default function QuickCompetitionPublic() {
   }
   if (!comp) {
     return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center text-stone-700">
+      <div className="min-h-screen bg-white flex items-center justify-center text-stone-700">
         <p>Competition not found.</p>
       </div>
     );
