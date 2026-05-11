@@ -1,0 +1,1 @@
+ALTER TABLE public.quick_competitions ADD COLUMN IF NOT EXISTS runners_up jsonb;
