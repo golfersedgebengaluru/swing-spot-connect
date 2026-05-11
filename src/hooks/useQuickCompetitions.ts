@@ -26,15 +26,20 @@ export type QuickCompetition = {
   completed_at: string | null;
   categories_enabled: boolean;
   category_winners: unknown;
+  runners_up?: unknown;
 };
 
+export type QCWinnerEntry = { player_id: string; player_name: string; value: number; card_url: string | null };
 export type QCCategoryWinner = {
   category_id: string;
   name: string;
-  longest: { player_id: string; player_name: string; value: number; card_url: string | null } | null;
-  straightest: { player_id: string; player_name: string; value: number; card_url: string | null } | null;
+  longest: QCWinnerEntry | null;
+  straightest: QCWinnerEntry | null;
+  longest_runner_up?: QCWinnerEntry | null;
+  straightest_runner_up?: QCWinnerEntry | null;
 };
 export type QCCategoryWinners = QCCategoryWinner[];
+export type QCRunnersUp = { longest?: QCWinnerEntry | null; straightest?: QCWinnerEntry | null };
 
 export type QCCategory = {
   id: string;
