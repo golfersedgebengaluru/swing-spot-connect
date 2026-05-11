@@ -3,7 +3,7 @@ import { Trophy, Target, Loader2, Download } from "lucide-react";
 import {
   useQuickCompetition, useQCPlayers, useQCAttempts, useQCCategories, useQCRealtime,
   buildLeaderboards, buildLeaderboardsByCategory,
-  type QCCategoryWinners,
+  type QCCategoryWinners, type QCRunnersUp,
 } from "@/hooks/useQuickCompetitions";
 
 async function downloadCard(url: string, filename: string) {
