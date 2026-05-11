@@ -9,15 +9,35 @@ import {
 async function downloadCard(url: string, filename: string) {
   try {
     const res = await fetch(url);
-    const blob = await res.blob();
-    const objUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = objUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
+    const text = await res.text();
+    const parser = new DOMParser();
+    const svgEl = parser.parseFromString(text, "image/svg+xml").documentElement as unknown as SVGSVGElement;
+
+    // Render off-screen so layout/measurement works
+    const container = document.createElement("div");
+    container.style.position = "fixed";
+    container.style.left = "-10000px";
+    container.style.top = "0";
+    container.appendChild(svgEl);
+    document.body.appendChild(container);
+
+    const [{ jsPDF }, { svg2pdf }] = await Promise.all([
+      import("jspdf"),
+      import("svg2pdf.js"),
+    ]);
+
+    const width = parseFloat(svgEl.getAttribute("width") || "1100");
+    const height = parseFloat(svgEl.getAttribute("height") || "1100");
+    const pdf = new jsPDF({
+      orientation: width >= height ? "landscape" : "portrait",
+      unit: "pt",
+      format: [width, height],
+    });
+    await svg2pdf(svgEl, pdf, { x: 0, y: 0, width, height });
+    container.remove();
+
+    const pdfName = filename.toLowerCase().endsWith(".pdf") ? filename : filename.replace(/\.[a-z0-9]+$/i, "") + ".pdf";
+    pdf.save(pdfName);
   } catch {
     window.open(url, "_blank");
   }
