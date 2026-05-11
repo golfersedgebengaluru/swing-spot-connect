@@ -3,7 +3,7 @@ import { Trophy, Target, Loader2, Download } from "lucide-react";
 import {
   useQuickCompetition, useQCPlayers, useQCAttempts, useQCCategories, useQCRealtime,
   buildLeaderboards, buildLeaderboardsByCategory,
-  type QCCategoryWinners,
+  type QCCategoryWinners, type QCRunnersUp,
 } from "@/hooks/useQuickCompetitions";
 
 async function downloadCard(url: string, filename: string) {
@@ -136,25 +136,46 @@ export default function QuickCompetitionPublic() {
           for (const w of winners) {
             if (w.longest?.card_url) certs.push({
               url: w.longest.card_url,
-              label: `${w.name} — Longest Drive`,
-              filename: `${comp.name}-${w.name}-longest.svg`,
+              label: `${w.name} — Longest Drive (1st)`,
+              filename: `${comp.name}-${w.name}-longest-1st.svg`,
+            });
+            if (w.longest_runner_up?.card_url) certs.push({
+              url: w.longest_runner_up.card_url,
+              label: `${w.name} — Longest Drive (2nd)`,
+              filename: `${comp.name}-${w.name}-longest-2nd.svg`,
             });
             if (w.straightest?.card_url) certs.push({
               url: w.straightest.card_url,
-              label: `${w.name} — Straightest Drive`,
-              filename: `${comp.name}-${w.name}-straightest.svg`,
+              label: `${w.name} — Straightest Drive (1st)`,
+              filename: `${comp.name}-${w.name}-straightest-1st.svg`,
+            });
+            if (w.straightest_runner_up?.card_url) certs.push({
+              url: w.straightest_runner_up.card_url,
+              label: `${w.name} — Straightest Drive (2nd)`,
+              filename: `${comp.name}-${w.name}-straightest-2nd.svg`,
             });
           }
         } else {
           if (comp.longest_card_url) certs.push({
             url: comp.longest_card_url,
-            label: "Longest Drive",
-            filename: `${comp.name}-longest.svg`,
+            label: "Longest Drive (1st)",
+            filename: `${comp.name}-longest-1st.svg`,
+          });
+          const runners = (comp.runners_up as QCRunnersUp | null) ?? null;
+          if (runners?.longest?.card_url) certs.push({
+            url: runners.longest.card_url,
+            label: "Longest Drive (2nd)",
+            filename: `${comp.name}-longest-2nd.svg`,
           });
           if (comp.straightest_card_url) certs.push({
             url: comp.straightest_card_url,
-            label: "Straightest Drive",
-            filename: `${comp.name}-straightest.svg`,
+            label: "Straightest Drive (1st)",
+            filename: `${comp.name}-straightest-1st.svg`,
+          });
+          if (runners?.straightest?.card_url) certs.push({
+            url: runners.straightest.card_url,
+            label: "Straightest Drive (2nd)",
+            filename: `${comp.name}-straightest-2nd.svg`,
           });
         }
         if (certs.length === 0) return null;

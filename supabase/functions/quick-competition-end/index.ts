@@ -31,9 +31,11 @@ function buildCardSvg(opts: {
   date: string;
   sponsorLogoUrl?: string | null;
   categoryLabel?: string;
+  placeLabel?: string;
 }): string {
   const title = opts.category === "longest" ? "LONGEST DRIVE" : "STRAIGHTEST DRIVE";
   const accent = opts.category === "longest" ? "#B8860B" : "#3E7090";
+  const placeLabel = opts.placeLabel ?? "Champion";
   const valueLabel = opts.category === "longest" ? "Distance" : "Offline";
   const formatted = `${opts.value.toFixed(1)} ${opts.unit}`;
   const sponsor = opts.sponsorLogoUrl
@@ -52,7 +54,7 @@ function buildCardSvg(opts: {
   <rect width="1100" height="1100" fill="url(#bg)"/>
   <rect x="40" y="40" width="1020" height="1020" fill="none" stroke="${accent}" stroke-width="3" opacity="0.7" rx="20"/>
   <rect x="60" y="60" width="980" height="980" fill="none" stroke="${accent}" stroke-width="1" opacity="0.35" rx="12"/>
-  <text x="550" y="180" text-anchor="middle" font-family="Playfair Display, serif" font-size="48" fill="#2C2C2C" font-style="italic">Champion</text>
+  <text x="550" y="180" text-anchor="middle" font-family="Playfair Display, serif" font-size="48" fill="#2C2C2C" font-style="italic">${escapeXml(placeLabel)}</text>
   <text x="550" y="270" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="56" fill="${accent}" font-weight="bold" letter-spacing="6">${title}</text>
   ${opts.categoryLabel ? `<text x="550" y="310" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="24" fill="#666" letter-spacing="3">${escapeXml(opts.categoryLabel.toUpperCase())}</text>` : ""}
   <line x1="350" y1="340" x2="750" y2="340" stroke="${accent}" stroke-width="2"/>
@@ -132,7 +134,7 @@ Deno.serve(async (req) => {
 
     type Best = { playerId: string; value: number; ts: string };
 
-    function computeBests(playerIds: Set<string>): { longest: Best | null; straightest: Best | null } {
+    function computeBests(playerIds: Set<string>): { longest: Best[]; straightest: Best[] } {
       const bestL = new Map<string, Best>();
       const bestS = new Map<string, Best>();
       for (const a of attempts) {
@@ -148,7 +150,7 @@ Deno.serve(async (req) => {
       }
       const lArr = [...bestL.values()].sort((a, b) => b.value - a.value || a.ts.localeCompare(b.ts));
       const sArr = [...bestS.values()].sort((a, b) => a.value - b.value || a.ts.localeCompare(b.ts));
-      return { longest: lArr[0] ?? null, straightest: sArr[0] ?? null };
+      return { longest: lArr, straightest: sArr };
     }
 
     const dateStr = new Date(comp.created_at).toLocaleDateString("en-GB", {
@@ -163,6 +165,7 @@ Deno.serve(async (req) => {
       category: "longest" | "straightest",
       winner: Best,
       categoryName?: string,
+      placeLabel?: string,
     ): Promise<string> {
       const svg = buildCardSvg({
         category,
@@ -173,6 +176,7 @@ Deno.serve(async (req) => {
         date: dateStr,
         sponsorLogoUrl: sponsorLogo,
         categoryLabel: categoryName,
+        placeLabel,
       });
       const path = `${competitionId}/${pathKey}-${Date.now()}.svg`;
       const { error: upErr } = await admin.storage
@@ -184,6 +188,22 @@ Deno.serve(async (req) => {
       if (upErr) throw new Error(`Upload ${pathKey}: ${upErr.message}`);
       const { data: pub } = admin.storage.from("quick-comp-sponsors").getPublicUrl(path);
       return pub.publicUrl;
+    }
+
+    async function buildPlaceEntry(
+      pathKey: string,
+      category: "longest" | "straightest",
+      best: Best,
+      categoryName: string | undefined,
+      placeLabel: string,
+    ) {
+      const url = await uploadCard(pathKey, category, best, categoryName, placeLabel);
+      return {
+        player_id: best.playerId,
+        player_name: playerName.get(best.playerId) ?? "Unknown",
+        value: best.value,
+        card_url: url,
+      };
     }
 
     const updatePayload: Record<string, unknown> = {
@@ -203,23 +223,17 @@ Deno.serve(async (req) => {
           category_id: cat.id,
           name: cat.name,
         };
-        if (longest) {
-          const url = await uploadCard(`longest-${cat.id}`, "longest", longest, cat.name);
-          entry.longest = {
-            player_id: longest.playerId,
-            player_name: playerName.get(longest.playerId) ?? "Unknown",
-            value: longest.value,
-            card_url: url,
-          };
+        if (longest[0]) {
+          entry.longest = await buildPlaceEntry(`longest-${cat.id}`, "longest", longest[0], cat.name, "Champion");
         }
-        if (straightest) {
-          const url = await uploadCard(`straightest-${cat.id}`, "straightest", straightest, cat.name);
-          entry.straightest = {
-            player_id: straightest.playerId,
-            player_name: playerName.get(straightest.playerId) ?? "Unknown",
-            value: straightest.value,
-            card_url: url,
-          };
+        if (longest[1]) {
+          entry.longest_runner_up = await buildPlaceEntry(`longest-runner-${cat.id}`, "longest", longest[1], cat.name, "Runner-Up");
+        }
+        if (straightest[0]) {
+          entry.straightest = await buildPlaceEntry(`straightest-${cat.id}`, "straightest", straightest[0], cat.name, "Champion");
+        }
+        if (straightest[1]) {
+          entry.straightest_runner_up = await buildPlaceEntry(`straightest-runner-${cat.id}`, "straightest", straightest[1], cat.name, "Runner-Up");
         }
         categoryWinners.push(entry);
       }
@@ -230,20 +244,29 @@ Deno.serve(async (req) => {
       auditDetails.category_winners = categoryWinners;
     } else {
       const allIds = new Set(players.map((p) => p.id));
-      const { longest: longestWinner, straightest: straightWinner } = computeBests(allIds);
-      if (!longestWinner || !straightWinner) {
+      const { longest, straightest } = computeBests(allIds);
+      if (!longest[0] || !straightest[0]) {
         return ok({ success: false, error: "No attempts recorded — cannot end competition" });
       }
-      const longestUrl = await uploadCard("longest", "longest", longestWinner);
-      const straightUrl = await uploadCard("straightest", "straightest", straightWinner);
-      updatePayload.longest_winner_player_id = longestWinner.playerId;
-      updatePayload.longest_winner_value = longestWinner.value;
-      updatePayload.straightest_winner_player_id = straightWinner.playerId;
-      updatePayload.straightest_winner_value = straightWinner.value;
+      const longestUrl = await uploadCard("longest", "longest", longest[0], undefined, "Champion");
+      const straightUrl = await uploadCard("straightest", "straightest", straightest[0], undefined, "Champion");
+      updatePayload.longest_winner_player_id = longest[0].playerId;
+      updatePayload.longest_winner_value = longest[0].value;
+      updatePayload.straightest_winner_player_id = straightest[0].playerId;
+      updatePayload.straightest_winner_value = straightest[0].value;
       updatePayload.longest_card_url = longestUrl;
       updatePayload.straightest_card_url = straightUrl;
-      auditDetails.longest = { player_id: longestWinner.playerId, value: longestWinner.value };
-      auditDetails.straightest = { player_id: straightWinner.playerId, value: straightWinner.value };
+      const runnersUp: Record<string, unknown> = {};
+      if (longest[1]) {
+        runnersUp.longest = await buildPlaceEntry("longest-runner", "longest", longest[1], undefined, "Runner-Up");
+      }
+      if (straightest[1]) {
+        runnersUp.straightest = await buildPlaceEntry("straightest-runner", "straightest", straightest[1], undefined, "Runner-Up");
+      }
+      updatePayload.runners_up = runnersUp;
+      auditDetails.longest = { player_id: longest[0].playerId, value: longest[0].value };
+      auditDetails.straightest = { player_id: straightest[0].playerId, value: straightest[0].value };
+      auditDetails.runners_up = runnersUp;
     }
 
     const { data: updated, error: upErr } = await admin

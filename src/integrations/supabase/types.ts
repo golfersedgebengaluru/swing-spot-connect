@@ -3873,6 +3873,7 @@ export type Database = {
           max_attempts: number
           name: string
           refunds_allowed: boolean
+          runners_up: Json | null
           sponsor_enabled: boolean
           sponsor_logo_url: string | null
           status: string
@@ -3899,6 +3900,7 @@ export type Database = {
           max_attempts?: number
           name: string
           refunds_allowed?: boolean
+          runners_up?: Json | null
           sponsor_enabled?: boolean
           sponsor_logo_url?: string | null
           status?: string
@@ -3925,6 +3927,7 @@ export type Database = {
           max_attempts?: number
           name?: string
           refunds_allowed?: boolean
+          runners_up?: Json | null
           sponsor_enabled?: boolean
           sponsor_logo_url?: string | null
           status?: string
