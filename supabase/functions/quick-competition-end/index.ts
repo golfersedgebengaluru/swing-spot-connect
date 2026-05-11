@@ -31,9 +31,11 @@ function buildCardSvg(opts: {
   date: string;
   sponsorLogoUrl?: string | null;
   categoryLabel?: string;
+  placeLabel?: string;
 }): string {
   const title = opts.category === "longest" ? "LONGEST DRIVE" : "STRAIGHTEST DRIVE";
   const accent = opts.category === "longest" ? "#B8860B" : "#3E7090";
+  const placeLabel = opts.placeLabel ?? "Champion";
   const valueLabel = opts.category === "longest" ? "Distance" : "Offline";
   const formatted = `${opts.value.toFixed(1)} ${opts.unit}`;
   const sponsor = opts.sponsorLogoUrl
