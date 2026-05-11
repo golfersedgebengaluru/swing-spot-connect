@@ -58,9 +58,9 @@ function buildCardSvg(opts: {
   <text x="550" y="270" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="56" fill="${accent}" font-weight="bold" letter-spacing="6">${title}</text>
   ${opts.categoryLabel ? `<text x="550" y="310" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="24" fill="#666" letter-spacing="3">${escapeXml(opts.categoryLabel.toUpperCase())}</text>` : ""}
   <line x1="350" y1="340" x2="750" y2="340" stroke="${accent}" stroke-width="2"/>
-  <text x="550" y="490" text-anchor="middle" font-family="Playfair Display, serif" font-size="84" fill="#1A1A1A" font-weight="bold">${escapeXml(opts.winnerName)}</text>
-  <text x="550" y="600" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="28" fill="#777" letter-spacing="3">${valueLabel.toUpperCase()}</text>
-  <text x="550" y="720" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="120" fill="${accent}" font-weight="bold">${formatted}</text>
+  <text x="550" y="490" text-anchor="middle" font-family="Playfair Display, serif" font-size="68" fill="#1A1A1A" font-weight="bold">${escapeXml(opts.winnerName)}</text>
+  <text x="550" y="600" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="26" fill="#777" letter-spacing="3">${valueLabel.toUpperCase()}</text>
+  <text x="550" y="720" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="96" fill="${accent}" font-weight="bold">${formatted}</text>
   <text x="550" y="830" text-anchor="middle" font-family="Playfair Display, serif" font-size="36" fill="#2C2C2C" font-style="italic">${escapeXml(opts.competitionName)}</text>
   <text x="550" y="880" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="22" fill="#888">${escapeXml(opts.date)}</text>
   ${sponsor}
@@ -227,13 +227,13 @@ Deno.serve(async (req) => {
           entry.longest = await buildPlaceEntry(`longest-${cat.id}`, "longest", longest[0], cat.name, "Champion");
         }
         if (longest[1]) {
-          entry.longest_runner_up = await buildPlaceEntry(`longest-runner-${cat.id}`, "longest", longest[1], cat.name, "Runner-Up");
+          entry.longest_runner_up = await buildPlaceEntry(`longest-runner-${cat.id}`, "longest", longest[1], cat.name, "Runner-Up Champion");
         }
         if (straightest[0]) {
           entry.straightest = await buildPlaceEntry(`straightest-${cat.id}`, "straightest", straightest[0], cat.name, "Champion");
         }
         if (straightest[1]) {
-          entry.straightest_runner_up = await buildPlaceEntry(`straightest-runner-${cat.id}`, "straightest", straightest[1], cat.name, "Runner-Up");
+          entry.straightest_runner_up = await buildPlaceEntry(`straightest-runner-${cat.id}`, "straightest", straightest[1], cat.name, "Runner-Up Champion");
         }
         categoryWinners.push(entry);
       }
@@ -258,10 +258,10 @@ Deno.serve(async (req) => {
       updatePayload.straightest_card_url = straightUrl;
       const runnersUp: Record<string, unknown> = {};
       if (longest[1]) {
-        runnersUp.longest = await buildPlaceEntry("longest-runner", "longest", longest[1], undefined, "Runner-Up");
+        runnersUp.longest = await buildPlaceEntry("longest-runner", "longest", longest[1], undefined, "Runner-Up Champion");
       }
       if (straightest[1]) {
-        runnersUp.straightest = await buildPlaceEntry("straightest-runner", "straightest", straightest[1], undefined, "Runner-Up");
+        runnersUp.straightest = await buildPlaceEntry("straightest-runner", "straightest", straightest[1], undefined, "Runner-Up Champion");
       }
       updatePayload.runners_up = runnersUp;
       auditDetails.longest = { player_id: longest[0].playerId, value: longest[0].value };
