@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
 
     type Best = { playerId: string; value: number; ts: string };
 
-    function computeBests(playerIds: Set<string>): { longest: Best | null; straightest: Best | null } {
+    function computeBests(playerIds: Set<string>): { longest: Best[]; straightest: Best[] } {
       const bestL = new Map<string, Best>();
       const bestS = new Map<string, Best>();
       for (const a of attempts) {
@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
       }
       const lArr = [...bestL.values()].sort((a, b) => b.value - a.value || a.ts.localeCompare(b.ts));
       const sArr = [...bestS.values()].sort((a, b) => a.value - b.value || a.ts.localeCompare(b.ts));
-      return { longest: lArr[0] ?? null, straightest: sArr[0] ?? null };
+      return { longest: lArr, straightest: sArr };
     }
 
     const dateStr = new Date(comp.created_at).toLocaleDateString("en-GB", {
@@ -165,6 +165,7 @@ Deno.serve(async (req) => {
       category: "longest" | "straightest",
       winner: Best,
       categoryName?: string,
+      placeLabel?: string,
     ): Promise<string> {
       const svg = buildCardSvg({
         category,
@@ -175,6 +176,7 @@ Deno.serve(async (req) => {
         date: dateStr,
         sponsorLogoUrl: sponsorLogo,
         categoryLabel: categoryName,
+        placeLabel,
       });
       const path = `${competitionId}/${pathKey}-${Date.now()}.svg`;
       const { error: upErr } = await admin.storage
@@ -186,6 +188,22 @@ Deno.serve(async (req) => {
       if (upErr) throw new Error(`Upload ${pathKey}: ${upErr.message}`);
       const { data: pub } = admin.storage.from("quick-comp-sponsors").getPublicUrl(path);
       return pub.publicUrl;
+    }
+
+    async function buildPlaceEntry(
+      pathKey: string,
+      category: "longest" | "straightest",
+      best: Best,
+      categoryName: string | undefined,
+      placeLabel: string,
+    ) {
+      const url = await uploadCard(pathKey, category, best, categoryName, placeLabel);
+      return {
+        player_id: best.playerId,
+        player_name: playerName.get(best.playerId) ?? "Unknown",
+        value: best.value,
+        card_url: url,
+      };
     }
 
     const updatePayload: Record<string, unknown> = {
