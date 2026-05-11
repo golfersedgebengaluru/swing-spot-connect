@@ -227,13 +227,13 @@ Deno.serve(async (req) => {
           entry.longest = await buildPlaceEntry(`longest-${cat.id}`, "longest", longest[0], cat.name, "Champion");
         }
         if (longest[1]) {
-          entry.longest_runner_up = await buildPlaceEntry(`longest-runner-${cat.id}`, "longest", longest[1], cat.name, "Runner-Up");
+          entry.longest_runner_up = await buildPlaceEntry(`longest-runner-${cat.id}`, "longest", longest[1], cat.name, "Runner-Up Champion");
         }
         if (straightest[0]) {
           entry.straightest = await buildPlaceEntry(`straightest-${cat.id}`, "straightest", straightest[0], cat.name, "Champion");
         }
         if (straightest[1]) {
-          entry.straightest_runner_up = await buildPlaceEntry(`straightest-runner-${cat.id}`, "straightest", straightest[1], cat.name, "Runner-Up");
+          entry.straightest_runner_up = await buildPlaceEntry(`straightest-runner-${cat.id}`, "straightest", straightest[1], cat.name, "Runner-Up Champion");
         }
         categoryWinners.push(entry);
       }
@@ -258,10 +258,10 @@ Deno.serve(async (req) => {
       updatePayload.straightest_card_url = straightUrl;
       const runnersUp: Record<string, unknown> = {};
       if (longest[1]) {
-        runnersUp.longest = await buildPlaceEntry("longest-runner", "longest", longest[1], undefined, "Runner-Up");
+        runnersUp.longest = await buildPlaceEntry("longest-runner", "longest", longest[1], undefined, "Runner-Up Champion");
       }
       if (straightest[1]) {
-        runnersUp.straightest = await buildPlaceEntry("straightest-runner", "straightest", straightest[1], undefined, "Runner-Up");
+        runnersUp.straightest = await buildPlaceEntry("straightest-runner", "straightest", straightest[1], undefined, "Runner-Up Champion");
       }
       updatePayload.runners_up = runnersUp;
       auditDetails.longest = { player_id: longest[0].playerId, value: longest[0].value };
