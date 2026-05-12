@@ -171,6 +171,7 @@ function LeagueDialog({
   const { data: venues } = useLeagueLiteVenues();
   const upsert = useUpsertLeagueLite();
   const venueUpsert = useUpsertLeagueLiteVenue();
+  const venueDel = useDeleteLeagueLiteVenue();
 
   const [name, setName] = useState(initial?.name ?? "");
   const [isActive, setIsActive] = useState(initial?.is_active ?? true);
@@ -188,10 +189,9 @@ function LeagueDialog({
 
   const allowedSizes = parseTeamSizes(teamSizesInput);
   const canSave =
-    (multiLocation || name.trim().length > 0) &&
+    name.trim().length > 0 &&
     allowedSizes.length > 0 &&
-    selectedVenues.size > 0 &&
-    (!multiLocation || selectedVenues.size >= 1);
+    selectedVenues.size > 0;
 
   const handleAddVenue = async () => {
     const n = newVenueName.trim();
@@ -210,7 +210,7 @@ function LeagueDialog({
     try {
       await upsert.mutateAsync({
         id: initial?.id,
-        name: multiLocation ? null : name.trim(),
+        name: name.trim(),
         is_active: isActive,
         show_on_landing: showOnLanding,
         multi_location: multiLocation,
@@ -244,12 +244,10 @@ function LeagueDialog({
             </div>
           </div>
 
-          {!multiLocation && (
-            <div>
-              <Label className="text-xs">League Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Spring Doubles" />
-            </div>
-          )}
+          <div>
+            <Label className="text-xs">League Name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Spring Doubles" />
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -285,11 +283,12 @@ function LeagueDialog({
 
           <div>
             <Label className="text-xs">Venues {multiLocation ? "(captain picks one)" : "(pick one)"}</Label>
-            <div className="mt-2 space-y-2 max-h-40 overflow-y-auto rounded-md border border-border p-2">
-              {(venues ?? []).filter((v) => v.is_active).map((v) => (
-                <label key={v.id} className="flex items-center gap-2 text-sm">
+            <div className="mt-2 space-y-1 max-h-48 overflow-y-auto rounded-md border border-border p-2">
+              {(venues ?? []).map((v) => (
+                <div key={v.id} className="flex items-center gap-2 text-sm py-1">
                   <Checkbox
                     checked={selectedVenues.has(v.id)}
+                    disabled={!v.is_active}
                     onCheckedChange={(c) => {
                       setSelectedVenues((s) => {
                         const next = new Set(s);
@@ -303,11 +302,63 @@ function LeagueDialog({
                       });
                     }}
                   />
-                  {v.name}
-                </label>
+                  <span className={`flex-1 ${v.is_active ? "" : "text-muted-foreground line-through"}`}>{v.name}</span>
+                  <Switch
+                    checked={v.is_active}
+                    onCheckedChange={async (checked) => {
+                      try {
+                        await venueUpsert.mutateAsync({ id: v.id, name: v.name, is_active: checked });
+                        if (!checked) {
+                          setSelectedVenues((s) => {
+                            const next = new Set(s);
+                            next.delete(v.id);
+                            return next;
+                          });
+                        }
+                      } catch (err: any) {
+                        toast({ title: "Error", description: err.message, variant: "destructive" });
+                      }
+                    }}
+                  />
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete "{v.name}"?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Leagues currently linked to it will block the delete.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={async () => {
+                            try {
+                              await venueDel.mutateAsync(v.id);
+                              setSelectedVenues((s) => {
+                                const next = new Set(s);
+                                next.delete(v.id);
+                                return next;
+                              });
+                              toast({ title: "Venue deleted" });
+                            } catch (err: any) {
+                              toast({ title: "Error", description: err.message, variant: "destructive" });
+                            }
+                          }}
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               ))}
-              {(venues ?? []).filter((v) => v.is_active).length === 0 && (
-                <p className="text-xs text-muted-foreground">No active venues — add one below.</p>
+              {(venues ?? []).length === 0 && (
+                <p className="text-xs text-muted-foreground">No venues yet — add one below.</p>
               )}
             </div>
             <div className="flex items-center gap-2 mt-2">
