@@ -1686,7 +1686,7 @@ export function AdminLeaguesTab() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <CardTitle className="text-base flex items-center gap-2"><Trophy className="h-4 w-4" /> Leagues</CardTitle>
-                <CreateLeagueDialog tenantId={selectedTenantId} />
+                <span className="text-[11px] text-muted-foreground">Read-only · use New League above</span>
               </CardHeader>
               <CardContent className="p-0">
                 {leaguesLoading ? (
