@@ -423,11 +423,9 @@ export function LeaguesPanel() {
             {(leagues ?? []).map((l) => (
               <div key={l.id} className="flex flex-wrap items-center gap-2 border border-border rounded-md p-3">
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm">
-                    {l.multi_location ? <span className="italic text-muted-foreground">— multi-location —</span> : l.name}
-                  </div>
+                  <div className="font-medium text-sm">{l.name}</div>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {l.is_active ? <Badge variant="default" className="text-[10px]">Active</Badge> : <Badge variant="secondary" className="text-[10px]">Inactive</Badge>}
+                    {l.is_active ? <Badge className="text-[10px] bg-green-600 hover:bg-green-600 text-white border-transparent">Active</Badge> : <Badge variant="secondary" className="text-[10px]">Inactive</Badge>}
                     {l.show_on_landing && <Badge variant="outline" className="text-[10px]">On landing</Badge>}
                     {l.multi_location && <Badge variant="outline" className="text-[10px]">Multi-location</Badge>}
                     <Badge variant="outline" className="text-[10px]">Sizes: {l.allowed_team_sizes.join(",")}</Badge>
