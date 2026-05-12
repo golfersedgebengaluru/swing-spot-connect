@@ -143,6 +143,12 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
+          {comp.format === "uld" && comp.uld_logo_url && (
+            <img src={comp.uld_logo_url} alt="ULD" className="h-12 w-auto rounded border bg-white p-1" />
+          )}
+          {comp.format === "uld" && comp.uld_location_logo_url && (
+            <img src={comp.uld_location_logo_url} alt="Location" className="h-12 w-auto rounded border bg-white p-1" />
+          )}
           {comp.sponsor_enabled && comp.sponsor_logo_url && (
             <img src={comp.sponsor_logo_url} alt="Sponsor" className="h-12 w-auto rounded border bg-white p-1" />
           )}
