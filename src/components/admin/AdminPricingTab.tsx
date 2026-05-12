@@ -435,11 +435,95 @@ function HourPackagesSection() {
   );
 }
 
+function LeaguePricingSection() {
+  const { toast } = useToast();
+  const { data: leagues, isLoading } = useLeaguesLite();
+  const update = useUpdateLeagueLitePrice();
+  const [edits, setEdits] = useState<Record<string, string>>({});
+
+  const getPrice = (id: string, current: number) => edits[id] ?? current.toString();
+
+  const handleSave = async (id: string) => {
+    const v = edits[id];
+    if (v === undefined) return;
+    try {
+      await update.mutateAsync({ id, price_per_person: parseFloat(v) || 0 });
+      setEdits((e) => {
+        const n = { ...e };
+        delete n[id];
+        return n;
+      });
+      toast({ title: "Price updated" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Trophy className="h-4 w-4" /> League Pricing
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {(leagues ?? []).length === 0 ? (
+          <p className="text-sm text-muted-foreground py-2">
+            No leagues yet — create one in the <strong>Leagues (Lite)</strong> tab.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {(leagues ?? []).map((l) => (
+              <div
+                key={l.id}
+                className="flex flex-col sm:flex-row sm:items-end gap-3 rounded-lg border border-border/50 p-4"
+              >
+                <div className="flex-1">
+                  <div className="font-medium text-sm">
+                    {l.multi_location ? <em className="text-muted-foreground">— multi-location —</em> : l.name}
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {!l.is_active && <Badge variant="secondary" className="text-[10px]">Inactive</Badge>}
+                    <Badge variant="outline" className="text-[10px]">Sizes: {l.allowed_team_sizes.join(",")}</Badge>
+                    {(l.venues ?? []).map((v) => (
+                      <Badge key={v.id} variant="outline" className="text-[10px]">{v.name}</Badge>
+                    ))}
+                  </div>
+                </div>
+                <div className="w-40">
+                  <Label className="text-xs">Per person ({l.currency})</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    className="mt-0.5"
+                    value={getPrice(l.id, l.price_per_person)}
+                    onChange={(e) => setEdits((prev) => ({ ...prev, [l.id]: e.target.value }))}
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => handleSave(l.id)}
+                  disabled={edits[l.id] === undefined || update.isPending}
+                >
+                  {update.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function AdminPricingTab() {
   return (
     <div className="space-y-6">
       <BayPricingSection />
       <HourPackagesSection />
+      <LeaguePricingSection />
     </div>
   );
 }
