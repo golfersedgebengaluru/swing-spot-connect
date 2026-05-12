@@ -171,6 +171,7 @@ function LeagueDialog({
   const { data: venues } = useLeagueLiteVenues();
   const upsert = useUpsertLeagueLite();
   const venueUpsert = useUpsertLeagueLiteVenue();
+  const venueDel = useDeleteLeagueLiteVenue();
 
   const [name, setName] = useState(initial?.name ?? "");
   const [isActive, setIsActive] = useState(initial?.is_active ?? true);
@@ -188,10 +189,9 @@ function LeagueDialog({
 
   const allowedSizes = parseTeamSizes(teamSizesInput);
   const canSave =
-    (multiLocation || name.trim().length > 0) &&
+    name.trim().length > 0 &&
     allowedSizes.length > 0 &&
-    selectedVenues.size > 0 &&
-    (!multiLocation || selectedVenues.size >= 1);
+    selectedVenues.size > 0;
 
   const handleAddVenue = async () => {
     const n = newVenueName.trim();
