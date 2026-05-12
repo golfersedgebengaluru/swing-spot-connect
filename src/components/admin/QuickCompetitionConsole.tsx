@@ -420,7 +420,10 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
       )}
 
       {/* Add Player & Score (top, single compact card) */}
-      {!isCompleted && (
+      {!isCompleted && comp.format === "uld" && (
+        <QCULDScoringCard comp={comp} players={players} attempts={attempts} categories={categories} />
+      )}
+      {!isCompleted && comp.format !== "uld" && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Add Player &amp; Score</CardTitle>
