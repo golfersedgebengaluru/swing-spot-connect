@@ -435,7 +435,14 @@ export function useSaveAttempt(competitionId: string) {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async (input: { player_id: string; distance: number; offline: number }) => {
+    mutationFn: async (input: {
+      player_id: string;
+      distance: number;
+      offline: number;
+      set_number?: number | null;
+      shot_number?: number | null;
+      excluded?: boolean;
+    }) => {
       const { data: u } = await supabase.auth.getUser();
       const { data, error } = await supabase
         .from("quick_competition_attempts")
@@ -444,12 +451,15 @@ export function useSaveAttempt(competitionId: string) {
           player_id: input.player_id,
           distance: input.distance,
           offline: input.offline,
+          set_number: input.set_number ?? null,
+          shot_number: input.shot_number ?? null,
+          excluded: input.excluded ?? false,
           created_by: u.user?.id ?? null,
-        })
+        } as never)
         .select()
         .single();
       if (error) throw error;
-      await audit(competitionId, "save_attempt", { player_id: input.player_id, distance: input.distance, offline: input.offline });
+      await audit(competitionId, "save_attempt", { player_id: input.player_id, distance: input.distance, offline: input.offline, set_number: input.set_number ?? null, shot_number: input.shot_number ?? null, excluded: input.excluded ?? false });
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["qc-attempts", competitionId] }),
