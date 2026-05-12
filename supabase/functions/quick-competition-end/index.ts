@@ -144,11 +144,15 @@ Deno.serve(async (req) => {
 
     type Best = { playerId: string; value: number; ts: string };
 
+    const maxOff = comp.uld_max_offline != null ? Number(comp.uld_max_offline) : null;
+
     function computeBests(playerIds: Set<string>): { longest: Best[]; straightest: Best[] } {
       const bestL = new Map<string, Best>();
       const bestS = new Map<string, Best>();
       for (const a of attempts) {
         if (!playerIds.has(a.player_id)) continue;
+        if ((a as { excluded?: boolean }).excluded) continue;
+        if (maxOff != null && Number(a.offline) > maxOff) continue;
         const cur = bestL.get(a.player_id);
         if (!cur || a.distance > cur.value) {
           bestL.set(a.player_id, { playerId: a.player_id, value: Number(a.distance), ts: a.created_at });
@@ -168,6 +172,8 @@ Deno.serve(async (req) => {
     });
     const compTitle = comp.name;
     const sponsorLogo = comp.sponsor_enabled ? comp.sponsor_logo_url : null;
+    const uldLogo = comp.format === "uld" ? comp.uld_logo_url : null;
+    const locationLogo = comp.format === "uld" ? comp.uld_location_logo_url : null;
     const unitLabel = comp.unit === "yd" ? "yards" : "metres";
 
     async function uploadCard(
@@ -185,6 +191,8 @@ Deno.serve(async (req) => {
         unit: unitLabel,
         date: dateStr,
         sponsorLogoUrl: sponsorLogo,
+        uldLogoUrl: uldLogo,
+        locationLogoUrl: locationLogo,
         categoryLabel: categoryName,
         placeLabel,
       });
