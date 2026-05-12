@@ -1655,7 +1655,6 @@ export function AdminLeaguesTab() {
     <div className="space-y-6">
       {/* New unified League creation (multi-location, independent venues, allowed team sizes, per-person pricing) */}
       <LiteLeaguesPanel />
-      <LiteVenuesPanel />
 
       <div className="border-t pt-6">
         <h3 className="text-sm font-semibold text-muted-foreground mb-3">Legacy tenant-based leagues</h3>
