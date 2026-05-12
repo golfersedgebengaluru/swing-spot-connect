@@ -18,6 +18,7 @@ export function QuickCompetitionDialog({
 }) {
   const today = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   const [open, setOpen] = useState(false);
+  const [format, setFormat] = useState<"standard" | "uld">("standard");
   const [name, setName] = useState(`Longest Drive · ${today}`);
   const [unit, setUnit] = useState<"m" | "yd">("m");
   const [maxAttempts, setMaxAttempts] = useState<string>("3");
@@ -28,10 +29,18 @@ export function QuickCompetitionDialog({
   const [refundsAllowed, setRefundsAllowed] = useState(false);
   const [categoriesEnabled, setCategoriesEnabled] = useState(false);
   const [categoriesText, setCategoriesText] = useState("Men, Ladies");
+  // ULD-specific
+  const [uldSets, setUldSets] = useState<string>("2");
+  const [uldShots, setUldShots] = useState<string>("6");
+  const [uldDuration, setUldDuration] = useState<string>("150");
+  const [uldMaxOffline, setUldMaxOffline] = useState<string>("");
+  const [uldLogoFile, setUldLogoFile] = useState<File | null>(null);
+  const [uldLocationLogoFile, setUldLocationLogoFile] = useState<File | null>(null);
 
   const create = useCreateQuickCompetition();
 
   function reset() {
+    setFormat("standard");
     setName(`Longest Drive · ${today}`);
     setUnit("m");
     setMaxAttempts("3");
@@ -42,6 +51,12 @@ export function QuickCompetitionDialog({
     setRefundsAllowed(false);
     setCategoriesEnabled(false);
     setCategoriesText("Men, Ladies");
+    setUldSets("2");
+    setUldShots("6");
+    setUldDuration("150");
+    setUldMaxOffline("");
+    setUldLogoFile(null);
+    setUldLocationLogoFile(null);
   }
 
   async function handleStart() {
@@ -51,6 +66,10 @@ export function QuickCompetitionDialog({
     const cats = categoriesEnabled
       ? categoriesText.split(",").map((s) => s.trim()).filter(Boolean)
       : [];
+    const sets = Math.max(1, Math.min(10, parseInt(uldSets, 10) || 2));
+    const shots = Math.max(1, Math.min(20, parseInt(uldShots, 10) || 6));
+    const dur = Math.max(10, Math.min(3600, parseInt(uldDuration, 10) || 150));
+    const maxOff = parseFloat(uldMaxOffline);
     const result = await create.mutateAsync({
       tenant_id: tenantId,
       name: name.trim(),
@@ -64,6 +83,13 @@ export function QuickCompetitionDialog({
       refunds_allowed: entryType === "paid" ? refundsAllowed : false,
       categories_enabled: categoriesEnabled,
       categories: cats,
+      format,
+      uld_sets_per_player: sets,
+      uld_shots_per_set: shots,
+      uld_set_duration_seconds: dur,
+      uld_max_offline: format === "uld" && Number.isFinite(maxOff) && maxOff > 0 ? maxOff : null,
+      uld_logo_file: format === "uld" ? uldLogoFile : null,
+      uld_location_logo_file: format === "uld" ? uldLocationLogoFile : null,
     });
     setOpen(false);
     reset();
