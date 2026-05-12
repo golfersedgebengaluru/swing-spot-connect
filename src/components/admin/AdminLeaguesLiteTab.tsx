@@ -210,7 +210,7 @@ function LeagueDialog({
     try {
       await upsert.mutateAsync({
         id: initial?.id,
-        name: multiLocation ? null : name.trim(),
+        name: name.trim(),
         is_active: isActive,
         show_on_landing: showOnLanding,
         multi_location: multiLocation,
