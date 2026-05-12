@@ -71,7 +71,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam, LeaderboardEntry } from "@/types/league";
 import type { LeaguePlayerWithProfile } from "@/hooks/useLeagues";
-import { VenuesPanel as LiteVenuesPanel, LeaguesPanel as LiteLeaguesPanel } from "@/components/admin/AdminLeaguesLiteTab";
+import { LeaguesPanel as LiteLeaguesPanel } from "@/components/admin/AdminLeaguesLiteTab";
 
 // ── Inline assignment cells ──────────────────────────────────
 function PlayerLocationCell({ leagueId, player }: { leagueId: string; player: LeaguePlayerWithProfile }) {
