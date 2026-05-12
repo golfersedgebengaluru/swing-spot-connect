@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
       admin.from("quick_competition_players").select("id,name,category_id").eq("competition_id", competitionId),
       admin
         .from("quick_competition_attempts")
-        .select("player_id,distance,offline,created_at")
+        .select("player_id,distance,offline,created_at,excluded")
         .eq("competition_id", competitionId)
         .order("created_at", { ascending: true }),
       admin
