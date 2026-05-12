@@ -244,12 +244,10 @@ function LeagueDialog({
             </div>
           </div>
 
-          {!multiLocation && (
-            <div>
-              <Label className="text-xs">League Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Spring Doubles" />
-            </div>
-          )}
+          <div>
+            <Label className="text-xs">League Name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Spring Doubles" />
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
