@@ -47,6 +47,7 @@ const coreItems = [
   { id: "walkin", label: "Walk-in Booking", icon: CalendarDays, adminOrSiteAdminOnly: true },
   { id: "bookinglogs", label: "Bookings", icon: CalendarDays, adminOrSiteAdminOnly: true },
   { id: "leagues", label: "Leagues", icon: Trophy, adminOrSiteAdminOnly: true },
+  { id: "leagues_lite", label: "Leagues (Lite)", icon: Trophy, adminOrSiteAdminOnly: true },
   { id: "coaching", label: "Coaching", icon: GraduationCap },
   { id: "edgerewards", label: "EDGE Rewards", icon: Award, adminOrSiteAdminOnly: true },
 ];
