@@ -27,6 +27,13 @@ export type QuickCompetition = {
   categories_enabled: boolean;
   category_winners: unknown;
   runners_up?: unknown;
+  format: "standard" | "uld";
+  uld_sets_per_player: number;
+  uld_shots_per_set: number;
+  uld_set_duration_seconds: number;
+  uld_max_offline: number | null;
+  uld_logo_url: string | null;
+  uld_location_logo_url: string | null;
 };
 
 export type QCWinnerEntry = { player_id: string; player_name: string; value: number; card_url: string | null };
@@ -73,6 +80,9 @@ export type QCAttempt = {
   distance: number;
   offline: number;
   created_at: string;
+  set_number: number | null;
+  shot_number: number | null;
+  excluded: boolean;
 };
 
 export function useQuickCompetitions(tenantId: string | null) {
@@ -192,34 +202,63 @@ export function useCreateQuickCompetition() {
       refunds_allowed?: boolean;
       categories_enabled?: boolean;
       categories?: string[];
+      format?: "standard" | "uld";
+      uld_sets_per_player?: number;
+      uld_shots_per_set?: number;
+      uld_set_duration_seconds?: number;
+      uld_max_offline?: number | null;
+      uld_logo_file?: File | null;
+      uld_location_logo_file?: File | null;
     }) => {
-      let sponsor_logo_url: string | null = null;
-      if (input.sponsor_enabled && input.sponsor_logo_file) {
-        const ext = input.sponsor_logo_file.name.split(".").pop() || "png";
-        const path = `logos/${crypto.randomUUID()}.${ext}`;
+      async function uploadLogo(prefix: string, file: File): Promise<string> {
+        const ext = file.name.split(".").pop() || "png";
+        const path = `${prefix}/${crypto.randomUUID()}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from("quick-comp-sponsors")
-          .upload(path, input.sponsor_logo_file, { upsert: false });
+          .upload(path, file, { upsert: false });
         if (upErr) throw upErr;
-        sponsor_logo_url = supabase.storage.from("quick-comp-sponsors").getPublicUrl(path).data.publicUrl;
+        return supabase.storage.from("quick-comp-sponsors").getPublicUrl(path).data.publicUrl;
+      }
+      let sponsor_logo_url: string | null = null;
+      if (input.sponsor_enabled && input.sponsor_logo_file) {
+        sponsor_logo_url = await uploadLogo("logos", input.sponsor_logo_file);
+      }
+      const format = input.format ?? "standard";
+      let uld_logo_url: string | null = null;
+      let uld_location_logo_url: string | null = null;
+      if (format === "uld") {
+        if (input.uld_logo_file) uld_logo_url = await uploadLogo("uld-logos", input.uld_logo_file);
+        if (input.uld_location_logo_file) uld_location_logo_url = await uploadLogo("location-logos", input.uld_location_logo_file);
       }
       const { data: u } = await supabase.auth.getUser();
+      const insertPayload: Record<string, unknown> = {
+        tenant_id: input.tenant_id,
+        name: input.name,
+        unit: input.unit,
+        max_attempts: input.max_attempts,
+        sponsor_enabled: input.sponsor_enabled,
+        sponsor_logo_url,
+        entry_type: input.entry_type,
+        entry_fee: input.entry_type === "paid" ? input.entry_fee ?? null : null,
+        entry_currency: input.entry_currency || "INR",
+        refunds_allowed: input.refunds_allowed ?? false,
+        categories_enabled: input.categories_enabled ?? false,
+        created_by: u.user?.id ?? null,
+        format,
+      };
+      if (format === "uld") {
+        insertPayload.uld_sets_per_player = input.uld_sets_per_player ?? 2;
+        insertPayload.uld_shots_per_set = input.uld_shots_per_set ?? 6;
+        insertPayload.uld_set_duration_seconds = input.uld_set_duration_seconds ?? 150;
+        insertPayload.uld_max_offline = input.uld_max_offline ?? null;
+        insertPayload.uld_logo_url = uld_logo_url;
+        insertPayload.uld_location_logo_url = uld_location_logo_url;
+        // For ULD, max_attempts derived from sets * shots
+        insertPayload.max_attempts = (input.uld_sets_per_player ?? 2) * (input.uld_shots_per_set ?? 6);
+      }
       const { data, error } = await supabase
         .from("quick_competitions")
-        .insert({
-          tenant_id: input.tenant_id,
-          name: input.name,
-          unit: input.unit,
-          max_attempts: input.max_attempts,
-          sponsor_enabled: input.sponsor_enabled,
-          sponsor_logo_url,
-          entry_type: input.entry_type,
-          entry_fee: input.entry_type === "paid" ? input.entry_fee ?? null : null,
-          entry_currency: input.entry_currency || "INR",
-          refunds_allowed: input.refunds_allowed ?? false,
-          categories_enabled: input.categories_enabled ?? false,
-          created_by: u.user?.id ?? null,
-        })
+        .insert(insertPayload as never)
         .select()
         .single();
       if (error) throw error;
@@ -396,7 +435,14 @@ export function useSaveAttempt(competitionId: string) {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async (input: { player_id: string; distance: number; offline: number }) => {
+    mutationFn: async (input: {
+      player_id: string;
+      distance: number;
+      offline: number;
+      set_number?: number | null;
+      shot_number?: number | null;
+      excluded?: boolean;
+    }) => {
       const { data: u } = await supabase.auth.getUser();
       const { data, error } = await supabase
         .from("quick_competition_attempts")
@@ -405,12 +451,15 @@ export function useSaveAttempt(competitionId: string) {
           player_id: input.player_id,
           distance: input.distance,
           offline: input.offline,
+          set_number: input.set_number ?? null,
+          shot_number: input.shot_number ?? null,
+          excluded: input.excluded ?? false,
           created_by: u.user?.id ?? null,
-        })
+        } as never)
         .select()
         .single();
       if (error) throw error;
-      await audit(competitionId, "save_attempt", { player_id: input.player_id, distance: input.distance, offline: input.offline });
+      await audit(competitionId, "save_attempt", { player_id: input.player_id, distance: input.distance, offline: input.offline, set_number: input.set_number ?? null, shot_number: input.shot_number ?? null, excluded: input.excluded ?? false });
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["qc-attempts", competitionId] }),
@@ -440,21 +489,36 @@ export function useUpdateQuickCompetition() {
       sponsor_enabled?: boolean;
       sponsor_logo_file?: File | null;
       remove_sponsor_logo?: boolean;
+      uld_set_duration_seconds?: number;
+      uld_max_offline?: number | null;
+      uld_logo_file?: File | null;
+      remove_uld_logo?: boolean;
+      uld_location_logo_file?: File | null;
+      remove_uld_location_logo?: boolean;
     }) => {
+      async function uploadLogo(prefix: string, file: File): Promise<string> {
+        const ext = file.name.split(".").pop() || "png";
+        const path = `${prefix}/${crypto.randomUUID()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("quick-comp-sponsors")
+          .upload(path, file, { upsert: false });
+        if (upErr) throw upErr;
+        return supabase.storage.from("quick-comp-sponsors").getPublicUrl(path).data.publicUrl;
+      }
       const patch: Record<string, unknown> = {};
       if (input.name !== undefined) patch.name = input.name.trim();
       if (input.sponsor_enabled !== undefined) patch.sponsor_enabled = input.sponsor_enabled;
       if (input.remove_sponsor_logo) patch.sponsor_logo_url = null;
       if (input.sponsor_logo_file) {
-        const ext = input.sponsor_logo_file.name.split(".").pop() || "png";
-        const path = `logos/${crypto.randomUUID()}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from("quick-comp-sponsors")
-          .upload(path, input.sponsor_logo_file, { upsert: false });
-        if (upErr) throw upErr;
-        patch.sponsor_logo_url = supabase.storage.from("quick-comp-sponsors").getPublicUrl(path).data.publicUrl;
+        patch.sponsor_logo_url = await uploadLogo("logos", input.sponsor_logo_file);
         patch.sponsor_enabled = true;
       }
+      if (input.uld_set_duration_seconds !== undefined) patch.uld_set_duration_seconds = input.uld_set_duration_seconds;
+      if (input.uld_max_offline !== undefined) patch.uld_max_offline = input.uld_max_offline;
+      if (input.remove_uld_logo) patch.uld_logo_url = null;
+      if (input.uld_logo_file) patch.uld_logo_url = await uploadLogo("uld-logos", input.uld_logo_file);
+      if (input.remove_uld_location_logo) patch.uld_location_logo_url = null;
+      if (input.uld_location_logo_file) patch.uld_location_logo_url = await uploadLogo("location-logos", input.uld_location_logo_file);
       const { data, error } = await supabase
         .from("quick_competitions")
         .update(patch)
@@ -568,6 +632,7 @@ export function buildLeaderboards(players: QCPlayer[], attempts: QCAttempt[]) {
   const counts = new Map<string, number>();
   for (const a of attempts) {
     counts.set(a.player_id, (counts.get(a.player_id) ?? 0) + 1);
+    if (a.excluded) continue;
     const name = playerName.get(a.player_id) ?? "—";
     const dist = Number(a.distance);
     const off = Number(a.offline);

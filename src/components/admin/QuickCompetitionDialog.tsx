@@ -18,6 +18,7 @@ export function QuickCompetitionDialog({
 }) {
   const today = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   const [open, setOpen] = useState(false);
+  const [format, setFormat] = useState<"standard" | "uld">("standard");
   const [name, setName] = useState(`Longest Drive · ${today}`);
   const [unit, setUnit] = useState<"m" | "yd">("m");
   const [maxAttempts, setMaxAttempts] = useState<string>("3");
@@ -28,10 +29,18 @@ export function QuickCompetitionDialog({
   const [refundsAllowed, setRefundsAllowed] = useState(false);
   const [categoriesEnabled, setCategoriesEnabled] = useState(false);
   const [categoriesText, setCategoriesText] = useState("Men, Ladies");
+  // ULD-specific
+  const [uldSets, setUldSets] = useState<string>("2");
+  const [uldShots, setUldShots] = useState<string>("6");
+  const [uldDuration, setUldDuration] = useState<string>("150");
+  const [uldMaxOffline, setUldMaxOffline] = useState<string>("");
+  const [uldLogoFile, setUldLogoFile] = useState<File | null>(null);
+  const [uldLocationLogoFile, setUldLocationLogoFile] = useState<File | null>(null);
 
   const create = useCreateQuickCompetition();
 
   function reset() {
+    setFormat("standard");
     setName(`Longest Drive · ${today}`);
     setUnit("m");
     setMaxAttempts("3");
@@ -42,6 +51,12 @@ export function QuickCompetitionDialog({
     setRefundsAllowed(false);
     setCategoriesEnabled(false);
     setCategoriesText("Men, Ladies");
+    setUldSets("2");
+    setUldShots("6");
+    setUldDuration("150");
+    setUldMaxOffline("");
+    setUldLogoFile(null);
+    setUldLocationLogoFile(null);
   }
 
   async function handleStart() {
@@ -51,6 +66,10 @@ export function QuickCompetitionDialog({
     const cats = categoriesEnabled
       ? categoriesText.split(",").map((s) => s.trim()).filter(Boolean)
       : [];
+    const sets = Math.max(1, Math.min(10, parseInt(uldSets, 10) || 2));
+    const shots = Math.max(1, Math.min(20, parseInt(uldShots, 10) || 6));
+    const dur = Math.max(10, Math.min(3600, parseInt(uldDuration, 10) || 150));
+    const maxOff = parseFloat(uldMaxOffline);
     const result = await create.mutateAsync({
       tenant_id: tenantId,
       name: name.trim(),
@@ -64,6 +83,13 @@ export function QuickCompetitionDialog({
       refunds_allowed: entryType === "paid" ? refundsAllowed : false,
       categories_enabled: categoriesEnabled,
       categories: cats,
+      format,
+      uld_sets_per_player: sets,
+      uld_shots_per_set: shots,
+      uld_set_duration_seconds: dur,
+      uld_max_offline: format === "uld" && Number.isFinite(maxOff) && maxOff > 0 ? maxOff : null,
+      uld_logo_file: format === "uld" ? uldLogoFile : null,
+      uld_location_logo_file: format === "uld" ? uldLocationLogoFile : null,
     });
     setOpen(false);
     reset();
@@ -77,11 +103,25 @@ export function QuickCompetitionDialog({
           <Zap className="h-4 w-4" /> Quick Competition
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Start a Quick Competition</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label>Format</Label>
+            <RadioGroup value={format} onValueChange={(v) => setFormat(v as "standard" | "uld")} className="flex gap-6">
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="standard" id="f-std" />
+                <Label htmlFor="f-std" className="font-normal cursor-pointer">Standard</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="uld" id="f-uld" />
+                <Label htmlFor="f-uld" className="font-normal cursor-pointer">ULD (Ultimate Long Drive)</Label>
+              </div>
+            </RadioGroup>
+          </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="qc-name">Name</Label>
             <Input id="qc-name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -101,19 +141,70 @@ export function QuickCompetitionDialog({
             </RadioGroup>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="qc-attempts">Attempts per player</Label>
-            <Input
-              id="qc-attempts"
-              type="number"
-              min={1}
-              max={50}
-              value={maxAttempts}
-              onChange={(e) => setMaxAttempts(e.target.value)}
-              className="w-32"
-            />
-            <p className="text-xs text-muted-foreground">Each player can record up to this many attempts.</p>
-          </div>
+          {format === "standard" && (
+            <div className="space-y-1.5">
+              <Label htmlFor="qc-attempts">Attempts per player</Label>
+              <Input
+                id="qc-attempts"
+                type="number"
+                min={1}
+                max={50}
+                value={maxAttempts}
+                onChange={(e) => setMaxAttempts(e.target.value)}
+                className="w-32"
+              />
+              <p className="text-xs text-muted-foreground">Each player can record up to this many attempts.</p>
+            </div>
+          )}
+
+          {format === "uld" && (
+            <div className="space-y-3 border rounded-md p-3 bg-muted/30">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">ULD configuration</p>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Sets / player</Label>
+                  <Input type="number" min={1} max={10} value={uldSets} onChange={(e) => setUldSets(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Shots / set</Label>
+                  <Input type="number" min={1} max={20} value={uldShots} onChange={(e) => setUldShots(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Set timer (sec)</Label>
+                  <Input type="number" min={10} max={3600} value={uldDuration} onChange={(e) => setUldDuration(e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Max offline allowed ({unit})</Label>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  value={uldMaxOffline}
+                  onChange={(e) => setUldMaxOffline(e.target.value)}
+                  placeholder="e.g. 30 — leave blank for no cap"
+                  className="w-40"
+                />
+                <p className="text-xs text-muted-foreground">Shots with offline greater than this value are excluded from the leaderboard.</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">ULD logo (top-left of bay screen & cards)</Label>
+                <Input
+                  type="file"
+                  accept="image/png,image/jpeg,image/svg+xml"
+                  onChange={(e) => setUldLogoFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Location / sponsor logo (top-right)</Label>
+                <Input
+                  type="file"
+                  accept="image/png,image/jpeg,image/svg+xml"
+                  onChange={(e) => setUldLocationLogoFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2 border-t pt-3">
             <div className="flex items-center justify-between">
