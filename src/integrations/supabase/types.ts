@@ -3711,27 +3711,36 @@ export type Database = {
           created_at: string
           created_by: string | null
           distance: number
+          excluded: boolean
           id: string
           offline: number
           player_id: string
+          set_number: number | null
+          shot_number: number | null
         }
         Insert: {
           competition_id: string
           created_at?: string
           created_by?: string | null
           distance: number
+          excluded?: boolean
           id?: string
           offline: number
           player_id: string
+          set_number?: number | null
+          shot_number?: number | null
         }
         Update: {
           competition_id?: string
           created_at?: string
           created_by?: string | null
           distance?: number
+          excluded?: boolean
           id?: string
           offline?: number
           player_id?: string
+          set_number?: number | null
+          shot_number?: number | null
         }
         Relationships: [
           {
@@ -3866,6 +3875,7 @@ export type Database = {
           entry_currency: string
           entry_fee: number | null
           entry_type: string
+          format: string
           id: string
           longest_card_url: string | null
           longest_winner_player_id: string | null
@@ -3881,6 +3891,12 @@ export type Database = {
           straightest_winner_player_id: string | null
           straightest_winner_value: number | null
           tenant_id: string
+          uld_location_logo_url: string | null
+          uld_logo_url: string | null
+          uld_max_offline: number | null
+          uld_set_duration_seconds: number
+          uld_sets_per_player: number
+          uld_shots_per_set: number
           unit: string
           updated_at: string
         }
@@ -3893,6 +3909,7 @@ export type Database = {
           entry_currency?: string
           entry_fee?: number | null
           entry_type?: string
+          format?: string
           id?: string
           longest_card_url?: string | null
           longest_winner_player_id?: string | null
@@ -3908,6 +3925,12 @@ export type Database = {
           straightest_winner_player_id?: string | null
           straightest_winner_value?: number | null
           tenant_id: string
+          uld_location_logo_url?: string | null
+          uld_logo_url?: string | null
+          uld_max_offline?: number | null
+          uld_set_duration_seconds?: number
+          uld_sets_per_player?: number
+          uld_shots_per_set?: number
           unit?: string
           updated_at?: string
         }
@@ -3920,6 +3943,7 @@ export type Database = {
           entry_currency?: string
           entry_fee?: number | null
           entry_type?: string
+          format?: string
           id?: string
           longest_card_url?: string | null
           longest_winner_player_id?: string | null
@@ -3935,6 +3959,12 @@ export type Database = {
           straightest_winner_player_id?: string | null
           straightest_winner_value?: number | null
           tenant_id?: string
+          uld_location_logo_url?: string | null
+          uld_logo_url?: string | null
+          uld_max_offline?: number | null
+          uld_set_duration_seconds?: number
+          uld_sets_per_player?: number
+          uld_shots_per_set?: number
           unit?: string
           updated_at?: string
         }
