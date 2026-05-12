@@ -71,6 +71,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam, LeaderboardEntry } from "@/types/league";
 import type { LeaguePlayerWithProfile } from "@/hooks/useLeagues";
+import { VenuesPanel as LiteVenuesPanel, LeaguesPanel as LiteLeaguesPanel } from "@/components/admin/AdminLeaguesLiteTab";
 
 // ── Inline assignment cells ──────────────────────────────────
 function PlayerLocationCell({ leagueId, player }: { leagueId: string; player: LeaguePlayerWithProfile }) {
@@ -1652,6 +1653,14 @@ export function AdminLeaguesTab() {
 
   return (
     <div className="space-y-6">
+      {/* New unified League creation (multi-location, independent venues, allowed team sizes, per-person pricing) */}
+      <LiteLeaguesPanel />
+      <LiteVenuesPanel />
+
+      <div className="border-t pt-6">
+        <h3 className="text-sm font-semibold text-muted-foreground mb-3">Legacy tenant-based leagues</h3>
+      </div>
+
       {/* Tenant selector */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex-1 min-w-[200px]">
@@ -1677,7 +1686,7 @@ export function AdminLeaguesTab() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <CardTitle className="text-base flex items-center gap-2"><Trophy className="h-4 w-4" /> Leagues</CardTitle>
-                <CreateLeagueDialog tenantId={selectedTenantId} />
+                <span className="text-[11px] text-muted-foreground">Read-only · use New League above</span>
               </CardHeader>
               <CardContent className="p-0">
                 {leaguesLoading ? (
