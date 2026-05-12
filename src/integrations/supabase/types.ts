@@ -2213,6 +2213,33 @@ export type Database = {
           },
         ]
       }
+      league_lite_venues: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       league_locations: {
         Row: {
           created_at: string
@@ -2775,6 +2802,81 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leagues_lite: {
+        Row: {
+          allowed_team_sizes: number[]
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          is_active: boolean
+          multi_location: boolean
+          name: string | null
+          price_per_person: number
+          show_on_landing: boolean
+          updated_at: string
+        }
+        Insert: {
+          allowed_team_sizes?: number[]
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          is_active?: boolean
+          multi_location?: boolean
+          name?: string | null
+          price_per_person?: number
+          show_on_landing?: boolean
+          updated_at?: string
+        }
+        Update: {
+          allowed_team_sizes?: number[]
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          is_active?: boolean
+          multi_location?: boolean
+          name?: string | null
+          price_per_person?: number
+          show_on_landing?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      leagues_lite_venues: {
+        Row: {
+          created_at: string
+          league_id: string
+          venue_id: string
+        }
+        Insert: {
+          created_at?: string
+          league_id: string
+          venue_id: string
+        }
+        Update: {
+          created_at?: string
+          league_id?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leagues_lite_venues_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues_lite"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leagues_lite_venues_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "league_lite_venues"
             referencedColumns: ["id"]
           },
         ]

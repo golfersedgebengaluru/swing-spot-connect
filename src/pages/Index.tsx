@@ -9,6 +9,7 @@ import { FeaturesSection } from "@/components/home/FeaturesSection";
 import { CTASection } from "@/components/home/CTASection";
 import { BookingHeroSection } from "@/components/home/BookingHeroSection";
 import { BookingCTASection } from "@/components/home/BookingCTASection";
+import { LeaguesLandingSection } from "@/components/home/LeaguesLandingSection";
 import { useLandingMode } from "@/hooks/useLandingMode";
 
 
@@ -34,12 +35,14 @@ const Index = () => {
         {isBookingMode ? (
           <>
             <BookingHeroSection />
+            <LeaguesLandingSection />
             <BookingCTASection />
           </>
         ) : (
           <>
             <HeroSection />
             <FeaturesSection />
+            <LeaguesLandingSection />
             <CTASection />
           </>
         )}
