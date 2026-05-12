@@ -30,6 +30,8 @@ function buildCardSvg(opts: {
   unit: string;
   date: string;
   sponsorLogoUrl?: string | null;
+  uldLogoUrl?: string | null;
+  locationLogoUrl?: string | null;
   categoryLabel?: string;
   placeLabel?: string;
 }): string {
@@ -41,6 +43,12 @@ function buildCardSvg(opts: {
   const sponsor = opts.sponsorLogoUrl
     ? `<image href="${escapeXml(opts.sponsorLogoUrl)}" x="430" y="940" width="240" height="80" preserveAspectRatio="xMidYMid meet" />
        <text x="550" y="920" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="20" fill="#999">Brought to you by</text>`
+    : "";
+  const uldLogo = opts.uldLogoUrl
+    ? `<image href="${escapeXml(opts.uldLogoUrl)}" x="70" y="70" width="200" height="100" preserveAspectRatio="xMidYMid meet" />`
+    : "";
+  const locLogo = opts.locationLogoUrl
+    ? `<image href="${escapeXml(opts.locationLogoUrl)}" x="830" y="70" width="200" height="100" preserveAspectRatio="xMidYMid meet" />`
     : "";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -54,13 +62,15 @@ function buildCardSvg(opts: {
   <rect width="1100" height="1100" fill="url(#bg)"/>
   <rect x="40" y="40" width="1020" height="1020" fill="none" stroke="${accent}" stroke-width="3" opacity="0.7" rx="20"/>
   <rect x="60" y="60" width="980" height="980" fill="none" stroke="${accent}" stroke-width="1" opacity="0.35" rx="12"/>
-  <text x="550" y="180" text-anchor="middle" font-family="Playfair Display, serif" font-size="48" fill="#2C2C2C" font-style="italic">${escapeXml(placeLabel)}</text>
-  <text x="550" y="270" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="56" fill="${accent}" font-weight="bold" letter-spacing="6">${title}</text>
-  ${opts.categoryLabel ? `<text x="550" y="310" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="24" fill="#666" letter-spacing="3">${escapeXml(opts.categoryLabel.toUpperCase())}</text>` : ""}
-  <line x1="350" y1="340" x2="750" y2="340" stroke="${accent}" stroke-width="2"/>
-  <text x="550" y="490" text-anchor="middle" font-family="Playfair Display, serif" font-size="68" fill="#1A1A1A" font-weight="bold">${escapeXml(opts.winnerName)}</text>
-  <text x="550" y="600" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="26" fill="#777" letter-spacing="3">${valueLabel.toUpperCase()}</text>
-  <text x="550" y="720" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="96" fill="${accent}" font-weight="bold">${formatted}</text>
+  ${uldLogo}
+  ${locLogo}
+  <text x="550" y="230" text-anchor="middle" font-family="Playfair Display, serif" font-size="48" fill="#2C2C2C" font-style="italic">${escapeXml(placeLabel)}</text>
+  <text x="550" y="310" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="56" fill="${accent}" font-weight="bold" letter-spacing="6">${title}</text>
+  ${opts.categoryLabel ? `<text x="550" y="350" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="24" fill="#666" letter-spacing="3">${escapeXml(opts.categoryLabel.toUpperCase())}</text>` : ""}
+  <line x1="350" y1="380" x2="750" y2="380" stroke="${accent}" stroke-width="2"/>
+  <text x="550" y="510" text-anchor="middle" font-family="Playfair Display, serif" font-size="68" fill="#1A1A1A" font-weight="bold">${escapeXml(opts.winnerName)}</text>
+  <text x="550" y="610" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="26" fill="#777" letter-spacing="3">${valueLabel.toUpperCase()}</text>
+  <text x="550" y="730" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="96" fill="${accent}" font-weight="bold">${formatted}</text>
   <text x="550" y="830" text-anchor="middle" font-family="Playfair Display, serif" font-size="36" fill="#2C2C2C" font-style="italic">${escapeXml(opts.competitionName)}</text>
   <text x="550" y="880" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="22" fill="#888">${escapeXml(opts.date)}</text>
   ${sponsor}
