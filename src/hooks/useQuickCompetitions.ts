@@ -27,6 +27,13 @@ export type QuickCompetition = {
   categories_enabled: boolean;
   category_winners: unknown;
   runners_up?: unknown;
+  format: "standard" | "uld";
+  uld_sets_per_player: number;
+  uld_shots_per_set: number;
+  uld_set_duration_seconds: number;
+  uld_max_offline: number | null;
+  uld_logo_url: string | null;
+  uld_location_logo_url: string | null;
 };
 
 export type QCWinnerEntry = { player_id: string; player_name: string; value: number; card_url: string | null };
