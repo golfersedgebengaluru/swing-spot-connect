@@ -80,6 +80,9 @@ export type QCAttempt = {
   distance: number;
   offline: number;
   created_at: string;
+  set_number: number | null;
+  shot_number: number | null;
+  excluded: boolean;
 };
 
 export function useQuickCompetitions(tenantId: string | null) {
