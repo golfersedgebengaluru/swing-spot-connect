@@ -489,21 +489,36 @@ export function useUpdateQuickCompetition() {
       sponsor_enabled?: boolean;
       sponsor_logo_file?: File | null;
       remove_sponsor_logo?: boolean;
+      uld_set_duration_seconds?: number;
+      uld_max_offline?: number | null;
+      uld_logo_file?: File | null;
+      remove_uld_logo?: boolean;
+      uld_location_logo_file?: File | null;
+      remove_uld_location_logo?: boolean;
     }) => {
+      async function uploadLogo(prefix: string, file: File): Promise<string> {
+        const ext = file.name.split(".").pop() || "png";
+        const path = `${prefix}/${crypto.randomUUID()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("quick-comp-sponsors")
+          .upload(path, file, { upsert: false });
+        if (upErr) throw upErr;
+        return supabase.storage.from("quick-comp-sponsors").getPublicUrl(path).data.publicUrl;
+      }
       const patch: Record<string, unknown> = {};
       if (input.name !== undefined) patch.name = input.name.trim();
       if (input.sponsor_enabled !== undefined) patch.sponsor_enabled = input.sponsor_enabled;
       if (input.remove_sponsor_logo) patch.sponsor_logo_url = null;
       if (input.sponsor_logo_file) {
-        const ext = input.sponsor_logo_file.name.split(".").pop() || "png";
-        const path = `logos/${crypto.randomUUID()}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from("quick-comp-sponsors")
-          .upload(path, input.sponsor_logo_file, { upsert: false });
-        if (upErr) throw upErr;
-        patch.sponsor_logo_url = supabase.storage.from("quick-comp-sponsors").getPublicUrl(path).data.publicUrl;
+        patch.sponsor_logo_url = await uploadLogo("logos", input.sponsor_logo_file);
         patch.sponsor_enabled = true;
       }
+      if (input.uld_set_duration_seconds !== undefined) patch.uld_set_duration_seconds = input.uld_set_duration_seconds;
+      if (input.uld_max_offline !== undefined) patch.uld_max_offline = input.uld_max_offline;
+      if (input.remove_uld_logo) patch.uld_logo_url = null;
+      if (input.uld_logo_file) patch.uld_logo_url = await uploadLogo("uld-logos", input.uld_logo_file);
+      if (input.remove_uld_location_logo) patch.uld_location_logo_url = null;
+      if (input.uld_location_logo_file) patch.uld_location_logo_url = await uploadLogo("location-logos", input.uld_location_logo_file);
       const { data, error } = await supabase
         .from("quick_competitions")
         .update(patch)
