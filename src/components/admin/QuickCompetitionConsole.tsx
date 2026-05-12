@@ -24,6 +24,7 @@ import {
   useToggleCategoriesEnabled, useUpdatePlayerCategory,
   buildLeaderboards, buildLeaderboardsByCategory,
 } from "@/hooks/useQuickCompetitions";
+import { QCULDScoringCard } from "@/components/admin/QCULDScoringCard";
 import { Copy, RotateCcw, X } from "lucide-react";
 
 export function QuickCompetitionConsole({ competitionId, onClose }: { competitionId: string; onClose: () => void }) {
