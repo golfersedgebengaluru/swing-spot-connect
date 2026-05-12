@@ -55,6 +55,12 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
   const [editName, setEditName] = useState("");
   const [editSponsorEnabled, setEditSponsorEnabled] = useState(false);
   const [editSponsorFile, setEditSponsorFile] = useState<File | null>(null);
+  const [editUldDuration, setEditUldDuration] = useState<string>("150");
+  const [editUldMaxOffline, setEditUldMaxOffline] = useState<string>("");
+  const [editUldLogoFile, setEditUldLogoFile] = useState<File | null>(null);
+  const [editUldLocationLogoFile, setEditUldLocationLogoFile] = useState<File | null>(null);
+  const [removeUldLogo, setRemoveUldLogo] = useState(false);
+  const [removeUldLocationLogo, setRemoveUldLocationLogo] = useState(false);
   // Top "Add Player & Score" card state
   const [entryPlayerId, setEntryPlayerId] = useState<string>("");
   const [entryDistance, setEntryDistance] = useState("");
