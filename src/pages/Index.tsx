@@ -35,12 +35,14 @@ const Index = () => {
         {isBookingMode ? (
           <>
             <BookingHeroSection />
+            <LeaguesLandingSection />
             <BookingCTASection />
           </>
         ) : (
           <>
             <HeroSection />
             <FeaturesSection />
+            <LeaguesLandingSection />
             <CTASection />
           </>
         )}
