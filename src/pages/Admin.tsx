@@ -80,6 +80,7 @@ const tabComponents: Record<string, React.ComponentType<any>> = {
   rewards: AdminRewardsTab,
   edgerewards: AdminEdgeRewardsTab,
   leagues: AdminLeaguesTab,
+  leagues_lite: AdminLeaguesLiteTab,
   coaching: AdminCoachingTab,
   coupons: AdminCouponsTab,
   members: AdminMembersTab,
