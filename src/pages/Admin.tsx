@@ -25,6 +25,7 @@ import { AdminFinanceTab } from "@/components/admin/AdminFinanceTab";
 import { AdminSalesInvoicesTab } from "@/components/admin/AdminSalesInvoicesTab";
 import { AdminExpensesTab } from "@/components/admin/AdminExpensesTab";
 import { AdminLeaguesTab } from "@/components/admin/AdminLeaguesTab";
+import { AdminLeaguesLiteTab } from "@/components/admin/AdminLeaguesLiteTab";
 import { AdminCouponsTab } from "@/components/admin/AdminCouponsTab";
 import { AdminCoachingTab } from "@/components/admin/AdminCoachingTab";
 import { AdminCorporateAccountsTab } from "@/components/admin/AdminCorporateAccountsTab";
