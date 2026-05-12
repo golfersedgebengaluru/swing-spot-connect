@@ -283,11 +283,12 @@ function LeagueDialog({
 
           <div>
             <Label className="text-xs">Venues {multiLocation ? "(captain picks one)" : "(pick one)"}</Label>
-            <div className="mt-2 space-y-2 max-h-40 overflow-y-auto rounded-md border border-border p-2">
-              {(venues ?? []).filter((v) => v.is_active).map((v) => (
-                <label key={v.id} className="flex items-center gap-2 text-sm">
+            <div className="mt-2 space-y-1 max-h-48 overflow-y-auto rounded-md border border-border p-2">
+              {(venues ?? []).map((v) => (
+                <div key={v.id} className="flex items-center gap-2 text-sm py-1">
                   <Checkbox
                     checked={selectedVenues.has(v.id)}
+                    disabled={!v.is_active}
                     onCheckedChange={(c) => {
                       setSelectedVenues((s) => {
                         const next = new Set(s);
@@ -301,11 +302,63 @@ function LeagueDialog({
                       });
                     }}
                   />
-                  {v.name}
-                </label>
+                  <span className={`flex-1 ${v.is_active ? "" : "text-muted-foreground line-through"}`}>{v.name}</span>
+                  <Switch
+                    checked={v.is_active}
+                    onCheckedChange={async (checked) => {
+                      try {
+                        await venueUpsert.mutateAsync({ id: v.id, name: v.name, is_active: checked });
+                        if (!checked) {
+                          setSelectedVenues((s) => {
+                            const next = new Set(s);
+                            next.delete(v.id);
+                            return next;
+                          });
+                        }
+                      } catch (err: any) {
+                        toast({ title: "Error", description: err.message, variant: "destructive" });
+                      }
+                    }}
+                  />
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete "{v.name}"?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Leagues currently linked to it will block the delete.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={async () => {
+                            try {
+                              await venueDel.mutateAsync(v.id);
+                              setSelectedVenues((s) => {
+                                const next = new Set(s);
+                                next.delete(v.id);
+                                return next;
+                              });
+                              toast({ title: "Venue deleted" });
+                            } catch (err: any) {
+                              toast({ title: "Error", description: err.message, variant: "destructive" });
+                            }
+                          }}
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               ))}
-              {(venues ?? []).filter((v) => v.is_active).length === 0 && (
-                <p className="text-xs text-muted-foreground">No active venues — add one below.</p>
+              {(venues ?? []).length === 0 && (
+                <p className="text-xs text-muted-foreground">No venues yet — add one below.</p>
               )}
             </div>
             <div className="flex items-center gap-2 mt-2">
