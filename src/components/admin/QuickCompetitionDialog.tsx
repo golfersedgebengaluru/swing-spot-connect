@@ -103,11 +103,25 @@ export function QuickCompetitionDialog({
           <Zap className="h-4 w-4" /> Quick Competition
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Start a Quick Competition</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label>Format</Label>
+            <RadioGroup value={format} onValueChange={(v) => setFormat(v as "standard" | "uld")} className="flex gap-6">
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="standard" id="f-std" />
+                <Label htmlFor="f-std" className="font-normal cursor-pointer">Standard</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="uld" id="f-uld" />
+                <Label htmlFor="f-uld" className="font-normal cursor-pointer">ULD (Ultimate Long Drive)</Label>
+              </div>
+            </RadioGroup>
+          </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="qc-name">Name</Label>
             <Input id="qc-name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -127,19 +141,70 @@ export function QuickCompetitionDialog({
             </RadioGroup>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="qc-attempts">Attempts per player</Label>
-            <Input
-              id="qc-attempts"
-              type="number"
-              min={1}
-              max={50}
-              value={maxAttempts}
-              onChange={(e) => setMaxAttempts(e.target.value)}
-              className="w-32"
-            />
-            <p className="text-xs text-muted-foreground">Each player can record up to this many attempts.</p>
-          </div>
+          {format === "standard" && (
+            <div className="space-y-1.5">
+              <Label htmlFor="qc-attempts">Attempts per player</Label>
+              <Input
+                id="qc-attempts"
+                type="number"
+                min={1}
+                max={50}
+                value={maxAttempts}
+                onChange={(e) => setMaxAttempts(e.target.value)}
+                className="w-32"
+              />
+              <p className="text-xs text-muted-foreground">Each player can record up to this many attempts.</p>
+            </div>
+          )}
+
+          {format === "uld" && (
+            <div className="space-y-3 border rounded-md p-3 bg-muted/30">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">ULD configuration</p>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Sets / player</Label>
+                  <Input type="number" min={1} max={10} value={uldSets} onChange={(e) => setUldSets(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Shots / set</Label>
+                  <Input type="number" min={1} max={20} value={uldShots} onChange={(e) => setUldShots(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Set timer (sec)</Label>
+                  <Input type="number" min={10} max={3600} value={uldDuration} onChange={(e) => setUldDuration(e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Max offline allowed ({unit})</Label>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  value={uldMaxOffline}
+                  onChange={(e) => setUldMaxOffline(e.target.value)}
+                  placeholder="e.g. 30 — leave blank for no cap"
+                  className="w-40"
+                />
+                <p className="text-xs text-muted-foreground">Shots with offline greater than this value are excluded from the leaderboard.</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">ULD logo (top-left of bay screen & cards)</Label>
+                <Input
+                  type="file"
+                  accept="image/png,image/jpeg,image/svg+xml"
+                  onChange={(e) => setUldLogoFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Location / sponsor logo (top-right)</Label>
+                <Input
+                  type="file"
+                  accept="image/png,image/jpeg,image/svg+xml"
+                  onChange={(e) => setUldLocationLogoFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2 border-t pt-3">
             <div className="flex items-center justify-between">
