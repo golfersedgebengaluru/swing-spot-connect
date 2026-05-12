@@ -632,6 +632,7 @@ export function buildLeaderboards(players: QCPlayer[], attempts: QCAttempt[]) {
   const counts = new Map<string, number>();
   for (const a of attempts) {
     counts.set(a.player_id, (counts.get(a.player_id) ?? 0) + 1);
+    if (a.excluded) continue;
     const name = playerName.get(a.player_id) ?? "—";
     const dist = Number(a.distance);
     const off = Number(a.offline);
