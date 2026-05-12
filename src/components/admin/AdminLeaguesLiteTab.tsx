@@ -38,7 +38,7 @@ import {
 } from "@/hooks/useLeaguesLite";
 
 // ── Venues panel ───────────────────────────────────────────────────────
-function VenuesPanel() {
+export function VenuesPanel() {
   const { toast } = useToast();
   const { data: venues, isLoading } = useLeagueLiteVenues();
   const upsert = useUpsertLeagueLiteVenue();
@@ -336,7 +336,7 @@ function LeagueDialog({
 }
 
 // ── Leagues list ────────────────────────────────────────────────────────
-function LeaguesPanel() {
+export function LeaguesPanel() {
   const { toast } = useToast();
   const { data: leagues, isLoading } = useLeaguesLite();
   const del = useDeleteLeagueLite();
