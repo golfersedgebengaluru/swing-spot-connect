@@ -90,6 +90,16 @@ export default function QuickCompetitionPublic() {
 
   return (
     <div className="min-h-screen bg-white text-stone-900 p-6 sm:p-10">
+      {comp.format === "uld" && (comp.uld_logo_url || comp.uld_location_logo_url) && (
+        <div className="flex items-start justify-between mb-6 max-w-7xl mx-auto">
+          <div className="h-20 sm:h-28 flex items-center">
+            {comp.uld_logo_url && <img src={comp.uld_logo_url} alt="ULD" className="h-full w-auto object-contain" />}
+          </div>
+          <div className="h-20 sm:h-28 flex items-center">
+            {comp.uld_location_logo_url && <img src={comp.uld_location_logo_url} alt="Location" className="h-full w-auto object-contain" />}
+          </div>
+        </div>
+      )}
       <header className="text-center mb-10">
         <h1 className="text-4xl sm:text-6xl font-serif italic text-stone-900">{comp.name}</h1>
         <p className="mt-2 text-sm sm:text-base text-stone-500 uppercase tracking-[0.3em]">
