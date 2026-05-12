@@ -1,62 +1,123 @@
-## Goal
 
-Let each Quick Competition have multiple categories (e.g. Men, Ladies, Juniors…), assign each player to a category, and show a separate Longest / Straightest board per category on the bay-screen view. Categories are flexible — admin can add/rename/remove them per competition.
+## Overview
 
-## 1. Database (migration)
+Add a focused **League Management (Lite)** module — separate from the existing complex League Service — that lets admins publish leagues, captains pay and form teams, and members view their team and leaderboard. Reuses existing auth, dashboard shell, and the Razorpay session-booking payment flow.
 
-New table `quick_competition_categories`:
+This module has its **own independent venues** (no link to the app's bays / cities / locations).
 
-```text
-id            uuid pk
-competition_id uuid fk → quick_competitions(id) on delete cascade
-name          text not null   -- "Men", "Ladies", "Juniors"...
-sort_order    int  not null default 0
-created_at    timestamptz default now()
-unique (competition_id, lower(name))
-```
+---
 
-`quick_competition_players`: add nullable `category_id uuid references quick_competition_categories(id) on delete set null`.
+## 1. Admin: League Venues (independent)
 
-`quick_competitions`: add `categories_enabled boolean default false` so existing single-board comps keep working unchanged.
+New admin sub-section "League Venues" — a simple flat list, totally independent of the app's existing city/bay/location data.
 
-**Winner columns**: keep existing `longest_winner_*` / `straightest_winner_*` for the overall winner (used when categories are off). Add a JSONB `category_winners` column on `quick_competitions` that the end-competition function fills with `[{ category_id, name, longest:{player_id,value}, straightest:{player_id,value} }]` so each category gets its own certificate references.
+- Add / rename / deactivate venues (e.g. "North Course", "South Course", "Indoor Studio A").
+- Used only by this module. No city scoping, no bay mapping.
 
-Add `longest_card_url` and `straightest_card_url` *per category* by extending the JSONB rather than adding columns — simpler and flexible.
+---
 
-RLS: same policies as existing tables (tenant-scoped via competition).
+## 2. Admin: Leagues tab
 
-## 2. Admin console — `QuickCompetitionConsole.tsx`
+New admin tab **"Leagues"**. For each league:
 
-- New small "Categories" panel above "Add Player & Score":
-  - Toggle: **Use categories** (writes `categories_enabled`).
-  - When on: chip list of categories with inline rename + delete; an "Add category" input. Defaults seeded once when toggled on: **Men**, **Ladies**.
-- "Add Player & Score" card: when categories are on, add a **Category** select next to the player picker. New-player flow accepts a category too. Existing players show their category as a small badge in the picker and can be re-assigned via a tiny dropdown in the leaderboard table row.
-- Leaderboard table: when categories are on, group rows by category (sub-headings) so admin sees the same split as the bay screen.
+- **Name** (only required when *not* multi-location — see below)
+- **Active** toggle (controls whether captains can join)
+- **Show on landing page** toggle
+- **Multi-location league** toggle ← new
+  - **OFF (single-location):** admin enters Name + picks **one** venue.
+  - **ON (multi-location):** admin **skips the Name field** (the captain names the league instance later when they join, e.g. "Mumbai Saturday Mens"). Admin picks **multiple** venues; the captain will choose one of them.
+- **Allowed team sizes** (comma-separated, e.g. `2,4`) — only teams matching one of these sizes can be formed. Captain picks a size at join time.
+- **Quick-add venue** button right inside the venue picker so admin can add a new venue without leaving the dialog.
 
-## 3. Create dialog — `QuickCompetitionDialog.tsx`
+List view shows: name (or "— multi-location —"), status, visibility, venue(s), allowed sizes, # teams.
 
-Add an optional **Categories** field (comma-separated, default `Men, Ladies`) only shown when the new "Use categories" switch is ticked. On submit, the categories are inserted alongside the competition.
+---
 
-## 4. Bay-screen view — `QuickCompetitionPublic.tsx`
+## 3. Pricing tab → new "Leagues" section
 
-- Fetch categories + players (with category_id) + attempts.
-- If `categories_enabled` is false → render exactly as today (one Longest + one Straightest board).
-- If true → render a section per category, each with its own **Longest Drive** and **Straightest Drive** white cards. Players without a category fall under an "Unassigned" section (hidden if empty). Existing realtime subscriptions cover the new tables (add a channel for `quick_competition_categories`).
+Mirrors the existing **Bay Session Pricing** / **Hour Packages** layout. New card: **"League Pricing"**.
 
-## 5. End-competition edge function — `quick-competition-end/index.ts`
+- One row per league showing **per-person price** + currency.
+- Inline edit of price.
+- Deactivating a league hides its row.
+- This price is the single source of truth used at captain checkout.
 
-- If `categories_enabled` is false → unchanged (overall winners + 2 cards).
-- If true → for each category compute longest/straightest from that category's attempts, generate one SVG per (category × award), upload to `quick-comp-sponsors` bucket (existing), and write the array into `category_winners`. The SVG template gets a small "{Category Name}" line under the title so the cert is self-explanatory. Overall winner columns stay null in this mode.
+Total at checkout = `per_person_price × team_size_chosen_by_captain`.
 
-## 6. Hooks — `useQuickCompetitions.ts`
+---
 
-- New `useQCCategories(competitionId)` query + realtime.
-- `useAddCategory`, `useRenameCategory`, `useRemoveCategory`, `useToggleCategoriesEnabled`.
-- `useAddPlayer` accepts an optional `category_id`.
-- `useUpdatePlayerCategory(playerId, category_id | null)`.
-- Extend `buildLeaderboards` to accept an optional `category_id` filter, or add `buildLeaderboardsByCategory(players, attempts, categories)` returning a map.
+## 4. Landing page: Join League
+
+- Each active + visible league shows a **"Join League"** card/button.
+- For **multi-location** leagues without a fixed name, the card uses a generic title like "Join the [venue list] League".
+
+---
+
+## 5. Captain join flow
+
+After login, captain clicks Join League:
+
+1. (If multi-location) **Pick a venue** from the league's allowed venues.
+2. (If multi-location) **Enter the league instance name** (e.g. "Mumbai Saturday Mens") — this becomes the league name shown to members and on leaderboards.
+3. **Pick team size** from the league's allowed sizes (e.g. 2 or 4).
+4. **Enter team name**.
+5. **Add member emails**: `team_size − 1` emails (captain is the +1).
+6. **See total fee** = per-person price × team size.
+7. **Pay via Razorpay** (same flow as session bookings).
+8. Team is **created only after** payment succeeds. Captain + members linked to league + venue.
+
+---
+
+## 6. Member experience
+
+- Member logs in with the email captain used.
+- **Dashboard** gets a new card showing: team name, captain, league instance name, venue, teammates, and the **league leaderboard** for that league.
+- No payment step for members.
+- Unregistered invitees are auto-attached on first login.
+
+---
+
+## 7. Admin views
+
+- Leagues list (with multi-location instances grouped under their parent league)
+- Teams grouped by league + venue
+- Payments list (amount, captain, status, Razorpay reference)
+- Simple leaderboard editor per league instance
+
+---
+
+## Acceptance criteria
+
+- ✅ Independent league venues — no link to app cities/bays/locations.
+- ✅ Multi-location league: name skipped at admin creation; captain names the instance.
+- ✅ Quick-add venue from inside the league create dialog.
+- ✅ Allowed team sizes enforced at captain checkout.
+- ✅ League pricing lives in Pricing tab alongside bay/hour-package pricing.
+- ✅ Total = per-person price × chosen team size.
+- ✅ "Join League" visible only for active + visible leagues.
+- ✅ Team created only after successful Razorpay payment.
+- ✅ Members see correct team + leaderboard on dashboard.
+- ✅ Existing flows (bookings, coaching, existing League Service, finance) unchanged.
+
+---
 
 ## Out of scope
 
-- No change to paid-entry flow — paid players land in "Unassigned" until admin assigns them a category (or we can add a category picker on the join page later if you want).
-- Existing certificates for already-ended comps stay as-is.
+- Scoring automation / OCR / simulator hooks (existing League Service handles that).
+- Member-initiated team edits (captain or admin only).
+- Refund automation beyond admin marking a payment refunded.
+- Public leaderboard pages outside the dashboard / admin.
+
+---
+
+## Phased rollout
+
+1. **Phase 1 — Foundations:** independent venues list, leagues table (with multi-location + allowed sizes), league pricing card under Pricing tab, admin Leagues tab, landing-page Join button visibility. No payment yet.
+2. **Phase 2 — Captain join + payment:** join wizard (venue → instance name → team size → team → emails), Razorpay checkout, post-payment team creation, member invite linking.
+3. **Phase 3 — Member & admin views:** member dashboard card, leaderboard, admin teams-by-league/venue and payments views, simple leaderboard editor.
+
+Each phase ends in a usable, testable state.
+
+---
+
+Approve this and I'll start with Phase 1.
