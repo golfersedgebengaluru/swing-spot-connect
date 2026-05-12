@@ -55,6 +55,12 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
   const [editName, setEditName] = useState("");
   const [editSponsorEnabled, setEditSponsorEnabled] = useState(false);
   const [editSponsorFile, setEditSponsorFile] = useState<File | null>(null);
+  const [editUldDuration, setEditUldDuration] = useState<string>("150");
+  const [editUldMaxOffline, setEditUldMaxOffline] = useState<string>("");
+  const [editUldLogoFile, setEditUldLogoFile] = useState<File | null>(null);
+  const [editUldLocationLogoFile, setEditUldLocationLogoFile] = useState<File | null>(null);
+  const [removeUldLogo, setRemoveUldLogo] = useState(false);
+  const [removeUldLocationLogo, setRemoveUldLocationLogo] = useState(false);
   // Top "Add Player & Score" card state
   const [entryPlayerId, setEntryPlayerId] = useState<string>("");
   const [entryDistance, setEntryDistance] = useState("");
@@ -182,18 +188,60 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                 setEditName(comp.name);
                 setEditSponsorEnabled(comp.sponsor_enabled);
                 setEditSponsorFile(null);
+                setEditUldDuration(String(comp.uld_set_duration_seconds ?? 150));
+                setEditUldMaxOffline(comp.uld_max_offline != null ? String(comp.uld_max_offline) : "");
+                setEditUldLogoFile(null);
+                setEditUldLocationLogoFile(null);
+                setRemoveUldLogo(false);
+                setRemoveUldLocationLogo(false);
               }
             }}>
               <DialogTrigger asChild>
                 <Button size="sm" variant="outline"><Pencil className="h-4 w-4" /> Edit</Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-h-[85vh] overflow-y-auto">
                 <DialogHeader><DialogTitle>Edit competition</DialogTitle></DialogHeader>
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <Label>Name</Label>
                     <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
                   </div>
+                  {comp.format === "uld" && (
+                    <div className="space-y-3 border rounded-md p-3 bg-muted/30">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">ULD configuration</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Set timer (sec)</Label>
+                          <Input type="number" min={10} max={3600} value={editUldDuration} onChange={(e) => setEditUldDuration(e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Max offline ({comp.unit})</Label>
+                          <Input type="number" inputMode="decimal" min={0} value={editUldMaxOffline} onChange={(e) => setEditUldMaxOffline(e.target.value)} placeholder="blank = no cap" />
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">Sets and shots per set are locked once the competition starts.</p>
+                      <div className="space-y-1">
+                        <Label className="text-xs">ULD logo (top-left)</Label>
+                        {comp.uld_logo_url && !editUldLogoFile && !removeUldLogo && (
+                          <div className="flex items-center gap-2">
+                            <img src={comp.uld_logo_url} alt="ULD" className="h-10 rounded border bg-white p-1" />
+                            <Button type="button" size="sm" variant="ghost" onClick={() => setRemoveUldLogo(true)}>Remove</Button>
+                          </div>
+                        )}
+                        <Input type="file" accept="image/*" onChange={(e) => { setEditUldLogoFile(e.target.files?.[0] ?? null); setRemoveUldLogo(false); }} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Location / sponsor logo (top-right)</Label>
+                        {comp.uld_location_logo_url && !editUldLocationLogoFile && !removeUldLocationLogo && (
+                          <div className="flex items-center gap-2">
+                            <img src={comp.uld_location_logo_url} alt="Location" className="h-10 rounded border bg-white p-1" />
+                            <Button type="button" size="sm" variant="ghost" onClick={() => setRemoveUldLocationLogo(true)}>Remove</Button>
+                          </div>
+                        )}
+                        <Input type="file" accept="image/*" onChange={(e) => { setEditUldLocationLogoFile(e.target.files?.[0] ?? null); setRemoveUldLocationLogo(false); }} />
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <Label htmlFor="sp-toggle">Sponsor logo on result cards</Label>
                     <Switch id="sp-toggle" checked={editSponsorEnabled} onCheckedChange={setEditSponsorEnabled} />
@@ -213,12 +261,22 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                   <Button
                     disabled={updateComp.isPending || !editName.trim()}
                     onClick={async () => {
+                      const dur = parseInt(editUldDuration, 10);
+                      const maxOff = parseFloat(editUldMaxOffline);
                       await updateComp.mutateAsync({
                         competition_id: competitionId,
                         name: editName,
                         sponsor_enabled: editSponsorEnabled,
                         sponsor_logo_file: editSponsorFile,
                         remove_sponsor_logo: !editSponsorEnabled && !!comp.sponsor_logo_url,
+                        ...(comp.format === "uld" ? {
+                          uld_set_duration_seconds: Number.isFinite(dur) && dur >= 10 ? dur : undefined,
+                          uld_max_offline: editUldMaxOffline.trim() === "" ? null : (Number.isFinite(maxOff) && maxOff > 0 ? maxOff : undefined),
+                          uld_logo_file: editUldLogoFile,
+                          remove_uld_logo: removeUldLogo,
+                          uld_location_logo_file: editUldLocationLogoFile,
+                          remove_uld_location_logo: removeUldLocationLogo,
+                        } : {}),
                       });
                       setEditOpen(false);
                     }}
