@@ -202,34 +202,63 @@ export function useCreateQuickCompetition() {
       refunds_allowed?: boolean;
       categories_enabled?: boolean;
       categories?: string[];
+      format?: "standard" | "uld";
+      uld_sets_per_player?: number;
+      uld_shots_per_set?: number;
+      uld_set_duration_seconds?: number;
+      uld_max_offline?: number | null;
+      uld_logo_file?: File | null;
+      uld_location_logo_file?: File | null;
     }) => {
-      let sponsor_logo_url: string | null = null;
-      if (input.sponsor_enabled && input.sponsor_logo_file) {
-        const ext = input.sponsor_logo_file.name.split(".").pop() || "png";
-        const path = `logos/${crypto.randomUUID()}.${ext}`;
+      async function uploadLogo(prefix: string, file: File): Promise<string> {
+        const ext = file.name.split(".").pop() || "png";
+        const path = `${prefix}/${crypto.randomUUID()}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from("quick-comp-sponsors")
-          .upload(path, input.sponsor_logo_file, { upsert: false });
+          .upload(path, file, { upsert: false });
         if (upErr) throw upErr;
-        sponsor_logo_url = supabase.storage.from("quick-comp-sponsors").getPublicUrl(path).data.publicUrl;
+        return supabase.storage.from("quick-comp-sponsors").getPublicUrl(path).data.publicUrl;
+      }
+      let sponsor_logo_url: string | null = null;
+      if (input.sponsor_enabled && input.sponsor_logo_file) {
+        sponsor_logo_url = await uploadLogo("logos", input.sponsor_logo_file);
+      }
+      const format = input.format ?? "standard";
+      let uld_logo_url: string | null = null;
+      let uld_location_logo_url: string | null = null;
+      if (format === "uld") {
+        if (input.uld_logo_file) uld_logo_url = await uploadLogo("uld-logos", input.uld_logo_file);
+        if (input.uld_location_logo_file) uld_location_logo_url = await uploadLogo("location-logos", input.uld_location_logo_file);
       }
       const { data: u } = await supabase.auth.getUser();
+      const insertPayload: Record<string, unknown> = {
+        tenant_id: input.tenant_id,
+        name: input.name,
+        unit: input.unit,
+        max_attempts: input.max_attempts,
+        sponsor_enabled: input.sponsor_enabled,
+        sponsor_logo_url,
+        entry_type: input.entry_type,
+        entry_fee: input.entry_type === "paid" ? input.entry_fee ?? null : null,
+        entry_currency: input.entry_currency || "INR",
+        refunds_allowed: input.refunds_allowed ?? false,
+        categories_enabled: input.categories_enabled ?? false,
+        created_by: u.user?.id ?? null,
+        format,
+      };
+      if (format === "uld") {
+        insertPayload.uld_sets_per_player = input.uld_sets_per_player ?? 2;
+        insertPayload.uld_shots_per_set = input.uld_shots_per_set ?? 6;
+        insertPayload.uld_set_duration_seconds = input.uld_set_duration_seconds ?? 150;
+        insertPayload.uld_max_offline = input.uld_max_offline ?? null;
+        insertPayload.uld_logo_url = uld_logo_url;
+        insertPayload.uld_location_logo_url = uld_location_logo_url;
+        // For ULD, max_attempts derived from sets * shots
+        insertPayload.max_attempts = (input.uld_sets_per_player ?? 2) * (input.uld_shots_per_set ?? 6);
+      }
       const { data, error } = await supabase
         .from("quick_competitions")
-        .insert({
-          tenant_id: input.tenant_id,
-          name: input.name,
-          unit: input.unit,
-          max_attempts: input.max_attempts,
-          sponsor_enabled: input.sponsor_enabled,
-          sponsor_logo_url,
-          entry_type: input.entry_type,
-          entry_fee: input.entry_type === "paid" ? input.entry_fee ?? null : null,
-          entry_currency: input.entry_currency || "INR",
-          refunds_allowed: input.refunds_allowed ?? false,
-          categories_enabled: input.categories_enabled ?? false,
-          created_by: u.user?.id ?? null,
-        })
+        .insert(insertPayload as never)
         .select()
         .single();
       if (error) throw error;
