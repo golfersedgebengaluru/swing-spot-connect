@@ -3046,7 +3046,7 @@ Deno.serve(async (req) => {
     // ── Register team intent (creates Razorpay order + pending row) ─
     if (route.action === 'legacy-register-team-intent' && route.leagueId && method === 'POST') {
       const body = await req.json().catch(() => ({}))
-      const { league_city_id, league_location_id, team_name, team_size } = body || {}
+      const { league_city_id, league_location_id, team_name, team_size, invite_emails } = body || {}
       if (!league_city_id || !league_location_id || !team_name || !team_size) {
         return err('league_city_id, league_location_id, team_name, team_size are required')
       }
