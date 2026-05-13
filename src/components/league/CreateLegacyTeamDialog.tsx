@@ -66,6 +66,7 @@ export function CreateLegacyTeamDialog({ league, open, onOpenChange }: Props) {
     if (!open) {
       setStep(1); setCityId(""); setLocationId(""); setTeamSize(""); setTeamName("");
       setEmails([]); setShareLink("");
+      setCouponCode(""); setAppliedCoupon(null); setCouponError("");
     }
   }, [open]);
 
