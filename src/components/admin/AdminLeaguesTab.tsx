@@ -1250,6 +1250,50 @@ function RoundsPanel({ league }: { league: League }) {
 }
 
 // ── Teams Panel ──────────────────────────────────────────────
+function RegistrationsPanel({ league }: { league: League }) {
+  const { data, isLoading } = useRegisteredLegacyTeams(league.id);
+  const rows = (data as any[]) || [];
+  if (isLoading) return <Loader2 className="h-5 w-5 animate-spin" />;
+  if (rows.length === 0) {
+    return <p className="text-sm text-muted-foreground py-4">No paid team registrations yet.</p>;
+  }
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Team</TableHead>
+          <TableHead>Captain</TableHead>
+          <TableHead>City / Location</TableHead>
+          <TableHead>Size</TableHead>
+          <TableHead>Amount</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Registered</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((r) => (
+          <TableRow key={r.id}>
+            <TableCell className="font-medium">{r.team_name}</TableCell>
+            <TableCell className="text-sm">
+              <div>{r.captain_name || "—"}</div>
+              <div className="text-xs text-muted-foreground">{r.captain_email || "—"}</div>
+            </TableCell>
+            <TableCell className="text-sm">
+              {(r.city_name || "—")}{r.location_name ? ` / ${r.location_name}` : ""}
+            </TableCell>
+            <TableCell>{r.team_size}</TableCell>
+            <TableCell>{r.total_amount} {r.currency}</TableCell>
+            <TableCell>
+              <Badge variant={r.payment_status === "paid" ? "secondary" : "outline"}>{r.payment_status}</Badge>
+            </TableCell>
+            <TableCell className="text-xs text-muted-foreground">{format(new Date(r.created_at), "PP")}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
 function TeamsPanel({ league }: { league: League }) {
   const { data: teams, isLoading } = useLeagueTeams(league.id);
   const { data: players } = useLeaguePlayers(league.id);
