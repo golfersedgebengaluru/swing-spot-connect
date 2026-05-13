@@ -32,6 +32,7 @@ import {
   useLeagues,
   useCreateLeague,
   useUpdateLeague,
+  useDeleteLeague,
   useJoinCodes,
   useCreateJoinCode,
   useRevokeJoinCode,
