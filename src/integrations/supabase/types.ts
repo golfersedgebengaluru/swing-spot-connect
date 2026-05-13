@@ -2740,18 +2740,22 @@ export type Database = {
       }
       leagues: {
         Row: {
+          allowed_team_sizes: number[]
           created_at: string
           created_by: string
+          currency: string
           fairness_factor_pct: number
           format: Database["public"]["Enums"]["league_format"]
           id: string
           leaderboard_visibility: string
           name: string
           peoria_multiplier: number
+          price_per_person: number
           score_entry_method: Database["public"]["Enums"]["score_entry_method"]
           scoring_holes: number
           season_end: string | null
           season_start: string | null
+          show_on_landing: boolean
           status: Database["public"]["Enums"]["league_status"]
           team_aggregation_method: string
           tenant_id: string
@@ -2759,18 +2763,22 @@ export type Database = {
           venue_id: string | null
         }
         Insert: {
+          allowed_team_sizes?: number[]
           created_at?: string
           created_by: string
+          currency?: string
           fairness_factor_pct?: number
           format?: Database["public"]["Enums"]["league_format"]
           id?: string
           leaderboard_visibility?: string
           name: string
           peoria_multiplier?: number
+          price_per_person?: number
           score_entry_method?: Database["public"]["Enums"]["score_entry_method"]
           scoring_holes?: number
           season_end?: string | null
           season_start?: string | null
+          show_on_landing?: boolean
           status?: Database["public"]["Enums"]["league_status"]
           team_aggregation_method?: string
           tenant_id: string
@@ -2778,18 +2786,22 @@ export type Database = {
           venue_id?: string | null
         }
         Update: {
+          allowed_team_sizes?: number[]
           created_at?: string
           created_by?: string
+          currency?: string
           fairness_factor_pct?: number
           format?: Database["public"]["Enums"]["league_format"]
           id?: string
           leaderboard_visibility?: string
           name?: string
           peoria_multiplier?: number
+          price_per_person?: number
           score_entry_method?: Database["public"]["Enums"]["score_entry_method"]
           scoring_holes?: number
           season_end?: string | null
           season_start?: string | null
+          show_on_landing?: boolean
           status?: Database["public"]["Enums"]["league_status"]
           team_aggregation_method?: string
           tenant_id?: string
