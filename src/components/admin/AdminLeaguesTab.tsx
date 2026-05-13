@@ -444,10 +444,44 @@ function LeagueDialog({
     league?.price_per_person != null ? String(league.price_per_person) : "",
   );
   const [currency, setCurrency] = useState<string>(league?.currency ?? "INR");
+  const [draftCities, setDraftCities] = useState<DraftCity[]>([]);
+  const [originalCities, setOriginalCities] = useState<DraftCity[]>([]);
+  const [persisting, setPersisting] = useState(false);
 
   const createLeague = useCreateLeague(tenantId);
   const updateLeague = useUpdateLeague(league?.id ?? "");
   const { data: bays } = useTenantBays(tenantId);
+  const { data: existingCities } = useLeagueCities(isEdit && open ? league!.id : null);
+  const qc = useQueryClient();
+  const { toast } = useToast();
+
+  // Hydrate cities/locations when editing an existing league
+  useEffect(() => {
+    if (!isEdit || !open || !existingCities) return;
+    let cancelled = false;
+    (async () => {
+      const hydrated: DraftCity[] = await Promise.all(
+        existingCities.map(async (c) => {
+          const locs = await leagueServiceInvoke(
+            `/leagues/${league!.id}/cities/${c.id}/locations`,
+            "GET",
+          );
+          return {
+            id: c.id,
+            tempId: c.id,
+            name: c.name,
+            locations: (locs ?? []).map((l: any) => ({ id: l.id, tempId: l.id, name: l.name })),
+          };
+        }),
+      );
+      if (cancelled) return;
+      setDraftCities(hydrated);
+      setOriginalCities(JSON.parse(JSON.stringify(hydrated)));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit, open, existingCities, league]);
 
   const reset = () => {
     if (!isEdit) {
@@ -458,6 +492,8 @@ function LeagueDialog({
       setShowOnLanding(false);
       setPricePerPerson("");
       setCurrency("INR");
+      setDraftCities([]);
+      setOriginalCities([]);
     }
   };
 
@@ -469,7 +505,7 @@ function LeagueDialog({
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name.trim()) return;
     const sizes = parseTeamSizes(teamSizes);
     const price = pricePerPerson === "" ? 0 : Number(pricePerPerson);
@@ -482,14 +518,38 @@ function LeagueDialog({
       price_per_person: Number.isFinite(price) ? price : 0,
       currency: currency || "INR",
     };
-    if (isEdit && league) {
-      updateLeague.mutate(payload, { onSuccess: () => handleClose(false) });
-    } else {
-      createLeague.mutate(payload, { onSuccess: () => handleClose(false) });
+    setPersisting(true);
+    try {
+      let leagueId = league?.id;
+      if (isEdit && league) {
+        await updateLeague.mutateAsync(payload);
+      } else {
+        const created = await createLeague.mutateAsync(payload);
+        leagueId = (created as any)?.id ?? leagueId;
+      }
+      if (leagueId) {
+        try {
+          await persistCitiesLocations(leagueId, draftCities, originalCities);
+          qc.invalidateQueries({ queryKey: ["league-cities", leagueId] });
+        } catch (err) {
+          toast({
+            title: "League saved, but cities/locations failed",
+            description: (err as Error).message,
+            variant: "destructive",
+          });
+          setPersisting(false);
+          return;
+        }
+      }
+      handleClose(false);
+    } catch {
+      // mutation already toasted
+    } finally {
+      setPersisting(false);
     }
   };
 
-  const pending = createLeague.isPending || updateLeague.isPending;
+  const pending = createLeague.isPending || updateLeague.isPending || persisting;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -559,6 +619,7 @@ function LeagueDialog({
             </div>
             <Switch checked={showOnLanding} onCheckedChange={setShowOnLanding} />
           </div>
+          <CitiesLocationsEditor cities={draftCities} setCities={setDraftCities} />
           <Button onClick={handleSubmit} disabled={pending || !name.trim()} className="w-full">
             {pending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}{isEdit ? "Save changes" : "Create"}
           </Button>
