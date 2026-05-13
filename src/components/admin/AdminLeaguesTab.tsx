@@ -75,6 +75,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam, LeaderboardEntry } from "@/types/league";
 import type { LeaguePlayerWithProfile } from "@/hooks/useLeagues";
 import { LeaguesPanel as LiteLeaguesPanel } from "@/components/admin/AdminLeaguesLiteTab";
+import { useRegisteredLegacyTeams } from "@/hooks/useLegacyLeagueRegistration";
 import { parseTeamSizes } from "@/hooks/useLeaguesLite";
 import {
   AlertDialog,
@@ -1249,6 +1250,50 @@ function RoundsPanel({ league }: { league: League }) {
 }
 
 // ── Teams Panel ──────────────────────────────────────────────
+function RegistrationsPanel({ league }: { league: League }) {
+  const { data, isLoading } = useRegisteredLegacyTeams(league.id);
+  const rows = (data as any[]) || [];
+  if (isLoading) return <Loader2 className="h-5 w-5 animate-spin" />;
+  if (rows.length === 0) {
+    return <p className="text-sm text-muted-foreground py-4">No paid team registrations yet.</p>;
+  }
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Team</TableHead>
+          <TableHead>Captain</TableHead>
+          <TableHead>City / Location</TableHead>
+          <TableHead>Size</TableHead>
+          <TableHead>Amount</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Registered</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((r) => (
+          <TableRow key={r.id}>
+            <TableCell className="font-medium">{r.team_name}</TableCell>
+            <TableCell className="text-sm">
+              <div>{r.captain_name || "—"}</div>
+              <div className="text-xs text-muted-foreground">{r.captain_email || "—"}</div>
+            </TableCell>
+            <TableCell className="text-sm">
+              {(r.city_name || "—")}{r.location_name ? ` / ${r.location_name}` : ""}
+            </TableCell>
+            <TableCell>{r.team_size}</TableCell>
+            <TableCell>{r.total_amount} {r.currency}</TableCell>
+            <TableCell>
+              <Badge variant={r.payment_status === "paid" ? "secondary" : "outline"}>{r.payment_status}</Badge>
+            </TableCell>
+            <TableCell className="text-xs text-muted-foreground">{format(new Date(r.created_at), "PP")}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
 function TeamsPanel({ league }: { league: League }) {
   const { data: teams, isLoading } = useLeagueTeams(league.id);
   const { data: players } = useLeaguePlayers(league.id);
@@ -1905,6 +1950,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
         <TabsList className="flex flex-wrap h-auto gap-1 p-1 mb-4">
           <TabsTrigger value="players"><Users className="h-3.5 w-3.5 mr-1" />Players ({players?.length || 0})</TabsTrigger>
           <TabsTrigger value="teams"><Users className="h-3.5 w-3.5 mr-1" />Teams</TabsTrigger>
+          <TabsTrigger value="registrations"><Users className="h-3.5 w-3.5 mr-1" />Registrations</TabsTrigger>
           
           <TabsTrigger value="rounds"><ListOrdered className="h-3.5 w-3.5 mr-1" />Rounds</TabsTrigger>
           <TabsTrigger value="codes">Join Codes</TabsTrigger>
@@ -1975,6 +2021,11 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
         {/* Teams */}
         <TabsContent value="teams">
           <TeamsPanel league={league} />
+        </TabsContent>
+
+        {/* Registrations (paid) */}
+        <TabsContent value="registrations">
+          <RegistrationsPanel league={league} />
         </TabsContent>
 
         {/* Cities & Locations */}

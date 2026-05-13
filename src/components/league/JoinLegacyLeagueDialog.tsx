@@ -12,6 +12,7 @@ import {
   useLegacyLeagueLocations,
   useRegisterTeamIntent,
   useVerifyTeamPayment,
+  validateRegistrationForm,
 } from "@/hooks/useLegacyLeagueRegistration";
 import type { LandingLeague } from "@/hooks/useLeagues";
 import { Link } from "react-router-dom";
@@ -74,7 +75,17 @@ export function JoinLegacyLeagueDialog({ league, open, onOpenChange }: Props) {
   }
 
   async function handleConfirmAndPay() {
-    if (!cityId || !locationId || !teamSize || !teamName.trim()) return;
+    const v = validateRegistrationForm({
+      league_city_id: cityId,
+      league_location_id: locationId,
+      team_name: teamName,
+      team_size: typeof teamSize === "number" ? teamSize : null,
+      allowed_team_sizes: league.allowed_team_sizes ?? null,
+    });
+    if (!v.ok) {
+      toast({ title: "Check your details", description: (v as { error: string }).error, variant: "destructive" });
+      return;
+    }
     setSubmitting(true);
     try {
       const intent = await intentMut.mutateAsync({
