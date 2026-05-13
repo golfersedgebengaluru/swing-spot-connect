@@ -11,13 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Trophy, LogIn, Plus, Camera, Upload } from "lucide-react";
+import { Loader2, Trophy, Plus, Camera, Upload } from "lucide-react";
+import { LeaguesLandingSection } from "@/components/home/LeaguesLandingSection";
 import { Navigate } from "react-router-dom";
 import { format } from "date-fns";
 import {
   useLeagues,
   useTenants,
-  useJoinLeague,
   useLeagueScores,
   useSubmitScore,
   useConfirmScore,
@@ -26,47 +26,6 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueScore } from "@/types/league";
 import { useToast } from "@/hooks/use-toast";
-
-// ── Join League Dialog ───────────────────────────────────────
-function JoinLeagueDialog() {
-  const [open, setOpen] = useState(false);
-  const [code, setCode] = useState("");
-  const joinLeague = useJoinLeague();
-
-  const handleJoin = () => {
-    if (!code.trim()) return;
-    joinLeague.mutate(code.trim(), {
-      onSuccess: () => { setOpen(false); setCode(""); },
-    });
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button><LogIn className="h-4 w-4 mr-2" /> Join League</Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Join a League</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label>Join Code</Label>
-            <Input
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="Enter your join code"
-              className="font-mono text-lg tracking-widest"
-              maxLength={12}
-            />
-          </div>
-          <Button onClick={handleJoin} disabled={joinLeague.isPending} className="w-full">
-            {joinLeague.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Join League
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 // ── Score Entry Dialog ───────────────────────────────────────
 function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
@@ -374,27 +333,17 @@ export default function Leagues() {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1 container mx-auto px-4 py-8 max-w-3xl">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold font-display">My Leagues</h1>
-            <p className="text-sm text-muted-foreground">Compete, track scores, and climb the leaderboard</p>
-          </div>
-          <JoinLeagueDialog />
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold font-display">My Leagues</h1>
+          <p className="text-sm text-muted-foreground">Compete, track scores, and climb the leaderboard</p>
         </div>
+
+        <LeaguesLandingSection />
 
         {isLoading ? (
           <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-        ) : (!leagues || leagues.length === 0) ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <Trophy className="h-12 w-12 text-muted-foreground/30 mb-4" />
-              <h3 className="font-semibold text-lg mb-1">No leagues yet</h3>
-              <p className="text-sm text-muted-foreground mb-4">Ask your league admin for a join code to get started.</p>
-              <JoinLeagueDialog />
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-4">
+        ) : (!leagues || leagues.length === 0) ? null : (
+          <div className="space-y-4 mt-8">
             {leagues.map(l => <LeagueCard key={l.id} league={l} />)}
           </div>
         )}
