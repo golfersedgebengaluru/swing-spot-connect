@@ -1973,9 +1973,6 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
         </TabsContent>
 
         {/* Cities & Locations */}
-        <TabsContent value="cities">
-          <CitiesLocationsPanel leagueId={league.id} tenantId={league.tenant_id} />
-        </TabsContent>
 
         {/* Rounds */}
         <TabsContent value="rounds">
