@@ -2908,6 +2908,79 @@ export type Database = {
         }
         Relationships: []
       }
+      legacy_league_team_registrations: {
+        Row: {
+          captain_user_id: string
+          created_at: string
+          currency: string
+          id: string
+          league_city_id: string
+          league_id: string
+          league_location_id: string
+          payment_status: string
+          razorpay_order_id: string | null
+          razorpay_payment_id: string | null
+          team_name: string
+          team_size: number
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          captain_user_id: string
+          created_at?: string
+          currency?: string
+          id?: string
+          league_city_id: string
+          league_id: string
+          league_location_id: string
+          payment_status?: string
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          team_name: string
+          team_size: number
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          captain_user_id?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          league_city_id?: string
+          league_id?: string
+          league_location_id?: string
+          payment_status?: string
+          razorpay_order_id?: string | null
+          razorpay_payment_id?: string | null
+          team_name?: string
+          team_size?: number
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legacy_league_team_registrations_league_city_id_fkey"
+            columns: ["league_city_id"]
+            isOneToOne: false
+            referencedRelation: "league_cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legacy_league_team_registrations_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legacy_league_team_registrations_league_location_id_fkey"
+            columns: ["league_location_id"]
+            isOneToOne: false
+            referencedRelation: "league_locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       loyalty_bonuses: {
         Row: {
           bonus_type: string
@@ -3429,6 +3502,85 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      pending_legacy_league_team_registrations: {
+        Row: {
+          amount: number
+          captain_user_id: string
+          city: string
+          created_at: string
+          currency: string
+          error_message: string | null
+          id: string
+          league_city_id: string
+          league_id: string
+          league_location_id: string
+          razorpay_order_id: string
+          registration_id: string | null
+          status: string
+          team_name: string
+          team_size: number
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          captain_user_id: string
+          city: string
+          created_at?: string
+          currency?: string
+          error_message?: string | null
+          id?: string
+          league_city_id: string
+          league_id: string
+          league_location_id: string
+          razorpay_order_id: string
+          registration_id?: string | null
+          status?: string
+          team_name: string
+          team_size: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          captain_user_id?: string
+          city?: string
+          created_at?: string
+          currency?: string
+          error_message?: string | null
+          id?: string
+          league_city_id?: string
+          league_id?: string
+          league_location_id?: string
+          razorpay_order_id?: string
+          registration_id?: string | null
+          status?: string
+          team_name?: string
+          team_size?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_legacy_league_team_registration_league_location_id_fkey"
+            columns: ["league_location_id"]
+            isOneToOne: false
+            referencedRelation: "league_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_legacy_league_team_registrations_league_city_id_fkey"
+            columns: ["league_city_id"]
+            isOneToOne: false
+            referencedRelation: "league_cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_legacy_league_team_registrations_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pending_purchases: {
         Row: {
