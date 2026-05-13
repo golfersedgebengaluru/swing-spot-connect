@@ -2806,12 +2806,109 @@ export type Database = {
         }
         Relationships: []
       }
+      legacy_league_team_invites: {
+        Row: {
+          claimed_at: string | null
+          claimed_user_id: string | null
+          created_at: string
+          email: string
+          id: string
+          invited_by: string
+          league_id: string
+          status: string
+          team_registration_id: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          claimed_user_id?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          invited_by: string
+          league_id: string
+          status?: string
+          team_registration_id: string
+        }
+        Update: {
+          claimed_at?: string | null
+          claimed_user_id?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          invited_by?: string
+          league_id?: string
+          status?: string
+          team_registration_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legacy_league_team_invites_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legacy_league_team_invites_team_registration_id_fkey"
+            columns: ["team_registration_id"]
+            isOneToOne: false
+            referencedRelation: "legacy_league_team_registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      legacy_league_team_members: {
+        Row: {
+          id: string
+          joined_at: string
+          joined_via: string
+          league_id: string
+          role: string
+          team_registration_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          joined_via?: string
+          league_id: string
+          role?: string
+          team_registration_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          joined_via?: string
+          league_id?: string
+          role?: string
+          team_registration_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legacy_league_team_members_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legacy_league_team_members_team_registration_id_fkey"
+            columns: ["team_registration_id"]
+            isOneToOne: false
+            referencedRelation: "legacy_league_team_registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       legacy_league_team_registrations: {
         Row: {
           captain_user_id: string
           created_at: string
           currency: string
           id: string
+          join_token: string
           league_city_id: string
           league_id: string
           league_location_id: string
@@ -2828,6 +2925,7 @@ export type Database = {
           created_at?: string
           currency?: string
           id?: string
+          join_token?: string
           league_city_id: string
           league_id: string
           league_location_id: string
@@ -2844,6 +2942,7 @@ export type Database = {
           created_at?: string
           currency?: string
           id?: string
+          join_token?: string
           league_city_id?: string
           league_id?: string
           league_location_id?: string
@@ -3410,6 +3509,7 @@ export type Database = {
           currency: string
           error_message: string | null
           id: string
+          invite_emails: string[]
           league_city_id: string
           league_id: string
           league_location_id: string
@@ -3428,6 +3528,7 @@ export type Database = {
           currency?: string
           error_message?: string | null
           id?: string
+          invite_emails?: string[]
           league_city_id: string
           league_id: string
           league_location_id: string
@@ -3446,6 +3547,7 @@ export type Database = {
           currency?: string
           error_message?: string | null
           id?: string
+          invite_emails?: string[]
           league_city_id?: string
           league_id?: string
           league_location_id?: string
@@ -4480,6 +4582,14 @@ export type Database = {
       check_email_rate_limit: {
         Args: { p_max_per_hour?: number; p_user_id: string }
         Returns: boolean
+      }
+      claim_legacy_league_invites: {
+        Args: { _email: string; _user_id: string }
+        Returns: number
+      }
+      claim_legacy_league_team_by_token: {
+        Args: { _token: string; _user_id: string }
+        Returns: Json
       }
       complete_hour_purchase: {
         Args: {
