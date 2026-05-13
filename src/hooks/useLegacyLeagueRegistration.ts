@@ -5,6 +5,33 @@ import { leagueServiceInvoke } from "@/hooks/useLeagues";
 export interface LegacyLeagueCity { id: string; name: string }
 export interface LegacyLeagueLocation { id: string; league_city_id: string; name: string }
 
+/** Pure helper: checks that a team_size is allowed by the league config. */
+export function isAllowedTeamSize(size: unknown, allowed: number[] | null | undefined): boolean {
+  const n = typeof size === "number" ? size : Number(size);
+  if (!Number.isInteger(n) || n < 1) return false;
+  if (!allowed || allowed.length === 0) return false;
+  return allowed.includes(n);
+}
+
+/** Pure helper: validates the registration form before calling the edge function. */
+export function validateRegistrationForm(input: {
+  league_city_id?: string | null;
+  league_location_id?: string | null;
+  team_name?: string | null;
+  team_size?: number | null;
+  allowed_team_sizes?: number[] | null;
+}): { ok: true } | { ok: false; error: string } {
+  if (!input.league_city_id) return { ok: false, error: "Please select a city" };
+  if (!input.league_location_id) return { ok: false, error: "Please select a location" };
+  const name = (input.team_name || "").trim();
+  if (name.length < 2) return { ok: false, error: "Team name must be at least 2 characters" };
+  if (name.length > 80) return { ok: false, error: "Team name is too long" };
+  if (!isAllowedTeamSize(input.team_size, input.allowed_team_sizes ?? null)) {
+    return { ok: false, error: "Please pick a valid team size" };
+  }
+  return { ok: true };
+}
+
 export function useLegacyLeagueCities(leagueId: string | null) {
   return useQuery<LegacyLeagueCity[]>({
     queryKey: ["legacy-league-cities", leagueId],
