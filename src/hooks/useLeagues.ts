@@ -150,8 +150,10 @@ export function useDeleteLeague(tenantId: string) {
   });
 }
 
+export type LandingLeague = Pick<League, "id" | "name" | "venue_id" | "status" | "allowed_team_sizes" | "show_on_landing" | "price_per_person" | "currency">;
+
 export function useLandingLeagues() {
-  return useQuery<League[]>({
+  return useQuery<LandingLeague[]>({
     queryKey: ["leagues-landing"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -161,7 +163,7 @@ export function useLandingLeagues() {
         .eq("status", "active")
         .order("created_at", { ascending: false });
       if (error) throw new Error(error.message);
-      return (data ?? []) as unknown as League[];
+      return (data ?? []) satisfies LandingLeague[];
     },
     staleTime: 60_000,
   });
