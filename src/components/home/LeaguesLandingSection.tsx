@@ -1,13 +1,16 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Trophy } from "lucide-react";
 import { useLeaguesLite } from "@/hooks/useLeaguesLite";
-import { useLandingLeagues } from "@/hooks/useLeagues";
+import { useLandingLeagues, type LandingLeague } from "@/hooks/useLeagues";
+import { JoinLegacyLeagueDialog } from "@/components/league/JoinLegacyLeagueDialog";
 
 export function LeaguesLandingSection() {
   const { data: liteLeagues } = useLeaguesLite({ onlyLanding: true });
   const { data: legacyLeagues } = useLandingLeagues();
+  const [joinTarget, setJoinTarget] = useState<LandingLeague | null>(null);
 
   const hasLite = !!liteLeagues && liteLeagues.length > 0;
   const hasLegacy = !!legacyLeagues && legacyLeagues.length > 0;
@@ -50,13 +53,21 @@ export function LeaguesLandingSection() {
                   : ""}
                 {l.currency} {l.price_per_person}/person
               </div>
-              <Button className="w-full" size="lg" disabled title="Coming soon">
-                Join League — Coming Soon
+              <Button className="w-full" size="lg" onClick={() => setJoinTarget(l)}>
+                Join League
               </Button>
             </CardContent>
           </Card>
         ))}
       </div>
+      {joinTarget && (
+        <JoinLegacyLeagueDialog
+          league={joinTarget}
+          open={!!joinTarget}
+          onOpenChange={(o) => { if (!o) setJoinTarget(null); }}
+        />
+      )}
     </section>
   );
 }
+

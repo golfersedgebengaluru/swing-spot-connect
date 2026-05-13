@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createHmac } from 'node:crypto'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -261,6 +262,16 @@ function parseRoute(url: URL): Route {
     // /leagues/:id/cities
     if (subResource === 'cities') {
       return { action: 'league-cities', leagueId, subResource }
+    }
+    // ── Phase 2: legacy captain registration ──
+    if (subResource === 'register-team-intent') {
+      return { action: 'legacy-register-team-intent', leagueId, subResource }
+    }
+    if (subResource === 'verify-team-payment') {
+      return { action: 'legacy-verify-team-payment', leagueId, subResource }
+    }
+    if (subResource === 'registered-teams') {
+      return { action: 'legacy-registered-teams', leagueId, subResource }
     }
     return { action: `league-${subResource}`, leagueId, subResource }
   }
@@ -3016,6 +3027,252 @@ Deno.serve(async (req) => {
         player: { id: targetPlayerUserId, name: playerName, rank, vs_par: vsPar, best_round: bestRound, birdies, awards: myAwards },
         sponsor: sponsorName,
       })
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // PHASE 2 — Legacy League captain registration + Razorpay
+    // ══════════════════════════════════════════════════════════════
+
+    // ── Register team intent (creates Razorpay order + pending row) ─
+    if (route.action === 'legacy-register-team-intent' && route.leagueId && method === 'POST') {
+      const body = await req.json().catch(() => ({}))
+      const { league_city_id, league_location_id, team_name, team_size } = body || {}
+      if (!league_city_id || !league_location_id || !team_name || !team_size) {
+        return err('league_city_id, league_location_id, team_name, team_size are required')
+      }
+      const size = Number(team_size)
+      if (!Number.isInteger(size) || size < 1 || size > 20) return err('Invalid team_size')
+      if (typeof team_name !== 'string' || team_name.trim().length < 1 || team_name.trim().length > 80) {
+        return err('Invalid team_name')
+      }
+
+      // League validation
+      const { data: league } = await supabase
+        .from('leagues')
+        .select('id, tenant_id, name, status, show_on_landing, allowed_team_sizes, price_per_person, currency')
+        .eq('id', route.leagueId)
+        .single()
+      if (!league) return err('League not found', 404)
+      if (league.status !== 'active' || !league.show_on_landing) return err('League is not open for registration', 400)
+      if (!Array.isArray(league.allowed_team_sizes) || !league.allowed_team_sizes.includes(size)) {
+        return err('Selected team size is not allowed for this league')
+      }
+
+      // City + location must belong to league
+      const { data: city } = await supabase.from('league_cities').select('id, name, league_id').eq('id', league_city_id).single()
+      if (!city || city.league_id !== route.leagueId) return err('City not found for this league', 404)
+      const { data: loc } = await supabase.from('league_locations').select('id, name, league_id, league_city_id').eq('id', league_location_id).single()
+      if (!loc || loc.league_id !== route.leagueId || loc.league_city_id !== league_city_id) return err('Location not found for this city', 404)
+
+      // Captain may register only one team per league
+      const { data: existing } = await supabase
+        .from('legacy_league_team_registrations')
+        .select('id')
+        .eq('league_id', route.leagueId)
+        .eq('captain_user_id', user.id)
+        .maybeSingle()
+      if (existing) return err('You have already registered a team for this league', 409)
+
+      const amount = Number(league.price_per_person) * size
+      const currency = league.currency || 'INR'
+
+      // Tenant city → payment gateway lookup
+      const { data: tenant } = await supabase.from('tenants').select('city').eq('id', league.tenant_id).single()
+      const gatewayCity = tenant?.city
+      if (!gatewayCity) return err('League tenant has no city configured', 500)
+
+      const { data: gateway } = await supabase
+        .from('payment_gateways')
+        .select('api_key, api_secret, city_slug')
+        .eq('city', gatewayCity).eq('name', 'razorpay').eq('is_active', true).maybeSingle()
+      if (!gateway) return err('Payment gateway not configured for this city', 500)
+
+      const apiKey = (gateway.api_key || '').trim()
+      const citySlug = (gateway.city_slug || gatewayCity.toLowerCase().replace(/[^a-z0-9]/g, '_')).toUpperCase()
+      const apiSecret = (Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) || gateway.api_secret || '').trim()
+      if (!apiKey || !apiSecret) return err('Razorpay credentials missing', 500)
+
+      // Free league — skip Razorpay entirely
+      if (amount <= 0) {
+        const { data: reg, error: regErr } = await supabase
+          .from('legacy_league_team_registrations')
+          .insert({
+            league_id: route.leagueId,
+            league_city_id,
+            league_location_id,
+            captain_user_id: user.id,
+            team_name: team_name.trim(),
+            team_size: size,
+            total_amount: 0,
+            currency,
+            payment_status: 'paid',
+          })
+          .select()
+          .single()
+        if (regErr) return err(regErr.message, 500)
+        return json({ success: true, free: true, registration: reg })
+      }
+
+      // Create Razorpay order
+      const auth = btoa(`${apiKey}:${apiSecret}`)
+      const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Basic ${auth}` },
+        body: JSON.stringify({
+          amount: Math.round(amount * 100),
+          currency,
+          receipt: `lleg_${Date.now()}`,
+          notes: { league_id: route.leagueId, captain_id: user.id, city: gatewayCity },
+        }),
+      })
+      if (!rzpRes.ok) {
+        console.error('Razorpay order create failed', rzpRes.status, await rzpRes.text())
+        return err('Could not start payment', 500)
+      }
+      const order = await rzpRes.json()
+
+      // Pending row for webhook reconciliation
+      const { error: pErr } = await supabase
+        .from('pending_legacy_league_team_registrations')
+        .insert({
+          razorpay_order_id: order.id,
+          captain_user_id: user.id,
+          league_id: route.leagueId,
+          league_city_id,
+          league_location_id,
+          team_name: team_name.trim(),
+          team_size: size,
+          amount,
+          currency,
+          city: gatewayCity,
+          status: 'pending',
+        })
+      if (pErr) {
+        console.error('pending insert failed', pErr)
+        return err('Could not stage registration', 500)
+      }
+
+      return json({
+        success: true,
+        order_id: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        key_id: apiKey,
+        league_name: league.name,
+      })
+    }
+
+    // ── Verify team payment ─────────────────────────────────────────
+    if (route.action === 'legacy-verify-team-payment' && route.leagueId && method === 'POST') {
+      const body = await req.json().catch(() => ({}))
+      const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body || {}
+      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) return err('Missing payment fields')
+
+      const { data: pending } = await supabase
+        .from('pending_legacy_league_team_registrations')
+        .select('*')
+        .eq('razorpay_order_id', razorpay_order_id)
+        .single()
+      if (!pending) return err('Pending registration not found', 404)
+      if (pending.captain_user_id !== user.id) return err('Forbidden', 403)
+      if (pending.league_id !== route.leagueId) return err('League mismatch', 400)
+
+      // Look up secret to verify signature
+      const { data: gw } = await supabase
+        .from('payment_gateways')
+        .select('api_secret, city_slug')
+        .eq('city', pending.city).eq('name', 'razorpay').eq('is_active', true).single()
+      const citySlug = (gw?.city_slug || (pending.city || '').toLowerCase().replace(/[^a-z0-9]/g, '_')).toUpperCase()
+      const apiSecret = (Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) || gw?.api_secret || '').trim()
+      if (!apiSecret) return err('Verification unavailable', 500)
+
+      const expected = createHmac('sha256', apiSecret)
+        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+        .digest('hex')
+      if (expected !== razorpay_signature) {
+        await supabase.from('pending_legacy_league_team_registrations')
+          .update({ status: 'invalid_signature', error_message: 'Signature mismatch' })
+          .eq('id', pending.id)
+        return err('Payment signature invalid', 400)
+      }
+
+      // Idempotency: if already completed, return existing
+      if (pending.status === 'completed' && pending.registration_id) {
+        const { data: reg } = await supabase
+          .from('legacy_league_team_registrations')
+          .select('*').eq('id', pending.registration_id).single()
+        return json({ success: true, registration: reg })
+      }
+
+      const { data: reg, error: regErr } = await supabase
+        .from('legacy_league_team_registrations')
+        .insert({
+          league_id: pending.league_id,
+          league_city_id: pending.league_city_id,
+          league_location_id: pending.league_location_id,
+          captain_user_id: pending.captain_user_id,
+          team_name: pending.team_name,
+          team_size: pending.team_size,
+          total_amount: pending.amount,
+          currency: pending.currency,
+          payment_status: 'paid',
+          razorpay_order_id,
+          razorpay_payment_id,
+        })
+        .select()
+        .single()
+      if (regErr) {
+        // Likely duplicate — captain already has a team; promote whatever exists
+        await supabase.from('pending_legacy_league_team_registrations')
+          .update({ status: 'duplicate', error_message: regErr.message })
+          .eq('id', pending.id)
+        return err(regErr.message, 500)
+      }
+
+      await supabase.from('pending_legacy_league_team_registrations')
+        .update({ status: 'completed', registration_id: reg.id })
+        .eq('id', pending.id)
+
+      return json({ success: true, registration: reg })
+    }
+
+    // ── List registered teams (admin) ───────────────────────────────
+    if (route.action === 'legacy-registered-teams' && route.leagueId && method === 'GET') {
+      const { data: isAdmin } = await supabase.rpc('is_admin_or_site_admin', { _user_id: user.id })
+      if (!isAdmin) return err('Forbidden', 403)
+      const { data, error } = await supabase
+        .from('legacy_league_team_registrations')
+        .select(`
+          id, team_name, team_size, total_amount, currency, payment_status,
+          razorpay_order_id, razorpay_payment_id, captain_user_id, created_at,
+          league_city_id, league_location_id,
+          city:league_cities!league_city_id(name),
+          location:league_locations!league_location_id(name)
+        `)
+        .eq('league_id', route.leagueId)
+        .order('created_at', { ascending: false })
+      if (error) return err(error.message, 500)
+
+      // Decorate with captain display_name + email
+      const ids = Array.from(new Set((data || []).map((r: any) => r.captain_user_id))).filter(Boolean)
+      let profilesById: Record<string, { display_name: string | null; email: string | null }> = {}
+      if (ids.length) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('user_id, display_name, email')
+          .in('user_id', ids)
+        for (const p of profs || []) {
+          profilesById[(p as any).user_id] = { display_name: (p as any).display_name, email: (p as any).email }
+        }
+      }
+      const decorated = (data || []).map((r: any) => ({
+        ...r,
+        captain_name: profilesById[r.captain_user_id]?.display_name ?? null,
+        captain_email: profilesById[r.captain_user_id]?.email ?? null,
+        city_name: r.city?.name ?? null,
+        location_name: r.location?.name ?? null,
+      }))
+      return json(decorated)
     }
 
     return err('Not found', 404)
