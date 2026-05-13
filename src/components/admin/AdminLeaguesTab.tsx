@@ -75,6 +75,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam, LeaderboardEntry } from "@/types/league";
 import type { LeaguePlayerWithProfile } from "@/hooks/useLeagues";
 import { LeaguesPanel as LiteLeaguesPanel } from "@/components/admin/AdminLeaguesLiteTab";
+import { useRegisteredLegacyTeams } from "@/hooks/useLegacyLeagueRegistration";
 import { parseTeamSizes } from "@/hooks/useLeaguesLite";
 import {
   AlertDialog,
