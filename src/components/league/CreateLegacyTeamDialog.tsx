@@ -81,7 +81,27 @@ export function CreateLegacyTeamDialog({ league, open, onOpenChange }: Props) {
     });
   }, [teamSize]);
 
-  const totalAmount = teamSize ? Number(teamSize) * Number(league.price_per_person) : 0;
+  const subtotal = teamSize ? Number(teamSize) * Number(league.price_per_person) : 0;
+  const discount = appliedCoupon ? calculateDiscount(appliedCoupon, subtotal) : 0;
+  const totalAmount = Math.max(0, subtotal - discount);
+
+  const handleApplyCoupon = async () => {
+    const code = couponCode.trim();
+    if (!code) return;
+    setCouponError("");
+    try {
+      const result = await validateCoupon.mutateAsync(code);
+      if (result.valid) {
+        setAppliedCoupon(result);
+        setCouponCode("");
+      } else {
+        setCouponError(result.error || "Invalid coupon code");
+      }
+    } catch (e) {
+      setCouponError((e as Error).message || "Failed to validate coupon");
+    }
+  };
+  const handleRemoveCoupon = () => { setAppliedCoupon(null); setCouponError(""); };
 
   if (!user) {
     return (
