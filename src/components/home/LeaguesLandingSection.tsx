@@ -36,7 +36,7 @@ function LeagueCard({ league, onCreate }: { league: LandingLeague; onCreate: () 
           </div>
         ) : (
           <Button className="w-full" size="lg" onClick={user ? onCreate : undefined} asChild={!user}>
-            {user ? <span>Create Team</span> : <Link to="/auth">Sign in to create team</Link>}
+            {user ? <span>Create Team</span> : <Link to="/auth?redirect=/leagues">Sign in to create team</Link>}
           </Button>
         )}
       </CardContent>
