@@ -408,6 +408,10 @@ Deno.serve(async (req) => {
           venue_id: body.venue_id ?? null,
           status: 'draft',
           score_entry_method: body.score_entry_method || 'not_set',
+          allowed_team_sizes: Array.isArray(body.allowed_team_sizes) ? body.allowed_team_sizes : [],
+          show_on_landing: body.show_on_landing === true,
+          price_per_person: typeof body.price_per_person === 'number' ? body.price_per_person : 0,
+          currency: body.currency || 'INR',
           created_by: user.id,
         }).select().single()
 
