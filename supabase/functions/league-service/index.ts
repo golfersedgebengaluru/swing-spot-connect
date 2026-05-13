@@ -3097,8 +3097,31 @@ Deno.serve(async (req) => {
         .maybeSingle()
       if (existing) return err('You have already registered a team for this league', 409)
 
-      const amount = Number(league.price_per_person) * size
+      const originalAmount = Number(league.price_per_person) * size
       const currency = league.currency || 'INR'
+
+      // Optional coupon
+      let couponId: string | null = null
+      let couponCodeFinal: string | null = null
+      let discountAmount = 0
+      if (cleanedCoupon) {
+        const { data: vc, error: vcErr } = await supabase.rpc('validate_coupon', {
+          p_code: cleanedCoupon, p_user_id: user.id, p_session_id: null,
+        })
+        if (vcErr) return err(`Coupon error: ${vcErr.message}`, 400)
+        const v = vc as { valid?: boolean; error?: string; coupon_id?: string; discount_type?: string; discount_value?: number; code?: string }
+        if (!v?.valid) return err(v?.error || 'Invalid coupon code', 400)
+        if (v.discount_type === 'percentage') {
+          discountAmount = Math.round((originalAmount * Number(v.discount_value || 0)) / 100 * 100) / 100
+        } else {
+          discountAmount = Math.min(Number(v.discount_value || 0), originalAmount)
+        }
+        if (discountAmount < 0) discountAmount = 0
+        if (discountAmount > originalAmount) discountAmount = originalAmount
+        couponId = v.coupon_id || null
+        couponCodeFinal = v.code || cleanedCoupon
+      }
+      const amount = Math.max(0, originalAmount - discountAmount)
 
       // Tenant city → payment gateway lookup
       const { data: tenant } = await supabase.from('tenants').select('city').eq('id', league.tenant_id).single()
