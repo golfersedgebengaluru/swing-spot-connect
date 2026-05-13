@@ -3248,7 +3248,7 @@ Deno.serve(async (req) => {
         const { data: reg } = await supabase
           .from('legacy_league_team_registrations')
           .select('*').eq('id', pending.registration_id).single()
-        return json({ success: true, registration: reg })
+        return json({ success: true, registration: reg, join_token: reg?.join_token })
       }
 
       const { data: reg, error: regErr } = await supabase
@@ -3269,18 +3269,87 @@ Deno.serve(async (req) => {
         .select()
         .single()
       if (regErr) {
-        // Likely duplicate — captain already has a team; promote whatever exists
         await supabase.from('pending_legacy_league_team_registrations')
           .update({ status: 'duplicate', error_message: regErr.message })
           .eq('id', pending.id)
         return err(regErr.message, 500)
       }
 
+      // Captain into roster + invites from pending
+      await supabase.from('legacy_league_team_members').insert({
+        team_registration_id: reg.id,
+        league_id: pending.league_id,
+        user_id: pending.captain_user_id,
+        role: 'captain',
+        joined_via: 'captain',
+      })
+      const pendingEmails: string[] = Array.isArray(pending.invite_emails) ? pending.invite_emails : []
+      if (pendingEmails.length > 0) {
+        await supabase.from('legacy_league_team_invites').insert(
+          pendingEmails.map((email: string) => ({
+            team_registration_id: reg.id,
+            league_id: pending.league_id,
+            email,
+            invited_by: pending.captain_user_id,
+            status: 'pending',
+          }))
+        )
+      }
+
       await supabase.from('pending_legacy_league_team_registrations')
         .update({ status: 'completed', registration_id: reg.id })
         .eq('id', pending.id)
 
-      return json({ success: true, registration: reg })
+      return json({ success: true, registration: reg, join_token: reg.join_token })
+    }
+
+    // ── Auto-claim email invites on login ───────────────────────────
+    if (route.action === 'legacy-claim-invites' && method === 'POST') {
+      if (!user.email) return json({ success: true, claimed: 0 })
+      const { data, error } = await supabase.rpc('claim_legacy_league_invites', {
+        _user_id: user.id, _email: user.email,
+      })
+      if (error) return err(error.message, 500)
+      return json({ success: true, claimed: Number(data) || 0 })
+    }
+
+    // ── Claim by share token ────────────────────────────────────────
+    if (route.action === 'legacy-claim-by-token' && method === 'POST') {
+      const body = await req.json().catch(() => ({}))
+      const token = String(body?.token || '').trim()
+      if (!token) return err('token required')
+      const { data, error } = await supabase.rpc('claim_legacy_league_team_by_token', {
+        _user_id: user.id, _token: token,
+      })
+      if (error) return err(error.message, 500)
+      return json({ success: true, result: data })
+    }
+
+    // ── My team for a league ────────────────────────────────────────
+    if (route.action === 'legacy-my-team' && route.leagueId && method === 'GET') {
+      const { data: member } = await supabase
+        .from('legacy_league_team_members')
+        .select('team_registration_id, role')
+        .eq('league_id', route.leagueId).eq('user_id', user.id).maybeSingle()
+      if (!member) return json({ success: true, team: null })
+      const { data: team } = await supabase
+        .from('legacy_league_team_registrations')
+        .select(`
+          id, team_name, team_size, currency, total_amount, payment_status,
+          join_token, captain_user_id, league_city_id, league_location_id,
+          city:league_cities!league_city_id(name),
+          location:league_locations!league_location_id(name)
+        `)
+        .eq('id', member.team_registration_id).single()
+      const { data: members } = await supabase
+        .from('legacy_league_team_members')
+        .select('user_id, role, joined_at')
+        .eq('team_registration_id', member.team_registration_id)
+      const { data: invites } = await supabase
+        .from('legacy_league_team_invites')
+        .select('email, status')
+        .eq('team_registration_id', member.team_registration_id)
+      return json({ success: true, team, my_role: member.role, members: members || [], invites: invites || [] })
     }
 
     // ── List registered teams (admin) ───────────────────────────────
