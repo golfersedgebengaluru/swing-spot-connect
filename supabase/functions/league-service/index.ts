@@ -3046,10 +3046,11 @@ Deno.serve(async (req) => {
     // ── Register team intent (creates Razorpay order + pending row) ─
     if (route.action === 'legacy-register-team-intent' && route.leagueId && method === 'POST') {
       const body = await req.json().catch(() => ({}))
-      const { league_city_id, league_location_id, team_name, team_size, invite_emails } = body || {}
+      const { league_city_id, league_location_id, team_name, team_size, invite_emails, coupon_code } = body || {}
       if (!league_city_id || !league_location_id || !team_name || !team_size) {
         return err('league_city_id, league_location_id, team_name, team_size are required')
       }
+      const cleanedCoupon = typeof coupon_code === 'string' ? coupon_code.trim().toUpperCase() : ''
       const size = Number(team_size)
       if (!Number.isInteger(size) || size < 1 || size > 20) return err('Invalid team_size')
       if (typeof team_name !== 'string' || team_name.trim().length < 1 || team_name.trim().length > 80) {
