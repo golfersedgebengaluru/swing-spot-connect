@@ -75,7 +75,17 @@ export function JoinLegacyLeagueDialog({ league, open, onOpenChange }: Props) {
   }
 
   async function handleConfirmAndPay() {
-    if (!cityId || !locationId || !teamSize || !teamName.trim()) return;
+    const v = validateRegistrationForm({
+      league_city_id: cityId,
+      league_location_id: locationId,
+      team_name: teamName,
+      team_size: typeof teamSize === "number" ? teamSize : null,
+      allowed_team_sizes: league.allowed_team_sizes ?? null,
+    });
+    if (!v.ok) {
+      toast({ title: "Check your details", description: v.error, variant: "destructive" });
+      return;
+    }
     setSubmitting(true);
     try {
       const intent = await intentMut.mutateAsync({
