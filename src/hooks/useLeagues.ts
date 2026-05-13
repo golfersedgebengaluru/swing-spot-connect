@@ -163,7 +163,7 @@ export function useLandingLeagues() {
         .eq("status", "active")
         .order("created_at", { ascending: false });
       if (error) throw new Error(error.message);
-      return (data ?? []) satisfies LandingLeague[];
+      return (data ?? []) as unknown as LandingLeague[];
     },
     staleTime: 60_000,
   });
