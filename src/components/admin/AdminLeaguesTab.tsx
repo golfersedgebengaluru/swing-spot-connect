@@ -694,6 +694,9 @@ function LegacyLeagueRow({
         {league.price_per_person > 0 && (
           <Badge variant="outline" className="text-[10px] py-0 px-1.5">{league.currency} {league.price_per_person}/person</Badge>
         )}
+        {cityCount > 0 && (
+          <Badge variant="outline" className="text-[10px] py-0 px-1.5">{cityCount} {cityCount === 1 ? "city" : "cities"}</Badge>
+        )}
       </div>
 
       {editOpen && (
