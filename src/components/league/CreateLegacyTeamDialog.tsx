@@ -17,6 +17,7 @@ import {
 } from "@/hooks/useLegacyLeagueRegistration";
 import type { LandingLeague } from "@/hooks/useLeagues";
 import { Link } from "react-router-dom";
+import { useValidateCoupon, calculateDiscount, type ValidateCouponResult } from "@/hooks/useCoupons";
 
 function loadRazorpay(): Promise<boolean> {
   return new Promise((resolve) => {
