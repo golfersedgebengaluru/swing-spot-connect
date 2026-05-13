@@ -73,6 +73,7 @@ export interface RegisterTeamIntentBody {
   team_name: string;
   team_size: number;
   invite_emails?: string[];
+  coupon_code?: string;
 }
 export interface IntentResponse {
   success: true;
@@ -84,6 +85,9 @@ export interface IntentResponse {
   key_id?: string;
   league_name?: string;
   join_token?: string;
+  original_amount?: number;
+  discount_amount?: number;
+  coupon_code?: string;
 }
 
 export function useRegisterTeamIntent(leagueId: string) {

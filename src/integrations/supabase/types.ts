@@ -2905,13 +2905,17 @@ export type Database = {
       legacy_league_team_registrations: {
         Row: {
           captain_user_id: string
+          coupon_code: string | null
+          coupon_id: string | null
           created_at: string
           currency: string
+          discount_amount: number
           id: string
           join_token: string
           league_city_id: string
           league_id: string
           league_location_id: string
+          original_amount: number | null
           payment_status: string
           razorpay_order_id: string | null
           razorpay_payment_id: string | null
@@ -2922,13 +2926,17 @@ export type Database = {
         }
         Insert: {
           captain_user_id: string
+          coupon_code?: string | null
+          coupon_id?: string | null
           created_at?: string
           currency?: string
+          discount_amount?: number
           id?: string
           join_token?: string
           league_city_id: string
           league_id: string
           league_location_id: string
+          original_amount?: number | null
           payment_status?: string
           razorpay_order_id?: string | null
           razorpay_payment_id?: string | null
@@ -2939,13 +2947,17 @@ export type Database = {
         }
         Update: {
           captain_user_id?: string
+          coupon_code?: string | null
+          coupon_id?: string | null
           created_at?: string
           currency?: string
+          discount_amount?: number
           id?: string
           join_token?: string
           league_city_id?: string
           league_id?: string
           league_location_id?: string
+          original_amount?: number | null
           payment_status?: string
           razorpay_order_id?: string | null
           razorpay_payment_id?: string | null
@@ -2955,6 +2967,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "legacy_league_team_registrations_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "legacy_league_team_registrations_league_city_id_fkey"
             columns: ["league_city_id"]
@@ -3505,14 +3524,18 @@ export type Database = {
           amount: number
           captain_user_id: string
           city: string
+          coupon_code: string | null
+          coupon_id: string | null
           created_at: string
           currency: string
+          discount_amount: number
           error_message: string | null
           id: string
           invite_emails: string[]
           league_city_id: string
           league_id: string
           league_location_id: string
+          original_amount: number | null
           razorpay_order_id: string
           registration_id: string | null
           status: string
@@ -3524,14 +3547,18 @@ export type Database = {
           amount: number
           captain_user_id: string
           city: string
+          coupon_code?: string | null
+          coupon_id?: string | null
           created_at?: string
           currency?: string
+          discount_amount?: number
           error_message?: string | null
           id?: string
           invite_emails?: string[]
           league_city_id: string
           league_id: string
           league_location_id: string
+          original_amount?: number | null
           razorpay_order_id: string
           registration_id?: string | null
           status?: string
@@ -3543,14 +3570,18 @@ export type Database = {
           amount?: number
           captain_user_id?: string
           city?: string
+          coupon_code?: string | null
+          coupon_id?: string | null
           created_at?: string
           currency?: string
+          discount_amount?: number
           error_message?: string | null
           id?: string
           invite_emails?: string[]
           league_city_id?: string
           league_id?: string
           league_location_id?: string
+          original_amount?: number | null
           razorpay_order_id?: string
           registration_id?: string | null
           status?: string
@@ -3564,6 +3595,13 @@ export type Database = {
             columns: ["league_location_id"]
             isOneToOne: false
             referencedRelation: "league_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_legacy_league_team_registrations_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
             referencedColumns: ["id"]
           },
           {

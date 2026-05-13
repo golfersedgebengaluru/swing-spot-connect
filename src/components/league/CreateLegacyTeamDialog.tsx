@@ -17,6 +17,7 @@ import {
 } from "@/hooks/useLegacyLeagueRegistration";
 import type { LandingLeague } from "@/hooks/useLeagues";
 import { Link } from "react-router-dom";
+import { useValidateCoupon, calculateDiscount, type ValidateCouponResult } from "@/hooks/useCoupons";
 
 function loadRazorpay(): Promise<boolean> {
   return new Promise((resolve) => {
@@ -50,6 +51,10 @@ export function CreateLegacyTeamDialog({ league, open, onOpenChange }: Props) {
   const [emails, setEmails] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [shareLink, setShareLink] = useState<string>("");
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<ValidateCouponResult | null>(null);
+  const [couponError, setCouponError] = useState("");
+  const validateCoupon = useValidateCoupon();
 
   const { data: cities = [] } = useLegacyLeagueCities(open ? league.id : null);
   const { data: locations = [] } = useLegacyLeagueLocations(open ? league.id : null, cityId || null);
@@ -61,6 +66,7 @@ export function CreateLegacyTeamDialog({ league, open, onOpenChange }: Props) {
     if (!open) {
       setStep(1); setCityId(""); setLocationId(""); setTeamSize(""); setTeamName("");
       setEmails([]); setShareLink("");
+      setCouponCode(""); setAppliedCoupon(null); setCouponError("");
     }
   }, [open]);
 
@@ -75,7 +81,27 @@ export function CreateLegacyTeamDialog({ league, open, onOpenChange }: Props) {
     });
   }, [teamSize]);
 
-  const totalAmount = teamSize ? Number(teamSize) * Number(league.price_per_person) : 0;
+  const subtotal = teamSize ? Number(teamSize) * Number(league.price_per_person) : 0;
+  const discount = appliedCoupon ? calculateDiscount(appliedCoupon, subtotal) : 0;
+  const totalAmount = Math.max(0, subtotal - discount);
+
+  const handleApplyCoupon = async () => {
+    const code = couponCode.trim();
+    if (!code) return;
+    setCouponError("");
+    try {
+      const result = await validateCoupon.mutateAsync(code);
+      if (result.valid) {
+        setAppliedCoupon(result);
+        setCouponCode("");
+      } else {
+        setCouponError(result.error || "Invalid coupon code");
+      }
+    } catch (e) {
+      setCouponError((e as Error).message || "Failed to validate coupon");
+    }
+  };
+  const handleRemoveCoupon = () => { setAppliedCoupon(null); setCouponError(""); };
 
   if (!user) {
     return (
@@ -138,6 +164,7 @@ export function CreateLegacyTeamDialog({ league, open, onOpenChange }: Props) {
         team_name: teamName.trim(),
         team_size: Number(teamSize),
         invite_emails: cleanedEmails,
+        coupon_code: appliedCoupon?.code,
       });
 
       if (intent.free) {
@@ -291,7 +318,39 @@ export function CreateLegacyTeamDialog({ league, open, onOpenChange }: Props) {
                   <div className="flex justify-between"><span className="text-muted-foreground">Size</span><span>{teamSize} players</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Invites</span><span>{emails.filter(Boolean).length}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Price/person</span><span>{league.currency} {league.price_per_person}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{league.currency} {subtotal.toFixed(2)}</span></div>
+                  {appliedCoupon && discount > 0 && (
+                    <div className="flex justify-between text-emerald-600">
+                      <span>Coupon ({appliedCoupon.code})</span>
+                      <span>− {league.currency} {discount.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-base font-semibold pt-2 border-t"><span>Total</span><span>{league.currency} {totalAmount.toFixed(2)}</span></div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Coupon code (optional)</Label>
+                  {appliedCoupon ? (
+                    <div className="flex items-center justify-between rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-sm">
+                      <span className="font-mono">{appliedCoupon.code}</span>
+                      <Button type="button" variant="ghost" size="sm" onClick={handleRemoveCoupon}>Remove</Button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Enter code"
+                        value={couponCode}
+                        onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError(""); }}
+                        onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
+                        maxLength={20}
+                        className="font-mono"
+                      />
+                      <Button type="button" variant="outline" onClick={handleApplyCoupon} disabled={!couponCode.trim() || validateCoupon.isPending}>
+                        {validateCoupon.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+                      </Button>
+                    </div>
+                  )}
+                  {couponError && <p className="text-xs text-destructive">{couponError}</p>}
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={() => setStep(2)} className="flex-1" disabled={submitting}>Back</Button>

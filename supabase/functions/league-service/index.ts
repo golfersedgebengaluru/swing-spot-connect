@@ -3046,10 +3046,11 @@ Deno.serve(async (req) => {
     // ── Register team intent (creates Razorpay order + pending row) ─
     if (route.action === 'legacy-register-team-intent' && route.leagueId && method === 'POST') {
       const body = await req.json().catch(() => ({}))
-      const { league_city_id, league_location_id, team_name, team_size, invite_emails } = body || {}
+      const { league_city_id, league_location_id, team_name, team_size, invite_emails, coupon_code } = body || {}
       if (!league_city_id || !league_location_id || !team_name || !team_size) {
         return err('league_city_id, league_location_id, team_name, team_size are required')
       }
+      const cleanedCoupon = typeof coupon_code === 'string' ? coupon_code.trim().toUpperCase() : ''
       const size = Number(team_size)
       if (!Number.isInteger(size) || size < 1 || size > 20) return err('Invalid team_size')
       if (typeof team_name !== 'string' || team_name.trim().length < 1 || team_name.trim().length > 80) {
@@ -3096,8 +3097,31 @@ Deno.serve(async (req) => {
         .maybeSingle()
       if (existing) return err('You have already registered a team for this league', 409)
 
-      const amount = Number(league.price_per_person) * size
+      const originalAmount = Number(league.price_per_person) * size
       const currency = league.currency || 'INR'
+
+      // Optional coupon
+      let couponId: string | null = null
+      let couponCodeFinal: string | null = null
+      let discountAmount = 0
+      if (cleanedCoupon) {
+        const { data: vc, error: vcErr } = await supabase.rpc('validate_coupon', {
+          p_code: cleanedCoupon, p_user_id: user.id, p_session_id: null,
+        })
+        if (vcErr) return err(`Coupon error: ${vcErr.message}`, 400)
+        const v = vc as { valid?: boolean; error?: string; coupon_id?: string; discount_type?: string; discount_value?: number; code?: string }
+        if (!v?.valid) return err(v?.error || 'Invalid coupon code', 400)
+        if (v.discount_type === 'percentage') {
+          discountAmount = Math.round((originalAmount * Number(v.discount_value || 0)) / 100 * 100) / 100
+        } else {
+          discountAmount = Math.min(Number(v.discount_value || 0), originalAmount)
+        }
+        if (discountAmount < 0) discountAmount = 0
+        if (discountAmount > originalAmount) discountAmount = originalAmount
+        couponId = v.coupon_id || null
+        couponCodeFinal = v.code || cleanedCoupon
+      }
+      const amount = Math.max(0, originalAmount - discountAmount)
 
       // Tenant city → payment gateway lookup
       const { data: tenant } = await supabase.from('tenants').select('city').eq('id', league.tenant_id).single()
@@ -3137,7 +3161,21 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Free league — skip Razorpay entirely
+      // Helper: record coupon redemption (best effort, idempotency via order_id absent here for free path)
+      const recordCouponRedemption = async (orderId: string | null) => {
+        if (!couponId || discountAmount <= 0) return
+        await supabase.from('coupon_redemptions').insert({
+          coupon_id: couponId,
+          user_id: user.id,
+          session_id: null,
+          order_id: orderId,
+          discount_applied: discountAmount,
+        })
+        const { data: cpn } = await supabase.from('coupons').select('total_used').eq('id', couponId).single()
+        if (cpn) await supabase.from('coupons').update({ total_used: (cpn.total_used || 0) + 1 }).eq('id', couponId)
+      }
+
+      // Free league (or 100% off coupon) — skip Razorpay entirely
       if (amount <= 0) {
         const { data: reg, error: regErr } = await supabase
           .from('legacy_league_team_registrations')
@@ -3149,6 +3187,10 @@ Deno.serve(async (req) => {
             team_name: team_name.trim(),
             team_size: size,
             total_amount: 0,
+            original_amount: originalAmount,
+            discount_amount: discountAmount,
+            coupon_id: couponId,
+            coupon_code: couponCodeFinal,
             currency,
             payment_status: 'paid',
           })
@@ -3156,6 +3198,7 @@ Deno.serve(async (req) => {
           .single()
         if (regErr) return err(regErr.message, 500)
         await finalizeTeam(reg.id)
+        await recordCouponRedemption(null)
         return json({ success: true, free: true, registration: reg, join_token: reg.join_token })
       }
 
@@ -3189,6 +3232,10 @@ Deno.serve(async (req) => {
           team_name: team_name.trim(),
           team_size: size,
           amount,
+          original_amount: originalAmount,
+          discount_amount: discountAmount,
+          coupon_id: couponId,
+          coupon_code: couponCodeFinal,
           currency,
           city: gatewayCity,
           status: 'pending',
@@ -3206,6 +3253,9 @@ Deno.serve(async (req) => {
         currency: order.currency,
         key_id: apiKey,
         league_name: league.name,
+        original_amount: originalAmount,
+        discount_amount: discountAmount,
+        coupon_code: couponCodeFinal,
       })
     }
 
@@ -3261,6 +3311,10 @@ Deno.serve(async (req) => {
           team_name: pending.team_name,
           team_size: pending.team_size,
           total_amount: pending.amount,
+          original_amount: pending.original_amount ?? pending.amount,
+          discount_amount: pending.discount_amount ?? 0,
+          coupon_id: pending.coupon_id ?? null,
+          coupon_code: pending.coupon_code ?? null,
           currency: pending.currency,
           payment_status: 'paid',
           razorpay_order_id,
@@ -3273,6 +3327,19 @@ Deno.serve(async (req) => {
           .update({ status: 'duplicate', error_message: regErr.message })
           .eq('id', pending.id)
         return err(regErr.message, 500)
+      }
+
+      // Record coupon redemption (best-effort)
+      if (pending.coupon_id && Number(pending.discount_amount) > 0) {
+        await supabase.from('coupon_redemptions').insert({
+          coupon_id: pending.coupon_id,
+          user_id: pending.captain_user_id,
+          session_id: null,
+          order_id: null,
+          discount_applied: pending.discount_amount,
+        })
+        const { data: cpn } = await supabase.from('coupons').select('total_used').eq('id', pending.coupon_id).single()
+        if (cpn) await supabase.from('coupons').update({ total_used: (cpn.total_used || 0) + 1 }).eq('id', pending.coupon_id)
       }
 
       // Captain into roster + invites from pending
