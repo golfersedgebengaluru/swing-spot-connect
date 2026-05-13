@@ -262,6 +262,16 @@ function parseRoute(url: URL): Route {
     if (subResource === 'cities') {
       return { action: 'league-cities', leagueId, subResource }
     }
+    // ── Phase 2: legacy captain registration ──
+    if (subResource === 'register-team-intent') {
+      return { action: 'legacy-register-team-intent', leagueId, subResource }
+    }
+    if (subResource === 'verify-team-payment') {
+      return { action: 'legacy-verify-team-payment', leagueId, subResource }
+    }
+    if (subResource === 'registered-teams') {
+      return { action: 'legacy-registered-teams', leagueId, subResource }
+    }
     return { action: `league-${subResource}`, leagueId, subResource }
   }
   return { action: 'unknown' }
