@@ -32,6 +32,10 @@ import { useToast } from "@/hooks/use-toast";
 const FUNCTION_NAME = "league-service";
 const LEAGUE_STALE_TIME = 30_000; // 30s – avoids re-fetching on tab switches
 
+export async function leagueServiceInvoke(path: string, method: string, body?: any) {
+  return invoke(path, method, body);
+}
+
 async function invoke(path: string, method: string, body?: any) {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error("Not authenticated");
