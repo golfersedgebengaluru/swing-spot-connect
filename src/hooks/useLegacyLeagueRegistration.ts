@@ -72,6 +72,7 @@ export interface RegisterTeamIntentBody {
   league_location_id: string;
   team_name: string;
   team_size: number;
+  invite_emails?: string[];
 }
 export interface IntentResponse {
   success: true;
@@ -82,6 +83,7 @@ export interface IntentResponse {
   currency?: string;
   key_id?: string;
   league_name?: string;
+  join_token?: string;
 }
 
 export function useRegisterTeamIntent(leagueId: string) {
