@@ -750,22 +750,77 @@ function LeagueDialogControlled({
     league.price_per_person != null ? String(league.price_per_person) : "",
   );
   const [currency, setCurrency] = useState<string>(league.currency ?? "INR");
+  const [draftCities, setDraftCities] = useState<DraftCity[]>([]);
+  const [originalCities, setOriginalCities] = useState<DraftCity[]>([]);
+  const [persisting, setPersisting] = useState(false);
   const updateLeague = useUpdateLeague(league.id);
   const { data: bays } = useTenantBays(tenantId);
+  const { data: existingCities } = useLeagueCities(open ? league.id : null);
+  const qc = useQueryClient();
+  const { toast } = useToast();
 
-  const handleSubmit = () => {
+  useEffect(() => {
+    if (!open || !existingCities) return;
+    let cancelled = false;
+    (async () => {
+      const hydrated: DraftCity[] = await Promise.all(
+        existingCities.map(async (c) => {
+          const locs = await leagueServiceInvoke(
+            `/leagues/${league.id}/cities/${c.id}/locations`,
+            "GET",
+          );
+          return {
+            id: c.id,
+            tempId: c.id,
+            name: c.name,
+            locations: (locs ?? []).map((l: any) => ({ id: l.id, tempId: l.id, name: l.name })),
+          };
+        }),
+      );
+      if (cancelled) return;
+      setDraftCities(hydrated);
+      setOriginalCities(JSON.parse(JSON.stringify(hydrated)));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, existingCities, league.id]);
+
+  const handleSubmit = async () => {
     if (!name.trim()) return;
     const price = pricePerPerson === "" ? 0 : Number(pricePerPerson);
-    updateLeague.mutate({
-      name: name.trim(),
-      format,
-      venue_id: venueId || undefined,
-      allowed_team_sizes: parseTeamSizes(teamSizes),
-      show_on_landing: showOnLanding,
-      price_per_person: Number.isFinite(price) ? price : 0,
-      currency: currency || "INR",
-    }, { onSuccess: () => onOpenChange(false) });
+    setPersisting(true);
+    try {
+      await updateLeague.mutateAsync({
+        name: name.trim(),
+        format,
+        venue_id: venueId || undefined,
+        allowed_team_sizes: parseTeamSizes(teamSizes),
+        show_on_landing: showOnLanding,
+        price_per_person: Number.isFinite(price) ? price : 0,
+        currency: currency || "INR",
+      });
+      try {
+        await persistCitiesLocations(league.id, draftCities, originalCities);
+        qc.invalidateQueries({ queryKey: ["league-cities", league.id] });
+      } catch (err) {
+        toast({
+          title: "League saved, but cities/locations failed",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+        setPersisting(false);
+        return;
+      }
+      onOpenChange(false);
+    } catch {
+      // toasted
+    } finally {
+      setPersisting(false);
+    }
   };
+
+  const pending = updateLeague.isPending || persisting;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -821,8 +876,9 @@ function LeagueDialogControlled({
             </div>
             <Switch checked={showOnLanding} onCheckedChange={setShowOnLanding} />
           </div>
-          <Button onClick={handleSubmit} disabled={updateLeague.isPending || !name.trim()} className="w-full">
-            {updateLeague.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Save changes
+          <CitiesLocationsEditor cities={draftCities} setCities={setDraftCities} />
+          <Button onClick={handleSubmit} disabled={pending || !name.trim()} className="w-full">
+            {pending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Save changes
           </Button>
         </div>
       </DialogContent>
