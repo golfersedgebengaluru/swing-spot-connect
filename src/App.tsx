@@ -31,6 +31,7 @@ const CoachingSessionDetail = lazy(() => import("./pages/CoachingSessionDetail")
 const QuickCompetitionPublic = lazy(() => import("./pages/QuickCompetitionPublic"));
 const QuickCompetitionJoin = lazy(() => import("./pages/QuickCompetitionJoin"));
 const ChangePassword = lazy(() => import("./pages/ChangePassword"));
+const LeagueTeamJoin = lazy(() => import("./pages/LeagueTeamJoin"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -66,6 +67,7 @@ const App = () => (
               <Route path="/my-bookings" element={<ErrorBoundary><MyBookings /></ErrorBoundary>} />
               <Route path="/profile" element={<ErrorBoundary><Profile /></ErrorBoundary>} />
               <Route path="/leagues" element={<ErrorBoundary><Leagues /></ErrorBoundary>} />
+              <Route path="/league-team-join/:token" element={<ErrorBoundary><LeagueTeamJoin /></ErrorBoundary>} />
               <Route path="/coaching" element={<ErrorBoundary><Coaching /></ErrorBoundary>} />
               <Route path="/coaching/:sessionId" element={<ErrorBoundary><CoachingSessionDetail /></ErrorBoundary>} />
               <Route path="/admin/setup" element={<ErrorBoundary><AdminSetup /></ErrorBoundary>} />

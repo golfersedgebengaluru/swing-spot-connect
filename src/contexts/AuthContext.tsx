@@ -116,6 +116,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }).catch((err) => console.error("Auto-gift error:", err));
         }
 
+        // Auto-claim legacy league email invites on every successful sign-in / restore
+        if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && nextSession?.access_token) {
+          const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/league-service/leagues/legacy/claim-invites`;
+          fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${nextSession.access_token}`,
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            },
+            body: "{}",
+          }).catch(() => { /* non-fatal */ });
+        }
+
         // After first SIGNED_IN event, mark that we have a session
         if (event === "SIGNED_IN") {
           hadSessionRef.current = true;
