@@ -12,6 +12,7 @@ import {
   useLegacyLeagueLocations,
   useRegisterTeamIntent,
   useVerifyTeamPayment,
+  validateRegistrationForm,
 } from "@/hooks/useLegacyLeagueRegistration";
 import type { LandingLeague } from "@/hooks/useLeagues";
 import { Link } from "react-router-dom";
