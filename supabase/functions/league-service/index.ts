@@ -3253,6 +3253,9 @@ Deno.serve(async (req) => {
         currency: order.currency,
         key_id: apiKey,
         league_name: league.name,
+        original_amount: originalAmount,
+        discount_amount: discountAmount,
+        coupon_code: couponCodeFinal,
       })
     }
 
