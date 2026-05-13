@@ -651,6 +651,8 @@ function LegacyLeagueRow({
   const [editOpen, setEditOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const del = useDeleteLeague(tenantId);
+  const { data: cities } = useLeagueCities(league.id);
+  const cityCount = cities?.length ?? 0;
 
   return (
     <div
