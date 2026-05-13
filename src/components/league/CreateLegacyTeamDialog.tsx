@@ -164,6 +164,7 @@ export function CreateLegacyTeamDialog({ league, open, onOpenChange }: Props) {
         team_name: teamName.trim(),
         team_size: Number(teamSize),
         invite_emails: cleanedEmails,
+        coupon_code: appliedCoupon?.code,
       });
 
       if (intent.free) {
