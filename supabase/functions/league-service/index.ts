@@ -3161,7 +3161,21 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Free league — skip Razorpay entirely
+      // Helper: record coupon redemption (best effort, idempotency via order_id absent here for free path)
+      const recordCouponRedemption = async (orderId: string | null) => {
+        if (!couponId || discountAmount <= 0) return
+        await supabase.from('coupon_redemptions').insert({
+          coupon_id: couponId,
+          user_id: user.id,
+          session_id: null,
+          order_id: orderId,
+          discount_applied: discountAmount,
+        })
+        const { data: cpn } = await supabase.from('coupons').select('total_used').eq('id', couponId).single()
+        if (cpn) await supabase.from('coupons').update({ total_used: (cpn.total_used || 0) + 1 }).eq('id', couponId)
+      }
+
+      // Free league (or 100% off coupon) — skip Razorpay entirely
       if (amount <= 0) {
         const { data: reg, error: regErr } = await supabase
           .from('legacy_league_team_registrations')
@@ -3173,6 +3187,10 @@ Deno.serve(async (req) => {
             team_name: team_name.trim(),
             team_size: size,
             total_amount: 0,
+            original_amount: originalAmount,
+            discount_amount: discountAmount,
+            coupon_id: couponId,
+            coupon_code: couponCodeFinal,
             currency,
             payment_status: 'paid',
           })
@@ -3180,6 +3198,7 @@ Deno.serve(async (req) => {
           .single()
         if (regErr) return err(regErr.message, 500)
         await finalizeTeam(reg.id)
+        await recordCouponRedemption(null)
         return json({ success: true, free: true, registration: reg, join_token: reg.join_token })
       }
 
