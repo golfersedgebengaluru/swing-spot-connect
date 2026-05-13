@@ -51,6 +51,10 @@ export function CreateLegacyTeamDialog({ league, open, onOpenChange }: Props) {
   const [emails, setEmails] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [shareLink, setShareLink] = useState<string>("");
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<ValidateCouponResult | null>(null);
+  const [couponError, setCouponError] = useState("");
+  const validateCoupon = useValidateCoupon();
 
   const { data: cities = [] } = useLegacyLeagueCities(open ? league.id : null);
   const { data: locations = [] } = useLegacyLeagueLocations(open ? league.id : null, cityId || null);
