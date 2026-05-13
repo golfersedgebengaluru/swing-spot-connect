@@ -3311,6 +3311,10 @@ Deno.serve(async (req) => {
           team_name: pending.team_name,
           team_size: pending.team_size,
           total_amount: pending.amount,
+          original_amount: pending.original_amount ?? pending.amount,
+          discount_amount: pending.discount_amount ?? 0,
+          coupon_id: pending.coupon_id ?? null,
+          coupon_code: pending.coupon_code ?? null,
           currency: pending.currency,
           payment_status: 'paid',
           razorpay_order_id,
@@ -3323,6 +3327,19 @@ Deno.serve(async (req) => {
           .update({ status: 'duplicate', error_message: regErr.message })
           .eq('id', pending.id)
         return err(regErr.message, 500)
+      }
+
+      // Record coupon redemption (best-effort)
+      if (pending.coupon_id && Number(pending.discount_amount) > 0) {
+        await supabase.from('coupon_redemptions').insert({
+          coupon_id: pending.coupon_id,
+          user_id: pending.captain_user_id,
+          session_id: null,
+          order_id: null,
+          discount_applied: pending.discount_amount,
+        })
+        const { data: cpn } = await supabase.from('coupons').select('total_used').eq('id', pending.coupon_id).single()
+        if (cpn) await supabase.from('coupons').update({ total_used: (cpn.total_used || 0) + 1 }).eq('id', pending.coupon_id)
       }
 
       // Captain into roster + invites from pending
