@@ -408,6 +408,10 @@ Deno.serve(async (req) => {
           venue_id: body.venue_id ?? null,
           status: 'draft',
           score_entry_method: body.score_entry_method || 'not_set',
+          allowed_team_sizes: Array.isArray(body.allowed_team_sizes) ? body.allowed_team_sizes : [],
+          show_on_landing: body.show_on_landing === true,
+          price_per_person: typeof body.price_per_person === 'number' ? body.price_per_person : 0,
+          currency: body.currency || 'INR',
           created_by: user.id,
         }).select().single()
 
@@ -479,7 +483,7 @@ Deno.serve(async (req) => {
         }
 
         const updates: Record<string, any> = {}
-        const allowed = ['name', 'format', 'season_start', 'season_end', 'venue_id', 'status', 'score_entry_method', 'scoring_holes', 'fairness_factor_pct', 'team_aggregation_method', 'peoria_multiplier']
+        const allowed = ['name', 'format', 'season_start', 'season_end', 'venue_id', 'status', 'score_entry_method', 'scoring_holes', 'fairness_factor_pct', 'team_aggregation_method', 'peoria_multiplier', 'allowed_team_sizes', 'show_on_landing', 'price_per_person', 'currency']
         for (const key of allowed) {
           if (body[key] !== undefined) updates[key] = body[key]
         }
@@ -496,6 +500,17 @@ Deno.serve(async (req) => {
         const action = body.status ? 'LeagueStatusChanged' : 'LeagueUpdated'
         await audit(supabase, tenantId, route.leagueId, user.id, role!, action, 'league', route.leagueId, before, updated)
         return json(updated)
+      }
+
+      if (method === 'DELETE') {
+        const role = await getUserLeagueRole(supabase, user.id, tenantId)
+        if (role !== 'site_admin' && role !== 'franchise_admin') return err('Only admins can delete leagues', 403)
+        const before = { ...league }
+        delete before.league_branding
+        const { error: delErr } = await supabase.from('leagues').delete().eq('id', route.leagueId)
+        if (delErr) return err(delErr.message, 500)
+        await audit(supabase, tenantId, route.leagueId, user.id, role!, 'LeagueDeleted', 'league', route.leagueId, before, null)
+        return json({ success: true })
       }
       return err('Method not allowed', 405)
     }

@@ -31,6 +31,10 @@ export interface League {
   fairness_factor_pct: number;
   team_aggregation_method: 'best_ball' | 'average';
   peoria_multiplier: number;
+  allowed_team_sizes: number[];
+  show_on_landing: boolean;
+  price_per_person: number;
+  currency: string;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -188,6 +192,10 @@ export interface CreateLeagueRequest {
   season_end?: string;
   venue_id?: string;
   score_entry_method?: ScoreEntryMethod;
+  allowed_team_sizes?: number[];
+  show_on_landing?: boolean;
+  price_per_person?: number;
+  currency?: string;
 }
 
 export interface UpdateLeagueRequest {
@@ -202,6 +210,10 @@ export interface UpdateLeagueRequest {
   fairness_factor_pct?: number;
   team_aggregation_method?: 'best_ball' | 'average';
   peoria_multiplier?: number;
+  allowed_team_sizes?: number[];
+  show_on_landing?: boolean;
+  price_per_person?: number;
+  currency?: string;
 }
 
 // ── Hidden Holes ─────────────────────────────────────────────

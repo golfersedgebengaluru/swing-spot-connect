@@ -32,6 +32,7 @@ import {
   useLeagues,
   useCreateLeague,
   useUpdateLeague,
+  useDeleteLeague,
   useJoinCodes,
   useCreateJoinCode,
   useRevokeJoinCode,
@@ -72,6 +73,18 @@ import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam, LeaderboardEntry } from "@/types/league";
 import type { LeaguePlayerWithProfile } from "@/hooks/useLeagues";
 import { LeaguesPanel as LiteLeaguesPanel } from "@/components/admin/AdminLeaguesLiteTab";
+import { parseTeamSizes } from "@/hooks/useLeaguesLite";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 // ── Inline assignment cells ──────────────────────────────────
 function PlayerLocationCell({ leagueId, player }: { leagueId: string; player: LeaguePlayerWithProfile }) {
@@ -192,30 +205,87 @@ function CreateTenantDialog() {
 }
 
 // ── Create League Dialog ─────────────────────────────────────
-function CreateLeagueDialog({ tenantId }: { tenantId: string }) {
+function LeagueDialog({
+  tenantId,
+  league,
+  trigger,
+  onClose,
+}: {
+  tenantId: string;
+  league?: League | null;
+  trigger?: React.ReactNode;
+  onClose?: () => void;
+}) {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [format, setFormat] = useState<LeagueFormat>("stroke_play");
-  const [venueId, setVenueId] = useState<string>("");
+  const isEdit = !!league;
+  const [name, setName] = useState(league?.name ?? "");
+  const [format, setFormat] = useState<LeagueFormat>(league?.format ?? "stroke_play");
+  const [venueId, setVenueId] = useState<string>(league?.venue_id ?? "");
+  const [teamSizes, setTeamSizes] = useState<string>((league?.allowed_team_sizes ?? []).join(", "));
+  const [showOnLanding, setShowOnLanding] = useState<boolean>(league?.show_on_landing ?? false);
+  const [pricePerPerson, setPricePerPerson] = useState<string>(
+    league?.price_per_person != null ? String(league.price_per_person) : "",
+  );
+  const [currency, setCurrency] = useState<string>(league?.currency ?? "INR");
+
   const createLeague = useCreateLeague(tenantId);
+  const updateLeague = useUpdateLeague(league?.id ?? "");
   const { data: bays } = useTenantBays(tenantId);
 
-  const handleCreate = () => {
-    if (!name) return;
-    createLeague.mutate({ name, format, venue_id: venueId || undefined }, {
-      onSuccess: () => { setOpen(false); setName(""); setVenueId(""); },
-    });
+  const reset = () => {
+    if (!isEdit) {
+      setName("");
+      setFormat("stroke_play");
+      setVenueId("");
+      setTeamSizes("");
+      setShowOnLanding(false);
+      setPricePerPerson("");
+      setCurrency("INR");
+    }
   };
 
+  const handleClose = (v: boolean) => {
+    setOpen(v);
+    if (!v) {
+      reset();
+      onClose?.();
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!name.trim()) return;
+    const sizes = parseTeamSizes(teamSizes);
+    const price = pricePerPerson === "" ? 0 : Number(pricePerPerson);
+    const payload = {
+      name: name.trim(),
+      format,
+      venue_id: venueId || undefined,
+      allowed_team_sizes: sizes,
+      show_on_landing: showOnLanding,
+      price_per_person: Number.isFinite(price) ? price : 0,
+      currency: currency || "INR",
+    };
+    if (isEdit && league) {
+      updateLeague.mutate(payload, { onSuccess: () => handleClose(false) });
+    } else {
+      createLeague.mutate(payload, { onSuccess: () => handleClose(false) });
+    }
+  };
+
+  const pending = createLeague.isPending || updateLeague.isPending;
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogTrigger asChild>
-        <Button size="sm"><Plus className="h-4 w-4 mr-1" /> New League</Button>
+        {trigger ?? <Button size="sm"><Plus className="h-4 w-4 mr-1" /> New League</Button>}
       </DialogTrigger>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Create League</DialogTitle></DialogHeader>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>{isEdit ? "Edit League" : "Create League"}</DialogTitle></DialogHeader>
         <div className="space-y-4">
-          <div><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="League name" /></div>
+          <div>
+            <Label>Name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="League name" />
+          </div>
           <div>
             <Label>Format</Label>
             <Select value={format} onValueChange={(v) => setFormat(v as LeagueFormat)}>
@@ -240,8 +310,240 @@ function CreateLeagueDialog({ tenantId }: { tenantId: string }) {
               </Select>
             </div>
           )}
-          <Button onClick={handleCreate} disabled={createLeague.isPending} className="w-full">
-            {createLeague.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Create
+          <div>
+            <Label>Allowed team sizes (comma-separated)</Label>
+            <Input
+              value={teamSizes}
+              onChange={(e) => setTeamSizes(e.target.value)}
+              placeholder="e.g. 2, 4"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Used at captain checkout. Numbers between 1 and 20.</p>
+          </div>
+          <div className="grid grid-cols-[1fr_120px] gap-2">
+            <div>
+              <Label>Price per person</Label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                value={pricePerPerson}
+                onChange={(e) => setPricePerPerson(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <Label>Currency</Label>
+              <Input value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} maxLength={3} />
+            </div>
+          </div>
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <div>
+              <Label className="cursor-pointer">Show on landing page</Label>
+              <p className="text-xs text-muted-foreground">Active leagues only — captains see a Join card.</p>
+            </div>
+            <Switch checked={showOnLanding} onCheckedChange={setShowOnLanding} />
+          </div>
+          <Button onClick={handleSubmit} disabled={pending || !name.trim()} className="w-full">
+            {pending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}{isEdit ? "Save changes" : "Create"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Backwards-compat alias used in the legacy card header
+function CreateLeagueDialog({ tenantId }: { tenantId: string }) {
+  return <LeagueDialog tenantId={tenantId} />;
+}
+
+function LegacyLeagueRow({
+  league,
+  tenantId,
+  selected,
+  onSelect,
+  onDeleted,
+}: {
+  league: League;
+  tenantId: string;
+  selected: boolean;
+  onSelect: () => void;
+  onDeleted: () => void;
+}) {
+  const [editOpen, setEditOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const del = useDeleteLeague(tenantId);
+
+  return (
+    <div
+      className={`group px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer ${selected ? "bg-muted" : ""}`}
+      onClick={onSelect}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-medium text-sm truncate">{league.name}</span>
+        <div className="flex items-center gap-1">
+          <StatusBadge status={league.status} />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={(e) => { e.stopPropagation(); setEditOpen(true); }}
+            aria-label="Edit league"
+          >
+            <Edit className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-destructive hover:text-destructive"
+            onClick={(e) => { e.stopPropagation(); setConfirmOpen(true); }}
+            aria-label="Delete league"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 mt-1 flex-wrap">
+        <p className="text-xs text-muted-foreground">{league.format.replace(/_/g, " ")}</p>
+        {league.allowed_team_sizes?.length > 0 && (
+          <Badge variant="outline" className="text-[10px] py-0 px-1.5">Sizes {league.allowed_team_sizes.join("/")}</Badge>
+        )}
+        {league.show_on_landing && (
+          <Badge variant="outline" className="text-[10px] py-0 px-1.5">On landing</Badge>
+        )}
+        {league.price_per_person > 0 && (
+          <Badge variant="outline" className="text-[10px] py-0 px-1.5">{league.currency} {league.price_per_person}/person</Badge>
+        )}
+      </div>
+
+      {editOpen && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <LeagueDialogControlled
+            tenantId={tenantId}
+            league={league}
+            open={editOpen}
+            onOpenChange={setEditOpen}
+          />
+        </div>
+      )}
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this league?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the league "{league.name}" and all its rounds, players, scores, and teams. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => del.mutate(league.id, { onSuccess: () => { setConfirmOpen(false); onDeleted(); } })}
+              disabled={del.isPending}
+            >
+              {del.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+// Controlled variant of LeagueDialog (used for edit – open state managed by caller)
+function LeagueDialogControlled({
+  tenantId,
+  league,
+  open,
+  onOpenChange,
+}: {
+  tenantId: string;
+  league: League;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const [name, setName] = useState(league.name);
+  const [format, setFormat] = useState<LeagueFormat>(league.format);
+  const [venueId, setVenueId] = useState<string>(league.venue_id ?? "");
+  const [teamSizes, setTeamSizes] = useState<string>((league.allowed_team_sizes ?? []).join(", "));
+  const [showOnLanding, setShowOnLanding] = useState<boolean>(league.show_on_landing ?? false);
+  const [pricePerPerson, setPricePerPerson] = useState<string>(
+    league.price_per_person != null ? String(league.price_per_person) : "",
+  );
+  const [currency, setCurrency] = useState<string>(league.currency ?? "INR");
+  const updateLeague = useUpdateLeague(league.id);
+  const { data: bays } = useTenantBays(tenantId);
+
+  const handleSubmit = () => {
+    if (!name.trim()) return;
+    const price = pricePerPerson === "" ? 0 : Number(pricePerPerson);
+    updateLeague.mutate({
+      name: name.trim(),
+      format,
+      venue_id: venueId || undefined,
+      allowed_team_sizes: parseTeamSizes(teamSizes),
+      show_on_landing: showOnLanding,
+      price_per_person: Number.isFinite(price) ? price : 0,
+      currency: currency || "INR",
+    }, { onSuccess: () => onOpenChange(false) });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Edit League</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div>
+            <Label>Format</Label>
+            <Select value={format} onValueChange={(v) => setFormat(v as LeagueFormat)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {["stroke_play", "match_play", "stableford", "scramble", "best_ball", "skins"].map((f) => (
+                  <SelectItem key={f} value={f}>{f.replace(/_/g, " ")}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {bays && bays.length > 0 && (
+            <div>
+              <Label>Venue (Bay)</Label>
+              <Select value={venueId} onValueChange={setVenueId}>
+                <SelectTrigger><SelectValue placeholder="Select a venue" /></SelectTrigger>
+                <SelectContent>
+                  {bays.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div>
+            <Label>Allowed team sizes (comma-separated)</Label>
+            <Input value={teamSizes} onChange={(e) => setTeamSizes(e.target.value)} placeholder="e.g. 2, 4" />
+          </div>
+          <div className="grid grid-cols-[1fr_120px] gap-2">
+            <div>
+              <Label>Price per person</Label>
+              <Input type="number" inputMode="decimal" value={pricePerPerson} onChange={(e) => setPricePerPerson(e.target.value)} />
+            </div>
+            <div>
+              <Label>Currency</Label>
+              <Input value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} maxLength={3} />
+            </div>
+          </div>
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <div>
+              <Label>Show on landing page</Label>
+              <p className="text-xs text-muted-foreground">Active leagues only.</p>
+            </div>
+            <Switch checked={showOnLanding} onCheckedChange={setShowOnLanding} />
+          </div>
+          <Button onClick={handleSubmit} disabled={updateLeague.isPending || !name.trim()} className="w-full">
+            {updateLeague.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Save changes
           </Button>
         </div>
       </DialogContent>
@@ -1695,17 +1997,14 @@ export function AdminLeaguesTab() {
                 ) : (
                   <div className="divide-y">
                     {leagues.map((l) => (
-                      <button
+                      <LegacyLeagueRow
                         key={l.id}
-                        onClick={() => { setSelectedLeague(l); setSelectedQcId(null); }}
-                        className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors ${selectedLeague?.id === l.id && !selectedQcId ? "bg-muted" : ""}`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-sm">{l.name}</span>
-                          <StatusBadge status={l.status} />
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">{l.format.replace(/_/g, " ")}</p>
-                      </button>
+                        league={l}
+                        tenantId={selectedTenantId}
+                        selected={selectedLeague?.id === l.id && !selectedQcId}
+                        onSelect={() => { setSelectedLeague(l); setSelectedQcId(null); }}
+                        onDeleted={() => { if (selectedLeague?.id === l.id) setSelectedLeague(null); }}
+                      />
                     ))}
                   </div>
                 )}

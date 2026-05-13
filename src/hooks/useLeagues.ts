@@ -129,9 +129,43 @@ export function useUpdateLeague(leagueId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leagues"] });
       qc.invalidateQueries({ queryKey: ["league", leagueId] });
+      qc.invalidateQueries({ queryKey: ["leagues-landing"] });
       toast({ title: "League updated" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useDeleteLeague(tenantId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (leagueId: string) => invoke(`/leagues/${leagueId}`, "DELETE"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leagues", tenantId] });
+      qc.invalidateQueries({ queryKey: ["leagues-landing"] });
+      toast({ title: "League deleted" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export type LandingLeague = Pick<League, "id" | "name" | "venue_id" | "status" | "allowed_team_sizes" | "show_on_landing" | "price_per_person" | "currency">;
+
+export function useLandingLeagues() {
+  return useQuery<LandingLeague[]>({
+    queryKey: ["leagues-landing"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("leagues")
+        .select("id, name, venue_id, status, allowed_team_sizes, show_on_landing, price_per_person, currency")
+        .eq("show_on_landing", true)
+        .eq("status", "active")
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as LandingLeague[];
+    },
+    staleTime: 60_000,
   });
 }
 
