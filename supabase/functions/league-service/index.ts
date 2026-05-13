@@ -3056,6 +3056,19 @@ Deno.serve(async (req) => {
         return err('Invalid team_name')
       }
 
+      // Validate + normalize invite emails (max team_size - 1)
+      const captainEmail = (user.email || '').toLowerCase()
+      const cleanedInviteEmails: string[] = Array.isArray(invite_emails)
+        ? Array.from(new Set(
+            (invite_emails as unknown[])
+              .map((e) => String(e || '').trim().toLowerCase())
+              .filter((e) => e.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))
+              .filter((e) => e !== captainEmail)
+          ))
+        : []
+      if (cleanedInviteEmails.length > size - 1) {
+        return err(`At most ${size - 1} invite emails for a team of ${size}`)
+      }
       // League validation
       const { data: league } = await supabase
         .from('leagues')
