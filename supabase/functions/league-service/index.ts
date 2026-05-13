@@ -264,6 +264,13 @@ function parseRoute(url: URL): Route {
       return { action: 'league-cities', leagueId, subResource }
     }
     // ── Phase 2: legacy captain registration ──
+    // /leagues/legacy/claim-invites and /leagues/legacy/claim-by-token (no leagueId)
+    if (leagueId === 'legacy' && subResource === 'claim-invites') {
+      return { action: 'legacy-claim-invites' }
+    }
+    if (leagueId === 'legacy' && subResource === 'claim-by-token') {
+      return { action: 'legacy-claim-by-token' }
+    }
     if (subResource === 'register-team-intent') {
       return { action: 'legacy-register-team-intent', leagueId, subResource }
     }
@@ -272,6 +279,9 @@ function parseRoute(url: URL): Route {
     }
     if (subResource === 'registered-teams') {
       return { action: 'legacy-registered-teams', leagueId, subResource }
+    }
+    if (subResource === 'my-team') {
+      return { action: 'legacy-my-team', leagueId, subResource }
     }
     return { action: `league-${subResource}`, leagueId, subResource }
   }
