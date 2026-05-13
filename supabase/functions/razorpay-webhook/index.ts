@@ -246,6 +246,59 @@ Deno.serve(async (req) => {
       }
     }
 
+    // --- NEW: Reconcile legacy league team registrations ---
+    const { data: pendingLeg } = await adminClient
+      .from("pending_legacy_league_team_registrations")
+      .select("*")
+      .eq("razorpay_order_id", razorpayOrderId)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (pendingLeg) {
+      console.log(`Webhook reconciling legacy league team for order ${razorpayOrderId}`);
+      try {
+        const { data: reg, error: regErr } = await adminClient
+          .from("legacy_league_team_registrations")
+          .insert({
+            league_id: pendingLeg.league_id,
+            league_city_id: pendingLeg.league_city_id,
+            league_location_id: pendingLeg.league_location_id,
+            captain_user_id: pendingLeg.captain_user_id,
+            team_name: pendingLeg.team_name,
+            team_size: pendingLeg.team_size,
+            total_amount: pendingLeg.amount,
+            currency: pendingLeg.currency,
+            payment_status: "paid",
+            razorpay_order_id: razorpayOrderId,
+            razorpay_payment_id: razorpayPaymentId,
+          })
+          .select()
+          .single();
+
+        if (regErr) {
+          console.error("Webhook legacy team insert failed:", regErr.message);
+          await adminClient.from("pending_legacy_league_team_registrations").update({
+            status: regErr.code === "23505" ? "duplicate" : "webhook_error",
+            error_message: regErr.message,
+          }).eq("id", pendingLeg.id);
+        } else {
+          await adminClient.from("pending_legacy_league_team_registrations").update({
+            status: "completed",
+            registration_id: reg.id,
+          }).eq("id", pendingLeg.id);
+
+          await adminClient.from("notifications").insert({
+            user_id: pendingLeg.captain_user_id,
+            title: "✅ Team Registered",
+            message: `Your team "${pendingLeg.team_name}" has been registered for the league.`,
+            type: "league",
+          });
+        }
+      } catch (recErr) {
+        console.error("Webhook legacy team reconciliation error:", (recErr as Error).message);
+      }
+    }
+
     // Mark event as processed
     await adminClient.from("payment_events").update({ processed: true }).eq("razorpay_event_id", eventId);
   }
