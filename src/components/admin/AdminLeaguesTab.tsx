@@ -74,9 +74,19 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam, LeaderboardEntry } from "@/types/league";
 import type { LeaguePlayerWithProfile } from "@/hooks/useLeagues";
-import { LeaguesPanel as LiteLeaguesPanel } from "@/components/admin/AdminLeaguesLiteTab";
 import { useRegisteredLegacyTeams } from "@/hooks/useLegacyLeagueRegistration";
-import { parseTeamSizes } from "@/hooks/useLeaguesLite";
+
+// Parse a comma-separated string of team sizes (e.g. "2, 4") into a unique sorted int[].
+function parseTeamSizes(input: string): number[] {
+  return Array.from(
+    new Set(
+      input
+        .split(",")
+        .map((s) => parseInt(s.trim(), 10))
+        .filter((n) => Number.isFinite(n) && n >= 1 && n <= 20),
+    ),
+  ).sort((a, b) => a - b);
+}
 import {
   AlertDialog,
   AlertDialogAction,
@@ -2343,12 +2353,6 @@ export function AdminLeaguesTab() {
 
   return (
     <div className="space-y-6">
-      {/* New unified League creation (multi-location, independent venues, allowed team sizes, per-person pricing) */}
-      <LiteLeaguesPanel />
-
-      <div className="border-t pt-6">
-        <h3 className="text-sm font-semibold text-muted-foreground mb-3">Legacy tenant-based leagues</h3>
-      </div>
 
       {/* Tenant selector */}
       <div className="flex items-center gap-3 flex-wrap">
