@@ -137,7 +137,6 @@ export function CreateLegacyTeamDialog({ league, open, onOpenChange }: Props) {
         league_location_id: locationId,
         team_name: teamName.trim(),
         team_size: Number(teamSize),
-        // @ts-expect-error: extension to existing hook body; backend accepts it
         invite_emails: cleanedEmails,
       });
 
