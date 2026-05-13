@@ -3130,12 +3130,12 @@ Deno.serve(async (req) => {
 
       const { data: gateway } = await supabase
         .from('payment_gateways')
-        .select('api_key, api_secret, city_slug')
+        .select('api_key, api_secret, is_test_mode, is_active')
         .eq('city', gatewayCity).eq('name', 'razorpay').eq('is_active', true).maybeSingle()
       if (!gateway) return err('Payment gateway not configured for this city', 500)
 
       const apiKey = (gateway.api_key || '').trim()
-      const citySlug = (gateway.city_slug || gatewayCity.toLowerCase().replace(/[^a-z0-9]/g, '_')).toUpperCase()
+      const citySlug = gatewayCity.toLowerCase().replace(/[^a-z0-9]/g, '_').toUpperCase()
       const apiSecret = (Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) || gateway.api_secret || '').trim()
       if (!apiKey || !apiSecret) return err('Razorpay credentials missing', 500)
 
