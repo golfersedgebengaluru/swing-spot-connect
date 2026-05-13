@@ -192,30 +192,87 @@ function CreateTenantDialog() {
 }
 
 // ── Create League Dialog ─────────────────────────────────────
-function CreateLeagueDialog({ tenantId }: { tenantId: string }) {
+function LeagueDialog({
+  tenantId,
+  league,
+  trigger,
+  onClose,
+}: {
+  tenantId: string;
+  league?: League | null;
+  trigger?: React.ReactNode;
+  onClose?: () => void;
+}) {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [format, setFormat] = useState<LeagueFormat>("stroke_play");
-  const [venueId, setVenueId] = useState<string>("");
+  const isEdit = !!league;
+  const [name, setName] = useState(league?.name ?? "");
+  const [format, setFormat] = useState<LeagueFormat>(league?.format ?? "stroke_play");
+  const [venueId, setVenueId] = useState<string>(league?.venue_id ?? "");
+  const [teamSizes, setTeamSizes] = useState<string>((league?.allowed_team_sizes ?? []).join(", "));
+  const [showOnLanding, setShowOnLanding] = useState<boolean>(league?.show_on_landing ?? false);
+  const [pricePerPerson, setPricePerPerson] = useState<string>(
+    league?.price_per_person != null ? String(league.price_per_person) : "",
+  );
+  const [currency, setCurrency] = useState<string>(league?.currency ?? "INR");
+
   const createLeague = useCreateLeague(tenantId);
+  const updateLeague = useUpdateLeague(league?.id ?? "");
   const { data: bays } = useTenantBays(tenantId);
 
-  const handleCreate = () => {
-    if (!name) return;
-    createLeague.mutate({ name, format, venue_id: venueId || undefined }, {
-      onSuccess: () => { setOpen(false); setName(""); setVenueId(""); },
-    });
+  const reset = () => {
+    if (!isEdit) {
+      setName("");
+      setFormat("stroke_play");
+      setVenueId("");
+      setTeamSizes("");
+      setShowOnLanding(false);
+      setPricePerPerson("");
+      setCurrency("INR");
+    }
   };
 
+  const handleClose = (v: boolean) => {
+    setOpen(v);
+    if (!v) {
+      reset();
+      onClose?.();
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!name.trim()) return;
+    const sizes = parseTeamSizes(teamSizes);
+    const price = pricePerPerson === "" ? 0 : Number(pricePerPerson);
+    const payload = {
+      name: name.trim(),
+      format,
+      venue_id: venueId || undefined,
+      allowed_team_sizes: sizes,
+      show_on_landing: showOnLanding,
+      price_per_person: Number.isFinite(price) ? price : 0,
+      currency: currency || "INR",
+    };
+    if (isEdit && league) {
+      updateLeague.mutate(payload, { onSuccess: () => handleClose(false) });
+    } else {
+      createLeague.mutate(payload, { onSuccess: () => handleClose(false) });
+    }
+  };
+
+  const pending = createLeague.isPending || updateLeague.isPending;
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogTrigger asChild>
-        <Button size="sm"><Plus className="h-4 w-4 mr-1" /> New League</Button>
+        {trigger ?? <Button size="sm"><Plus className="h-4 w-4 mr-1" /> New League</Button>}
       </DialogTrigger>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Create League</DialogTitle></DialogHeader>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>{isEdit ? "Edit League" : "Create League"}</DialogTitle></DialogHeader>
         <div className="space-y-4">
-          <div><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="League name" /></div>
+          <div>
+            <Label>Name</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="League name" />
+          </div>
           <div>
             <Label>Format</Label>
             <Select value={format} onValueChange={(v) => setFormat(v as LeagueFormat)}>
@@ -240,13 +297,50 @@ function CreateLeagueDialog({ tenantId }: { tenantId: string }) {
               </Select>
             </div>
           )}
-          <Button onClick={handleCreate} disabled={createLeague.isPending} className="w-full">
-            {createLeague.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Create
+          <div>
+            <Label>Allowed team sizes (comma-separated)</Label>
+            <Input
+              value={teamSizes}
+              onChange={(e) => setTeamSizes(e.target.value)}
+              placeholder="e.g. 2, 4"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Used at captain checkout. Numbers between 1 and 20.</p>
+          </div>
+          <div className="grid grid-cols-[1fr_120px] gap-2">
+            <div>
+              <Label>Price per person</Label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                value={pricePerPerson}
+                onChange={(e) => setPricePerPerson(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <Label>Currency</Label>
+              <Input value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} maxLength={3} />
+            </div>
+          </div>
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <div>
+              <Label className="cursor-pointer">Show on landing page</Label>
+              <p className="text-xs text-muted-foreground">Active leagues only — captains see a Join card.</p>
+            </div>
+            <Switch checked={showOnLanding} onCheckedChange={setShowOnLanding} />
+          </div>
+          <Button onClick={handleSubmit} disabled={pending || !name.trim()} className="w-full">
+            {pending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}{isEdit ? "Save changes" : "Create"}
           </Button>
         </div>
       </DialogContent>
     </Dialog>
   );
+}
+
+// Backwards-compat alias used in the legacy card header
+function CreateLeagueDialog({ tenantId }: { tenantId: string }) {
+  return <LeagueDialog tenantId={tenantId} />;
 }
 
 // ── Add Player Dialog ────────────────────────────────────────
