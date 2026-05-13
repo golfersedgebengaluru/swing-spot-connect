@@ -3115,6 +3115,28 @@ Deno.serve(async (req) => {
       const apiSecret = (Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) || gateway.api_secret || '').trim()
       if (!apiKey || !apiSecret) return err('Razorpay credentials missing', 500)
 
+      // Helper: post-create captain + invite rows
+      const finalizeTeam = async (regId: string) => {
+        await supabase.from('legacy_league_team_members').insert({
+          team_registration_id: regId,
+          league_id: route.leagueId,
+          user_id: user.id,
+          role: 'captain',
+          joined_via: 'captain',
+        })
+        if (cleanedInviteEmails.length > 0) {
+          await supabase.from('legacy_league_team_invites').insert(
+            cleanedInviteEmails.map((email) => ({
+              team_registration_id: regId,
+              league_id: route.leagueId,
+              email,
+              invited_by: user.id,
+              status: 'pending',
+            }))
+          )
+        }
+      }
+
       // Free league — skip Razorpay entirely
       if (amount <= 0) {
         const { data: reg, error: regErr } = await supabase
@@ -3133,7 +3155,8 @@ Deno.serve(async (req) => {
           .select()
           .single()
         if (regErr) return err(regErr.message, 500)
-        return json({ success: true, free: true, registration: reg })
+        await finalizeTeam(reg.id)
+        return json({ success: true, free: true, registration: reg, join_token: reg.join_token })
       }
 
       // Create Razorpay order
@@ -3169,6 +3192,7 @@ Deno.serve(async (req) => {
           currency,
           city: gatewayCity,
           status: 'pending',
+          invite_emails: cleanedInviteEmails,
         })
       if (pErr) {
         console.error('pending insert failed', pErr)
