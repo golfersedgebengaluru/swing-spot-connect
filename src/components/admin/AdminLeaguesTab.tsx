@@ -205,6 +205,222 @@ function CreateTenantDialog() {
   );
 }
 
+// ── Cities & Locations editor (in-memory) ────────────────────
+type DraftLocation = { id?: string; tempId: string; name: string };
+type DraftCity = { id?: string; tempId: string; name: string; locations: DraftLocation[] };
+
+let __tempCounter = 0;
+const newTempId = () => `tmp_${Date.now()}_${++__tempCounter}`;
+
+function CitiesLocationsEditor({
+  cities,
+  setCities,
+}: {
+  cities: DraftCity[];
+  setCities: (next: DraftCity[]) => void;
+}) {
+  const [newCityName, setNewCityName] = useState("");
+  const addCity = () => {
+    const name = newCityName.trim();
+    if (!name) return;
+    setCities([...cities, { tempId: newTempId(), name, locations: [] }]);
+    setNewCityName("");
+  };
+  const removeCity = (tempId: string) =>
+    setCities(cities.filter((c) => c.tempId !== tempId));
+  const renameCity = (tempId: string, name: string) =>
+    setCities(cities.map((c) => (c.tempId === tempId ? { ...c, name } : c)));
+  const addLocation = (cityTempId: string, name: string) => {
+    if (!name.trim()) return;
+    setCities(
+      cities.map((c) =>
+        c.tempId === cityTempId
+          ? { ...c, locations: [...c.locations, { tempId: newTempId(), name: name.trim() }] }
+          : c,
+      ),
+    );
+  };
+  const removeLocation = (cityTempId: string, locTempId: string) =>
+    setCities(
+      cities.map((c) =>
+        c.tempId === cityTempId
+          ? { ...c, locations: c.locations.filter((l) => l.tempId !== locTempId) }
+          : c,
+      ),
+    );
+
+  return (
+    <div className="space-y-3 rounded-md border p-3">
+      <div>
+        <Label>Cities & Locations</Label>
+        <p className="text-xs text-muted-foreground">
+          Captains will pick from these when registering their team.
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <Input
+          value={newCityName}
+          onChange={(e) => setNewCityName(e.target.value)}
+          placeholder="New city name (e.g. Bangalore)"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addCity();
+            }
+          }}
+        />
+        <Button type="button" size="sm" onClick={addCity} disabled={!newCityName.trim()}>
+          <Plus className="h-3.5 w-3.5 mr-1" /> Add city
+        </Button>
+      </div>
+      {cities.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic">No cities yet — add one above.</p>
+      ) : (
+        <div className="space-y-2">
+          {cities.map((city) => (
+            <CityEditor
+              key={city.tempId}
+              city={city}
+              onRename={(name) => renameCity(city.tempId, name)}
+              onRemove={() => removeCity(city.tempId)}
+              onAddLocation={(name) => addLocation(city.tempId, name)}
+              onRemoveLocation={(locTempId) => removeLocation(city.tempId, locTempId)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CityEditor({
+  city,
+  onRename,
+  onRemove,
+  onAddLocation,
+  onRemoveLocation,
+}: {
+  city: DraftCity;
+  onRename: (name: string) => void;
+  onRemove: () => void;
+  onAddLocation: (name: string) => void;
+  onRemoveLocation: (locTempId: string) => void;
+}) {
+  const [locName, setLocName] = useState("");
+  const submitLoc = () => {
+    if (!locName.trim()) return;
+    onAddLocation(locName);
+    setLocName("");
+  };
+  return (
+    <div className="rounded-md border bg-muted/30 p-2 space-y-2">
+      <div className="flex items-center gap-2">
+        <Input
+          value={city.name}
+          onChange={(e) => onRename(e.target.value)}
+          className="h-8 text-sm font-medium"
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-destructive hover:text-destructive"
+          onClick={onRemove}
+          aria-label="Remove city"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      <div className="pl-3 space-y-1">
+        {city.locations.map((loc) => (
+          <div key={loc.tempId} className="flex items-center gap-2">
+            <MapPin className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs flex-1 truncate">{loc.name}</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-destructive hover:text-destructive"
+              onClick={() => onRemoveLocation(loc.tempId)}
+              aria-label="Remove location"
+            >
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+        ))}
+        <div className="flex gap-2 pt-1">
+          <Input
+            value={locName}
+            onChange={(e) => setLocName(e.target.value)}
+            placeholder="Add location"
+            className="h-7 text-xs"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                submitLoc();
+              }
+            }}
+          />
+          <Button type="button" size="sm" variant="outline" className="h-7 px-2" onClick={submitLoc} disabled={!locName.trim()}>
+            <Plus className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Persist a draft set of cities/locations to a league.
+// Diffs against `original` (the cities loaded from the server when editing).
+async function persistCitiesLocations(
+  leagueId: string,
+  draft: DraftCity[],
+  original: DraftCity[],
+) {
+  // Delete cities that were removed
+  const draftCityIds = new Set(draft.map((c) => c.id).filter(Boolean));
+  for (const orig of original) {
+    if (orig.id && !draftCityIds.has(orig.id)) {
+      await leagueServiceInvoke(`/leagues/${leagueId}/cities/${orig.id}`, "DELETE");
+    }
+  }
+  // Upsert cities
+  for (const city of draft) {
+    let cityId = city.id;
+    if (!cityId) {
+      const created = await leagueServiceInvoke(`/leagues/${leagueId}/cities`, "POST", { name: city.name });
+      cityId = created.id;
+    } else {
+      const orig = original.find((o) => o.id === cityId);
+      if (orig && orig.name !== city.name) {
+        await leagueServiceInvoke(`/leagues/${leagueId}/cities/${cityId}`, "PATCH", { name: city.name });
+      }
+    }
+    if (!cityId) continue;
+
+    // Locations
+    const origLocs = original.find((o) => o.id === city.id)?.locations ?? [];
+    const draftLocIds = new Set(city.locations.map((l) => l.id).filter(Boolean));
+    for (const ol of origLocs) {
+      if (ol.id && !draftLocIds.has(ol.id)) {
+        await leagueServiceInvoke(
+          `/leagues/${leagueId}/cities/${cityId}/locations/${ol.id}`,
+          "DELETE",
+        );
+      }
+    }
+    for (const loc of city.locations) {
+      if (!loc.id) {
+        await leagueServiceInvoke(
+          `/leagues/${leagueId}/cities/${cityId}/locations`,
+          "POST",
+          { name: loc.name },
+        );
+      }
+    }
+  }
+}
+
 // ── Create League Dialog ─────────────────────────────────────
 function LeagueDialog({
   tenantId,
