@@ -1979,6 +1979,11 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
           <TeamsPanel league={league} />
         </TabsContent>
 
+        {/* Registrations (paid) */}
+        <TabsContent value="registrations">
+          <RegistrationsPanel league={league} />
+        </TabsContent>
+
         {/* Cities & Locations */}
 
         {/* Rounds */}
