@@ -329,6 +329,13 @@ Deno.serve(async (req) => {
       .update({ status: "failed", error_message: "Payment failed at gateway" })
       .eq("razorpay_order_id", razorpayOrderId)
       .eq("status", "pending");
+
+    // Mark pending legacy league team registration as failed
+    await adminClient
+      .from("pending_legacy_league_team_registrations")
+      .update({ status: "failed", error_message: "Payment failed at gateway" })
+      .eq("razorpay_order_id", razorpayOrderId)
+      .eq("status", "pending");
   }
 
   return new Response(JSON.stringify({ status: "ok" }), {
