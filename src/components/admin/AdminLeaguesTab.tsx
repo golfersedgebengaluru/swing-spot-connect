@@ -1802,17 +1802,14 @@ export function AdminLeaguesTab() {
                 ) : (
                   <div className="divide-y">
                     {leagues.map((l) => (
-                      <button
+                      <LegacyLeagueRow
                         key={l.id}
-                        onClick={() => { setSelectedLeague(l); setSelectedQcId(null); }}
-                        className={`w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors ${selectedLeague?.id === l.id && !selectedQcId ? "bg-muted" : ""}`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-sm">{l.name}</span>
-                          <StatusBadge status={l.status} />
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">{l.format.replace(/_/g, " ")}</p>
-                      </button>
+                        league={l}
+                        tenantId={selectedTenantId}
+                        selected={selectedLeague?.id === l.id && !selectedQcId}
+                        onSelect={() => { setSelectedLeague(l); setSelectedQcId(null); }}
+                        onDeleted={() => { if (selectedLeague?.id === l.id) setSelectedLeague(null); }}
+                      />
                     ))}
                   </div>
                 )}
