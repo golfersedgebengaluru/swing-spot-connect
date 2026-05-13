@@ -10,6 +10,8 @@ import { Loader2, Save, IndianRupee, Package, Link2, Plus, Trash2, Trophy } from
 import { useToast } from "@/hooks/use-toast";
 import { useBayPricing, useUpsertBayPricing, useDeleteBayPricing, useHourPackages, useUpdateHourPackage } from "@/hooks/usePricing";
 import { useLeaguesLite, useUpdateLeagueLitePrice } from "@/hooks/useLeaguesLite";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useBays, useAllCities } from "@/hooks/useBookings";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useAllProducts } from "@/hooks/useProducts";
