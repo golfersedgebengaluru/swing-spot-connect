@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Save, IndianRupee, Package, Link2, Plus, Trash2, Trophy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useBayPricing, useUpsertBayPricing, useDeleteBayPricing, useHourPackages, useUpdateHourPackage } from "@/hooks/usePricing";
-import { useLeaguesLite, useUpdateLeagueLitePrice } from "@/hooks/useLeaguesLite";
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useBays, useAllCities } from "@/hooks/useBookings";
@@ -461,10 +461,17 @@ function useAllLegacyLeagues() {
   });
 }
 
-function useUpdateLegacyLeaguePrice() {
+function useUpdateLegacyLeague() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, price_per_person }: { id: string; price_per_person: number }) => {
+    mutationFn: async (input: {
+      id: string;
+      price_per_person?: number;
+      currency?: string;
+      allowed_team_sizes?: number[];
+      show_on_landing?: boolean;
+    }) => {
+      const { id, ...patch } = input;
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -475,7 +482,7 @@ function useUpdateLegacyLeaguePrice() {
           Authorization: `Bearer ${session.access_token}`,
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({ price_per_person }),
+        body: JSON.stringify(patch),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to update");
@@ -489,45 +496,49 @@ function useUpdateLegacyLeaguePrice() {
   });
 }
 
+function parseTeamSizesInput(input: string): number[] {
+  return Array.from(
+    new Set(
+      input
+        .split(",")
+        .map((s) => parseInt(s.trim(), 10))
+        .filter((n) => Number.isFinite(n) && n >= 1 && n <= 20),
+    ),
+  ).sort((a, b) => a - b);
+}
+
 function LeaguePricingSection() {
   const { toast } = useToast();
-  const { data: liteLeagues, isLoading } = useLeaguesLite();
-  const { data: legacyLeagues, isLoading: legacyLoading } = useAllLegacyLeagues();
-  const update = useUpdateLeagueLitePrice();
-  const updateLegacy = useUpdateLegacyLeaguePrice();
-  const [edits, setEdits] = useState<Record<string, string>>({});
+  const { data: legacyLeagues, isLoading } = useAllLegacyLeagues();
+  const update = useUpdateLegacyLeague();
+  const [edits, setEdits] = useState<Record<string, { price?: string; sizes?: string }>>({});
 
-  const getPrice = (id: string, current: number) => edits[id] ?? current.toString();
+  const getPrice = (id: string, current: number) =>
+    edits[id]?.price ?? current.toString();
+  const getSizes = (id: string, current: number[]) =>
+    edits[id]?.sizes ?? current.join(", ");
 
-  const handleSave = async (id: string) => {
-    const v = edits[id];
-    if (v === undefined) return;
+  const setField = (id: string, field: "price" | "sizes", value: string) =>
+    setEdits((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), [field]: value } }));
+
+  const handleSave = async (l: LegacyLeagueRow) => {
+    const e = edits[l.id];
+    if (!e) return;
+    const patch: Parameters<typeof update.mutateAsync>[0] = { id: l.id };
+    if (e.price !== undefined) patch.price_per_person = parseFloat(e.price) || 0;
+    if (e.sizes !== undefined) patch.allowed_team_sizes = parseTeamSizesInput(e.sizes);
     try {
-      await update.mutateAsync({ id, price_per_person: parseFloat(v) || 0 });
-      setEdits((e) => { const n = { ...e }; delete n[id]; return n; });
-      toast({ title: "Price updated" });
+      await update.mutateAsync(patch);
+      setEdits((prev) => { const n = { ...prev }; delete n[l.id]; return n; });
+      toast({ title: "League pricing updated" });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Update failed";
       toast({ title: "Error", description: message, variant: "destructive" });
     }
   };
 
-  const handleSaveLegacy = async (id: string) => {
-    const v = edits[id];
-    if (v === undefined) return;
-    try {
-      await updateLegacy.mutateAsync({ id, price_per_person: parseFloat(v) || 0 });
-      setEdits((e) => { const n = { ...e }; delete n[id]; return n; });
-      toast({ title: "Price updated" });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Update failed";
-      toast({ title: "Error", description: message, variant: "destructive" });
-    }
-  };
+  if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
 
-  if (isLoading || legacyLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
-
-  const hasLite = (liteLeagues ?? []).length > 0;
   const hasLegacy = (legacyLeagues ?? []).length > 0;
 
   return (
@@ -538,49 +549,12 @@ function LeaguePricingSection() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {!hasLite && !hasLegacy ? (
+        {!hasLegacy ? (
           <p className="text-sm text-muted-foreground py-2">
             No leagues yet — create one in the <strong>Leagues</strong> tab.
           </p>
         ) : (
           <div className="space-y-3">
-            {(liteLeagues ?? []).map((l) => (
-              <div
-                key={`lite-${l.id}`}
-                className="flex flex-col sm:flex-row sm:items-end gap-3 rounded-lg border border-border/50 p-4"
-              >
-                <div className="flex-1">
-                  <div className="font-medium text-sm">
-                    {l.multi_location ? <em className="text-muted-foreground">— multi-location —</em> : l.name}
-                  </div>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    <Badge variant="outline" className="text-[10px]">Multi-location</Badge>
-                    {!l.is_active && <Badge variant="secondary" className="text-[10px]">Inactive</Badge>}
-                    <Badge variant="outline" className="text-[10px]">Sizes: {l.allowed_team_sizes.join(",")}</Badge>
-                    {(l.venues ?? []).map((v) => (
-                      <Badge key={v.id} variant="outline" className="text-[10px]">{v.name}</Badge>
-                    ))}
-                  </div>
-                </div>
-                <div className="w-40">
-                  <Label className="text-xs">Per person ({l.currency})</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    className="mt-0.5"
-                    value={getPrice(l.id, l.price_per_person)}
-                    onChange={(e) => setEdits((prev) => ({ ...prev, [l.id]: e.target.value }))}
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => handleSave(l.id)}
-                  disabled={edits[l.id] === undefined || update.isPending}
-                >
-                  {update.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                </Button>
-              </div>
-            ))}
             {(legacyLeagues ?? []).map((l) => (
               <div
                 key={`legacy-${l.id}`}
@@ -589,12 +563,19 @@ function LeaguePricingSection() {
                 <div className="flex-1">
                   <div className="font-medium text-sm">{l.name}</div>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    <Badge variant="outline" className="text-[10px]">Legacy</Badge>
-                    {l.status !== "active" && <Badge variant="secondary" className="text-[10px]">{l.status}</Badge>}
-                    {l.allowed_team_sizes?.length > 0 && (
-                      <Badge variant="outline" className="text-[10px]">Sizes: {l.allowed_team_sizes.join(",")}</Badge>
+                    {l.status !== "active" && (
+                      <Badge variant="secondary" className="text-[10px]">{l.status}</Badge>
                     )}
                   </div>
+                </div>
+                <div className="w-40">
+                  <Label className="text-xs">Team sizes (comma)</Label>
+                  <Input
+                    className="mt-0.5"
+                    placeholder="2, 4"
+                    value={getSizes(l.id, l.allowed_team_sizes ?? [])}
+                    onChange={(e) => setField(l.id, "sizes", e.target.value)}
+                  />
                 </div>
                 <div className="w-40">
                   <Label className="text-xs">Per person ({l.currency})</Label>
@@ -603,15 +584,15 @@ function LeaguePricingSection() {
                     min={0}
                     className="mt-0.5"
                     value={getPrice(l.id, l.price_per_person)}
-                    onChange={(e) => setEdits((prev) => ({ ...prev, [l.id]: e.target.value }))}
+                    onChange={(e) => setField(l.id, "price", e.target.value)}
                   />
                 </div>
                 <Button
                   size="sm"
-                  onClick={() => handleSaveLegacy(l.id)}
-                  disabled={edits[l.id] === undefined || updateLegacy.isPending}
+                  onClick={() => handleSave(l)}
+                  disabled={!edits[l.id] || update.isPending}
                 >
-                  {updateLegacy.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {update.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 </Button>
               </div>
             ))}
