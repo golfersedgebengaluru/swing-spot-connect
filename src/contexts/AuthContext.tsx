@@ -116,6 +116,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }).catch((err) => console.error("Auto-gift error:", err));
         }
 
+        // Auto-claim legacy league email invites on every successful sign-in / restore
+        if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && nextSession?.user) {
+          supabase.functions.invoke("league-service", {
+            method: "POST",
+            body: { __path: "/leagues/legacy/claim-invites" },
+          }).catch(() => { /* non-fatal */ });
+        }
+
         // After first SIGNED_IN event, mark that we have a session
         if (event === "SIGNED_IN") {
           hadSessionRef.current = true;
