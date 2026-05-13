@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAllCities } from "@/hooks/useBookings";
@@ -17,7 +18,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown, ChevronRight, Edit, ListOrdered, Settings2, Shuffle, Lock, Unlock, BarChart3, Upload, MapPin } from "lucide-react";
 import { BaySchedulingPanel } from "@/components/admin/league/BaySchedulingPanel";
-import { CitiesLocationsPanel } from "@/components/admin/league/CitiesLocationsPanel";
+
 import { SeasonWrapUpPanel } from "@/components/admin/league/SeasonWrapUpPanel";
 import { LocationAssignCell } from "@/components/admin/league/LocationAssignCell";
 import { AdminScoreEntryDialog } from "@/components/admin/league/AdminScoreEntryDialog";
@@ -68,6 +69,7 @@ import {
   useLeagueLocations,
   useAssignPlayerLocation,
   useAssignTeamLocation,
+  leagueServiceInvoke,
 } from "@/hooks/useLeagues";
 import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam, LeaderboardEntry } from "@/types/league";
@@ -204,6 +206,222 @@ function CreateTenantDialog() {
   );
 }
 
+// ── Cities & Locations editor (in-memory) ────────────────────
+type DraftLocation = { id?: string; tempId: string; name: string };
+type DraftCity = { id?: string; tempId: string; name: string; locations: DraftLocation[] };
+
+let __tempCounter = 0;
+const newTempId = () => `tmp_${Date.now()}_${++__tempCounter}`;
+
+function CitiesLocationsEditor({
+  cities,
+  setCities,
+}: {
+  cities: DraftCity[];
+  setCities: (next: DraftCity[]) => void;
+}) {
+  const [newCityName, setNewCityName] = useState("");
+  const addCity = () => {
+    const name = newCityName.trim();
+    if (!name) return;
+    setCities([...cities, { tempId: newTempId(), name, locations: [] }]);
+    setNewCityName("");
+  };
+  const removeCity = (tempId: string) =>
+    setCities(cities.filter((c) => c.tempId !== tempId));
+  const renameCity = (tempId: string, name: string) =>
+    setCities(cities.map((c) => (c.tempId === tempId ? { ...c, name } : c)));
+  const addLocation = (cityTempId: string, name: string) => {
+    if (!name.trim()) return;
+    setCities(
+      cities.map((c) =>
+        c.tempId === cityTempId
+          ? { ...c, locations: [...c.locations, { tempId: newTempId(), name: name.trim() }] }
+          : c,
+      ),
+    );
+  };
+  const removeLocation = (cityTempId: string, locTempId: string) =>
+    setCities(
+      cities.map((c) =>
+        c.tempId === cityTempId
+          ? { ...c, locations: c.locations.filter((l) => l.tempId !== locTempId) }
+          : c,
+      ),
+    );
+
+  return (
+    <div className="space-y-3 rounded-md border p-3">
+      <div>
+        <Label>Cities & Locations</Label>
+        <p className="text-xs text-muted-foreground">
+          Captains will pick from these when registering their team.
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <Input
+          value={newCityName}
+          onChange={(e) => setNewCityName(e.target.value)}
+          placeholder="New city name (e.g. Bangalore)"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addCity();
+            }
+          }}
+        />
+        <Button type="button" size="sm" onClick={addCity} disabled={!newCityName.trim()}>
+          <Plus className="h-3.5 w-3.5 mr-1" /> Add city
+        </Button>
+      </div>
+      {cities.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic">No cities yet — add one above.</p>
+      ) : (
+        <div className="space-y-2">
+          {cities.map((city) => (
+            <CityEditor
+              key={city.tempId}
+              city={city}
+              onRename={(name) => renameCity(city.tempId, name)}
+              onRemove={() => removeCity(city.tempId)}
+              onAddLocation={(name) => addLocation(city.tempId, name)}
+              onRemoveLocation={(locTempId) => removeLocation(city.tempId, locTempId)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CityEditor({
+  city,
+  onRename,
+  onRemove,
+  onAddLocation,
+  onRemoveLocation,
+}: {
+  city: DraftCity;
+  onRename: (name: string) => void;
+  onRemove: () => void;
+  onAddLocation: (name: string) => void;
+  onRemoveLocation: (locTempId: string) => void;
+}) {
+  const [locName, setLocName] = useState("");
+  const submitLoc = () => {
+    if (!locName.trim()) return;
+    onAddLocation(locName);
+    setLocName("");
+  };
+  return (
+    <div className="rounded-md border bg-muted/30 p-2 space-y-2">
+      <div className="flex items-center gap-2">
+        <Input
+          value={city.name}
+          onChange={(e) => onRename(e.target.value)}
+          className="h-8 text-sm font-medium"
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-destructive hover:text-destructive"
+          onClick={onRemove}
+          aria-label="Remove city"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      <div className="pl-3 space-y-1">
+        {city.locations.map((loc) => (
+          <div key={loc.tempId} className="flex items-center gap-2">
+            <MapPin className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs flex-1 truncate">{loc.name}</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-destructive hover:text-destructive"
+              onClick={() => onRemoveLocation(loc.tempId)}
+              aria-label="Remove location"
+            >
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+        ))}
+        <div className="flex gap-2 pt-1">
+          <Input
+            value={locName}
+            onChange={(e) => setLocName(e.target.value)}
+            placeholder="Add location"
+            className="h-7 text-xs"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                submitLoc();
+              }
+            }}
+          />
+          <Button type="button" size="sm" variant="outline" className="h-7 px-2" onClick={submitLoc} disabled={!locName.trim()}>
+            <Plus className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Persist a draft set of cities/locations to a league.
+// Diffs against `original` (the cities loaded from the server when editing).
+async function persistCitiesLocations(
+  leagueId: string,
+  draft: DraftCity[],
+  original: DraftCity[],
+) {
+  // Delete cities that were removed
+  const draftCityIds = new Set(draft.map((c) => c.id).filter(Boolean));
+  for (const orig of original) {
+    if (orig.id && !draftCityIds.has(orig.id)) {
+      await leagueServiceInvoke(`/leagues/${leagueId}/cities/${orig.id}`, "DELETE");
+    }
+  }
+  // Upsert cities
+  for (const city of draft) {
+    let cityId = city.id;
+    if (!cityId) {
+      const created = await leagueServiceInvoke(`/leagues/${leagueId}/cities`, "POST", { name: city.name });
+      cityId = created.id;
+    } else {
+      const orig = original.find((o) => o.id === cityId);
+      if (orig && orig.name !== city.name) {
+        await leagueServiceInvoke(`/leagues/${leagueId}/cities/${cityId}`, "PATCH", { name: city.name });
+      }
+    }
+    if (!cityId) continue;
+
+    // Locations
+    const origLocs = original.find((o) => o.id === city.id)?.locations ?? [];
+    const draftLocIds = new Set(city.locations.map((l) => l.id).filter(Boolean));
+    for (const ol of origLocs) {
+      if (ol.id && !draftLocIds.has(ol.id)) {
+        await leagueServiceInvoke(
+          `/leagues/${leagueId}/cities/${cityId}/locations/${ol.id}`,
+          "DELETE",
+        );
+      }
+    }
+    for (const loc of city.locations) {
+      if (!loc.id) {
+        await leagueServiceInvoke(
+          `/leagues/${leagueId}/cities/${cityId}/locations`,
+          "POST",
+          { name: loc.name },
+        );
+      }
+    }
+  }
+}
+
 // ── Create League Dialog ─────────────────────────────────────
 function LeagueDialog({
   tenantId,
@@ -227,10 +445,44 @@ function LeagueDialog({
     league?.price_per_person != null ? String(league.price_per_person) : "",
   );
   const [currency, setCurrency] = useState<string>(league?.currency ?? "INR");
+  const [draftCities, setDraftCities] = useState<DraftCity[]>([]);
+  const [originalCities, setOriginalCities] = useState<DraftCity[]>([]);
+  const [persisting, setPersisting] = useState(false);
 
   const createLeague = useCreateLeague(tenantId);
   const updateLeague = useUpdateLeague(league?.id ?? "");
   const { data: bays } = useTenantBays(tenantId);
+  const { data: existingCities } = useLeagueCities(isEdit && open ? league!.id : null);
+  const qc = useQueryClient();
+  const { toast } = useToast();
+
+  // Hydrate cities/locations when editing an existing league
+  useEffect(() => {
+    if (!isEdit || !open || !existingCities) return;
+    let cancelled = false;
+    (async () => {
+      const hydrated: DraftCity[] = await Promise.all(
+        existingCities.map(async (c) => {
+          const locs = await leagueServiceInvoke(
+            `/leagues/${league!.id}/cities/${c.id}/locations`,
+            "GET",
+          );
+          return {
+            id: c.id,
+            tempId: c.id,
+            name: c.name,
+            locations: (locs ?? []).map((l: any) => ({ id: l.id, tempId: l.id, name: l.name })),
+          };
+        }),
+      );
+      if (cancelled) return;
+      setDraftCities(hydrated);
+      setOriginalCities(JSON.parse(JSON.stringify(hydrated)));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit, open, existingCities, league]);
 
   const reset = () => {
     if (!isEdit) {
@@ -241,6 +493,8 @@ function LeagueDialog({
       setShowOnLanding(false);
       setPricePerPerson("");
       setCurrency("INR");
+      setDraftCities([]);
+      setOriginalCities([]);
     }
   };
 
@@ -252,7 +506,7 @@ function LeagueDialog({
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!name.trim()) return;
     const sizes = parseTeamSizes(teamSizes);
     const price = pricePerPerson === "" ? 0 : Number(pricePerPerson);
@@ -265,14 +519,38 @@ function LeagueDialog({
       price_per_person: Number.isFinite(price) ? price : 0,
       currency: currency || "INR",
     };
-    if (isEdit && league) {
-      updateLeague.mutate(payload, { onSuccess: () => handleClose(false) });
-    } else {
-      createLeague.mutate(payload, { onSuccess: () => handleClose(false) });
+    setPersisting(true);
+    try {
+      let leagueId = league?.id;
+      if (isEdit && league) {
+        await updateLeague.mutateAsync(payload);
+      } else {
+        const created = await createLeague.mutateAsync(payload);
+        leagueId = (created as any)?.id ?? leagueId;
+      }
+      if (leagueId) {
+        try {
+          await persistCitiesLocations(leagueId, draftCities, originalCities);
+          qc.invalidateQueries({ queryKey: ["league-cities", leagueId] });
+        } catch (err) {
+          toast({
+            title: "League saved, but cities/locations failed",
+            description: (err as Error).message,
+            variant: "destructive",
+          });
+          setPersisting(false);
+          return;
+        }
+      }
+      handleClose(false);
+    } catch {
+      // mutation already toasted
+    } finally {
+      setPersisting(false);
     }
   };
 
-  const pending = createLeague.isPending || updateLeague.isPending;
+  const pending = createLeague.isPending || updateLeague.isPending || persisting;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -342,6 +620,7 @@ function LeagueDialog({
             </div>
             <Switch checked={showOnLanding} onCheckedChange={setShowOnLanding} />
           </div>
+          <CitiesLocationsEditor cities={draftCities} setCities={setDraftCities} />
           <Button onClick={handleSubmit} disabled={pending || !name.trim()} className="w-full">
             {pending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}{isEdit ? "Save changes" : "Create"}
           </Button>
@@ -372,6 +651,8 @@ function LegacyLeagueRow({
   const [editOpen, setEditOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const del = useDeleteLeague(tenantId);
+  const { data: cities } = useLeagueCities(league.id);
+  const cityCount = cities?.length ?? 0;
 
   return (
     <div
@@ -412,6 +693,9 @@ function LegacyLeagueRow({
         )}
         {league.price_per_person > 0 && (
           <Badge variant="outline" className="text-[10px] py-0 px-1.5">{league.currency} {league.price_per_person}/person</Badge>
+        )}
+        {cityCount > 0 && (
+          <Badge variant="outline" className="text-[10px] py-0 px-1.5">{cityCount} {cityCount === 1 ? "city" : "cities"}</Badge>
         )}
       </div>
 
@@ -471,22 +755,77 @@ function LeagueDialogControlled({
     league.price_per_person != null ? String(league.price_per_person) : "",
   );
   const [currency, setCurrency] = useState<string>(league.currency ?? "INR");
+  const [draftCities, setDraftCities] = useState<DraftCity[]>([]);
+  const [originalCities, setOriginalCities] = useState<DraftCity[]>([]);
+  const [persisting, setPersisting] = useState(false);
   const updateLeague = useUpdateLeague(league.id);
   const { data: bays } = useTenantBays(tenantId);
+  const { data: existingCities } = useLeagueCities(open ? league.id : null);
+  const qc = useQueryClient();
+  const { toast } = useToast();
 
-  const handleSubmit = () => {
+  useEffect(() => {
+    if (!open || !existingCities) return;
+    let cancelled = false;
+    (async () => {
+      const hydrated: DraftCity[] = await Promise.all(
+        existingCities.map(async (c) => {
+          const locs = await leagueServiceInvoke(
+            `/leagues/${league.id}/cities/${c.id}/locations`,
+            "GET",
+          );
+          return {
+            id: c.id,
+            tempId: c.id,
+            name: c.name,
+            locations: (locs ?? []).map((l: any) => ({ id: l.id, tempId: l.id, name: l.name })),
+          };
+        }),
+      );
+      if (cancelled) return;
+      setDraftCities(hydrated);
+      setOriginalCities(JSON.parse(JSON.stringify(hydrated)));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, existingCities, league.id]);
+
+  const handleSubmit = async () => {
     if (!name.trim()) return;
     const price = pricePerPerson === "" ? 0 : Number(pricePerPerson);
-    updateLeague.mutate({
-      name: name.trim(),
-      format,
-      venue_id: venueId || undefined,
-      allowed_team_sizes: parseTeamSizes(teamSizes),
-      show_on_landing: showOnLanding,
-      price_per_person: Number.isFinite(price) ? price : 0,
-      currency: currency || "INR",
-    }, { onSuccess: () => onOpenChange(false) });
+    setPersisting(true);
+    try {
+      await updateLeague.mutateAsync({
+        name: name.trim(),
+        format,
+        venue_id: venueId || undefined,
+        allowed_team_sizes: parseTeamSizes(teamSizes),
+        show_on_landing: showOnLanding,
+        price_per_person: Number.isFinite(price) ? price : 0,
+        currency: currency || "INR",
+      });
+      try {
+        await persistCitiesLocations(league.id, draftCities, originalCities);
+        qc.invalidateQueries({ queryKey: ["league-cities", league.id] });
+      } catch (err) {
+        toast({
+          title: "League saved, but cities/locations failed",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+        setPersisting(false);
+        return;
+      }
+      onOpenChange(false);
+    } catch {
+      // toasted
+    } finally {
+      setPersisting(false);
+    }
   };
+
+  const pending = updateLeague.isPending || persisting;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -542,8 +881,9 @@ function LeagueDialogControlled({
             </div>
             <Switch checked={showOnLanding} onCheckedChange={setShowOnLanding} />
           </div>
-          <Button onClick={handleSubmit} disabled={updateLeague.isPending || !name.trim()} className="w-full">
-            {updateLeague.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Save changes
+          <CitiesLocationsEditor cities={draftCities} setCities={setDraftCities} />
+          <Button onClick={handleSubmit} disabled={pending || !name.trim()} className="w-full">
+            {pending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Save changes
           </Button>
         </div>
       </DialogContent>
@@ -1565,7 +1905,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
         <TabsList className="flex flex-wrap h-auto gap-1 p-1 mb-4">
           <TabsTrigger value="players"><Users className="h-3.5 w-3.5 mr-1" />Players ({players?.length || 0})</TabsTrigger>
           <TabsTrigger value="teams"><Users className="h-3.5 w-3.5 mr-1" />Teams</TabsTrigger>
-          <TabsTrigger value="cities"><MapPin className="h-3.5 w-3.5 mr-1" />Cities & Locations</TabsTrigger>
+          
           <TabsTrigger value="rounds"><ListOrdered className="h-3.5 w-3.5 mr-1" />Rounds</TabsTrigger>
           <TabsTrigger value="codes">Join Codes</TabsTrigger>
           <TabsTrigger value="scheduling"><Calendar className="h-3.5 w-3.5 mr-1" />Bay Scheduling</TabsTrigger>
@@ -1638,9 +1978,6 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
         </TabsContent>
 
         {/* Cities & Locations */}
-        <TabsContent value="cities">
-          <CitiesLocationsPanel leagueId={league.id} tenantId={league.tenant_id} />
-        </TabsContent>
 
         {/* Rounds */}
         <TabsContent value="rounds">
