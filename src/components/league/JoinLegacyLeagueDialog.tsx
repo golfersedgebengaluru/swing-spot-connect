@@ -83,7 +83,7 @@ export function JoinLegacyLeagueDialog({ league, open, onOpenChange }: Props) {
       allowed_team_sizes: league.allowed_team_sizes ?? null,
     });
     if (!v.ok) {
-      toast({ title: "Check your details", description: v.error, variant: "destructive" });
+      toast({ title: "Check your details", description: (v as { error: string }).error, variant: "destructive" });
       return;
     }
     setSubmitting(true);
