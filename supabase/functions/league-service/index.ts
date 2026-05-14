@@ -3277,9 +3277,9 @@ Deno.serve(async (req) => {
       // Look up secret to verify signature
       const { data: gw } = await supabase
         .from('payment_gateways')
-        .select('api_secret, city_slug')
-        .eq('city', pending.city).eq('name', 'razorpay').eq('is_active', true).single()
-      const citySlug = (gw?.city_slug || (pending.city || '').toLowerCase().replace(/[^a-z0-9]/g, '_')).toUpperCase()
+        .select('api_secret')
+        .eq('city', pending.city).eq('name', 'razorpay').eq('is_active', true).maybeSingle()
+      const citySlug = (pending.city || '').toLowerCase().replace(/[^a-z0-9]/g, '_').toUpperCase()
       const apiSecret = (Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) || gw?.api_secret || '').trim()
       if (!apiSecret) return err('Verification unavailable', 500)
 
