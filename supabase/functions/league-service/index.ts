@@ -3074,7 +3074,7 @@ Deno.serve(async (req) => {
       // League validation
       const { data: league } = await supabase
         .from('leagues')
-        .select('id, tenant_id, name, status, show_on_landing, allowed_team_sizes, price_per_person, currency')
+        .select('id, tenant_id, name, status, show_on_landing, allowed_team_sizes, price_per_person, currency, payment_city')
         .eq('id', route.leagueId)
         .single()
       if (!league) return err('League not found', 404)
