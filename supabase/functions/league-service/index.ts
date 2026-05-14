@@ -3278,12 +3278,23 @@ Deno.serve(async (req) => {
       if (pending.captain_user_id !== user.id) return err('Forbidden', 403)
       if (pending.league_id !== route.leagueId) return err('League mismatch', 400)
 
-      // Look up secret to verify signature
+      // Resolve gateway city from league (payment_city) → tenant fallback. NOT pending.city
+      // (pending.city is the team's selected city, which may not have its own Razorpay account)
+      const { data: leagueRow } = await supabase
+        .from('leagues')
+        .select('tenant_id, payment_city')
+        .eq('id', pending.league_id)
+        .single()
+      let gatewayCity: string | null = (leagueRow as any)?.payment_city || null
+      if (!gatewayCity && leagueRow?.tenant_id) {
+        const { data: tenant } = await supabase.from('tenants').select('city').eq('id', leagueRow.tenant_id).single()
+        gatewayCity = tenant?.city || null
+      }
       const { data: gw } = await supabase
         .from('payment_gateways')
         .select('api_secret')
-        .eq('city', pending.city).eq('name', 'razorpay').eq('is_active', true).maybeSingle()
-      const citySlug = (pending.city || '').toLowerCase().replace(/[^a-z0-9]/g, '_').toUpperCase()
+        .eq('city', gatewayCity || '').eq('name', 'razorpay').eq('is_active', true).maybeSingle()
+      const citySlug = (gatewayCity || '').toLowerCase().replace(/[^a-z0-9]/g, '_').toUpperCase()
       const apiSecret = (Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) || gw?.api_secret || '').trim()
       if (!apiSecret) return err('Verification unavailable', 500)
 
