@@ -577,6 +577,7 @@ function LeagueDialog({
       show_on_landing: showOnLanding,
       price_per_person: Number.isFinite(price) ? price : 0,
       currency: currency || "INR",
+      payment_city: paymentCity || null,
     };
     setPersisting(true);
     try {
