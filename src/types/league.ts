@@ -198,6 +198,9 @@ export interface CreateLeagueRequest {
   price_per_person?: number;
   currency?: string;
   payment_city?: string | null;
+}
+
+export interface UpdateLeagueRequest {
   name?: string;
   format?: LeagueFormat;
   season_start?: string;
@@ -213,6 +216,7 @@ export interface CreateLeagueRequest {
   show_on_landing?: boolean;
   price_per_person?: number;
   currency?: string;
+  payment_city?: string | null;
 }
 
 // ── Hidden Holes ─────────────────────────────────────────────
