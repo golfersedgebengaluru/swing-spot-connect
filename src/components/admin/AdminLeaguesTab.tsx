@@ -673,6 +673,7 @@ function LeagueDialog({
               <Input value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} maxLength={3} />
             </div>
           </div>
+          <PaymentCityField value={paymentCity} onChange={setPaymentCity} />
           <div className="flex items-center justify-between rounded-md border p-3">
             <div>
               <Label className="cursor-pointer">Show on landing page</Label>
