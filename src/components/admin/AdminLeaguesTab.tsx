@@ -551,6 +551,7 @@ function LeagueDialog({
       setShowOnLanding(false);
       setPricePerPerson("");
       setCurrency("INR");
+      setPaymentCity("");
       setDraftCities([]);
       setOriginalCities([]);
     }
