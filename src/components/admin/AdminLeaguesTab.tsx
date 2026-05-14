@@ -502,6 +502,7 @@ function LeagueDialog({
     league?.price_per_person != null ? String(league.price_per_person) : "",
   );
   const [currency, setCurrency] = useState<string>(league?.currency ?? "INR");
+  const [paymentCity, setPaymentCity] = useState<string>(league?.payment_city ?? "");
   const [draftCities, setDraftCities] = useState<DraftCity[]>([]);
   const [originalCities, setOriginalCities] = useState<DraftCity[]>([]);
   const [persisting, setPersisting] = useState(false);
