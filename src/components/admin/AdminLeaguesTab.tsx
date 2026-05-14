@@ -433,6 +433,52 @@ async function persistCitiesLocations(
   }
 }
 
+// Active Razorpay payment account cities (from Admin → Payments)
+function useRazorpayPaymentCities() {
+  return useQuery({
+    queryKey: ["payment_gateways", "razorpay", "active-cities"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payment_gateways")
+        .select("city")
+        .eq("name", "razorpay")
+        .eq("is_active", true)
+        .order("city");
+      if (error) throw error;
+      return Array.from(new Set((data ?? []).map((r) => r.city))).filter(Boolean);
+    },
+  });
+}
+
+function PaymentCityField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const { data: cities, isLoading } = useRazorpayPaymentCities();
+  return (
+    <div>
+      <Label>Payment account (Razorpay)</Label>
+      <Select value={value || "__none__"} onValueChange={(v) => onChange(v === "__none__" ? "" : v)}>
+        <SelectTrigger>
+          <SelectValue placeholder={isLoading ? "Loading…" : "Select payment account city"} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none__">Use tenant default</SelectItem>
+          {(cities ?? []).map((c) => (
+            <SelectItem key={c} value={c}>{c}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <p className="text-xs text-muted-foreground mt-1">
+        Which city's Razorpay account collects payments for this league. Manage accounts in Admin → Payments.
+      </p>
+    </div>
+  );
+}
+
 // ── Create League Dialog ─────────────────────────────────────
 function LeagueDialog({
   tenantId,
