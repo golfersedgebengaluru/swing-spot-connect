@@ -433,6 +433,7 @@ Deno.serve(async (req) => {
           show_on_landing: body.show_on_landing === true,
           price_per_person: typeof body.price_per_person === 'number' ? body.price_per_person : 0,
           currency: body.currency || 'INR',
+          payment_city: typeof body.payment_city === 'string' && body.payment_city.trim() ? body.payment_city.trim() : null,
           created_by: user.id,
         }).select().single()
 
@@ -504,7 +505,7 @@ Deno.serve(async (req) => {
         }
 
         const updates: Record<string, any> = {}
-        const allowed = ['name', 'format', 'season_start', 'season_end', 'venue_id', 'status', 'score_entry_method', 'scoring_holes', 'fairness_factor_pct', 'team_aggregation_method', 'peoria_multiplier', 'allowed_team_sizes', 'show_on_landing', 'price_per_person', 'currency']
+        const allowed = ['name', 'format', 'season_start', 'season_end', 'venue_id', 'status', 'score_entry_method', 'scoring_holes', 'fairness_factor_pct', 'team_aggregation_method', 'peoria_multiplier', 'allowed_team_sizes', 'show_on_landing', 'price_per_person', 'currency', 'payment_city']
         for (const key of allowed) {
           if (body[key] !== undefined) updates[key] = body[key]
         }
@@ -3073,7 +3074,7 @@ Deno.serve(async (req) => {
       // League validation
       const { data: league } = await supabase
         .from('leagues')
-        .select('id, tenant_id, name, status, show_on_landing, allowed_team_sizes, price_per_person, currency')
+        .select('id, tenant_id, name, status, show_on_landing, allowed_team_sizes, price_per_person, currency, payment_city')
         .eq('id', route.leagueId)
         .single()
       if (!league) return err('League not found', 404)
@@ -3123,10 +3124,13 @@ Deno.serve(async (req) => {
       }
       const amount = Math.max(0, originalAmount - discountAmount)
 
-      // Tenant city → payment gateway lookup
-      const { data: tenant } = await supabase.from('tenants').select('city').eq('id', league.tenant_id).single()
-      const gatewayCity = tenant?.city
-      if (!gatewayCity) return err('League tenant has no city configured', 500)
+      // Resolve payment gateway city: prefer league.payment_city, fallback to tenant city
+      let gatewayCity: string | null = (league as any).payment_city || null
+      if (!gatewayCity) {
+        const { data: tenant } = await supabase.from('tenants').select('city').eq('id', league.tenant_id).single()
+        gatewayCity = tenant?.city || null
+      }
+      if (!gatewayCity) return err('League payment account not configured', 500)
 
       const { data: gateway } = await supabase
         .from('payment_gateways')
@@ -3274,12 +3278,23 @@ Deno.serve(async (req) => {
       if (pending.captain_user_id !== user.id) return err('Forbidden', 403)
       if (pending.league_id !== route.leagueId) return err('League mismatch', 400)
 
-      // Look up secret to verify signature
+      // Resolve gateway city from league (payment_city) → tenant fallback. NOT pending.city
+      // (pending.city is the team's selected city, which may not have its own Razorpay account)
+      const { data: leagueRow } = await supabase
+        .from('leagues')
+        .select('tenant_id, payment_city')
+        .eq('id', pending.league_id)
+        .single()
+      let gatewayCity: string | null = (leagueRow as any)?.payment_city || null
+      if (!gatewayCity && leagueRow?.tenant_id) {
+        const { data: tenant } = await supabase.from('tenants').select('city').eq('id', leagueRow.tenant_id).single()
+        gatewayCity = tenant?.city || null
+      }
       const { data: gw } = await supabase
         .from('payment_gateways')
         .select('api_secret')
-        .eq('city', pending.city).eq('name', 'razorpay').eq('is_active', true).maybeSingle()
-      const citySlug = (pending.city || '').toLowerCase().replace(/[^a-z0-9]/g, '_').toUpperCase()
+        .eq('city', gatewayCity || '').eq('name', 'razorpay').eq('is_active', true).maybeSingle()
+      const citySlug = (gatewayCity || '').toLowerCase().replace(/[^a-z0-9]/g, '_').toUpperCase()
       const apiSecret = (Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) || gw?.api_secret || '').trim()
       if (!apiSecret) return err('Verification unavailable', 500)
 

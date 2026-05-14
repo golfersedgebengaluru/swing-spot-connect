@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAllCities } from "@/hooks/useBookings";
@@ -433,6 +433,52 @@ async function persistCitiesLocations(
   }
 }
 
+// Active Razorpay payment account cities (from Admin → Payments)
+function useRazorpayPaymentCities() {
+  return useQuery({
+    queryKey: ["payment_gateways", "razorpay", "active-cities"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payment_gateways")
+        .select("city")
+        .eq("name", "razorpay")
+        .eq("is_active", true)
+        .order("city");
+      if (error) throw error;
+      return Array.from(new Set((data ?? []).map((r) => r.city))).filter(Boolean);
+    },
+  });
+}
+
+function PaymentCityField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const { data: cities, isLoading } = useRazorpayPaymentCities();
+  return (
+    <div>
+      <Label>Payment account (Razorpay)</Label>
+      <Select value={value || "__none__"} onValueChange={(v) => onChange(v === "__none__" ? "" : v)}>
+        <SelectTrigger>
+          <SelectValue placeholder={isLoading ? "Loading…" : "Select payment account city"} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none__">Use tenant default</SelectItem>
+          {(cities ?? []).map((c) => (
+            <SelectItem key={c} value={c}>{c}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <p className="text-xs text-muted-foreground mt-1">
+        Which city's Razorpay account collects payments for this league. Manage accounts in Admin → Payments.
+      </p>
+    </div>
+  );
+}
+
 // ── Create League Dialog ─────────────────────────────────────
 function LeagueDialog({
   tenantId,
@@ -456,6 +502,7 @@ function LeagueDialog({
     league?.price_per_person != null ? String(league.price_per_person) : "",
   );
   const [currency, setCurrency] = useState<string>(league?.currency ?? "INR");
+  const [paymentCity, setPaymentCity] = useState<string>(league?.payment_city ?? "");
   const [draftCities, setDraftCities] = useState<DraftCity[]>([]);
   const [originalCities, setOriginalCities] = useState<DraftCity[]>([]);
   const [persisting, setPersisting] = useState(false);
@@ -504,6 +551,7 @@ function LeagueDialog({
       setShowOnLanding(false);
       setPricePerPerson("");
       setCurrency("INR");
+      setPaymentCity("");
       setDraftCities([]);
       setOriginalCities([]);
     }
@@ -529,6 +577,7 @@ function LeagueDialog({
       show_on_landing: showOnLanding,
       price_per_person: Number.isFinite(price) ? price : 0,
       currency: currency || "INR",
+      payment_city: paymentCity || null,
     };
     setPersisting(true);
     try {
@@ -624,6 +673,7 @@ function LeagueDialog({
               <Input value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} maxLength={3} />
             </div>
           </div>
+          <PaymentCityField value={paymentCity} onChange={setPaymentCity} />
           <div className="flex items-center justify-between rounded-md border p-3">
             <div>
               <Label className="cursor-pointer">Show on landing page</Label>
@@ -766,6 +816,7 @@ function LeagueDialogControlled({
     league.price_per_person != null ? String(league.price_per_person) : "",
   );
   const [currency, setCurrency] = useState<string>(league.currency ?? "INR");
+  const [paymentCity, setPaymentCity] = useState<string>(league.payment_city ?? "");
   const [draftCities, setDraftCities] = useState<DraftCity[]>([]);
   const [originalCities, setOriginalCities] = useState<DraftCity[]>([]);
   const [persisting, setPersisting] = useState(false);
@@ -815,6 +866,7 @@ function LeagueDialogControlled({
         show_on_landing: showOnLanding,
         price_per_person: Number.isFinite(price) ? price : 0,
         currency: currency || "INR",
+        payment_city: paymentCity || null,
       });
       try {
         await persistCitiesLocations(league.id, draftCities, originalCities);
@@ -885,6 +937,7 @@ function LeagueDialogControlled({
               <Input value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} maxLength={3} />
             </div>
           </div>
+          <PaymentCityField value={paymentCity} onChange={setPaymentCity} />
           <div className="flex items-center justify-between rounded-md border p-3">
             <div>
               <Label>Show on landing page</Label>

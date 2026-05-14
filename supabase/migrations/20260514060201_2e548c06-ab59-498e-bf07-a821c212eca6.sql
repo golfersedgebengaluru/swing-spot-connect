@@ -1,0 +1,2 @@
+ALTER TABLE public.leagues ADD COLUMN IF NOT EXISTS payment_city text;
+COMMENT ON COLUMN public.leagues.payment_city IS 'Which city''s active Razorpay (payment_gateways) account to use for league checkout. Falls back to tenant city when NULL.';

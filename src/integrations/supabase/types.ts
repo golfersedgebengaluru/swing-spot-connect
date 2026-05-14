@@ -2722,6 +2722,7 @@ export type Database = {
           id: string
           leaderboard_visibility: string
           name: string
+          payment_city: string | null
           peoria_multiplier: number
           price_per_person: number
           score_entry_method: Database["public"]["Enums"]["score_entry_method"]
@@ -2745,6 +2746,7 @@ export type Database = {
           id?: string
           leaderboard_visibility?: string
           name: string
+          payment_city?: string | null
           peoria_multiplier?: number
           price_per_person?: number
           score_entry_method?: Database["public"]["Enums"]["score_entry_method"]
@@ -2768,6 +2770,7 @@ export type Database = {
           id?: string
           leaderboard_visibility?: string
           name?: string
+          payment_city?: string | null
           peoria_multiplier?: number
           price_per_person?: number
           score_entry_method?: Database["public"]["Enums"]["score_entry_method"]
