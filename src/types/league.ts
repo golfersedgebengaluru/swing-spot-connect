@@ -35,6 +35,7 @@ export interface League {
   show_on_landing: boolean;
   price_per_person: number;
   currency: string;
+  payment_city: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
