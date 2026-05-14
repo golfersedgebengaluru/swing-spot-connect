@@ -433,6 +433,7 @@ Deno.serve(async (req) => {
           show_on_landing: body.show_on_landing === true,
           price_per_person: typeof body.price_per_person === 'number' ? body.price_per_person : 0,
           currency: body.currency || 'INR',
+          payment_city: typeof body.payment_city === 'string' && body.payment_city.trim() ? body.payment_city.trim() : null,
           created_by: user.id,
         }).select().single()
 
