@@ -197,9 +197,7 @@ export interface CreateLeagueRequest {
   show_on_landing?: boolean;
   price_per_person?: number;
   currency?: string;
-}
-
-export interface UpdateLeagueRequest {
+  payment_city?: string | null;
   name?: string;
   format?: LeagueFormat;
   season_start?: string;
