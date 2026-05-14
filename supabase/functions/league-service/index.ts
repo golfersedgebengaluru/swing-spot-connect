@@ -3124,10 +3124,13 @@ Deno.serve(async (req) => {
       }
       const amount = Math.max(0, originalAmount - discountAmount)
 
-      // Tenant city → payment gateway lookup
-      const { data: tenant } = await supabase.from('tenants').select('city').eq('id', league.tenant_id).single()
-      const gatewayCity = tenant?.city
-      if (!gatewayCity) return err('League tenant has no city configured', 500)
+      // Resolve payment gateway city: prefer league.payment_city, fallback to tenant city
+      let gatewayCity: string | null = (league as any).payment_city || null
+      if (!gatewayCity) {
+        const { data: tenant } = await supabase.from('tenants').select('city').eq('id', league.tenant_id).single()
+        gatewayCity = tenant?.city || null
+      }
+      if (!gatewayCity) return err('League payment account not configured', 500)
 
       const { data: gateway } = await supabase
         .from('payment_gateways')
