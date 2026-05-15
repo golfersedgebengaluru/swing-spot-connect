@@ -2061,11 +2061,18 @@ function LeaderboardPanel({ league }: { league: League }) {
                           <div>
                             <p className="text-xs font-medium text-muted-foreground mb-1">Team Members</p>
                             <div className="flex gap-3 flex-wrap">
-                              {entry.members.map((m) => (
-                                <div key={m.player_id} className="border rounded px-3 py-1.5 text-xs bg-background">
-                                  <span className="font-medium">{m.name}</span>: Net {m.net_score}
-                                </div>
-                              ))}
+                              {entry.members.map((m: any) => {
+                                const vsPar = m.vs_par;
+                                const vsParStr = vsPar === undefined || vsPar === null ? '—' : vsPar === 0 ? 'E' : vsPar > 0 ? `+${vsPar}` : `${vsPar}`;
+                                const vsParCls = (vsPar ?? 0) > 0 ? 'text-destructive' : (vsPar ?? 0) < 0 ? 'text-emerald-600' : '';
+                                return (
+                                  <div key={m.player_id} className="border rounded px-3 py-1.5 text-xs bg-background">
+                                    <span className="font-medium">{m.name}</span>
+                                    <span className="text-muted-foreground"> · Gross {m.gross_score ?? '—'} · Net {m.net_score} · Par {m.total_par ?? '—'} · </span>
+                                    <span className={cn('font-semibold', vsParCls)}>vs Par {vsParStr}</span>
+                                  </div>
+                                );
+                              })}
                             </div>
                             {(league.fairness_factor_pct || 0) > 0 && (
                               <p className="text-xs text-muted-foreground mt-1">
