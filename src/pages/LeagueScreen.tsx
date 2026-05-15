@@ -334,9 +334,36 @@ export default function LeagueScreen() {
 
       {/* Leaderboard */}
       <main className="px-3 sm:px-6 md:px-12 pb-12">
+        {hasTeams && (
+          <div className="flex items-center justify-end mb-2">
+            <div className="inline-flex rounded-full border border-border bg-background/60 p-0.5 text-xs">
+              <button
+                onClick={() => updateViewMode("teams")}
+                className={cn(
+                  "px-3 py-1 rounded-full transition",
+                  effectiveView === "teams" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
+                data-testid="view-teams"
+              >
+                Teams
+              </button>
+              <button
+                onClick={() => updateViewMode("all")}
+                className={cn(
+                  "px-3 py-1 rounded-full transition",
+                  effectiveView === "all" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
+                data-testid="view-all"
+              >
+                All
+              </button>
+            </div>
+          </div>
+        )}
         <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
           {/* Header row (desktop) */}
-          <div className="hidden sm:grid grid-cols-[40px_minmax(0,1.6fr)_110px_60px_60px_70px_70px_70px] gap-3 px-4 py-3 border-b border-border bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+          <div className="hidden sm:grid grid-cols-[28px_40px_minmax(0,1.6fr)_110px_60px_60px_70px_70px_70px] gap-3 px-4 py-3 border-b border-border bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+            <div />
             <div>#</div>
             <div>Name</div>
             <div>Type</div>
@@ -347,19 +374,37 @@ export default function LeagueScreen() {
             <div className="text-right">Rounds</div>
           </div>
           {/* Header row (mobile) */}
-          <div className="sm:hidden flex items-center gap-3 px-3 py-2 border-b border-border bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+          <div className="sm:hidden flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+            <div className="w-4" />
             <div className="w-6">#</div>
             <div className="flex-1">Name</div>
             <div className="w-12 text-right">Final</div>
           </div>
-          {lbLoading && entries.length === 0 ? (
+          {lbLoading && displayRows.length === 0 ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading scores…
             </div>
-          ) : entries.length === 0 ? (
+          ) : displayRows.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground text-sm">No scores recorded yet for this view.</div>
           ) : (
-            entries.map((e) => <LeaderboardRow key={`${e.type}-${e.id}`} entry={e} handicapActive={handicapActive} />)
+            displayRows.map(({ entry, rank }) => {
+              const key = `${entry.type}-${entry.id}`;
+              const expandable = entry.type === "team" && !!entry.members;
+              const expanded = !!openTeams[key];
+              return (
+                <div key={key}>
+                  <LeaderboardRow
+                    entry={entry}
+                    rank={rank}
+                    handicapActive={handicapActive}
+                    expandable={expandable}
+                    expanded={expanded}
+                    onToggle={() => toggleTeam(key)}
+                  />
+                  {expandable && expanded && <MemberSubRows members={entry.members || []} />}
+                </div>
+              );
+            })
           )}
         </div>
       </main>
