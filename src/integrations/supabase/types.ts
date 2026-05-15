@@ -2918,6 +2918,7 @@ export type Database = {
           league_city_id: string
           league_id: string
           league_location_id: string
+          league_team_id: string | null
           original_amount: number | null
           payment_status: string
           razorpay_order_id: string | null
@@ -2939,6 +2940,7 @@ export type Database = {
           league_city_id: string
           league_id: string
           league_location_id: string
+          league_team_id?: string | null
           original_amount?: number | null
           payment_status?: string
           razorpay_order_id?: string | null
@@ -2960,6 +2962,7 @@ export type Database = {
           league_city_id?: string
           league_id?: string
           league_location_id?: string
+          league_team_id?: string | null
           original_amount?: number | null
           payment_status?: string
           razorpay_order_id?: string | null
@@ -2996,6 +2999,13 @@ export type Database = {
             columns: ["league_location_id"]
             isOneToOne: false
             referencedRelation: "league_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legacy_league_team_registrations_league_team_id_fkey"
+            columns: ["league_team_id"]
+            isOneToOne: false
+            referencedRelation: "league_teams"
             referencedColumns: ["id"]
           },
         ]
@@ -4697,6 +4707,10 @@ export type Database = {
       is_franchise_or_site_admin: {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
+      }
+      promote_legacy_team_member: {
+        Args: { _registration_id: string; _user_id: string }
+        Returns: Json
       }
       upsert_member_hours: {
         Args: { p_hours: number; p_user_id: string }

@@ -1125,6 +1125,129 @@ function CompetitionEditor({ leagueId, round }: { leagueId: string; round: Leagu
 }
 
 // ── Rounds Panel ─────────────────────────────────────────────
+function RevealedRoundScores({
+  leagueId,
+  roundNumber,
+  parPerHole,
+  hiddenHoles,
+}: {
+  leagueId: string;
+  roundNumber: number;
+  parPerHole: number[];
+  hiddenHoles: number[];
+}) {
+  const { data: scores, isLoading } = useLeagueScores(leagueId, roundNumber);
+  const roundPar = parPerHole.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0);
+  const HC_MULT = 3;
+
+  if (isLoading) {
+    return (
+      <div className="rounded-md border p-3 bg-muted/20 flex items-center gap-2">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span className="text-xs text-muted-foreground">Loading scores…</span>
+      </div>
+    );
+  }
+  const rows = (scores || []).map((s: any) => {
+    const hs: number[] = Array.isArray(s.hole_scores) ? s.hole_scores : [];
+    const gross = s.total_score ?? hs.reduce((a, v) => a + (Number(v) || 0), 0);
+    const hiddenSum = hiddenHoles.reduce((sum, h) => sum + (Number(hs[h - 1]) || 0), 0);
+    const handicap = roundPar > 0 && hiddenHoles.length > 0 ? hiddenSum * HC_MULT - roundPar : 0;
+    const net = gross - handicap;
+    return { id: s.id, name: s.player_name || s.player_id?.slice(0, 8), hs, gross, hiddenSum, handicap, net };
+  });
+
+  return (
+    <div className="rounded-md border p-3 space-y-2 bg-card">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs font-semibold">Player Scores & Peoria Handicaps</span>
+        <Badge variant="outline" className="text-[10px]">Round Par {roundPar || "—"}</Badge>
+        {hiddenHoles.length > 0 && (
+          <Badge variant="secondary" className="text-[10px]">
+            Hidden: {hiddenHoles.join(", ")}
+          </Badge>
+        )}
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No scores submitted for this round.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs">Player</TableHead>
+                {Array.from({ length: parPerHole.length || (rows[0]?.hs.length ?? 0) }).map((_, i) => {
+                  const isHidden = hiddenHoles.includes(i + 1);
+                  return (
+                    <TableHead
+                      key={i}
+                      className={`text-center px-1.5 text-xs ${isHidden ? "bg-accent/30 text-accent-foreground" : ""}`}
+                    >
+                      {i + 1}
+                    </TableHead>
+                  );
+                })}
+                <TableHead className="text-center text-xs">Gross</TableHead>
+                <TableHead className="text-center text-xs">Hidden Σ</TableHead>
+                <TableHead className="text-center text-xs">Peoria HC</TableHead>
+                <TableHead className="text-center text-xs">Net</TableHead>
+              </TableRow>
+              {parPerHole.length > 0 && (
+                <TableRow>
+                  <TableHead className="text-[10px] text-muted-foreground">Par</TableHead>
+                  {parPerHole.map((p, i) => (
+                    <TableHead key={i} className="text-center px-1.5 text-[10px] text-muted-foreground font-normal">
+                      {p || "—"}
+                    </TableHead>
+                  ))}
+                  <TableHead className="text-center text-[10px] text-muted-foreground font-normal">{roundPar}</TableHead>
+                  <TableHead colSpan={3} />
+                </TableRow>
+              )}
+            </TableHeader>
+            <TableBody>
+              {rows.map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell className="text-xs font-medium">{r.name}</TableCell>
+                  {Array.from({ length: parPerHole.length || r.hs.length }).map((_, i) => {
+                    const isHidden = hiddenHoles.includes(i + 1);
+                    const v = r.hs[i];
+                    const p = parPerHole[i];
+                    const diff = typeof v === "number" && typeof p === "number" && p > 0 ? v - p : null;
+                    return (
+                      <TableCell
+                        key={i}
+                        className={`text-center px-1.5 text-xs ${isHidden ? "bg-accent/30" : ""} ${
+                          diff !== null && diff < 0 ? "text-green-600" : diff !== null && diff > 0 ? "text-destructive" : ""
+                        }`}
+                      >
+                        {v ?? "—"}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell className="text-center text-xs font-semibold">{r.gross || "—"}</TableCell>
+                  <TableCell className="text-center text-xs">{r.hiddenSum || "—"}</TableCell>
+                  <TableCell className="text-center text-xs font-semibold">
+                    {hiddenHoles.length > 0 && roundPar > 0 ? r.handicap : "—"}
+                  </TableCell>
+                  <TableCell className="text-center text-xs font-bold text-primary">
+                    {hiddenHoles.length > 0 && roundPar > 0 ? r.net : "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+      {hiddenHoles.length > 0 && roundPar > 0 && (
+        <p className="text-[10px] text-muted-foreground">
+          Peoria HC = (sum of hidden hole scores × {HC_MULT}) − round par ({roundPar})
+        </p>
+      )}
+    </div>
+  );
+}
+
 function RoundsPanel({ league }: { league: League }) {
   const { data: rounds, isLoading } = useLeagueRounds(league.id);
   const createRound = useCreateRound(league.id);
@@ -1299,6 +1422,14 @@ function RoundsPanel({ league }: { league: League }) {
                           </div>
                         )}
                       </div>
+                    )}
+                    {adminHH?.revealed_at && (
+                      <RevealedRoundScores
+                        leagueId={league.id}
+                        roundNumber={r.round_number}
+                        parPerHole={r.par_per_hole || []}
+                        hiddenHoles={adminHH.hidden_holes || []}
+                      />
                     )}
                     <CompetitionEditor leagueId={league.id} round={r} />
                   </div>
