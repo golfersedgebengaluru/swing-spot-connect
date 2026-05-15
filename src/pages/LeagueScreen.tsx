@@ -184,7 +184,7 @@ export default function LeagueScreen() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 text-foreground">
       {/* Top bar */}
-      <header className="flex items-center justify-between gap-6 px-6 md:px-12 py-6 border-b border-border/40">
+      <header className="flex items-center justify-between gap-3 sm:gap-6 px-3 sm:px-6 md:px-12 py-4 sm:py-6 border-b border-border/40">
         <div className="flex items-center gap-4 min-w-0">
           {meta?.branding?.logo_url ? (
             <img src={meta.branding.logo_url} alt="League logo" className="h-14 md:h-20 w-auto object-contain" />
