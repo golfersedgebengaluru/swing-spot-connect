@@ -109,3 +109,40 @@ describe("LeagueScreen (public bay screen)", () => {
     });
   });
 });
+
+describe("LeagueScreen team-first view", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("/screen-leaderboard")) {
+        return new Response(JSON.stringify(TEAM_LEADERBOARD), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      if (url.includes("/screen")) {
+        return new Response(JSON.stringify(META), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return new Response("{}", { status: 404 });
+    });
+  });
+
+  it("hides individuals by default and shows teams only", async () => {
+    renderAt("/leagues/lg1/screen");
+    await waitFor(() => expect(screen.getAllByText("Eagles").length).toBeGreaterThan(0));
+    expect(screen.queryByText("Solo Sam")).not.toBeInTheDocument();
+    expect(screen.queryByText("Alice Kumar")).not.toBeInTheDocument();
+  });
+
+  it("expands a team row to reveal member sub-rows", async () => {
+    renderAt("/leagues/lg1/screen");
+    await waitFor(() => screen.getAllByText("Eagles"));
+    const target = screen.getAllByText("Eagles")[0].closest('[role="button"]') as HTMLElement;
+    fireEvent.click(target);
+    await waitFor(() => expect(screen.getAllByText(/Alice Kumar/).length).toBeGreaterThan(0));
+  });
+
+  it("toggling to All view shows individuals again", async () => {
+    renderAt("/leagues/lg1/screen");
+    await waitFor(() => screen.getAllByText("Eagles"));
+    fireEvent.click(screen.getByTestId("view-all"));
+    await waitFor(() => expect(screen.getByText("Solo Sam")).toBeInTheDocument());
+  });
+});
