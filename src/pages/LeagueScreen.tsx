@@ -195,7 +195,7 @@ export default function LeagueScreen() {
           )}
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-widest text-muted-foreground">Live Leaderboard</p>
-            <h1 className="text-2xl md:text-4xl font-bold truncate">{meta?.league?.name || (metaLoading ? "Loading…" : "League")}</h1>
+            <h1 className="text-lg sm:text-2xl md:text-4xl font-bold truncate">{meta?.league?.name || (metaLoading ? "Loading…" : "League")}</h1>
           </div>
         </div>
         {meta?.branding?.sponsor_logo_url && (
