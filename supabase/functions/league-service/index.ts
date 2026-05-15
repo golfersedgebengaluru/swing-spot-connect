@@ -540,12 +540,70 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   const supabase = createClient(supabaseUrl, serviceKey)
 
-  const user = await getUser(req, supabase)
-  if (!user) return err('Unauthorized', 401)
-
   const url = new URL(req.url)
   const route = parseRoute(url)
   const method = req.method
+
+  // ── PUBLIC BAY-SCREEN ROUTES (no auth) ──────────────────────
+  try {
+    if (route.action === 'league-screen' && route.leagueId && method === 'GET') {
+      const { data: league } = await supabase
+        .from('leagues')
+        .select('id, name, status, leaderboard_visibility, tenant_id')
+        .eq('id', route.leagueId)
+        .single()
+      if (!league) return err('League not found', 404)
+      if (league.leaderboard_visibility !== 'public') return err('Leaderboard is not public', 403)
+      const { data: branding } = await supabase
+        .from('league_branding')
+        .select('logo_url, sponsor_name, sponsor_logo_url, sponsor_url')
+        .eq('league_id', route.leagueId)
+        .maybeSingle()
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('default_logo_url, name')
+        .eq('id', league.tenant_id)
+        .maybeSingle()
+      const { data: cities } = await supabase
+        .from('league_cities')
+        .select('id, name, display_order')
+        .eq('league_id', route.leagueId)
+        .order('display_order', { ascending: true })
+      return json({
+        league: { id: league.id, name: league.name, status: league.status },
+        branding: {
+          logo_url: branding?.logo_url || tenant?.default_logo_url || null,
+          sponsor_name: branding?.sponsor_name || null,
+          sponsor_logo_url: branding?.sponsor_logo_url || null,
+          sponsor_url: branding?.sponsor_url || null,
+        },
+        cities: cities || [],
+      })
+    }
+
+    if (route.action === 'league-screen-leaderboard' && route.leagueId && method === 'GET') {
+      const { data: league } = await supabase
+        .from('leagues')
+        .select('id, leaderboard_visibility')
+        .eq('id', route.leagueId)
+        .single()
+      if (!league) return err('League not found', 404)
+      if (league.leaderboard_visibility !== 'public') return err('Leaderboard is not public', 403)
+      const cityId = url.searchParams.get('league_city_id')
+      const result = await computeLeaderboard(supabase, route.leagueId, {
+        round: null,
+        filter: (url.searchParams.get('filter') as any) || 'all',
+        scope: cityId ? 'city' : 'national',
+        cityId,
+      })
+      return json(result)
+    }
+  } catch (e) {
+    return err((e as Error).message, 500)
+  }
+
+  const user = await getUser(req, supabase)
+  if (!user) return err('Unauthorized', 401)
 
   try {
     // ── TENANTS ────────────────────────────────────────────
