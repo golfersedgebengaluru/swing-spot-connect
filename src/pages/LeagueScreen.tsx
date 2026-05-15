@@ -75,33 +75,71 @@ function CityPill({ active, label, onClick }: { active: boolean; label: string; 
   );
 }
 
-function LeaderboardRow({ entry, handicapActive }: { entry: LeaderboardEntry; handicapActive: boolean }) {
+function TypePill({ type }: { type: "individual" | "team" }) {
+  if (type === "team") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-foreground text-background px-2.5 py-0.5 text-[11px] font-medium">
+        <Trophy className="h-3 w-3" /> Team
+      </span>
+    );
+  }
   return (
-    <div
-      className={cn(
-        "grid grid-cols-[64px_1fr_120px_120px_100px] items-center gap-4 px-6 py-4 rounded-xl",
-        entry.rank <= 3 ? "bg-accent/15" : "bg-card/40",
-      )}
-    >
-      <div className={cn("text-3xl md:text-4xl font-bold tabular-nums", entry.rank === 1 ? "text-accent" : "text-foreground")}>
-        {entry.rank}
+    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-0.5 text-[11px] font-medium text-foreground">
+      <User className="h-3 w-3" /> Individual
+    </span>
+  );
+}
+
+function LeaderboardRow({ entry, handicapActive }: { entry: LeaderboardEntry; handicapActive: boolean }) {
+  const net = Math.round(entry.total_net);
+  const par = entry.total_par !== undefined ? Math.round(entry.total_par) : null;
+  const vsPar = entry.final_vs_par;
+  const final = Math.round(entry.final_score);
+  const vsParClass = (vsPar ?? 0) > 0 ? "text-destructive" : (vsPar ?? 0) < 0 ? "text-emerald-600" : "text-foreground";
+  return (
+    <>
+      {/* Desktop / tablet row */}
+      <div className="hidden sm:grid grid-cols-[40px_minmax(0,1.6fr)_110px_60px_60px_70px_70px_70px] items-center gap-3 px-4 py-3 border-b border-border/60">
+        <div className="text-base font-semibold tabular-nums">{entry.rank}</div>
+        <div className="min-w-0">
+          <div className="font-medium truncate">{entry.name}</div>
+          {entry.team_name && <div className="text-xs text-muted-foreground truncate">{entry.team_name}</div>}
+        </div>
+        <div><TypePill type={entry.type} /></div>
+        <div className="text-right tabular-nums">{net}</div>
+        <div className="text-right tabular-nums text-muted-foreground">{par ?? "—"}</div>
+        <div className={cn("text-right tabular-nums font-semibold", vsParClass)}>
+          {handicapActive ? formatVsPar(vsPar) : "—"}
+        </div>
+        <div className="text-right tabular-nums font-bold">{final}</div>
+        <div className="text-right tabular-nums text-muted-foreground">{entry.rounds_played}</div>
       </div>
-      <div className="min-w-0">
-        <div className="text-xl md:text-2xl font-semibold truncate">{entry.name}</div>
-        {entry.team_name && <div className="text-xs md:text-sm text-muted-foreground truncate">{entry.team_name}</div>}
+
+      {/* Mobile row */}
+      <div className="sm:hidden flex items-center gap-3 px-3 py-3 border-b border-border/60">
+        <div className="w-6 text-base font-semibold tabular-nums shrink-0">{entry.rank}</div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-medium truncate">{entry.name}</span>
+            {entry.type === "team" ? (
+              <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            ) : (
+              <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            )}
+          </div>
+          <div className="mt-0.5 flex items-center gap-3 text-[11px] text-muted-foreground tabular-nums">
+            <span>Net {net}</span>
+            <span>Par {par ?? "—"}</span>
+            {handicapActive && <span className={cn("font-semibold", vsParClass)}>{formatVsPar(vsPar)}</span>}
+            <span>R {entry.rounds_played}</span>
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="text-lg font-bold tabular-nums leading-none">{final}</div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">Final</div>
+        </div>
       </div>
-      {handicapActive ? (
-        <div className="text-2xl md:text-3xl font-bold tabular-nums text-right">{formatVsPar(entry.final_vs_par)}</div>
-      ) : (
-        <div className="text-2xl md:text-3xl font-bold tabular-nums text-right">{Math.round(entry.total_gross)}</div>
-      )}
-      <div className="text-lg md:text-xl tabular-nums text-right text-muted-foreground">
-        {handicapActive ? Math.round(entry.final_score) : "—"}
-      </div>
-      <div className="text-sm md:text-base text-right text-muted-foreground">
-        {entry.rounds_played} rd{entry.rounds_played === 1 ? "" : "s"}
-      </div>
-    </div>
+    </>
   );
 }
 
