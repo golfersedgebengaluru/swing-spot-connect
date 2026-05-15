@@ -2083,7 +2083,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
   const [scorecardScore, setScorecardScore] = useState<any | null>(null);
   const { data: players, isLoading: playersLoading } = useLeaguePlayers(league.id);
   const removePlayer = useRemoveLeaguePlayer(league.id);
-  const { data: branding } = useLeagueBranding(tenant.sponsorship_enabled ? league.id : null);
+  const { data: branding } = useLeagueBranding(league.id);
   const updateBranding = useUpdateBranding(league.id);
   const { data: auditLogs } = useLeagueAuditLog(league.tenant_id, league.id);
   const { data: teams } = useLeagueTeams(league.id);
@@ -2152,7 +2152,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
           <TabsTrigger value="scores">Scores ({scores?.length || 0})</TabsTrigger>
           <TabsTrigger value="leaderboard"><BarChart3 className="h-3.5 w-3.5 mr-1" />Leaderboard</TabsTrigger>
           <TabsTrigger value="scoring"><Settings2 className="h-3.5 w-3.5 mr-1" />Scoring</TabsTrigger>
-          {tenant.sponsorship_enabled && <TabsTrigger value="branding">Branding</TabsTrigger>}
+          <TabsTrigger value="branding">Branding</TabsTrigger>
           <TabsTrigger value="wrapup"><Trophy className="h-3.5 w-3.5 mr-1" />Wrap-Up</TabsTrigger>
           <TabsTrigger value="audit">Audit Log</TabsTrigger>
         </TabsList>
