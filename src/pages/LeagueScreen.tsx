@@ -255,6 +255,32 @@ export default function LeagueScreen() {
   const entries = useMemo(() => lb?.entries || [], [lb]);
   const handicapActive = !!lb?.handicap_active;
 
+  const teamEntries = useMemo(() => entries.filter((e) => e.type === "team"), [entries]);
+  const hasTeams = teamEntries.length > 0;
+
+  const viewKey = id ? `league-screen:${id}:view` : null;
+  const [viewMode, setViewMode] = useState<"teams" | "all">("teams");
+  useEffect(() => {
+    if (!viewKey) return;
+    const stored = localStorage.getItem(viewKey);
+    if (stored === "teams" || stored === "all") setViewMode(stored);
+  }, [viewKey]);
+  const updateViewMode = (next: "teams" | "all") => {
+    setViewMode(next);
+    if (viewKey) localStorage.setItem(viewKey, next);
+  };
+  const effectiveView: "teams" | "all" = hasTeams ? viewMode : "all";
+
+  const displayRows = useMemo(() => {
+    if (effectiveView === "teams") {
+      return teamEntries.map((entry, i) => ({ entry, rank: i + 1 }));
+    }
+    return entries.map((entry) => ({ entry, rank: entry.rank }));
+  }, [effectiveView, teamEntries, entries]);
+
+  const [openTeams, setOpenTeams] = useState<Record<string, boolean>>({});
+  const toggleTeam = (key: string) => setOpenTeams((s) => ({ ...s, [key]: !s[key] }));
+
   if (metaError) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center text-center p-6">
