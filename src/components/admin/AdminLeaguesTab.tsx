@@ -1300,6 +1300,14 @@ function RoundsPanel({ league }: { league: League }) {
                         )}
                       </div>
                     )}
+                    {adminHH?.revealed_at && (
+                      <RevealedRoundScores
+                        leagueId={league.id}
+                        roundNumber={r.round_number}
+                        parPerHole={r.par_per_hole || []}
+                        hiddenHoles={adminHH.hidden_holes || []}
+                      />
+                    )}
                     <CompetitionEditor leagueId={league.id} round={r} />
                   </div>
                 )}
