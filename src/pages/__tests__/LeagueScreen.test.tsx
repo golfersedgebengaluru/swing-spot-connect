@@ -70,7 +70,7 @@ describe("LeagueScreen (public bay screen)", () => {
     expect(screen.getByText("All Locations")).toBeInTheDocument();
     expect(screen.getByText("Bengaluru")).toBeInTheDocument();
     expect(screen.getByText("Vizag")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText("Alice")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("Alice").length).toBeGreaterThan(0));
   });
 
   it("defaults to national scope (no city query param)", async () => {
