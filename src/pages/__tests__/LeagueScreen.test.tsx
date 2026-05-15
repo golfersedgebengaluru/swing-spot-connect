@@ -28,6 +28,23 @@ const LEADERBOARD = {
   handicap_active: true,
 };
 
+const TEAM_LEADERBOARD = {
+  entries: [
+    { rank: 5, type: "individual", id: "p1", name: "Solo Sam", total_gross: 80, total_net: 78, final_score: 78, total_par: 72, net_vs_par: 6, final_vs_par: 6, rounds_played: 1, breakdown: [] },
+    { rank: 1, type: "team", id: "t1", name: "Eagles", total_gross: 140, total_net: 136, final_score: 126, total_par: 144, net_vs_par: -8, final_vs_par: -18, rounds_played: 2, breakdown: [], members: [
+      { player_id: "m1", name: "Alice Kumar", net_score: 68 },
+      { player_id: "m2", name: "Rohit Shah", net_score: 70 },
+    ] },
+    { rank: 2, type: "team", id: "t2", name: "Hawks", total_gross: 145, total_net: 142, final_score: 131, total_par: 144, net_vs_par: -2, final_vs_par: -13, rounds_played: 2, breakdown: [], members: [
+      { player_id: "m3", name: "Priya N", net_score: 71 },
+    ] },
+  ],
+  round: null,
+  filter: "all",
+  scope: "national",
+  handicap_active: true,
+};
+
 const fetchMock = vi.fn();
 
 beforeEach(() => {
