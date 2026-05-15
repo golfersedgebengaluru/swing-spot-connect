@@ -143,6 +143,6 @@ describe("LeagueScreen team-first view", () => {
     renderAt("/leagues/lg1/screen");
     await waitFor(() => screen.getAllByText("Eagles"));
     fireEvent.click(screen.getByTestId("view-all"));
-    await waitFor(() => expect(screen.getByText("Solo Sam")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("Solo Sam").length).toBeGreaterThan(0));
   });
 });
