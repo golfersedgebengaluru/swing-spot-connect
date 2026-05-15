@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Trophy, Loader2 } from "lucide-react";
+import { Trophy, Loader2, User, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LeaderboardEntry, LeaderboardResponse, LeagueCity } from "@/types/league";
 
@@ -75,33 +75,71 @@ function CityPill({ active, label, onClick }: { active: boolean; label: string; 
   );
 }
 
-function LeaderboardRow({ entry, handicapActive }: { entry: LeaderboardEntry; handicapActive: boolean }) {
+function TypePill({ type }: { type: "individual" | "team" }) {
+  if (type === "team") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-foreground text-background px-2.5 py-0.5 text-[11px] font-medium">
+        <Trophy className="h-3 w-3" /> Team
+      </span>
+    );
+  }
   return (
-    <div
-      className={cn(
-        "grid grid-cols-[64px_1fr_120px_120px_100px] items-center gap-4 px-6 py-4 rounded-xl",
-        entry.rank <= 3 ? "bg-accent/15" : "bg-card/40",
-      )}
-    >
-      <div className={cn("text-3xl md:text-4xl font-bold tabular-nums", entry.rank === 1 ? "text-accent" : "text-foreground")}>
-        {entry.rank}
+    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-0.5 text-[11px] font-medium text-foreground">
+      <User className="h-3 w-3" /> Individual
+    </span>
+  );
+}
+
+function LeaderboardRow({ entry, handicapActive }: { entry: LeaderboardEntry; handicapActive: boolean }) {
+  const net = Math.round(entry.total_net);
+  const par = entry.total_par !== undefined ? Math.round(entry.total_par) : null;
+  const vsPar = entry.final_vs_par;
+  const final = Math.round(entry.final_score);
+  const vsParClass = (vsPar ?? 0) > 0 ? "text-destructive" : (vsPar ?? 0) < 0 ? "text-emerald-600" : "text-foreground";
+  return (
+    <>
+      {/* Desktop / tablet row */}
+      <div className="hidden sm:grid grid-cols-[40px_minmax(0,1.6fr)_110px_60px_60px_70px_70px_70px] items-center gap-3 px-4 py-3 border-b border-border/60">
+        <div className="text-base font-semibold tabular-nums">{entry.rank}</div>
+        <div className="min-w-0">
+          <div className="font-medium truncate">{entry.name}</div>
+          {entry.team_name && <div className="text-xs text-muted-foreground truncate">{entry.team_name}</div>}
+        </div>
+        <div><TypePill type={entry.type} /></div>
+        <div className="text-right tabular-nums">{net}</div>
+        <div className="text-right tabular-nums text-muted-foreground">{par ?? "—"}</div>
+        <div className={cn("text-right tabular-nums font-semibold", vsParClass)}>
+          {handicapActive ? formatVsPar(vsPar) : "—"}
+        </div>
+        <div className="text-right tabular-nums font-bold">{final}</div>
+        <div className="text-right tabular-nums text-muted-foreground">{entry.rounds_played}</div>
       </div>
-      <div className="min-w-0">
-        <div className="text-xl md:text-2xl font-semibold truncate">{entry.name}</div>
-        {entry.team_name && <div className="text-xs md:text-sm text-muted-foreground truncate">{entry.team_name}</div>}
+
+      {/* Mobile row */}
+      <div className="sm:hidden flex items-center gap-3 px-3 py-3 border-b border-border/60">
+        <div className="w-6 text-base font-semibold tabular-nums shrink-0">{entry.rank}</div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-medium truncate">{entry.name}</span>
+            {entry.type === "team" ? (
+              <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            ) : (
+              <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            )}
+          </div>
+          <div className="mt-0.5 flex items-center gap-3 text-[11px] text-muted-foreground tabular-nums">
+            <span>Net {net}</span>
+            <span>Par {par ?? "—"}</span>
+            {handicapActive && <span className={cn("font-semibold", vsParClass)}>{formatVsPar(vsPar)}</span>}
+            <span>R {entry.rounds_played}</span>
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="text-lg font-bold tabular-nums leading-none">{final}</div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">Final</div>
+        </div>
       </div>
-      {handicapActive ? (
-        <div className="text-2xl md:text-3xl font-bold tabular-nums text-right">{formatVsPar(entry.final_vs_par)}</div>
-      ) : (
-        <div className="text-2xl md:text-3xl font-bold tabular-nums text-right">{Math.round(entry.total_gross)}</div>
-      )}
-      <div className="text-lg md:text-xl tabular-nums text-right text-muted-foreground">
-        {handicapActive ? Math.round(entry.final_score) : "—"}
-      </div>
-      <div className="text-sm md:text-base text-right text-muted-foreground">
-        {entry.rounds_played} rd{entry.rounds_played === 1 ? "" : "s"}
-      </div>
-    </div>
+    </>
   );
 }
 
@@ -146,7 +184,7 @@ export default function LeagueScreen() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 text-foreground">
       {/* Top bar */}
-      <header className="flex items-center justify-between gap-6 px-6 md:px-12 py-6 border-b border-border/40">
+      <header className="flex items-center justify-between gap-3 sm:gap-6 px-3 sm:px-6 md:px-12 py-4 sm:py-6 border-b border-border/40">
         <div className="flex items-center gap-4 min-w-0">
           {meta?.branding?.logo_url ? (
             <img src={meta.branding.logo_url} alt="League logo" className="h-14 md:h-20 w-auto object-contain" />
@@ -157,7 +195,7 @@ export default function LeagueScreen() {
           )}
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-widest text-muted-foreground">Live Leaderboard</p>
-            <h1 className="text-2xl md:text-4xl font-bold truncate">{meta?.league?.name || (metaLoading ? "Loading…" : "League")}</h1>
+            <h1 className="text-lg sm:text-2xl md:text-4xl font-bold truncate">{meta?.league?.name || (metaLoading ? "Loading…" : "League")}</h1>
           </div>
         </div>
         {meta?.branding?.sponsor_logo_url && (
@@ -176,7 +214,7 @@ export default function LeagueScreen() {
       </header>
 
       {/* City pills */}
-      <div className="flex flex-wrap gap-2 md:gap-3 px-6 md:px-12 py-5">
+      <div className="flex flex-wrap gap-2 md:gap-3 px-3 sm:px-6 md:px-12 py-3 sm:py-5">
         <CityPill active={!cityId} label="All Locations" onClick={() => setCity(null)} />
         {(meta?.cities || []).map((c) => (
           <CityPill key={c.id} active={cityId === c.id} label={c.name} onClick={() => setCity(c.id)} />
@@ -184,21 +222,31 @@ export default function LeagueScreen() {
       </div>
 
       {/* Leaderboard */}
-      <main className="px-6 md:px-12 pb-12">
-        <div className="grid grid-cols-[64px_1fr_120px_120px_100px] gap-4 px-6 pb-3 text-xs uppercase tracking-widest text-muted-foreground">
-          <div>Rank</div>
-          <div>Player / Team</div>
-          <div className="text-right">{handicapActive ? "vs Par" : "Gross"}</div>
-          <div className="text-right">{handicapActive ? "Net" : ""}</div>
-          <div className="text-right">Played</div>
-        </div>
-        <div className="space-y-2">
+      <main className="px-3 sm:px-6 md:px-12 pb-12">
+        <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+          {/* Header row (desktop) */}
+          <div className="hidden sm:grid grid-cols-[40px_minmax(0,1.6fr)_110px_60px_60px_70px_70px_70px] gap-3 px-4 py-3 border-b border-border bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+            <div>#</div>
+            <div>Name</div>
+            <div>Type</div>
+            <div className="text-right">Net</div>
+            <div className="text-right">Par</div>
+            <div className="text-right">vs Par</div>
+            <div className="text-right">Final</div>
+            <div className="text-right">Rounds</div>
+          </div>
+          {/* Header row (mobile) */}
+          <div className="sm:hidden flex items-center gap-3 px-3 py-2 border-b border-border bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+            <div className="w-6">#</div>
+            <div className="flex-1">Name</div>
+            <div className="w-12 text-right">Final</div>
+          </div>
           {lbLoading && entries.length === 0 ? (
-            <div className="flex items-center justify-center py-20 text-muted-foreground">
-              <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading scores…
+            <div className="flex items-center justify-center py-16 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading scores…
             </div>
           ) : entries.length === 0 ? (
-            <div className="text-center py-20 text-muted-foreground">No scores recorded yet for this view.</div>
+            <div className="text-center py-16 text-muted-foreground text-sm">No scores recorded yet for this view.</div>
           ) : (
             entries.map((e) => <LeaderboardRow key={`${e.type}-${e.id}`} entry={e} handicapActive={handicapActive} />)
           )}
