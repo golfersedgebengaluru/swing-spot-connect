@@ -63,6 +63,7 @@ import {
   useHiddenHolesAdmin,
   useSetHiddenHoles,
   useCloseRound,
+  useLeagueScores,
   useLeaderboard,
   useUpdateTenant,
   useLeagueCities,
