@@ -1893,7 +1893,15 @@ function LeaderboardPanel({ league }: { league: League }) {
 
   if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>;
 
-  const entries = leaderboard?.entries || [];
+  const rawEntries = leaderboard?.entries || [];
+  const teamEntries = rawEntries.filter((e) => e.type === 'team');
+  const hasTeams = teamEntries.length > 0;
+  // When viewing "all" and the league has teams, default to a team-first compact view
+  // (only teams listed, ranked 1..N; click chevron to expand member sub-rows).
+  const teamFirst = filter === 'all' && hasTeams;
+  const entries: LeaderboardEntry[] = teamFirst
+    ? teamEntries.map((e, i) => ({ ...e, rank: i + 1 }))
+    : rawEntries;
 
   return (
     <div className="space-y-4">
