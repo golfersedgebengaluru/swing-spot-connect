@@ -203,27 +203,37 @@ function MemberSubRows({ members }: { members: NonNullable<LeaderboardEntry["mem
   }
   return (
     <div className="bg-muted/20 border-b border-border/60" data-testid="team-members">
-      {members.map((m) => (
-        <div key={m.player_id}>
-          {/* Desktop sub-row */}
-          <div className="hidden sm:grid grid-cols-[28px_40px_minmax(0,1.6fr)_110px_60px_60px_70px_70px_70px] items-center gap-3 pl-12 pr-4 py-2 text-sm">
-            <div />
-            <div className="text-xs text-muted-foreground">·</div>
-            <div className="min-w-0 truncate text-muted-foreground">{m.name}</div>
-            <div />
-            <div className="text-right tabular-nums text-muted-foreground">{Math.round(m.net_score)}</div>
-            <div />
-            <div />
-            <div />
-            <div />
+      {members.map((m) => {
+        const net = Math.round(m.net_score);
+        const gross = m.gross_score !== undefined ? Math.round(m.gross_score) : null;
+        const par = m.total_par !== undefined ? Math.round(m.total_par) : null;
+        const vsPar = m.vs_par;
+        const vsParClass = (vsPar ?? 0) > 0 ? "text-destructive" : (vsPar ?? 0) < 0 ? "text-emerald-600" : "text-muted-foreground";
+        return (
+          <div key={m.player_id}>
+            {/* Desktop sub-row */}
+            <div className="hidden sm:grid grid-cols-[28px_40px_minmax(0,1.6fr)_110px_60px_60px_70px_70px_70px] items-center gap-3 pl-12 pr-4 py-2 text-sm">
+              <div />
+              <div className="text-xs text-muted-foreground">·</div>
+              <div className="min-w-0 truncate text-muted-foreground">{m.name}</div>
+              <div />
+              <div className="text-right tabular-nums text-muted-foreground">{net}</div>
+              <div className="text-right tabular-nums text-muted-foreground">{par ?? "—"}</div>
+              <div className={cn("text-right tabular-nums", vsParClass)}>{vsPar !== undefined ? formatVsPar(vsPar) : "—"}</div>
+              <div className="text-right tabular-nums text-muted-foreground">{gross ?? "—"}</div>
+              <div />
+            </div>
+            {/* Mobile sub-row */}
+            <div className="sm:hidden flex items-center gap-2 pl-9 pr-3 py-1.5 text-xs text-muted-foreground">
+              <span className="truncate flex-1">· {m.name}</span>
+              <span className="tabular-nums">G {gross ?? "—"}</span>
+              <span className="tabular-nums">N {net}</span>
+              <span className="tabular-nums">P {par ?? "—"}</span>
+              {vsPar !== undefined && <span className={cn("tabular-nums font-semibold", vsParClass)}>{formatVsPar(vsPar)}</span>}
+            </div>
           </div>
-          {/* Mobile sub-row */}
-          <div className="sm:hidden flex items-center gap-2 pl-9 pr-3 py-1.5 text-xs text-muted-foreground">
-            <span className="truncate flex-1">· {m.name}</span>
-            <span className="tabular-nums">Net {Math.round(m.net_score)}</span>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

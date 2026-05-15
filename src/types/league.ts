@@ -299,7 +299,7 @@ export interface LeaderboardEntry {
   final_vs_par?: number;
   rounds_played: number;
   breakdown: { round: number; gross: number; net: number; handicap: number; par?: number; net_vs_par?: number }[];
-  members?: { player_id: string; name: string; net_score: number }[];
+  members?: { player_id: string; name: string; net_score: number; gross_score?: number; total_par?: number; vs_par?: number }[];
 }
 
 export interface LeaderboardResponse {

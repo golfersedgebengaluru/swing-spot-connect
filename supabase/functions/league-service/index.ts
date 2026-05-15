@@ -424,7 +424,7 @@ async function computeLeaderboard(
     final_vs_par: number
     rounds_played: number
     breakdown: { round: number; gross: number; net: number; handicap: number; par: number; net_vs_par: number }[]
-    members?: { player_id: string; name: string; net_score: number }[]
+    members?: { player_id: string; name: string; net_score: number; gross_score: number; total_par: number; vs_par: number }[]
   }
 
   const entries: LeaderboardEntry[] = []
@@ -500,11 +500,20 @@ async function computeLeaderboard(
         })
       }
       const finalScore = teamTotalNet * (1 - fairnessPct / 100)
-      const memberDetails = memberUserIds.map((uid) => ({
-        player_id: uid,
-        name: profileMap[uid] || uid.slice(0, 8),
-        net_score: (individualScores[uid] || []).reduce((s, p) => s + p.net_score, 0),
-      }))
+      const memberDetails = memberUserIds.map((uid) => {
+        const ms = individualScores[uid] || []
+        const net = ms.reduce((s, p) => s + p.net_score, 0)
+        const gross = ms.reduce((s, p) => s + p.gross_score, 0)
+        const par = ms.reduce((s, p) => s + (roundParMap[p.round_number] || 0), 0)
+        return {
+          player_id: uid,
+          name: profileMap[uid] || uid.slice(0, 8),
+          net_score: net,
+          gross_score: gross,
+          total_par: par,
+          vs_par: net - par,
+        }
+      })
       entries.push({
         type: 'team',
         id: team.id,
