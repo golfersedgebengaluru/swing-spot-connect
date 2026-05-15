@@ -2003,6 +2003,11 @@ function LeaderboardPanel({ league }: { league: League }) {
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => setExpandedEntry(expandedEntry === entry.id ? null : entry.id)}
                 >
+                  <TableCell className="px-2">
+                    {expandable ? (
+                      <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition-transform", isExpanded && "rotate-90")} />
+                    ) : null}
+                  </TableCell>
                   <TableCell className="font-semibold">{entry.rank}</TableCell>
                   <TableCell>
                     <div>
