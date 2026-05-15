@@ -283,9 +283,249 @@ function parseRoute(url: URL): Route {
     if (subResource === 'my-team') {
       return { action: 'legacy-my-team', leagueId, subResource }
     }
+    // /leagues/:id/screen → public bay-screen meta
+    if (subResource === 'screen') {
+      return { action: 'league-screen', leagueId, subResource }
+    }
+    // /leagues/:id/screen-leaderboard → public bay-screen leaderboard
+    if (subResource === 'screen-leaderboard') {
+      return { action: 'league-screen-leaderboard', leagueId, subResource }
+    }
     return { action: `league-${subResource}`, leagueId, subResource }
   }
   return { action: 'unknown' }
+}
+
+// ── Leaderboard helper (shared with public bay-screen) ───────
+async function computeLeaderboard(
+  supabase: any,
+  leagueId: string,
+  opts: { round?: number | null; filter?: 'all' | 'individuals' | 'teams'; scope?: 'national' | 'city'; cityId?: string | null },
+) {
+  const filterParam = opts.filter || 'all'
+  const scopeParam = opts.scope || 'national'
+  const cityIdParam = opts.cityId || null
+  const roundParam = opts.round ?? null
+
+  const { data: league } = await supabase
+    .from('leagues')
+    .select('tenant_id, scoring_holes, fairness_factor_pct, team_aggregation_method, peoria_multiplier')
+    .eq('id', leagueId)
+    .single()
+  if (!league) throw new Error('League not found')
+
+  let cityScopedPlayerIds: Set<string> | null = null
+  let cityScopedTeamIds: Set<string> | null = null
+  if (scopeParam === 'city' && cityIdParam) {
+    const { data: cityPlayers } = await supabase.from('league_players').select('user_id').eq('league_id', leagueId).eq('league_city_id', cityIdParam)
+    cityScopedPlayerIds = new Set((cityPlayers || []).map((p: any) => p.user_id))
+    const { data: cityTeams } = await supabase.from('league_teams').select('id').eq('league_id', leagueId).eq('league_city_id', cityIdParam)
+    cityScopedTeamIds = new Set((cityTeams || []).map((t: any) => t.id))
+  }
+
+  let scoresQuery = supabase.from('league_scores').select('*').eq('league_id', leagueId)
+  if (roundParam) scoresQuery = scoresQuery.eq('round_number', roundParam)
+  const { data: scoresAll } = await scoresQuery
+  const scores = cityScopedPlayerIds
+    ? (scoresAll || []).filter((s: any) => cityScopedPlayerIds!.has(s.player_id))
+    : (scoresAll || [])
+  if (!scores || scores.length === 0) {
+    return { entries: [], round: roundParam, filter: filterParam, scope: scopeParam, league_city_id: cityIdParam, handicap_active: false }
+  }
+
+  const hiddenHolesMap: Record<number, number[]> = {}
+  const { data: allHH } = await supabase.from('league_round_hidden_holes').select('*').eq('league_id', leagueId)
+  for (const hh of (allHH || [])) {
+    if (hh.revealed_at) hiddenHolesMap[hh.round_number] = hh.hidden_holes as number[]
+  }
+
+  const { data: allRounds } = await supabase
+    .from('league_rounds')
+    .select('round_number, par_per_hole')
+    .eq('league_id', leagueId)
+  const roundParMap: Record<number, number> = {}
+  for (const r of (allRounds || [])) {
+    const arr = (r.par_per_hole as number[]) || []
+    roundParMap[r.round_number] = arr.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
+  }
+
+  const HC_MULTIPLIER = 3
+  const fairnessPct = Number(league.fairness_factor_pct) || 0
+  const aggregation = league.team_aggregation_method || 'best_ball'
+
+  interface PlayerScoreEntry {
+    player_id: string
+    round_number: number
+    gross_score: number
+    net_score: number
+    hidden_hole_sum: number
+    peoria_handicap: number
+  }
+
+  const playerScores: PlayerScoreEntry[] = []
+  for (const score of scores) {
+    const holeScores = score.hole_scores as number[]
+    const grossScore = score.total_score || (holeScores ? holeScores.reduce((s: number, v: number) => s + (v || 0), 0) : 0)
+    const hiddenHoles = hiddenHolesMap[score.round_number]
+    const roundPar = roundParMap[score.round_number] || 0
+    let netScore = grossScore
+    let hiddenSum = 0
+    let handicap = 0
+    if (hiddenHoles && holeScores && holeScores.length > 0 && roundPar > 0) {
+      hiddenSum = hiddenHoles.reduce((sum, holeNum) => sum + (holeScores[holeNum - 1] || 0), 0)
+      handicap = (hiddenSum * HC_MULTIPLIER) - roundPar
+      netScore = grossScore - handicap
+    }
+    playerScores.push({
+      player_id: score.player_id,
+      round_number: score.round_number,
+      gross_score: grossScore,
+      net_score: netScore,
+      hidden_hole_sum: hiddenSum,
+      peoria_handicap: handicap,
+    })
+  }
+
+  const { data: teams } = await supabase.from('league_teams').select('id, name, max_roster_size').eq('league_id', leagueId)
+  const { data: teamMembers } = await supabase.from('league_team_members').select('team_id, player_id').in('team_id', (teams || []).map((t: any) => t.id))
+  const { data: playerRows } = await supabase.from('league_players').select('id, user_id, team_id').eq('league_id', leagueId)
+
+  const playerIdToTeamId: Record<string, string> = {}
+  for (const tm of (teamMembers || [])) {
+    const playerRow = (playerRows || []).find((p: any) => p.id === tm.player_id)
+    if (playerRow) playerIdToTeamId[playerRow.user_id] = tm.team_id
+  }
+  for (const p of (playerRows || [])) {
+    if (p.team_id && !playerIdToTeamId[p.user_id]) {
+      playerIdToTeamId[p.user_id] = p.team_id
+    }
+  }
+
+  const allPlayerIds = [...new Set(playerScores.map((ps) => ps.player_id))]
+  let profileMap: Record<string, string> = {}
+  if (allPlayerIds.length > 0) {
+    const { data: profiles } = await supabase.from('profiles').select('user_id, display_name').in('user_id', allPlayerIds)
+    if (profiles) profileMap = Object.fromEntries(profiles.map((p: any) => [p.user_id, p.display_name || '']))
+  }
+
+  const teamMap: Record<string, string> = {}
+  for (const t of (teams || [])) teamMap[t.id] = t.name
+
+  type LeaderboardEntry = {
+    type: 'individual' | 'team'
+    id: string
+    name: string
+    team_name?: string
+    total_gross: number
+    total_net: number
+    final_score: number
+    total_par: number
+    net_vs_par: number
+    final_vs_par: number
+    rounds_played: number
+    breakdown: { round: number; gross: number; net: number; handicap: number; par: number; net_vs_par: number }[]
+    members?: { player_id: string; name: string; net_score: number }[]
+  }
+
+  const entries: LeaderboardEntry[] = []
+  const individualScores: Record<string, PlayerScoreEntry[]> = {}
+  for (const ps of playerScores) {
+    if (!individualScores[ps.player_id]) individualScores[ps.player_id] = []
+    individualScores[ps.player_id].push(ps)
+  }
+
+  if (filterParam !== 'teams') {
+    for (const [playerId, pScores] of Object.entries(individualScores)) {
+      const totalGross = pScores.reduce((s, p) => s + p.gross_score, 0)
+      const totalNet = pScores.reduce((s, p) => s + p.net_score, 0)
+      const totalPar = pScores.reduce((s, p) => s + (roundParMap[p.round_number] || 0), 0)
+      const teamId = playerIdToTeamId[playerId]
+      entries.push({
+        type: 'individual',
+        id: playerId,
+        name: profileMap[playerId] || playerId.slice(0, 8),
+        team_name: teamId ? teamMap[teamId] : undefined,
+        total_gross: totalGross,
+        total_net: totalNet,
+        final_score: totalNet,
+        total_par: totalPar,
+        net_vs_par: totalNet - totalPar,
+        final_vs_par: totalNet - totalPar,
+        rounds_played: pScores.length,
+        breakdown: pScores.map((p) => {
+          const par = roundParMap[p.round_number] || 0
+          return { round: p.round_number, gross: p.gross_score, net: p.net_score, handicap: p.peoria_handicap, par, net_vs_par: p.net_score - par }
+        }),
+      })
+    }
+  }
+
+  if (filterParam !== 'individuals' && teams && teams.length > 0) {
+    for (const team of teams) {
+      if (cityScopedTeamIds && !cityScopedTeamIds.has(team.id)) continue
+      const memberUserIds = Object.entries(playerIdToTeamId)
+        .filter(([, tid]) => tid === team.id)
+        .map(([uid]) => uid)
+      if (memberUserIds.length === 0) continue
+      const roundNumbers = [...new Set(playerScores.map((ps) => ps.round_number))]
+      let teamTotalNet = 0
+      let teamTotalGross = 0
+      let teamTotalPar = 0
+      const teamBreakdown: { round: number; gross: number; net: number; handicap: number; par: number; net_vs_par: number }[] = []
+      for (const rn of roundNumbers) {
+        const memberScoresForRound = playerScores.filter(
+          (ps) => memberUserIds.includes(ps.player_id) && ps.round_number === rn
+        )
+        if (memberScoresForRound.length === 0) continue
+        let roundGross: number
+        if (aggregation === 'best_ball') {
+          const best = memberScoresForRound.reduce((a, b) => a.gross_score < b.gross_score ? a : b)
+          roundGross = best.gross_score
+        } else {
+          roundGross = memberScoresForRound.reduce((s, p) => s + p.gross_score, 0) / memberScoresForRound.length
+        }
+        const roundHandicap = memberScoresForRound.reduce((s, p) => s + p.peoria_handicap, 0) / memberScoresForRound.length
+        const roundNet = roundGross - roundHandicap
+        const roundPar = roundParMap[rn] || 0
+        teamTotalNet += roundNet
+        teamTotalGross += roundGross
+        teamTotalPar += roundPar
+        teamBreakdown.push({
+          round: rn,
+          gross: Math.round(roundGross * 100) / 100,
+          net: Math.round(roundNet * 100) / 100,
+          handicap: Math.round(roundHandicap * 100) / 100,
+          par: roundPar,
+          net_vs_par: Math.round((roundNet - roundPar) * 100) / 100,
+        })
+      }
+      const finalScore = teamTotalNet * (1 - fairnessPct / 100)
+      const memberDetails = memberUserIds.map((uid) => ({
+        player_id: uid,
+        name: profileMap[uid] || uid.slice(0, 8),
+        net_score: (individualScores[uid] || []).reduce((s, p) => s + p.net_score, 0),
+      }))
+      entries.push({
+        type: 'team',
+        id: team.id,
+        name: team.name,
+        total_gross: Math.round(teamTotalGross * 100) / 100,
+        total_net: Math.round(teamTotalNet * 100) / 100,
+        final_score: Math.round(finalScore * 100) / 100,
+        total_par: teamTotalPar,
+        net_vs_par: Math.round((teamTotalNet - teamTotalPar) * 100) / 100,
+        final_vs_par: Math.round((finalScore - teamTotalPar) * 100) / 100,
+        rounds_played: teamBreakdown.length,
+        breakdown: teamBreakdown,
+        members: memberDetails,
+      })
+    }
+  }
+
+  entries.sort((a, b) => a.final_score - b.final_score)
+  const ranked = entries.map((e, i) => ({ ...e, rank: i + 1 }))
+  const handicapActive = Object.keys(hiddenHolesMap).length > 0
+  return { entries: ranked, round: roundParam, filter: filterParam, scope: scopeParam, league_city_id: cityIdParam, handicap_active: handicapActive }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -300,12 +540,70 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   const supabase = createClient(supabaseUrl, serviceKey)
 
-  const user = await getUser(req, supabase)
-  if (!user) return err('Unauthorized', 401)
-
   const url = new URL(req.url)
   const route = parseRoute(url)
   const method = req.method
+
+  // ── PUBLIC BAY-SCREEN ROUTES (no auth) ──────────────────────
+  try {
+    if (route.action === 'league-screen' && route.leagueId && method === 'GET') {
+      const { data: league } = await supabase
+        .from('leagues')
+        .select('id, name, status, leaderboard_visibility, tenant_id')
+        .eq('id', route.leagueId)
+        .single()
+      if (!league) return err('League not found', 404)
+      if (league.leaderboard_visibility !== 'public') return err('Leaderboard is not public', 403)
+      const { data: branding } = await supabase
+        .from('league_branding')
+        .select('logo_url, sponsor_name, sponsor_logo_url, sponsor_url')
+        .eq('league_id', route.leagueId)
+        .maybeSingle()
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('default_logo_url, name')
+        .eq('id', league.tenant_id)
+        .maybeSingle()
+      const { data: cities } = await supabase
+        .from('league_cities')
+        .select('id, name, display_order')
+        .eq('league_id', route.leagueId)
+        .order('display_order', { ascending: true })
+      return json({
+        league: { id: league.id, name: league.name, status: league.status },
+        branding: {
+          logo_url: branding?.logo_url || tenant?.default_logo_url || null,
+          sponsor_name: branding?.sponsor_name || null,
+          sponsor_logo_url: branding?.sponsor_logo_url || null,
+          sponsor_url: branding?.sponsor_url || null,
+        },
+        cities: cities || [],
+      })
+    }
+
+    if (route.action === 'league-screen-leaderboard' && route.leagueId && method === 'GET') {
+      const { data: league } = await supabase
+        .from('leagues')
+        .select('id, leaderboard_visibility')
+        .eq('id', route.leagueId)
+        .single()
+      if (!league) return err('League not found', 404)
+      if (league.leaderboard_visibility !== 'public') return err('Leaderboard is not public', 403)
+      const cityId = url.searchParams.get('league_city_id')
+      const result = await computeLeaderboard(supabase, route.leagueId, {
+        round: null,
+        filter: (url.searchParams.get('filter') as any) || 'all',
+        scope: cityId ? 'city' : 'national',
+        cityId,
+      })
+      return json(result)
+    }
+  } catch (e) {
+    return err((e as Error).message, 500)
+  }
+
+  const user = await getUser(req, supabase)
+  if (!user) return err('Unauthorized', 401)
 
   try {
     // ── TENANTS ────────────────────────────────────────────
@@ -1963,269 +2261,21 @@ Deno.serve(async (req) => {
 
     // ── LEADERBOARD ──────────────────────────────────────────
     if (route.action === 'league-leaderboard' && route.leagueId && method === 'GET') {
-      const { data: league } = await supabase.from('leagues').select('tenant_id, scoring_holes, fairness_factor_pct, team_aggregation_method, peoria_multiplier').eq('id', route.leagueId).single()
+      const { data: league } = await supabase.from('leagues').select('tenant_id, leaderboard_visibility').eq('id', route.leagueId).single()
       if (!league) return err('League not found', 404)
-      const tenantId = league.tenant_id
-
-      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      const role = await getUserLeagueRole(supabase, user.id, league.tenant_id)
       if (!role) return err('No access', 403)
-
-      const roundParam = url.searchParams.get('round')
-      const filterParam = url.searchParams.get('filter') || 'all' // all | individuals | teams
-      const scopeParam = url.searchParams.get('scope') || 'national' // national | city
-      const cityIdParam = url.searchParams.get('league_city_id')
-
-      // Enforce leaderboard visibility for non-admins
-      const { data: leagueVis } = await supabase.from('leagues').select('leaderboard_visibility').eq('id', route.leagueId).single()
-      if (leagueVis?.leaderboard_visibility === 'admin_only' && role === 'player') {
+      if (league.leaderboard_visibility === 'admin_only' && role === 'player') {
         return err('Leaderboard not yet visible', 403)
       }
-
-      // If scope=city, restrict players/teams to that city
-      let cityScopedPlayerIds: Set<string> | null = null
-      let cityScopedTeamIds: Set<string> | null = null
-      if (scopeParam === 'city' && cityIdParam) {
-        const { data: cityPlayers } = await supabase.from('league_players').select('user_id').eq('league_id', route.leagueId).eq('league_city_id', cityIdParam)
-        cityScopedPlayerIds = new Set((cityPlayers || []).map((p: any) => p.user_id))
-        const { data: cityTeams } = await supabase.from('league_teams').select('id').eq('league_id', route.leagueId).eq('league_city_id', cityIdParam)
-        cityScopedTeamIds = new Set((cityTeams || []).map((t: any) => t.id))
-      }
-
-      // 1. Fetch all scores (optionally filtered by round)
-      let scoresQuery = supabase.from('league_scores').select('*').eq('league_id', route.leagueId)
-      if (roundParam) scoresQuery = scoresQuery.eq('round_number', parseInt(roundParam))
-      const { data: scoresAll } = await scoresQuery
-      const scores = cityScopedPlayerIds
-        ? (scoresAll || []).filter((s: any) => cityScopedPlayerIds!.has(s.player_id))
-        : (scoresAll || [])
-      if (!scores || scores.length === 0) return json({ entries: [], round: roundParam ? parseInt(roundParam) : null, filter: filterParam, scope: scopeParam, league_city_id: cityIdParam })
-
-      // 2. Fetch hidden holes for Peoria net score calculation
-      let hiddenHolesMap: Record<number, number[]> = {}
-      const { data: allHH } = await supabase.from('league_round_hidden_holes').select('*').eq('league_id', route.leagueId)
-      for (const hh of (allHH || [])) {
-        if (hh.revealed_at) hiddenHolesMap[hh.round_number] = hh.hidden_holes as number[]
-      }
-
-      // Fetch all rounds' par_per_hole → roundParMap[round_number] = total par for round
-      const { data: allRounds } = await supabase
-        .from('league_rounds')
-        .select('round_number, par_per_hole')
-        .eq('league_id', route.leagueId)
-      const roundParMap: Record<number, number> = {}
-      for (const r of (allRounds || [])) {
-        const arr = (r.par_per_hole as number[]) || []
-        roundParMap[r.round_number] = arr.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
-      }
-
-      const HC_MULTIPLIER = 3
-      const fairnessPct = Number(league.fairness_factor_pct) || 0
-      const aggregation = league.team_aggregation_method || 'best_ball'
-
-      // 3. Calculate individual net scores
-      interface PlayerScoreEntry {
-        player_id: string
-        round_number: number
-        gross_score: number
-        net_score: number
-        hidden_hole_sum: number
-        peoria_handicap: number
-      }
-
-      const playerScores: PlayerScoreEntry[] = []
-      for (const score of scores) {
-        const holeScores = score.hole_scores as number[]
-        const grossScore = score.total_score || (holeScores ? holeScores.reduce((s: number, v: number) => s + (v || 0), 0) : 0)
-        const hiddenHoles = hiddenHolesMap[score.round_number]
-        const roundPar = roundParMap[score.round_number] || 0
-        let netScore = grossScore
-        let hiddenSum = 0
-        let handicap = 0
-
-        if (hiddenHoles && holeScores && holeScores.length > 0 && roundPar > 0) {
-          hiddenSum = hiddenHoles.reduce((sum, holeNum) => sum + (holeScores[holeNum - 1] || 0), 0)
-          handicap = (hiddenSum * HC_MULTIPLIER) - roundPar
-          netScore = grossScore - handicap
-        }
-
-        playerScores.push({
-          player_id: score.player_id,
-          round_number: score.round_number,
-          gross_score: grossScore,
-          net_score: netScore,
-          hidden_hole_sum: hiddenSum,
-          peoria_handicap: handicap,
-        })
-      }
-
-      // 4. Fetch teams and memberships
-      const { data: teams } = await supabase.from('league_teams').select('id, name, max_roster_size').eq('league_id', route.leagueId)
-      const { data: teamMembers } = await supabase.from('league_team_members').select('team_id, player_id').in('team_id', (teams || []).map((t: any) => t.id))
-      const { data: playerRows } = await supabase.from('league_players').select('id, user_id, team_id').eq('league_id', route.leagueId)
-
-      // Map player_id (user_id from scores) → team
-      const playerIdToTeamId: Record<string, string> = {}
-      for (const tm of (teamMembers || [])) {
-        // Find user_id for this player_id
-        const playerRow = (playerRows || []).find((p: any) => p.id === tm.player_id)
-        if (playerRow) playerIdToTeamId[playerRow.user_id] = tm.team_id
-      }
-      // Also check league_players.team_id
-      for (const p of (playerRows || [])) {
-        if (p.team_id && !playerIdToTeamId[p.user_id]) {
-          playerIdToTeamId[p.user_id] = p.team_id
-        }
-      }
-
-      // 5. Fetch player display names
-      const allPlayerIds = [...new Set(playerScores.map((ps) => ps.player_id))]
-      let profileMap: Record<string, string> = {}
-      if (allPlayerIds.length > 0) {
-        const { data: profiles } = await supabase.from('profiles').select('user_id, display_name').in('user_id', allPlayerIds)
-        if (profiles) profileMap = Object.fromEntries(profiles.map((p: any) => [p.user_id, p.display_name || '']))
-      }
-
-      const teamMap: Record<string, string> = {}
-      for (const t of (teams || [])) teamMap[t.id] = t.name
-
-      // 6. Build leaderboard entries
-      type LeaderboardEntry = {
-        type: 'individual' | 'team'
-        id: string
-        name: string
-        team_name?: string
-        total_gross: number
-        total_net: number
-        final_score: number
-        total_par: number
-        net_vs_par: number
-        final_vs_par: number
-        rounds_played: number
-        breakdown: { round: number; gross: number; net: number; handicap: number; par: number; net_vs_par: number }[]
-        members?: { player_id: string; name: string; net_score: number }[]
-      }
-
-      const entries: LeaderboardEntry[] = []
-
-      // Individual entries: aggregate across rounds per player
-      const individualScores: Record<string, PlayerScoreEntry[]> = {}
-      for (const ps of playerScores) {
-        if (!individualScores[ps.player_id]) individualScores[ps.player_id] = []
-        individualScores[ps.player_id].push(ps)
-      }
-
-      if (filterParam !== 'teams') {
-        for (const [playerId, pScores] of Object.entries(individualScores)) {
-          const totalGross = pScores.reduce((s, p) => s + p.gross_score, 0)
-          const totalNet = pScores.reduce((s, p) => s + p.net_score, 0)
-          const totalPar = pScores.reduce((s, p) => s + (roundParMap[p.round_number] || 0), 0)
-          const teamId = playerIdToTeamId[playerId]
-          entries.push({
-            type: 'individual',
-            id: playerId,
-            name: profileMap[playerId] || playerId.slice(0, 8),
-            team_name: teamId ? teamMap[teamId] : undefined,
-            total_gross: totalGross,
-            total_net: totalNet,
-            final_score: totalNet,
-            total_par: totalPar,
-            net_vs_par: totalNet - totalPar,
-            final_vs_par: totalNet - totalPar,
-            rounds_played: pScores.length,
-            breakdown: pScores.map((p) => {
-              const par = roundParMap[p.round_number] || 0
-              return { round: p.round_number, gross: p.gross_score, net: p.net_score, handicap: p.peoria_handicap, par, net_vs_par: p.net_score - par }
-            }),
-          })
-        }
-      }
-
-      // Team entries
-      if (filterParam !== 'individuals' && teams && teams.length > 0) {
-        for (const team of teams) {
-          if (cityScopedTeamIds && !cityScopedTeamIds.has(team.id)) continue
-          // Get team member player_ids (user_ids)
-          const memberUserIds = Object.entries(playerIdToTeamId)
-            .filter(([, tid]) => tid === team.id)
-            .map(([uid]) => uid)
-
-          if (memberUserIds.length === 0) continue
-
-          // Aggregate per round
-          const roundNumbers = [...new Set(playerScores.map((ps) => ps.round_number))]
-          let teamTotalNet = 0
-          let teamTotalGross = 0
-          let teamTotalPar = 0
-          const teamBreakdown: { round: number; gross: number; net: number; handicap: number; par: number; net_vs_par: number }[] = []
-
-          for (const rn of roundNumbers) {
-            const memberScoresForRound = playerScores.filter(
-              (ps) => memberUserIds.includes(ps.player_id) && ps.round_number === rn
-            )
-            if (memberScoresForRound.length === 0) continue
-
-            // Team gross uses configured aggregation method on member GROSS scores
-            let roundGross: number
-            if (aggregation === 'best_ball') {
-              // Best ball on gross: lowest gross score
-              const best = memberScoresForRound.reduce((a, b) => a.gross_score < b.gross_score ? a : b)
-              roundGross = best.gross_score
-            } else {
-              roundGross = memberScoresForRound.reduce((s, p) => s + p.gross_score, 0) / memberScoresForRound.length
-            }
-
-            // Team handicap for the round = average of participating members' individual handicaps
-            const roundHandicap = memberScoresForRound.reduce((s, p) => s + p.peoria_handicap, 0) / memberScoresForRound.length
-            const roundNet = roundGross - roundHandicap
-            const roundPar = roundParMap[rn] || 0
-
-            teamTotalNet += roundNet
-            teamTotalGross += roundGross
-            teamTotalPar += roundPar
-            teamBreakdown.push({
-              round: rn,
-              gross: Math.round(roundGross * 100) / 100,
-              net: Math.round(roundNet * 100) / 100,
-              handicap: Math.round(roundHandicap * 100) / 100,
-              par: roundPar,
-              net_vs_par: Math.round((roundNet - roundPar) * 100) / 100,
-            })
-          }
-
-          // Apply fairness factor: team_final = aggregated * (1 - fairness_pct / 100)
-          const finalScore = teamTotalNet * (1 - fairnessPct / 100)
-
-          const memberDetails = memberUserIds.map((uid) => ({
-            player_id: uid,
-            name: profileMap[uid] || uid.slice(0, 8),
-            net_score: (individualScores[uid] || []).reduce((s, p) => s + p.net_score, 0),
-          }))
-
-          entries.push({
-            type: 'team',
-            id: team.id,
-            name: team.name,
-            total_gross: Math.round(teamTotalGross * 100) / 100,
-            total_net: Math.round(teamTotalNet * 100) / 100,
-            final_score: Math.round(finalScore * 100) / 100,
-            total_par: teamTotalPar,
-            net_vs_par: Math.round((teamTotalNet - teamTotalPar) * 100) / 100,
-            final_vs_par: Math.round((finalScore - teamTotalPar) * 100) / 100,
-            rounds_played: teamBreakdown.length,
-            breakdown: teamBreakdown,
-            members: memberDetails,
-          })
-        }
-      }
-
-      // Sort by final_score ascending (lower is better in golf)
-      entries.sort((a, b) => a.final_score - b.final_score)
-
-      // Add rank
-      const ranked = entries.map((e, i) => ({ ...e, rank: i + 1 }))
-
-      const handicapActive = Object.keys(hiddenHolesMap).length > 0
-      return json({ entries: ranked, round: roundParam ? parseInt(roundParam) : null, filter: filterParam, scope: scopeParam, league_city_id: cityIdParam, handicap_active: handicapActive })
+      const roundParam = url.searchParams.get('round')
+      const result = await computeLeaderboard(supabase, route.leagueId, {
+        round: roundParam ? parseInt(roundParam) : null,
+        filter: (url.searchParams.get('filter') as any) || 'all',
+        scope: (url.searchParams.get('scope') as any) || 'national',
+        cityId: url.searchParams.get('league_city_id'),
+      })
+      return json(result)
     }
 
     // ── ACTIVITY FEED ────────────────────────────────────────
