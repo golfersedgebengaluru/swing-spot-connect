@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Trophy, Loader2, User, Users } from "lucide-react";
+import { Trophy, Loader2, User, Users, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LeaderboardEntry, LeaderboardResponse, LeagueCity } from "@/types/league";
 
@@ -90,17 +90,56 @@ function TypePill({ type }: { type: "individual" | "team" }) {
   );
 }
 
-function LeaderboardRow({ entry, handicapActive }: { entry: LeaderboardEntry; handicapActive: boolean }) {
+function LeaderboardRow({
+  entry,
+  rank,
+  handicapActive,
+  expandable,
+  expanded,
+  onToggle,
+}: {
+  entry: LeaderboardEntry;
+  rank: number;
+  handicapActive: boolean;
+  expandable: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const net = Math.round(entry.total_net);
   const par = entry.total_par !== undefined ? Math.round(entry.total_par) : null;
   const vsPar = entry.final_vs_par;
   const final = Math.round(entry.final_score);
   const vsParClass = (vsPar ?? 0) > 0 ? "text-destructive" : (vsPar ?? 0) < 0 ? "text-emerald-600" : "text-foreground";
+  const interactive = expandable;
+  const baseDesktop = "hidden sm:grid grid-cols-[28px_40px_minmax(0,1.6fr)_110px_60px_60px_70px_70px_70px] items-center gap-3 px-4 py-3 border-b border-border/60 transition-colors";
+  const baseMobile = "sm:hidden flex items-center gap-2 px-3 py-3 border-b border-border/60 transition-colors";
+  const interactiveCls = interactive ? "cursor-pointer hover:bg-muted/40" : "";
   return (
     <>
       {/* Desktop / tablet row */}
-      <div className="hidden sm:grid grid-cols-[40px_minmax(0,1.6fr)_110px_60px_60px_70px_70px_70px] items-center gap-3 px-4 py-3 border-b border-border/60">
-        <div className="text-base font-semibold tabular-nums">{entry.rank}</div>
+      <div
+        className={cn(baseDesktop, interactiveCls)}
+        onClick={interactive ? onToggle : undefined}
+        role={interactive ? "button" : undefined}
+        tabIndex={interactive ? 0 : undefined}
+        aria-expanded={interactive ? expanded : undefined}
+        onKeyDown={
+          interactive
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onToggle();
+                }
+              }
+            : undefined
+        }
+      >
+        <div className="flex items-center justify-center text-muted-foreground">
+          {expandable ? (
+            <ChevronRight className={cn("h-4 w-4 transition-transform", expanded && "rotate-90")} />
+          ) : null}
+        </div>
+        <div className="text-base font-semibold tabular-nums">{rank}</div>
         <div className="min-w-0">
           <div className="font-medium truncate">{entry.name}</div>
           {entry.team_name && <div className="text-xs text-muted-foreground truncate">{entry.team_name}</div>}
@@ -116,8 +155,19 @@ function LeaderboardRow({ entry, handicapActive }: { entry: LeaderboardEntry; ha
       </div>
 
       {/* Mobile row */}
-      <div className="sm:hidden flex items-center gap-3 px-3 py-3 border-b border-border/60">
-        <div className="w-6 text-base font-semibold tabular-nums shrink-0">{entry.rank}</div>
+      <div
+        className={cn(baseMobile, interactiveCls)}
+        onClick={interactive ? onToggle : undefined}
+        role={interactive ? "button" : undefined}
+        tabIndex={interactive ? 0 : undefined}
+        aria-expanded={interactive ? expanded : undefined}
+      >
+        <div className="w-4 shrink-0 text-muted-foreground">
+          {expandable ? (
+            <ChevronRight className={cn("h-4 w-4 transition-transform", expanded && "rotate-90")} />
+          ) : null}
+        </div>
+        <div className="w-6 text-base font-semibold tabular-nums shrink-0">{rank}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <span className="font-medium truncate">{entry.name}</span>
@@ -140,6 +190,41 @@ function LeaderboardRow({ entry, handicapActive }: { entry: LeaderboardEntry; ha
         </div>
       </div>
     </>
+  );
+}
+
+function MemberSubRows({ members }: { members: NonNullable<LeaderboardEntry["members"]> }) {
+  if (!members.length) {
+    return (
+      <div className="px-4 py-3 text-xs text-muted-foreground bg-muted/20 border-b border-border/60">
+        No member scores recorded.
+      </div>
+    );
+  }
+  return (
+    <div className="bg-muted/20 border-b border-border/60" data-testid="team-members">
+      {members.map((m) => (
+        <div key={m.player_id}>
+          {/* Desktop sub-row */}
+          <div className="hidden sm:grid grid-cols-[28px_40px_minmax(0,1.6fr)_110px_60px_60px_70px_70px_70px] items-center gap-3 pl-12 pr-4 py-2 text-sm">
+            <div />
+            <div className="text-xs text-muted-foreground">·</div>
+            <div className="min-w-0 truncate text-muted-foreground">{m.name}</div>
+            <div />
+            <div className="text-right tabular-nums text-muted-foreground">{Math.round(m.net_score)}</div>
+            <div />
+            <div />
+            <div />
+            <div />
+          </div>
+          {/* Mobile sub-row */}
+          <div className="sm:hidden flex items-center gap-2 pl-9 pr-3 py-1.5 text-xs text-muted-foreground">
+            <span className="truncate flex-1">· {m.name}</span>
+            <span className="tabular-nums">Net {Math.round(m.net_score)}</span>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -169,6 +254,32 @@ export default function LeagueScreen() {
 
   const entries = useMemo(() => lb?.entries || [], [lb]);
   const handicapActive = !!lb?.handicap_active;
+
+  const teamEntries = useMemo(() => entries.filter((e) => e.type === "team"), [entries]);
+  const hasTeams = teamEntries.length > 0;
+
+  const viewKey = id ? `league-screen:${id}:view` : null;
+  const [viewMode, setViewMode] = useState<"teams" | "all">("teams");
+  useEffect(() => {
+    if (!viewKey) return;
+    const stored = localStorage.getItem(viewKey);
+    if (stored === "teams" || stored === "all") setViewMode(stored);
+  }, [viewKey]);
+  const updateViewMode = (next: "teams" | "all") => {
+    setViewMode(next);
+    if (viewKey) localStorage.setItem(viewKey, next);
+  };
+  const effectiveView: "teams" | "all" = hasTeams ? viewMode : "all";
+
+  const displayRows = useMemo(() => {
+    if (effectiveView === "teams") {
+      return teamEntries.map((entry, i) => ({ entry, rank: i + 1 }));
+    }
+    return entries.map((entry) => ({ entry, rank: entry.rank }));
+  }, [effectiveView, teamEntries, entries]);
+
+  const [openTeams, setOpenTeams] = useState<Record<string, boolean>>({});
+  const toggleTeam = (key: string) => setOpenTeams((s) => ({ ...s, [key]: !s[key] }));
 
   if (metaError) {
     return (
@@ -223,9 +334,36 @@ export default function LeagueScreen() {
 
       {/* Leaderboard */}
       <main className="px-3 sm:px-6 md:px-12 pb-12">
+        {hasTeams && (
+          <div className="flex items-center justify-end mb-2">
+            <div className="inline-flex rounded-full border border-border bg-background/60 p-0.5 text-xs">
+              <button
+                onClick={() => updateViewMode("teams")}
+                className={cn(
+                  "px-3 py-1 rounded-full transition",
+                  effectiveView === "teams" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
+                data-testid="view-teams"
+              >
+                Teams
+              </button>
+              <button
+                onClick={() => updateViewMode("all")}
+                className={cn(
+                  "px-3 py-1 rounded-full transition",
+                  effectiveView === "all" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
+                data-testid="view-all"
+              >
+                All
+              </button>
+            </div>
+          </div>
+        )}
         <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
           {/* Header row (desktop) */}
-          <div className="hidden sm:grid grid-cols-[40px_minmax(0,1.6fr)_110px_60px_60px_70px_70px_70px] gap-3 px-4 py-3 border-b border-border bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+          <div className="hidden sm:grid grid-cols-[28px_40px_minmax(0,1.6fr)_110px_60px_60px_70px_70px_70px] gap-3 px-4 py-3 border-b border-border bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+            <div />
             <div>#</div>
             <div>Name</div>
             <div>Type</div>
@@ -236,19 +374,37 @@ export default function LeagueScreen() {
             <div className="text-right">Rounds</div>
           </div>
           {/* Header row (mobile) */}
-          <div className="sm:hidden flex items-center gap-3 px-3 py-2 border-b border-border bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+          <div className="sm:hidden flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+            <div className="w-4" />
             <div className="w-6">#</div>
             <div className="flex-1">Name</div>
             <div className="w-12 text-right">Final</div>
           </div>
-          {lbLoading && entries.length === 0 ? (
+          {lbLoading && displayRows.length === 0 ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading scores…
             </div>
-          ) : entries.length === 0 ? (
+          ) : displayRows.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground text-sm">No scores recorded yet for this view.</div>
           ) : (
-            entries.map((e) => <LeaderboardRow key={`${e.type}-${e.id}`} entry={e} handicapActive={handicapActive} />)
+            displayRows.map(({ entry, rank }) => {
+              const key = `${entry.type}-${entry.id}`;
+              const expandable = entry.type === "team" && !!entry.members;
+              const expanded = !!openTeams[key];
+              return (
+                <div key={key}>
+                  <LeaderboardRow
+                    entry={entry}
+                    rank={rank}
+                    handicapActive={handicapActive}
+                    expandable={expandable}
+                    expanded={expanded}
+                    onToggle={() => toggleTeam(key)}
+                  />
+                  {expandable && expanded && <MemberSubRows members={entry.members || []} />}
+                </div>
+              );
+            })
           )}
         </div>
       </main>

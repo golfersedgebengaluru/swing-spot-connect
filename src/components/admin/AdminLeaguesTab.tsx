@@ -1893,7 +1893,15 @@ function LeaderboardPanel({ league }: { league: League }) {
 
   if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>;
 
-  const entries = leaderboard?.entries || [];
+  const rawEntries = leaderboard?.entries || [];
+  const teamEntries = rawEntries.filter((e) => e.type === 'team');
+  const hasTeams = teamEntries.length > 0;
+  // When viewing "all" and the league has teams, default to a team-first compact view
+  // (only teams listed, ranked 1..N; click chevron to expand member sub-rows).
+  const teamFirst = filter === 'all' && hasTeams;
+  const entries: LeaderboardEntry[] = teamFirst
+    ? teamEntries.map((e, i) => ({ ...e, rank: i + 1 }))
+    : rawEntries;
 
   return (
     <div className="space-y-4">
@@ -1968,6 +1976,7 @@ function LeaderboardPanel({ league }: { league: League }) {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-8"></TableHead>
               <TableHead className="w-12">#</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Type</TableHead>
@@ -1984,7 +1993,9 @@ function LeaderboardPanel({ league }: { league: League }) {
               const vsPar = entry.final_vs_par ?? entry.net_vs_par ?? 0;
               const vsParLabel = vsPar === 0 ? "E" : vsPar > 0 ? `+${vsPar}` : `${vsPar}`;
               const vsParClass = vsPar < 0 ? "text-emerald-600" : vsPar > 0 ? "text-red-600" : "text-muted-foreground";
-              const colSpanForDetail = leaderboard?.handicap_active ? 8 : 9;
+              const colSpanForDetail = leaderboard?.handicap_active ? 9 : 10;
+              const isExpanded = expandedEntry === entry.id;
+              const expandable = entry.type === 'team' || entry.breakdown.length > 0;
               return (
               <>
                 <TableRow
@@ -1992,6 +2003,11 @@ function LeaderboardPanel({ league }: { league: League }) {
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => setExpandedEntry(expandedEntry === entry.id ? null : entry.id)}
                 >
+                  <TableCell className="px-2">
+                    {expandable ? (
+                      <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition-transform", isExpanded && "rotate-90")} />
+                    ) : null}
+                  </TableCell>
                   <TableCell className="font-semibold">{entry.rank}</TableCell>
                   <TableCell>
                     <div>

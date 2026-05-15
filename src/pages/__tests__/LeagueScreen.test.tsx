@@ -28,6 +28,23 @@ const LEADERBOARD = {
   handicap_active: true,
 };
 
+const TEAM_LEADERBOARD = {
+  entries: [
+    { rank: 5, type: "individual", id: "p1", name: "Solo Sam", total_gross: 80, total_net: 78, final_score: 78, total_par: 72, net_vs_par: 6, final_vs_par: 6, rounds_played: 1, breakdown: [] },
+    { rank: 1, type: "team", id: "t1", name: "Eagles", total_gross: 140, total_net: 136, final_score: 126, total_par: 144, net_vs_par: -8, final_vs_par: -18, rounds_played: 2, breakdown: [], members: [
+      { player_id: "m1", name: "Alice Kumar", net_score: 68 },
+      { player_id: "m2", name: "Rohit Shah", net_score: 70 },
+    ] },
+    { rank: 2, type: "team", id: "t2", name: "Hawks", total_gross: 145, total_net: 142, final_score: 131, total_par: 144, net_vs_par: -2, final_vs_par: -13, rounds_played: 2, breakdown: [], members: [
+      { player_id: "m3", name: "Priya N", net_score: 71 },
+    ] },
+  ],
+  round: null,
+  filter: "all",
+  scope: "national",
+  handicap_active: true,
+};
+
 const fetchMock = vi.fn();
 
 beforeEach(() => {
@@ -90,5 +107,42 @@ describe("LeagueScreen (public bay screen)", () => {
       const cityCall = fetchMock.mock.calls.find((c) => String(c[0]).includes("league_city_id=c1"));
       expect(cityCall).toBeTruthy();
     });
+  });
+});
+
+describe("LeagueScreen team-first view", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("/screen-leaderboard")) {
+        return new Response(JSON.stringify(TEAM_LEADERBOARD), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      if (url.includes("/screen")) {
+        return new Response(JSON.stringify(META), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return new Response("{}", { status: 404 });
+    });
+  });
+
+  it("hides individuals by default and shows teams only", async () => {
+    renderAt("/leagues/lg1/screen");
+    await waitFor(() => expect(screen.getAllByText("Eagles").length).toBeGreaterThan(0));
+    expect(screen.queryByText("Solo Sam")).not.toBeInTheDocument();
+    expect(screen.queryByText("Alice Kumar")).not.toBeInTheDocument();
+  });
+
+  it("expands a team row to reveal member sub-rows", async () => {
+    renderAt("/leagues/lg1/screen");
+    await waitFor(() => screen.getAllByText("Eagles"));
+    const target = screen.getAllByText("Eagles")[0].closest('[role="button"]') as HTMLElement;
+    fireEvent.click(target);
+    await waitFor(() => expect(screen.getAllByText(/Alice Kumar/).length).toBeGreaterThan(0));
+  });
+
+  it("toggling to All view shows individuals again", async () => {
+    renderAt("/leagues/lg1/screen");
+    await waitFor(() => screen.getAllByText("Eagles"));
+    fireEvent.click(screen.getByTestId("view-all"));
+    await waitFor(() => expect(screen.getAllByText("Solo Sam").length).toBeGreaterThan(0));
   });
 });
