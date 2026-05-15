@@ -1976,6 +1976,7 @@ function LeaderboardPanel({ league }: { league: League }) {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-8"></TableHead>
               <TableHead className="w-12">#</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Type</TableHead>
@@ -1992,7 +1993,9 @@ function LeaderboardPanel({ league }: { league: League }) {
               const vsPar = entry.final_vs_par ?? entry.net_vs_par ?? 0;
               const vsParLabel = vsPar === 0 ? "E" : vsPar > 0 ? `+${vsPar}` : `${vsPar}`;
               const vsParClass = vsPar < 0 ? "text-emerald-600" : vsPar > 0 ? "text-red-600" : "text-muted-foreground";
-              const colSpanForDetail = leaderboard?.handicap_active ? 8 : 9;
+              const colSpanForDetail = leaderboard?.handicap_active ? 9 : 10;
+              const isExpanded = expandedEntry === entry.id;
+              const expandable = entry.type === 'team' || entry.breakdown.length > 0;
               return (
               <>
                 <TableRow
