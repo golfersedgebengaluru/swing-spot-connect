@@ -214,7 +214,7 @@ export default function LeagueScreen() {
       </header>
 
       {/* City pills */}
-      <div className="flex flex-wrap gap-2 md:gap-3 px-6 md:px-12 py-5">
+      <div className="flex flex-wrap gap-2 md:gap-3 px-3 sm:px-6 md:px-12 py-3 sm:py-5">
         <CityPill active={!cityId} label="All Locations" onClick={() => setCity(null)} />
         {(meta?.cities || []).map((c) => (
           <CityPill key={c.id} active={cityId === c.id} label={c.name} onClick={() => setCity(c.id)} />
