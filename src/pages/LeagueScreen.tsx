@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Trophy, Loader2 } from "lucide-react";
+import { Trophy, Loader2, User, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LeaderboardEntry, LeaderboardResponse, LeagueCity } from "@/types/league";
 
