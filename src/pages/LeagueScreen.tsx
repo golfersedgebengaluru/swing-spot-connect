@@ -90,17 +90,56 @@ function TypePill({ type }: { type: "individual" | "team" }) {
   );
 }
 
-function LeaderboardRow({ entry, handicapActive }: { entry: LeaderboardEntry; handicapActive: boolean }) {
+function LeaderboardRow({
+  entry,
+  rank,
+  handicapActive,
+  expandable,
+  expanded,
+  onToggle,
+}: {
+  entry: LeaderboardEntry;
+  rank: number;
+  handicapActive: boolean;
+  expandable: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const net = Math.round(entry.total_net);
   const par = entry.total_par !== undefined ? Math.round(entry.total_par) : null;
   const vsPar = entry.final_vs_par;
   const final = Math.round(entry.final_score);
   const vsParClass = (vsPar ?? 0) > 0 ? "text-destructive" : (vsPar ?? 0) < 0 ? "text-emerald-600" : "text-foreground";
+  const interactive = expandable;
+  const baseDesktop = "hidden sm:grid grid-cols-[28px_40px_minmax(0,1.6fr)_110px_60px_60px_70px_70px_70px] items-center gap-3 px-4 py-3 border-b border-border/60 transition-colors";
+  const baseMobile = "sm:hidden flex items-center gap-2 px-3 py-3 border-b border-border/60 transition-colors";
+  const interactiveCls = interactive ? "cursor-pointer hover:bg-muted/40" : "";
   return (
     <>
       {/* Desktop / tablet row */}
-      <div className="hidden sm:grid grid-cols-[40px_minmax(0,1.6fr)_110px_60px_60px_70px_70px_70px] items-center gap-3 px-4 py-3 border-b border-border/60">
-        <div className="text-base font-semibold tabular-nums">{entry.rank}</div>
+      <div
+        className={cn(baseDesktop, interactiveCls)}
+        onClick={interactive ? onToggle : undefined}
+        role={interactive ? "button" : undefined}
+        tabIndex={interactive ? 0 : undefined}
+        aria-expanded={interactive ? expanded : undefined}
+        onKeyDown={
+          interactive
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onToggle();
+                }
+              }
+            : undefined
+        }
+      >
+        <div className="flex items-center justify-center text-muted-foreground">
+          {expandable ? (
+            <ChevronRight className={cn("h-4 w-4 transition-transform", expanded && "rotate-90")} />
+          ) : null}
+        </div>
+        <div className="text-base font-semibold tabular-nums">{rank}</div>
         <div className="min-w-0">
           <div className="font-medium truncate">{entry.name}</div>
           {entry.team_name && <div className="text-xs text-muted-foreground truncate">{entry.team_name}</div>}
@@ -116,8 +155,19 @@ function LeaderboardRow({ entry, handicapActive }: { entry: LeaderboardEntry; ha
       </div>
 
       {/* Mobile row */}
-      <div className="sm:hidden flex items-center gap-3 px-3 py-3 border-b border-border/60">
-        <div className="w-6 text-base font-semibold tabular-nums shrink-0">{entry.rank}</div>
+      <div
+        className={cn(baseMobile, interactiveCls)}
+        onClick={interactive ? onToggle : undefined}
+        role={interactive ? "button" : undefined}
+        tabIndex={interactive ? 0 : undefined}
+        aria-expanded={interactive ? expanded : undefined}
+      >
+        <div className="w-4 shrink-0 text-muted-foreground">
+          {expandable ? (
+            <ChevronRight className={cn("h-4 w-4 transition-transform", expanded && "rotate-90")} />
+          ) : null}
+        </div>
+        <div className="w-6 text-base font-semibold tabular-nums shrink-0">{rank}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <span className="font-medium truncate">{entry.name}</span>
@@ -140,6 +190,41 @@ function LeaderboardRow({ entry, handicapActive }: { entry: LeaderboardEntry; ha
         </div>
       </div>
     </>
+  );
+}
+
+function MemberSubRows({ members }: { members: NonNullable<LeaderboardEntry["members"]> }) {
+  if (!members.length) {
+    return (
+      <div className="px-4 py-3 text-xs text-muted-foreground bg-muted/20 border-b border-border/60">
+        No member scores recorded.
+      </div>
+    );
+  }
+  return (
+    <div className="bg-muted/20 border-b border-border/60" data-testid="team-members">
+      {members.map((m) => (
+        <div key={m.player_id}>
+          {/* Desktop sub-row */}
+          <div className="hidden sm:grid grid-cols-[28px_40px_minmax(0,1.6fr)_110px_60px_60px_70px_70px_70px] items-center gap-3 pl-12 pr-4 py-2 text-sm">
+            <div />
+            <div className="text-xs text-muted-foreground">·</div>
+            <div className="min-w-0 truncate text-muted-foreground">{m.name}</div>
+            <div />
+            <div className="text-right tabular-nums text-muted-foreground">{Math.round(m.net_score)}</div>
+            <div />
+            <div />
+            <div />
+            <div />
+          </div>
+          {/* Mobile sub-row */}
+          <div className="sm:hidden flex items-center gap-2 pl-9 pr-3 py-1.5 text-xs text-muted-foreground">
+            <span className="truncate flex-1">· {m.name}</span>
+            <span className="tabular-nums">Net {Math.round(m.net_score)}</span>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
