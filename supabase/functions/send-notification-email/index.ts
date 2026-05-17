@@ -306,7 +306,10 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
       </div>
     </div>`,
 
-  guest_booking_confirmed: (d) => `
+  guest_booking_confirmed: (d) => {
+    const currencySymbol = (d.currency || "INR") === "INR" ? "₹" : (d.currency + " ");
+    const hasCoupon = d.coupon_code && Number(d.discount_amount) > 0;
+    return `
     <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:0">
       <div style="background:#2b3544;padding:32px 24px;text-align:center">
         <h1 style="color:#f5f0eb;margin:0;font-family:'Playfair Display',Georgia,serif;font-size:24px">Booking Confirmed ✅</h1>
@@ -321,7 +324,9 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Date</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.date}</td></tr>
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Time</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.time}</td></tr>
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Duration</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.duration}</td></tr>
-            ${d.amount ? `<tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Amount Paid</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">₹${d.amount}</td></tr>` : ""}
+            ${hasCoupon && d.original_amount ? `<tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Slot Price</td><td style="padding:6px 0;color:#1a2332;font-size:14px;text-align:right">${currencySymbol}${d.original_amount}</td></tr>` : ""}
+            ${hasCoupon ? `<tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Coupon (${d.coupon_code})</td><td style="padding:6px 0;color:#16a34a;font-size:14px;font-weight:600;text-align:right">− ${currencySymbol}${d.discount_amount}</td></tr>` : ""}
+            ${d.amount ? `<tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Amount Paid</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${currencySymbol}${d.amount}</td></tr>` : ""}
           </table>
         </div>
         ${d.add_to_calendar_url ? `
@@ -334,7 +339,8 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
       <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
         <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
       </div>
-    </div>`,
+    </div>`;
+  },
 
   league_team_invite: (d) => `
     <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:0">
