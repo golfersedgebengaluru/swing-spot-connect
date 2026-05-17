@@ -410,6 +410,26 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
         <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
       </div>
     </div>`,
+
+  password_reset: (d) => `
+    <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff">
+      <div style="background:#2b3544;padding:32px 24px;text-align:center">
+        <h1 style="color:#f5f0eb;margin:0;font-family:'Playfair Display',Georgia,serif;font-size:24px">🔐 Reset your password</h1>
+      </div>
+      <div style="padding:32px 24px">
+        <p style="color:#1a2332;font-size:16px;margin:0 0 16px">Hi ${d.display_name || "there"},</p>
+        <p style="color:#1a2332;font-size:16px;margin:0 0 24px">We received a request to reset the password for your Golfer's Edge account. Click the button below to choose a new password.</p>
+        <div style="text-align:center;margin:0 0 24px">
+          <a href="${d.reset_url}" style="display:inline-block;background:#2b3544;color:#f5f0eb;text-decoration:none;font-weight:600;font-size:14px;padding:14px 28px;border-radius:6px">Reset Password</a>
+        </div>
+        <p style="color:#6b7a8d;font-size:13px;margin:0 0 12px">This link will expire in ${d.expires_in_minutes || 60} minutes. If the button doesn't work, copy and paste this URL into your browser:</p>
+        <p style="color:#2b3544;font-size:12px;word-break:break-all;background:#f0f3f7;padding:12px;border-radius:6px;margin:0 0 24px">${d.reset_url}</p>
+        <p style="color:#6b7a8d;font-size:13px;margin:0">Didn't request this? You can safely ignore this email — your password won't change.</p>
+      </div>
+      <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
+        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
+      </div>
+    </div>`,
 };
 
 // Template to preference field mapping
