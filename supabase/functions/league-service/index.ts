@@ -3544,6 +3544,32 @@ Deno.serve(async (req) => {
       })
       if (promErr) console.error('promote_legacy_team_member (paid path) failed:', promErr)
 
+      // Best-effort email notifications — never block team creation
+      try {
+        const [{ data: captainProfile }, { data: lg }, { data: loc }] = await Promise.all([
+          supabase.from('profiles').select('email, display_name').eq('user_id', pending.captain_user_id).maybeSingle(),
+          supabase.from('leagues').select('name').eq('id', pending.league_id).maybeSingle(),
+          supabase.from('league_locations').select('name').eq('id', pending.league_location_id).maybeSingle(),
+        ])
+        const origin = req.headers.get('origin') || req.headers.get('referer') || 'https://golfersedge.golf-collective.com'
+        await sendTeamCreationEmails({
+          supabaseUrl: Deno.env.get('SUPABASE_URL')!,
+          serviceKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+          origin: origin.replace(/(https?:\/\/[^/]+).*/, '$1'),
+          captainUserId: pending.captain_user_id,
+          captainEmail: captainProfile?.email || null,
+          captainName: captainProfile?.display_name || null,
+          leagueName: lg?.name || 'League',
+          teamName: pending.team_name,
+          teamSize: pending.team_size,
+          locationName: loc?.name || null,
+          joinToken: reg.join_token,
+          inviteEmails: pendingEmails,
+        })
+      } catch (e) {
+        console.error('[league email] finalize (paid) failed:', e)
+      }
+
       return json({ success: true, registration: reg, join_token: reg.join_token })
     }
 
