@@ -1615,7 +1615,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "cancel_booking") {
-      const { booking_id } = params;
+      const { booking_id, disposition } = params;
 
       const { data: booking } = await supabase
         .from("bookings")
