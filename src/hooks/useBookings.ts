@@ -191,9 +191,11 @@ export function useCancelBooking() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (bookingId: string) => {
+    mutationFn: async (args: string | { bookingId: string; disposition?: "advance_credit" | "external_refund" | "hours" }) => {
+      const bookingId = typeof args === "string" ? args : args.bookingId;
+      const disposition = typeof args === "string" ? undefined : args.disposition;
       const res = await supabase.functions.invoke("calendar-sync", {
-        body: { action: "cancel_booking", booking_id: bookingId },
+        body: { action: "cancel_booking", booking_id: bookingId, disposition },
       });
 
       if (res.error) { let em = "Cancellation failed"; try { const b = await (res.error as any).context?.json?.(); em = b?.error || res.error.message || em; } catch { em = res.error.message || em; } throw new Error(em); }
