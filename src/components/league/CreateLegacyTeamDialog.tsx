@@ -16,7 +16,7 @@ import {
   validateRegistrationForm,
 } from "@/hooks/useLegacyLeagueRegistration";
 import type { LandingLeague } from "@/hooks/useLeagues";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useValidateCoupon, calculateDiscount, type ValidateCouponResult } from "@/hooks/useCoupons";
 
 function loadRazorpay(): Promise<boolean> {
@@ -43,6 +43,7 @@ export function CreateLegacyTeamDialog({ league, open, onOpenChange }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [cityId, setCityId] = useState("");
   const [locationId, setLocationId] = useState("");
@@ -241,7 +242,20 @@ export function CreateLegacyTeamDialog({ league, open, onOpenChange }: Props) {
                 <p className="text-xs text-muted-foreground">Anyone with this link can join your team after signing in (until the team is full).</p>
               </div>
             )}
-            <Button onClick={() => onOpenChange(false)} className="w-full">Done</Button>
+            <div className="flex flex-col gap-2 pt-2">
+              <Button
+                onClick={() => {
+                  qc.invalidateQueries({ queryKey: ["legacy-my-team", league.id] });
+                  qc.invalidateQueries({ queryKey: ["my-legacy-team"] });
+                  onOpenChange(false);
+                  navigate("/leagues");
+                }}
+                className="w-full"
+              >
+                Open My League
+              </Button>
+              <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full">Done</Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">

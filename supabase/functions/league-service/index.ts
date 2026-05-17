@@ -28,6 +28,69 @@ async function getUser(req: Request, supabaseAdmin: any) {
   return user
 }
 
+// ── Team-creation email helper (best-effort, never blocks team creation) ──
+async function sendTeamCreationEmails(opts: {
+  supabaseUrl: string
+  serviceKey: string
+  origin: string
+  captainUserId: string
+  captainEmail: string | null
+  captainName: string | null
+  leagueName: string
+  teamName: string
+  teamSize: number
+  locationName: string | null
+  joinToken: string | null
+  inviteEmails: string[]
+}) {
+  const joinUrl = opts.joinToken ? `${opts.origin.replace(/\/$/, '')}/league-team-join/${opts.joinToken}` : ''
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${opts.serviceKey}`,
+    apikey: opts.serviceKey,
+  }
+  const post = (body: Record<string, unknown>) =>
+    fetch(`${opts.supabaseUrl}/functions/v1/send-notification-email`, {
+      method: 'POST', headers, body: JSON.stringify(body),
+    }).then((r) => r.ok ? null : r.text().then((t) => console.error('[league email] failed', body.template, r.status, t)))
+      .catch((e) => console.error('[league email] error', body.template, e))
+
+  const tasks: Promise<unknown>[] = []
+  // Captain confirmation
+  if (opts.captainEmail) {
+    tasks.push(post({
+      user_id: opts.captainUserId,
+      template: 'league_team_created',
+      subject: `Team "${opts.teamName}" registered — ${opts.leagueName}`,
+      data: {
+        display_name: opts.captainName,
+        league_name: opts.leagueName,
+        team_name: opts.teamName,
+        team_size: opts.teamSize,
+        invites_sent: opts.inviteEmails.length,
+        join_url: joinUrl,
+      },
+    }))
+  }
+  // Invitees
+  for (const email of opts.inviteEmails) {
+    tasks.push(post({
+      user_id: null,
+      recipient_email: email,
+      template: 'league_team_invite',
+      subject: `You've been added to "${opts.teamName}" — ${opts.leagueName}`,
+      data: {
+        captain_name: opts.captainName,
+        league_name: opts.leagueName,
+        team_name: opts.teamName,
+        location: opts.locationName,
+        join_url: joinUrl,
+      },
+    }))
+  }
+  await Promise.allSettled(tasks)
+}
+
 // ── Audit helper ─────────────────────────────────────────────
 async function audit(
   supabase: any,
@@ -3202,8 +3265,8 @@ Deno.serve(async (req) => {
       const apiSecret = (Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) || gateway.api_secret || '').trim()
       if (!apiKey || !apiSecret) return err('Razorpay credentials missing', 500)
 
-      // Helper: post-create captain + invite rows
-      const finalizeTeam = async (regId: string) => {
+      // Helper: post-create captain + invite rows, bridge to new tables, send emails
+      const finalizeTeam = async (regId: string, joinToken: string | null) => {
         await supabase.from('legacy_league_team_members').insert({
           team_registration_id: regId,
           league_id: route.leagueId,
@@ -3229,6 +3292,31 @@ Deno.serve(async (req) => {
           _user_id: user.id,
         })
         if (promErr) console.error('promote_legacy_team_member (free path) failed:', promErr)
+
+        // Best-effort email notifications — never block team creation
+        try {
+          const [{ data: captainProfile }, { data: loc }] = await Promise.all([
+            supabase.from('profiles').select('email, display_name').eq('user_id', user.id).maybeSingle(),
+            supabase.from('league_locations').select('name').eq('id', league_location_id).maybeSingle(),
+          ])
+          const origin = req.headers.get('origin') || req.headers.get('referer') || 'https://golfersedge.golf-collective.com'
+          await sendTeamCreationEmails({
+            supabaseUrl: Deno.env.get('SUPABASE_URL')!,
+            serviceKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+            origin: origin.replace(/(https?:\/\/[^/]+).*/, '$1'),
+            captainUserId: user.id,
+            captainEmail: captainProfile?.email || user.email || null,
+            captainName: captainProfile?.display_name || null,
+            leagueName: (league as any)?.name || 'League',
+            teamName: team_name.trim(),
+            teamSize: size,
+            locationName: loc?.name || null,
+            joinToken,
+            inviteEmails: cleanedInviteEmails,
+          })
+        } catch (e) {
+          console.error('[league email] finalize (free) failed:', e)
+        }
       }
 
       // Helper: record coupon redemption (best effort, idempotency via order_id absent here for free path)
@@ -3267,7 +3355,7 @@ Deno.serve(async (req) => {
           .select()
           .single()
         if (regErr) return err(regErr.message, 500)
-        await finalizeTeam(reg.id)
+        await finalizeTeam(reg.id, reg.join_token)
         await recordCouponRedemption(null)
         return json({ success: true, free: true, registration: reg, join_token: reg.join_token })
       }
@@ -3455,6 +3543,32 @@ Deno.serve(async (req) => {
         _user_id: pending.captain_user_id,
       })
       if (promErr) console.error('promote_legacy_team_member (paid path) failed:', promErr)
+
+      // Best-effort email notifications — never block team creation
+      try {
+        const [{ data: captainProfile }, { data: lg }, { data: loc }] = await Promise.all([
+          supabase.from('profiles').select('email, display_name').eq('user_id', pending.captain_user_id).maybeSingle(),
+          supabase.from('leagues').select('name').eq('id', pending.league_id).maybeSingle(),
+          supabase.from('league_locations').select('name').eq('id', pending.league_location_id).maybeSingle(),
+        ])
+        const origin = req.headers.get('origin') || req.headers.get('referer') || 'https://golfersedge.golf-collective.com'
+        await sendTeamCreationEmails({
+          supabaseUrl: Deno.env.get('SUPABASE_URL')!,
+          serviceKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+          origin: origin.replace(/(https?:\/\/[^/]+).*/, '$1'),
+          captainUserId: pending.captain_user_id,
+          captainEmail: captainProfile?.email || null,
+          captainName: captainProfile?.display_name || null,
+          leagueName: lg?.name || 'League',
+          teamName: pending.team_name,
+          teamSize: pending.team_size,
+          locationName: loc?.name || null,
+          joinToken: reg.join_token,
+          inviteEmails: pendingEmails,
+        })
+      } catch (e) {
+        console.error('[league email] finalize (paid) failed:', e)
+      }
 
       return json({ success: true, registration: reg, join_token: reg.join_token })
     }

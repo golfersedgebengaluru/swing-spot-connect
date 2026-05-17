@@ -325,6 +325,65 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
       </div>
     </div>`,
 
+  league_team_invite: (d) => `
+    <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:0">
+      <div style="background:#2b3544;padding:32px 24px;text-align:center">
+        <h1 style="color:#f5f0eb;margin:0;font-family:'Playfair Display',Georgia,serif;font-size:24px">You're on a team! 🏌️</h1>
+      </div>
+      <div style="padding:32px 24px">
+        <p style="color:#1a2332;font-size:16px;margin:0 0 16px">Hi there,</p>
+        <p style="color:#1a2332;font-size:16px;margin:0 0 24px">
+          ${d.captain_name || "Your captain"} has added you to team <strong>${d.team_name}</strong> in the <strong>${d.league_name}</strong> league${d.location ? ` at ${d.location}` : ""}.
+        </p>
+        <div style="background:#f0f3f7;border-radius:8px;padding:20px;margin:0 0 24px">
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">League</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.league_name}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Team</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.team_name}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Captain</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.captain_name || "—"}</td></tr>
+          </table>
+        </div>
+        ${d.join_url ? `
+        <div style="text-align:center;margin:0 0 24px">
+          <a href="${d.join_url}" style="display:inline-block;background:#2b3544;color:#f5f0eb;text-decoration:none;font-weight:600;font-size:14px;padding:12px 24px;border-radius:6px">Accept Invite & Join Team</a>
+          <p style="color:#6b7a8d;font-size:12px;margin:8px 0 0">Sign in (or sign up) with this email to join automatically.</p>
+        </div>` : ""}
+        <p style="color:#6b7a8d;font-size:14px;margin:0 0 8px">If you weren't expecting this, you can safely ignore this email.</p>
+      </div>
+      <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
+        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
+      </div>
+    </div>`,
+
+  league_team_created: (d) => `
+    <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:0">
+      <div style="background:#2b3544;padding:32px 24px;text-align:center">
+        <h1 style="color:#f5f0eb;margin:0;font-family:'Playfair Display',Georgia,serif;font-size:24px">Team Created ✅</h1>
+      </div>
+      <div style="padding:32px 24px">
+        <p style="color:#1a2332;font-size:16px;margin:0 0 16px">Hi ${d.display_name || "Captain"},</p>
+        <p style="color:#1a2332;font-size:16px;margin:0 0 24px">
+          Your team <strong>${d.team_name}</strong> is registered for the <strong>${d.league_name}</strong> league.
+        </p>
+        <div style="background:#f0f3f7;border-radius:8px;padding:20px;margin:0 0 24px">
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">League</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.league_name}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Team</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.team_name}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Size</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.team_size} players</td></tr>
+            ${d.invites_sent ? `<tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Invites Sent</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.invites_sent}</td></tr>` : ""}
+          </table>
+        </div>
+        ${d.join_url ? `
+        <div style="text-align:center;margin:0 0 24px">
+          <a href="${d.join_url}" style="display:inline-block;background:#2b3544;color:#f5f0eb;text-decoration:none;font-weight:600;font-size:14px;padding:12px 24px;border-radius:6px">Share Join Link</a>
+          <p style="color:#6b7a8d;font-size:12px;margin:8px 0 0">Anyone with this link can join your team after signing in (until full).</p>
+          <p style="color:#1a2332;font-size:12px;margin:8px 0 0;word-break:break-all"><a href="${d.join_url}" style="color:#2b3544">${d.join_url}</a></p>
+        </div>` : ""}
+      </div>
+      <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
+        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
+      </div>
+    </div>`,
+
   coaching_session_added: (d) => `
     <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff">
       <div style="background:#2b3544;padding:32px 24px;text-align:center">
@@ -371,6 +430,8 @@ const TEMPLATE_PREF_MAP: Record<string, string> = {
   admin_coaching_request: "",
   admin_booking_cancelled: "",
   guest_booking_confirmed: "",
+  league_team_invite: "",
+  league_team_created: "",
 };
 
 Deno.serve(async (req) => {
@@ -498,6 +559,8 @@ Deno.serve(async (req) => {
         "admin_coaching_request",
         "admin_booking_cancelled",
         "guest_booking_confirmed",
+        "league_team_invite",
+        "league_team_created",
       ];
 
       if (!RATE_LIMIT_EXEMPT_TEMPLATES.includes(template)) {
