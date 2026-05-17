@@ -140,25 +140,17 @@ export default function MyBookings() {
     }
   };
 
-  const performCancel = async (booking: any) => {
+  const performCancel = async (booking: any, disposition: "advance_credit" | "external_refund" | "hours" = "hours") => {
     setConfirmingCancelId(null);
     setCancelDialogBooking(null);
     try {
-      await cancelBooking.mutateAsync(booking.id);
-      toast({ title: "Booking Cancelled", description: "Your hours have been refunded." });
-      if (user) {
-        const hoursRefunded = booking.duration_minutes / 60;
-        sendNotificationEmail({
-          user_id: user.id,
-          template: "booking_cancelled",
-          subject: "❌ Booking Cancelled",
-          data: {
-            city: booking.city,
-            date: new Date(booking.start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
-            hours_refunded: hoursRefunded,
-          },
-        });
-      }
+      await cancelBooking.mutateAsync({ bookingId: booking.id, disposition });
+      const msg = disposition === "advance_credit"
+        ? "Cancelled. Amount credited to your customer advance."
+        : disposition === "external_refund"
+          ? "Cancelled. Refund will be processed to your original payment method."
+          : "Your hours have been refunded.";
+      toast({ title: "Booking Cancelled", description: msg });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
