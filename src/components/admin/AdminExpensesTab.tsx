@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MapPin, Loader2 } from "lucide-react";
 import { ExpensesList } from "@/components/admin/ExpensesList";
+import { VendorsCard } from "@/components/admin/VendorsCard";
+import { VendorAdvancesPanel } from "@/components/admin/VendorAdvancesPanel";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAllCities } from "@/hooks/useBookings";
 import { useAdminCity } from "@/contexts/AdminCityContext";
@@ -54,7 +57,24 @@ export function AdminExpensesTab() {
         </div>
       )}
 
-      {selectedCity && <ExpensesList city={selectedCity} />}
+      {selectedCity && (
+        <Tabs defaultValue="expenses" className="w-full">
+          <TabsList>
+            <TabsTrigger value="expenses">Expenses</TabsTrigger>
+            <TabsTrigger value="vendors">Vendors</TabsTrigger>
+            <TabsTrigger value="advances">Vendor Advances</TabsTrigger>
+          </TabsList>
+          <TabsContent value="expenses" className="mt-4">
+            <ExpensesList city={selectedCity} />
+          </TabsContent>
+          <TabsContent value="vendors" className="mt-4">
+            <VendorsCard />
+          </TabsContent>
+          <TabsContent value="advances" className="mt-4">
+            <VendorAdvancesPanel city={selectedCity} />
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 }

@@ -19,6 +19,8 @@ export interface Expense {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  settled_amount?: number;
+  is_settled?: boolean;
   // Joined
   vendors?: { name: string; gstin: string | null } | null;
   expense_categories?: { name: string } | null;
