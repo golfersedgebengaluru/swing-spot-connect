@@ -9,8 +9,76 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { MapPin, Plus, Pencil, Trash2, Loader2, LayoutGrid } from "lucide-react";
+import { MapPin, Plus, Pencil, Trash2, Loader2, LayoutGrid, Percent } from "lucide-react";
 import { WeeklyOffEditor, HolidayEditor, PeakHoursEditor } from "./BayScheduleEditors";
+import { useEffect } from "react";
+
+function CancellationFeeEditor({ city }: { city: string }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [value, setValue] = useState<string>("");
+  const [initial, setInitial] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("bay_config")
+        .select("cancellation_fee_pct")
+        .eq("city", city)
+        .maybeSingle();
+      const v = String((data as any)?.cancellation_fee_pct ?? 10);
+      setValue(v);
+      setInitial(v);
+    })();
+  }, [city]);
+
+  const save = async () => {
+    const num = Number(value);
+    if (Number.isNaN(num) || num < 0 || num > 100) {
+      toast({ title: "Invalid value", description: "Must be between 0 and 100.", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase
+      .from("bay_config")
+      .update({ cancellation_fee_pct: num } as never)
+      .eq("city", city);
+    setSaving(false);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    setInitial(String(num));
+    queryClient.invalidateQueries({ queryKey: ["bay_config"] });
+    toast({ title: "Cancellation fee updated", description: `${city}: ${num}%` });
+  };
+
+  const dirty = value !== initial;
+  return (
+    <div className="rounded-md border border-border p-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <Percent className="h-4 w-4 text-muted-foreground" />
+        <Label className="text-sm">Cancellation Fee (%)</Label>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Applied when a paid booking is cancelled and refunded to original payment method. Credit Note / Customer Advance is always full amount (no fee).
+      </p>
+      <div className="flex items-center gap-2">
+        <Input
+          type="number"
+          min="0"
+          max="100"
+          step="0.5"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="max-w-[120px]"
+        />
+        <span className="text-sm text-muted-foreground">%</span>
+        <Button size="sm" onClick={save} disabled={!dirty || saving}>
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+        </Button>
+      </div>
+    </div>
+  );
+}
 import { getDayShort } from "@/lib/bay-schedule-utils";
 import { useBays } from "@/hooks/useBookings";
 import { CURRENCIES, getCurrencySymbol } from "@/lib/currencies";
@@ -231,6 +299,7 @@ export function BayConfigTab() {
 
               {/* City-level schedule management */}
               <Separator className="my-4" />
+              <CancellationFeeEditor city={city} />
               <HolidayEditor city={city} />
             </CardContent>
           </Card>
