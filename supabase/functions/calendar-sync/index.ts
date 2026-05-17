@@ -1758,8 +1758,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Reverse paid revenue and auto-generate credit note for guest/walk-in bookings
-      await reverseRevenueAndInvoice(adminClient, booking_id);
+      // Reverse paid revenue with disposition handling (advance_credit vs external_refund)
+      await handleCancellationDisposition(adminClient, booking, disposition || "advance_credit");
 
       // Loyalty clawback is handled atomically in cancel_booking_with_clawback RPC above
       const pointsClawedBack = (cancelResult as any)?.points_clawed_back ?? 0;
