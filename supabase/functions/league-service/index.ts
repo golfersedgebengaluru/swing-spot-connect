@@ -3222,6 +3222,13 @@ Deno.serve(async (req) => {
             }))
           )
         }
+        // Bridge into new league_teams / league_players / league_team_members / league_roles
+        // so the team appears in admin Teams tab and the captain sees the league in /leagues.
+        const { error: promErr } = await supabase.rpc('promote_legacy_team_member', {
+          _registration_id: regId,
+          _user_id: user.id,
+        })
+        if (promErr) console.error('promote_legacy_team_member (free path) failed:', promErr)
       }
 
       // Helper: record coupon redemption (best effort, idempotency via order_id absent here for free path)
