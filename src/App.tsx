@@ -79,6 +79,8 @@ const App = () => (
               <Route path="/qc/:id" element={<ErrorBoundary><QuickCompetitionPublic /></ErrorBoundary>} />
               <Route path="/qc/:id/join" element={<ErrorBoundary><QuickCompetitionJoin /></ErrorBoundary>} />
               <Route path="/change-password" element={<ErrorBoundary><ChangePassword /></ErrorBoundary>} />
+              <Route path="/forgot-password" element={<ErrorBoundary><ForgotPassword /></ErrorBoundary>} />
+              <Route path="/reset-password" element={<ErrorBoundary><ResetPassword /></ErrorBoundary>} />
               <Route path="/page/:slug" element={<ErrorBoundary><PageView /></ErrorBoundary>} />
               <Route path="*" element={<ErrorBoundary><NotFound /></ErrorBoundary>} />
             </Routes>
