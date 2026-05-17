@@ -3265,8 +3265,8 @@ Deno.serve(async (req) => {
       const apiSecret = (Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) || gateway.api_secret || '').trim()
       if (!apiKey || !apiSecret) return err('Razorpay credentials missing', 500)
 
-      // Helper: post-create captain + invite rows
-      const finalizeTeam = async (regId: string) => {
+      // Helper: post-create captain + invite rows, bridge to new tables, send emails
+      const finalizeTeam = async (regId: string, joinToken: string | null) => {
         await supabase.from('legacy_league_team_members').insert({
           team_registration_id: regId,
           league_id: route.leagueId,
@@ -3292,6 +3292,31 @@ Deno.serve(async (req) => {
           _user_id: user.id,
         })
         if (promErr) console.error('promote_legacy_team_member (free path) failed:', promErr)
+
+        // Best-effort email notifications — never block team creation
+        try {
+          const [{ data: captainProfile }, { data: loc }] = await Promise.all([
+            supabase.from('profiles').select('email, display_name').eq('user_id', user.id).maybeSingle(),
+            supabase.from('league_locations').select('name').eq('id', league_location_id).maybeSingle(),
+          ])
+          const origin = req.headers.get('origin') || req.headers.get('referer') || 'https://golfersedge.golf-collective.com'
+          await sendTeamCreationEmails({
+            supabaseUrl: Deno.env.get('SUPABASE_URL')!,
+            serviceKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+            origin: origin.replace(/(https?:\/\/[^/]+).*/, '$1'),
+            captainUserId: user.id,
+            captainEmail: captainProfile?.email || user.email || null,
+            captainName: captainProfile?.display_name || null,
+            leagueName: (league as any)?.name || 'League',
+            teamName: team_name.trim(),
+            teamSize: size,
+            locationName: loc?.name || null,
+            joinToken,
+            inviteEmails: cleanedInviteEmails,
+          })
+        } catch (e) {
+          console.error('[league email] finalize (free) failed:', e)
+        }
       }
 
       // Helper: record coupon redemption (best effort, idempotency via order_id absent here for free path)
