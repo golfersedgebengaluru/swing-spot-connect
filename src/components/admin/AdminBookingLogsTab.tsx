@@ -156,20 +156,26 @@ export function AdminBookingLogsTab() {
     }
   };
 
-  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<any>(null);
 
-  const handleAdminCancel = async (id: string) => {
-    setCancelConfirmId(null);
+  const handleAdminCancel = async (booking: any, disposition: "advance_credit" | "external_refund" | "hours") => {
+    setCancelTarget(null);
     try {
-      const result: any = await adminCancelBooking.mutateAsync(id);
+      const result: any = await adminCancelBooking.mutateAsync({ bookingId: booking.id, disposition });
+      const baseMsg =
+        disposition === "advance_credit"
+          ? "Cancelled. Amount credited to customer advance."
+          : disposition === "external_refund"
+            ? "Cancelled. Refund will be processed externally to the customer."
+            : "Booking has been cancelled and hours refunded.";
       if (result?.calendar_warning) {
         toast({
           title: "Booking Cancelled (calendar issue)",
-          description: `Hours refunded, but the Google Calendar event could not be removed automatically: ${result.calendar_warning}. Please remove it manually if it still appears.`,
+          description: `${baseMsg} However, the Google Calendar event could not be removed automatically: ${result.calendar_warning}. Please remove it manually if it still appears.`,
           variant: "destructive",
         });
       } else {
-        toast({ title: "Booking Cancelled", description: "Booking has been cancelled and hours refunded." });
+        toast({ title: "Booking Cancelled", description: baseMsg });
       }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
