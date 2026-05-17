@@ -228,6 +228,7 @@ async function notifyAdminsInApp(adminClient: any, adminIds: string[], title: st
 
 // ─── Revenue reversal + Invoice cancellation + Credit note ───
 // Called when a confirmed booking with paid revenue (amount > 0) is cancelled.
+// Returns the matched paid revenue row (for downstream disposition logic) or null.
 async function reverseRevenueAndInvoice(adminClient: any, bookingId: string) {
   try {
     // 1. Find the original revenue transaction with actual payment (amount > 0)
