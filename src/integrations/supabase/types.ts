@@ -3432,6 +3432,7 @@ export type Database = {
           name: string
           sort_order: number
           updated_at: string
+          webhook_secret: string | null
         }
         Insert: {
           api_key?: string | null
@@ -3446,6 +3447,7 @@ export type Database = {
           name: string
           sort_order?: number
           updated_at?: string
+          webhook_secret?: string | null
         }
         Update: {
           api_key?: string | null
@@ -3460,6 +3462,7 @@ export type Database = {
           name?: string
           sort_order?: number
           updated_at?: string
+          webhook_secret?: string | null
         }
         Relationships: []
       }

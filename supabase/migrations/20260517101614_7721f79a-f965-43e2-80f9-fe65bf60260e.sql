@@ -1,0 +1,1 @@
+ALTER TABLE public.payment_gateways ADD COLUMN IF NOT EXISTS webhook_secret text;
