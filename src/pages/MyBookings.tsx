@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
+import { CancellationDispositionDialog } from "@/components/CancellationDispositionDialog";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -140,25 +141,17 @@ export default function MyBookings() {
     }
   };
 
-  const performCancel = async (booking: any) => {
+  const performCancel = async (booking: any, disposition: "advance_credit" | "external_refund" | "hours" = "hours") => {
     setConfirmingCancelId(null);
     setCancelDialogBooking(null);
     try {
-      await cancelBooking.mutateAsync(booking.id);
-      toast({ title: "Booking Cancelled", description: "Your hours have been refunded." });
-      if (user) {
-        const hoursRefunded = booking.duration_minutes / 60;
-        sendNotificationEmail({
-          user_id: user.id,
-          template: "booking_cancelled",
-          subject: "❌ Booking Cancelled",
-          data: {
-            city: booking.city,
-            date: new Date(booking.start_time).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
-            hours_refunded: hoursRefunded,
-          },
-        });
-      }
+      await cancelBooking.mutateAsync({ bookingId: booking.id, disposition });
+      const msg = disposition === "advance_credit"
+        ? "Cancelled. Amount credited to your customer advance."
+        : disposition === "external_refund"
+          ? "Cancelled. Refund will be processed to your original payment method."
+          : "Your hours have been refunded.";
+      toast({ title: "Booking Cancelled", description: msg });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
@@ -546,18 +539,12 @@ export default function MyBookings() {
       </main>
       <Footer />
 
-      <AlertDialog open={!!cancelDialogBooking} onOpenChange={(open) => { if (!open) setCancelDialogBooking(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
-            <AlertDialogDescription>Your hours will be refunded. This action cannot be undone.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>No – Keep Booking</AlertDialogCancel>
-            <AlertDialogAction onClick={() => cancelDialogBooking && performCancel(cancelDialogBooking)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Yes – Cancel Booking</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <CancellationDispositionDialog
+        booking={cancelDialogBooking}
+        onOpenChange={(open) => { if (!open) setCancelDialogBooking(null); }}
+        onConfirm={(disp) => cancelDialogBooking && performCancel(cancelDialogBooking, disp)}
+        isPending={cancelBooking.isPending}
+      />
     </div>
   );
 }

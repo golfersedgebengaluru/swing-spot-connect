@@ -16,6 +16,7 @@ import { useAdmin } from "@/hooks/useAdmin";
 import { useActiveFinancialYear } from "@/hooks/useRevenue";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, addMonths, parseISO, isWithinInterval } from "date-fns";
 import { useAdminCity } from "@/contexts/AdminCityContext";
+import { CancellationDispositionDialog } from "@/components/CancellationDispositionDialog";
 
 type Period = "all" | "week" | "month" | "quarter" | "year" | "fy" | "custom";
 
@@ -156,20 +157,26 @@ export function AdminBookingLogsTab() {
     }
   };
 
-  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<any>(null);
 
-  const handleAdminCancel = async (id: string) => {
-    setCancelConfirmId(null);
+  const handleAdminCancel = async (booking: any, disposition: "advance_credit" | "external_refund" | "hours") => {
+    setCancelTarget(null);
     try {
-      const result: any = await adminCancelBooking.mutateAsync(id);
+      const result: any = await adminCancelBooking.mutateAsync({ bookingId: booking.id, disposition });
+      const baseMsg =
+        disposition === "advance_credit"
+          ? "Cancelled. Amount credited to customer advance."
+          : disposition === "external_refund"
+            ? "Cancelled. Refund will be processed externally to the customer."
+            : "Booking has been cancelled and hours refunded.";
       if (result?.calendar_warning) {
         toast({
           title: "Booking Cancelled (calendar issue)",
-          description: `Hours refunded, but the Google Calendar event could not be removed automatically: ${result.calendar_warning}. Please remove it manually if it still appears.`,
+          description: `${baseMsg} However, the Google Calendar event could not be removed automatically: ${result.calendar_warning}. Please remove it manually if it still appears.`,
           variant: "destructive",
         });
       } else {
-        toast({ title: "Booking Cancelled", description: "Booking has been cancelled and hours refunded." });
+        toast({ title: "Booking Cancelled", description: baseMsg });
       }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -397,7 +404,7 @@ export function AdminBookingLogsTab() {
                     )}
                     {(b.status === "confirmed" || b.status === "pending") && new Date(b.end_time) >= new Date() && (
                       <Badge
-                        onClick={() => setCancelConfirmId(b.id)}
+                        onClick={() => setCancelTarget(b)}
                         className="cursor-pointer mt-1 bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20 text-[10px] px-1.5 py-0"
                         variant="outline"
                       >
@@ -436,18 +443,13 @@ export function AdminBookingLogsTab() {
       </CardContent>
     </Card>
 
-    <AlertDialog open={!!cancelConfirmId} onOpenChange={(open) => { if (!open) setCancelConfirmId(null); }}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
-          <AlertDialogDescription>Hours will be refunded if applicable. This action cannot be undone.</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>No – Keep Booking</AlertDialogCancel>
-          <AlertDialogAction onClick={() => cancelConfirmId && handleAdminCancel(cancelConfirmId)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Yes – Cancel Booking</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <CancellationDispositionDialog
+      booking={cancelTarget}
+      onOpenChange={(open) => { if (!open) setCancelTarget(null); }}
+      onConfirm={(disp) => cancelTarget && handleAdminCancel(cancelTarget, disp)}
+      isPending={adminCancelBooking.isPending}
+      titlePrefix="Admin"
+    />
     </>
   );
 }
