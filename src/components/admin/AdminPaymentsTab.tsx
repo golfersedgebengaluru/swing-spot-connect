@@ -21,6 +21,7 @@ interface Gateway {
   display_name: string;
   api_key: string | null;
   api_secret: string | null;
+  webhook_secret: string | null;
   is_active: boolean;
   is_test_mode: boolean;
   config: Json;
