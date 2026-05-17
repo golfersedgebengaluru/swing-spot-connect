@@ -3448,6 +3448,14 @@ Deno.serve(async (req) => {
         .update({ status: 'completed', registration_id: reg.id })
         .eq('id', pending.id)
 
+      // Bridge into new league_teams / league_players / league_team_members / league_roles
+      // so the team appears in admin Teams tab and the captain sees the league in /leagues.
+      const { error: promErr } = await supabase.rpc('promote_legacy_team_member', {
+        _registration_id: reg.id,
+        _user_id: pending.captain_user_id,
+      })
+      if (promErr) console.error('promote_legacy_team_member (paid path) failed:', promErr)
+
       return json({ success: true, registration: reg, join_token: reg.join_token })
     }
 
