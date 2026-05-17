@@ -2,3 +2,9 @@ project_id = "epcuyrjsrbrybznqcfvl"
 
 [functions.request-password-reset]
 verify_jwt = false
+
+[functions.razorpay-webhook]
+verify_jwt = false
+
+[functions.reconcile-pending-payments]
+verify_jwt = false
