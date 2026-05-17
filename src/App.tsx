@@ -31,6 +31,8 @@ const CoachingSessionDetail = lazy(() => import("./pages/CoachingSessionDetail")
 const QuickCompetitionPublic = lazy(() => import("./pages/QuickCompetitionPublic"));
 const QuickCompetitionJoin = lazy(() => import("./pages/QuickCompetitionJoin"));
 const ChangePassword = lazy(() => import("./pages/ChangePassword"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const LeagueTeamJoin = lazy(() => import("./pages/LeagueTeamJoin"));
 const LeagueScreen = lazy(() => import("./pages/LeagueScreen"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -77,6 +79,8 @@ const App = () => (
               <Route path="/qc/:id" element={<ErrorBoundary><QuickCompetitionPublic /></ErrorBoundary>} />
               <Route path="/qc/:id/join" element={<ErrorBoundary><QuickCompetitionJoin /></ErrorBoundary>} />
               <Route path="/change-password" element={<ErrorBoundary><ChangePassword /></ErrorBoundary>} />
+              <Route path="/forgot-password" element={<ErrorBoundary><ForgotPassword /></ErrorBoundary>} />
+              <Route path="/reset-password" element={<ErrorBoundary><ResetPassword /></ErrorBoundary>} />
               <Route path="/page/:slug" element={<ErrorBoundary><PageView /></ErrorBoundary>} />
               <Route path="*" element={<ErrorBoundary><NotFound /></ErrorBoundary>} />
             </Routes>

@@ -215,7 +215,17 @@ export default function Auth() {
             </div>
 
             <div>
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                {!isSignUp && (
+                  <Link
+                    to="/forgot-password"
+                    className="text-xs font-medium text-primary hover:text-primary/80"
+                  >
+                    Forgot password?
+                  </Link>
+                )}
+              </div>
               <div className="relative mt-2">
                 <Input
                   id="password"

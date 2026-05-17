@@ -3222,6 +3222,13 @@ Deno.serve(async (req) => {
             }))
           )
         }
+        // Bridge into new league_teams / league_players / league_team_members / league_roles
+        // so the team appears in admin Teams tab and the captain sees the league in /leagues.
+        const { error: promErr } = await supabase.rpc('promote_legacy_team_member', {
+          _registration_id: regId,
+          _user_id: user.id,
+        })
+        if (promErr) console.error('promote_legacy_team_member (free path) failed:', promErr)
       }
 
       // Helper: record coupon redemption (best effort, idempotency via order_id absent here for free path)
@@ -3440,6 +3447,14 @@ Deno.serve(async (req) => {
       await supabase.from('pending_legacy_league_team_registrations')
         .update({ status: 'completed', registration_id: reg.id })
         .eq('id', pending.id)
+
+      // Bridge into new league_teams / league_players / league_team_members / league_roles
+      // so the team appears in admin Teams tab and the captain sees the league in /leagues.
+      const { error: promErr } = await supabase.rpc('promote_legacy_team_member', {
+        _registration_id: reg.id,
+        _user_id: pending.captain_user_id,
+      })
+      if (promErr) console.error('promote_legacy_team_member (paid path) failed:', promErr)
 
       return json({ success: true, registration: reg, join_token: reg.join_token })
     }
