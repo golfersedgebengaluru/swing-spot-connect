@@ -1840,7 +1840,7 @@ Deno.serve(async (req) => {
 
     // Admin cancel booking — bypasses user ownership check and cancellation window
     if (action === "admin_cancel_booking") {
-      const { booking_id } = params;
+      const { booking_id, disposition } = params;
       const adminClient = createAdminClient();
 
       // Verify caller is admin or site_admin
