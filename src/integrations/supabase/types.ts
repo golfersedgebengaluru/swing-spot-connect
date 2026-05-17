@@ -136,6 +136,7 @@ export type Database = {
       bay_config: {
         Row: {
           calendar_email: string | null
+          cancellation_fee_pct: number
           city: string
           close_time: string
           created_at: string
@@ -146,6 +147,7 @@ export type Database = {
         }
         Insert: {
           calendar_email?: string | null
+          cancellation_fee_pct?: number
           city: string
           close_time?: string
           created_at?: string
@@ -156,6 +158,7 @@ export type Database = {
         }
         Update: {
           calendar_email?: string | null
+          cancellation_fee_pct?: number
           city?: string
           close_time?: string
           created_at?: string
