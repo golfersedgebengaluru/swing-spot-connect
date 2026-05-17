@@ -582,6 +582,7 @@ Deno.serve(async (req) => {
         "guest_booking_confirmed",
         "league_team_invite",
         "league_team_created",
+        "password_reset",
       ];
 
       if (!RATE_LIMIT_EXEMPT_TEMPLATES.includes(template)) {
