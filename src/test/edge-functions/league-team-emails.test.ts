@@ -3,11 +3,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const emailSrc = readFileSync(
-  resolve(__dirname, "../send-notification-email/index.ts"),
+  resolve(__dirname, "../../../supabase/functions/send-notification-email/index.ts"),
   "utf-8"
 );
 const leagueSrc = readFileSync(
-  resolve(__dirname, "../league-service/index.ts"),
+  resolve(__dirname, "../../../supabase/functions/league-service/index.ts"),
   "utf-8"
 );
 
