@@ -299,6 +299,7 @@ export function BayConfigTab() {
 
               {/* City-level schedule management */}
               <Separator className="my-4" />
+              <CancellationFeeEditor city={city} />
               <HolidayEditor city={city} />
             </CardContent>
           </Card>
