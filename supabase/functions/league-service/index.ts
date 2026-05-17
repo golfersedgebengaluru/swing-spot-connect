@@ -28,6 +28,69 @@ async function getUser(req: Request, supabaseAdmin: any) {
   return user
 }
 
+// ── Team-creation email helper (best-effort, never blocks team creation) ──
+async function sendTeamCreationEmails(opts: {
+  supabaseUrl: string
+  serviceKey: string
+  origin: string
+  captainUserId: string
+  captainEmail: string | null
+  captainName: string | null
+  leagueName: string
+  teamName: string
+  teamSize: number
+  locationName: string | null
+  joinToken: string | null
+  inviteEmails: string[]
+}) {
+  const joinUrl = opts.joinToken ? `${opts.origin.replace(/\/$/, '')}/league-team-join/${opts.joinToken}` : ''
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${opts.serviceKey}`,
+    apikey: opts.serviceKey,
+  }
+  const post = (body: Record<string, unknown>) =>
+    fetch(`${opts.supabaseUrl}/functions/v1/send-notification-email`, {
+      method: 'POST', headers, body: JSON.stringify(body),
+    }).then((r) => r.ok ? null : r.text().then((t) => console.error('[league email] failed', body.template, r.status, t)))
+      .catch((e) => console.error('[league email] error', body.template, e))
+
+  const tasks: Promise<unknown>[] = []
+  // Captain confirmation
+  if (opts.captainEmail) {
+    tasks.push(post({
+      user_id: opts.captainUserId,
+      template: 'league_team_created',
+      subject: `Team "${opts.teamName}" registered — ${opts.leagueName}`,
+      data: {
+        display_name: opts.captainName,
+        league_name: opts.leagueName,
+        team_name: opts.teamName,
+        team_size: opts.teamSize,
+        invites_sent: opts.inviteEmails.length,
+        join_url: joinUrl,
+      },
+    }))
+  }
+  // Invitees
+  for (const email of opts.inviteEmails) {
+    tasks.push(post({
+      user_id: null,
+      recipient_email: email,
+      template: 'league_team_invite',
+      subject: `You've been added to "${opts.teamName}" — ${opts.leagueName}`,
+      data: {
+        captain_name: opts.captainName,
+        league_name: opts.leagueName,
+        team_name: opts.teamName,
+        location: opts.locationName,
+        join_url: joinUrl,
+      },
+    }))
+  }
+  await Promise.allSettled(tasks)
+}
+
 // ── Audit helper ─────────────────────────────────────────────
 async function audit(
   supabase: any,
