@@ -442,18 +442,13 @@ export function AdminBookingLogsTab() {
       </CardContent>
     </Card>
 
-    <AlertDialog open={!!cancelConfirmId} onOpenChange={(open) => { if (!open) setCancelConfirmId(null); }}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Cancel this booking?</AlertDialogTitle>
-          <AlertDialogDescription>Hours will be refunded if applicable. This action cannot be undone.</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>No – Keep Booking</AlertDialogCancel>
-          <AlertDialogAction onClick={() => cancelConfirmId && handleAdminCancel(cancelConfirmId)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Yes – Cancel Booking</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <CancellationDispositionDialog
+      booking={cancelTarget}
+      onOpenChange={(open) => { if (!open) setCancelTarget(null); }}
+      onConfirm={(disp) => cancelTarget && handleAdminCancel(cancelTarget, disp)}
+      isPending={adminCancelBooking.isPending}
+      titlePrefix="Admin"
+    />
     </>
   );
 }
