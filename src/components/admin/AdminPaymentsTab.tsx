@@ -21,6 +21,7 @@ interface Gateway {
   display_name: string;
   api_key: string | null;
   api_secret: string | null;
+  webhook_secret: string | null;
   is_active: boolean;
   is_test_mode: boolean;
   config: Json;
@@ -275,6 +276,26 @@ export function AdminPaymentsTab() {
                         />
                       </div>
                     </div>
+
+                    {gw.name === "razorpay" && (
+                      <div className="space-y-2">
+                        <Label>Webhook Secret</Label>
+                        <Input
+                          type={isVisible ? "text" : "password"}
+                          placeholder="Paste the same secret you set in Razorpay → Webhooks"
+                          value={edits[gw.id]?.webhook_secret ?? (isVisible ? gw.webhook_secret ?? "" : maskValue(gw.webhook_secret))}
+                          onChange={(e) => handleFieldChange(gw.id, "webhook_secret", e.target.value)}
+                          onFocus={() => {
+                            if (!edits[gw.id]?.webhook_secret && gw.webhook_secret) {
+                              handleFieldChange(gw.id, "webhook_secret", gw.webhook_secret);
+                            }
+                          }}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Webhook URL: <code className="text-[11px]">https://epcuyrjsrbrybznqcfvl.supabase.co/functions/v1/razorpay-webhook</code> — subscribe to <strong>payment.captured</strong> and <strong>payment.failed</strong>. Paste the exact same secret here as in the Razorpay dashboard.
+                        </p>
+                      </div>
+                    )}
 
                     <div className="flex items-center justify-between pt-2">
                       <div className="flex items-center gap-2">
