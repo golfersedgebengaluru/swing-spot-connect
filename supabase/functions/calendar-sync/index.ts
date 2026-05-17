@@ -226,7 +226,83 @@ async function notifyAdminsInApp(adminClient: any, adminIds: string[], title: st
   }
 }
 
-// ─── Revenue reversal + Invoice cancellation + Credit note ───
+// Disposition-aware cancellation: advance_credit (park as customer advance) or external_refund (record net refund after fee).
+async function handleCancellationDisposition(
+  adminClient: any,
+  booking: any,
+  disposition: "advance_credit" | "external_refund" | "hours",
+) {
+  // Detect paid revenue for this booking (gateway/guest payments only).
+  const { data: paidTx } = await adminClient
+    .from("revenue_transactions")
+    .select("*")
+    .eq("booking_id", booking.id)
+    .gt("amount", 0)
+    .eq("status", "confirmed")
+    .in("transaction_type", ["payment", "guest_booking"])
+    .maybeSingle();
+
+  if (!paidTx) {
+    // Hours-only booking — nothing to reverse here.
+    return;
+  }
+
+  if (disposition === "external_refund") {
+    // Read per-city fee
+    let feePct = 10;
+    const { data: bc } = await adminClient
+      .from("bay_config")
+      .select("cancellation_fee_pct")
+      .eq("city", booking.city)
+      .maybeSingle();
+    if (bc?.cancellation_fee_pct != null) feePct = Number(bc.cancellation_fee_pct);
+
+    const paid = Number(paidTx.amount);
+    const refundAmount = Math.max(0, +(paid * (1 - feePct / 100)).toFixed(2));
+
+    await adminClient.from("revenue_transactions").insert({
+      transaction_type: "refund",
+      amount: refundAmount,
+      currency: paidTx.currency,
+      user_id: paidTx.user_id || null,
+      booking_id: booking.id,
+      original_transaction_id: paidTx.id,
+      guest_name: paidTx.guest_name,
+      guest_email: paidTx.guest_email,
+      guest_phone: paidTx.guest_phone,
+      gateway_name: paidTx.gateway_name,
+      description: `Refund (${(100 - feePct).toFixed(0)}% after ${feePct}% cancellation charge) — ${paidTx.description || "Booking cancelled"}`,
+      status: "confirmed",
+      city: paidTx.city,
+    });
+    return;
+  }
+
+  // Default: advance_credit — full reversal + park as customer advance
+  await reverseRevenueAndInvoice(adminClient, booking.id);
+
+  const customerId = paidTx.user_id;
+  if (!customerId) {
+    console.warn(`advance_credit: no customer_id resolvable for booking ${booking.id}; skipping advance credit insert`);
+    return;
+  }
+  try {
+    await adminClient.from("advance_transactions").insert({
+      customer_id: customerId,
+      amount: Number(paidTx.amount),
+      transaction_type: "credit",
+      source_type: "credit_note",
+      source_id: booking.id,
+      description: `Booking cancellation credit — ${paidTx.description || booking.city}`,
+      city: booking.city,
+      created_by: null,
+    });
+  } catch (e) {
+    console.error("Failed to insert advance_transactions credit:", (e as Error).message);
+  }
+}
+
+
 // Called when a confirmed booking with paid revenue (amount > 0) is cancelled.
 // Returns the matched paid revenue row (for downstream disposition logic) or null.
 async function reverseRevenueAndInvoice(adminClient: any, bookingId: string) {
