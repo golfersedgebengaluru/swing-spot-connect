@@ -41,38 +41,52 @@ export type Database = {
           city: string
           created_at: string
           created_by: string | null
-          customer_id: string
+          customer_id: string | null
           description: string | null
+          entity_type: string
           id: string
           source_id: string | null
           source_type: string
           transaction_type: string
+          vendor_id: string | null
         }
         Insert: {
           amount?: number
           city: string
           created_at?: string
           created_by?: string | null
-          customer_id: string
+          customer_id?: string | null
           description?: string | null
+          entity_type?: string
           id?: string
           source_id?: string | null
           source_type?: string
           transaction_type?: string
+          vendor_id?: string | null
         }
         Update: {
           amount?: number
           city?: string
           created_at?: string
           created_by?: string | null
-          customer_id?: string
+          customer_id?: string | null
           description?: string | null
+          entity_type?: string
           id?: string
           source_id?: string | null
           source_type?: string
           transaction_type?: string
+          vendor_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "advance_transactions_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       auto_gift_rules: {
         Row: {
@@ -1061,9 +1075,11 @@ export type Database = {
           expense_date: string
           id: string
           igst_total: number
+          is_settled: boolean
           notes: string | null
           payment_method: string | null
           payment_reference: string | null
+          settled_amount: number
           sgst_total: number
           subtotal: number
           total: number
@@ -1080,9 +1096,11 @@ export type Database = {
           expense_date?: string
           id?: string
           igst_total?: number
+          is_settled?: boolean
           notes?: string | null
           payment_method?: string | null
           payment_reference?: string | null
+          settled_amount?: number
           sgst_total?: number
           subtotal?: number
           total?: number
@@ -1099,9 +1117,11 @@ export type Database = {
           expense_date?: string
           id?: string
           igst_total?: number
+          is_settled?: boolean
           notes?: string | null
           payment_method?: string | null
           payment_reference?: string | null
+          settled_amount?: number
           sgst_total?: number
           subtotal?: number
           total?: number
@@ -4686,6 +4706,10 @@ export type Database = {
         Returns: string
       }
       get_user_tenant_ids: { Args: { _user_id: string }; Returns: string[] }
+      get_vendor_advance_balance: {
+        Args: { p_vendor_id: string }
+        Returns: number
+      }
       has_city_access: {
         Args: { _city: string; _user_id: string }
         Returns: boolean
