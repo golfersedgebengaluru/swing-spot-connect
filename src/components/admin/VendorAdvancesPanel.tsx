@@ -18,7 +18,7 @@ import {
   useSettleVendorAdvance,
 } from "@/hooks/useVendorAdvances";
 import { useExpenses } from "@/hooks/useExpenses";
-import { useCurrency } from "@/hooks/useCurrency";
+import { useCityBaysCurrency } from "@/hooks/useCurrency";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Props {
