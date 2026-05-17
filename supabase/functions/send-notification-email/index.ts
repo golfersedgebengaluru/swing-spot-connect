@@ -559,6 +559,8 @@ Deno.serve(async (req) => {
         "admin_coaching_request",
         "admin_booking_cancelled",
         "guest_booking_confirmed",
+        "league_team_invite",
+        "league_team_created",
       ];
 
       if (!RATE_LIMIT_EXEMPT_TEMPLATES.includes(template)) {
