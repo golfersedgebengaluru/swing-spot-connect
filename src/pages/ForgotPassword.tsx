@@ -18,8 +18,11 @@ export default function ForgotPassword() {
     e.preventDefault();
     if (!email.trim()) return;
     setSubmitting(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: `${window.location.origin}/reset-password`,
+    const { error } = await supabase.functions.invoke("request-password-reset", {
+      body: {
+        email: email.trim().toLowerCase(),
+        redirect_to: `${window.location.origin}/reset-password`,
+      },
     });
     setSubmitting(false);
     if (error) {
