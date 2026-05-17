@@ -430,6 +430,8 @@ const TEMPLATE_PREF_MAP: Record<string, string> = {
   admin_coaching_request: "",
   admin_booking_cancelled: "",
   guest_booking_confirmed: "",
+  league_team_invite: "",
+  league_team_created: "",
 };
 
 Deno.serve(async (req) => {
