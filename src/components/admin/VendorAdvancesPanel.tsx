@@ -27,7 +27,7 @@ interface Props {
 
 export function VendorAdvancesPanel({ city }: Props) {
   const { toast } = useToast();
-  const { format } = useCurrency(city);
+  const { format } = useCityBaysCurrency(city);
   const { data: vendors, isLoading: loadingVendors } = useVendors(city);
   const { data: balances } = useAllVendorAdvanceBalances(city);
 
@@ -221,7 +221,7 @@ function SettleAdvanceDialog({ open, onOpenChange, vendor, city, balance, onDone
 }) {
   const { toast } = useToast();
   const settle = useSettleVendorAdvance();
-  const { format } = useCurrency(city);
+  const { format } = useCityBaysCurrency(city);
   // Unsettled expenses for this vendor
   const { data: expensesPage } = useExpenses({ city, vendorId: vendor.id, pageSize: 100 });
   const unsettled = (expensesPage?.data ?? []).filter(
@@ -330,7 +330,7 @@ function VendorHistorySheet({ vendor, onClose, city }: {
   onClose: () => void;
   city: string;
 }) {
-  const { format } = useCurrency(city);
+  const { format } = useCityBaysCurrency(city);
   const { data: txns, isLoading } = useVendorAdvanceTransactions(vendor?.id);
 
   return (
