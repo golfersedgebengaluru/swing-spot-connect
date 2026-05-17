@@ -3355,7 +3355,7 @@ Deno.serve(async (req) => {
           .select()
           .single()
         if (regErr) return err(regErr.message, 500)
-        await finalizeTeam(reg.id)
+        await finalizeTeam(reg.id, reg.join_token)
         await recordCouponRedemption(null)
         return json({ success: true, free: true, registration: reg, join_token: reg.join_token })
       }
