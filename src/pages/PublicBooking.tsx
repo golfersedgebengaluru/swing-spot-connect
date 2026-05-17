@@ -217,8 +217,11 @@ export default function PublicBooking() {
               guest_name: guestName,
               guest_email: guestEmail,
               guest_phone: guestPhone,
-              amount: totalCost,
+              amount: amountToCharge,
               currency: currentPrice?.currency || "INR",
+              coupon_code: appliedCoupon?.code || null,
+              discount_amount: couponDiscount || 0,
+              original_amount: totalCost,
             });
           } catch (e) {
             console.error("Failed to stash pending guest booking (non-fatal):", e);
@@ -307,9 +310,12 @@ export default function PublicBooking() {
                       calendar_email: currentBay.calendar_email,
                       payment_id: response.razorpay_payment_id,
                       order_id: response.razorpay_order_id,
-                      amount: totalCost,
+                      amount: amountToCharge,
                       currency: currentPrice?.currency || "INR",
                       gateway_name: "razorpay",
+                      coupon_code: appliedCoupon?.code || null,
+                      discount_amount: couponDiscount || 0,
+                      original_amount: totalCost,
                     },
                   });
 
