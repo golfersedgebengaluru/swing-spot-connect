@@ -1793,6 +1793,16 @@ Deno.serve(async (req) => {
         summary: `${booking.session_type === "coaching" ? "Coaching" : "Bay"} Booking — ${bayName}`,
         location: `${bayName}, ${booking.city}`,
       });
+      // Detect whether booking was paid with money or hours
+      const { data: paidTx } = await adminClient
+        .from("revenue_transactions")
+        .select("amount, currency")
+        .eq("booking_id", booking_id)
+        .in("transaction_type", ["payment", "guest_booking"])
+        .gt("amount", 0)
+        .maybeSingle();
+      const paymentMethod = paidTx ? "paid" : "hours";
+
       try {
         await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
           method: "POST",
@@ -1811,6 +1821,9 @@ Deno.serve(async (req) => {
               time: formatTime(booking.start_time, calTz),
               duration: `${booking.duration_minutes} min`,
               hours_refunded: hoursRefunded,
+              payment_method: paymentMethod,
+              amount_paid: paidTx?.amount || null,
+              currency: paidTx?.currency || "INR",
               remove_from_calendar_url: removeFromCalendarUrl,
             },
           }),
@@ -1953,15 +1966,49 @@ Deno.serve(async (req) => {
         summary: `${booking.session_type === "coaching" ? "Coaching" : "Bay"} Booking — ${bayName}`,
         location: `${bayName}, ${booking.city}`,
       });
+      // Detect paid vs hours for cancellation email
+      const { data: paidTxAdmin } = await adminClient
+        .from("revenue_transactions")
+        .select("amount, currency")
+        .eq("booking_id", booking_id)
+        .in("transaction_type", ["payment", "guest_booking"])
+        .gt("amount", 0)
+        .maybeSingle();
+      const paymentMethodAdmin = paidTxAdmin ? "paid" : "hours";
+
+      // Resolve guest email (when booking.user_id is null OR points to guest profile)
+      let recipientEmailAdmin: string | null = null;
+      if (!booking.user_id) {
+        const { data: pgb } = await adminClient
+          .from("pending_guest_bookings")
+          .select("guest_email")
+          .eq("start_time", booking.start_time)
+          .eq("bay_id", booking.bay_id)
+          .maybeSingle();
+        recipientEmailAdmin = pgb?.guest_email || null;
+      }
+
       try {
         await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
           body: JSON.stringify({
-            user_id: booking.user_id,
+            user_id: booking.user_id || undefined,
+            recipient_email: recipientEmailAdmin || undefined,
             template: "booking_cancelled",
             subject: "🚫 Booking Cancelled by Admin",
-            data: { bay: bayName, city: booking.city, date: formatDate(booking.start_time, calTz), time: formatTime(booking.start_time, calTz), duration: `${booking.duration_minutes} min`, hours_refunded: hoursRefunded, remove_from_calendar_url: removeFromCalendarUrlAdmin },
+            data: {
+              bay: bayName,
+              city: booking.city,
+              date: formatDate(booking.start_time, calTz),
+              time: formatTime(booking.start_time, calTz),
+              duration: `${booking.duration_minutes} min`,
+              hours_refunded: hoursRefunded,
+              payment_method: paymentMethodAdmin,
+              amount_paid: paidTxAdmin?.amount || null,
+              currency: paidTxAdmin?.currency || "INR",
+              remove_from_calendar_url: removeFromCalendarUrlAdmin,
+            },
           }),
         });
       } catch (e) { console.error("Failed to send cancellation email:", (e as Error).message); }
