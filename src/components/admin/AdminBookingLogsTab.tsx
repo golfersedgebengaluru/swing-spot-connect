@@ -16,6 +16,7 @@ import { useAdmin } from "@/hooks/useAdmin";
 import { useActiveFinancialYear } from "@/hooks/useRevenue";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, addMonths, parseISO, isWithinInterval } from "date-fns";
 import { useAdminCity } from "@/contexts/AdminCityContext";
+import { CancellationDispositionDialog } from "@/components/CancellationDispositionDialog";
 
 type Period = "all" | "week" | "month" | "quarter" | "year" | "fy" | "custom";
 
