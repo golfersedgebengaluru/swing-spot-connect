@@ -227,6 +227,9 @@ Deno.serve(async (req) => {
             amount: pendingGuest.amount,
             currency: pendingGuest.currency,
             gateway_name: "razorpay",
+            coupon_code: pendingGuest.coupon_code || null,
+            discount_amount: pendingGuest.discount_amount || 0,
+            original_amount: pendingGuest.original_amount || null,
           }),
         });
 

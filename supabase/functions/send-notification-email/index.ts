@@ -121,14 +121,22 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
       </div>
     </div>`,
 
-  booking_cancelled: (d) => `
+  booking_cancelled: (d) => {
+    const isPaid = d.payment_method === "paid";
+    const currencySymbol = (d.currency || "INR") === "INR" ? "₹" : (d.currency + " ");
+    const bodyLine = d._custom_body
+      ? d._custom_body.replace("{{hours_refunded}}", d.hours_refunded)
+      : (isPaid
+          ? `Your booking has been cancelled.${d.amount_paid ? ` A refund of ${currencySymbol}${d.amount_paid} will be processed back to your original payment method within 5–7 business days.` : ""}`
+          : `Your booking has been cancelled and ${d.hours_refunded}h has been refunded.`);
+    return `
     <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff">
       <div style="background:#2b3544;padding:32px 24px;text-align:center">
         <h1 style="color:#f5f0eb;margin:0;font-family:'Playfair Display',Georgia,serif;font-size:24px">Booking Cancelled</h1>
       </div>
       <div style="padding:32px 24px">
         <p style="color:#1a2332;font-size:16px;margin:0 0 16px">Hi ${d.display_name || "there"},</p>
-        <p style="color:#1a2332;font-size:16px;margin:0 0 24px">${d._custom_body ? d._custom_body.replace("{{hours_refunded}}", d.hours_refunded) : `Your booking has been cancelled and ${d.hours_refunded}h has been refunded.`}</p>
+        <p style="color:#1a2332;font-size:16px;margin:0 0 24px">${bodyLine}</p>
         <div style="background:#f0f3f7;border-radius:8px;padding:20px;margin:0 0 24px">
           <table style="width:100%;border-collapse:collapse">
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Location</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.city}</td></tr>
@@ -136,7 +144,9 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Date</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.date}</td></tr>
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Time</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.time}</td></tr>
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Duration</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.duration}</td></tr>
-            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Hours Refunded</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.hours_refunded}h</td></tr>
+            ${isPaid
+              ? (d.amount_paid ? `<tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Amount Refunded</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${currencySymbol}${d.amount_paid}</td></tr>` : "")
+              : `<tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Hours Refunded</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.hours_refunded}h</td></tr>`}
           </table>
         </div>
         ${d.remove_from_calendar_url ? `
@@ -148,7 +158,8 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
       <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
         <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
       </div>
-    </div>`,
+    </div>`;
+  },
 
   points_earned: (d) => `
     <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff">
@@ -295,7 +306,10 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
       </div>
     </div>`,
 
-  guest_booking_confirmed: (d) => `
+  guest_booking_confirmed: (d) => {
+    const currencySymbol = (d.currency || "INR") === "INR" ? "₹" : (d.currency + " ");
+    const hasCoupon = d.coupon_code && Number(d.discount_amount) > 0;
+    return `
     <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:0">
       <div style="background:#2b3544;padding:32px 24px;text-align:center">
         <h1 style="color:#f5f0eb;margin:0;font-family:'Playfair Display',Georgia,serif;font-size:24px">Booking Confirmed ✅</h1>
@@ -310,7 +324,9 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Date</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.date}</td></tr>
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Time</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.time}</td></tr>
             <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Duration</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.duration}</td></tr>
-            ${d.amount ? `<tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Amount Paid</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">₹${d.amount}</td></tr>` : ""}
+            ${hasCoupon && d.original_amount ? `<tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Slot Price</td><td style="padding:6px 0;color:#1a2332;font-size:14px;text-align:right">${currencySymbol}${d.original_amount}</td></tr>` : ""}
+            ${hasCoupon ? `<tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Coupon (${d.coupon_code})</td><td style="padding:6px 0;color:#16a34a;font-size:14px;font-weight:600;text-align:right">− ${currencySymbol}${d.discount_amount}</td></tr>` : ""}
+            ${d.amount ? `<tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Amount Paid</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${currencySymbol}${d.amount}</td></tr>` : ""}
           </table>
         </div>
         ${d.add_to_calendar_url ? `
@@ -323,7 +339,8 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
       <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
         <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
       </div>
-    </div>`,
+    </div>`;
+  },
 
   league_team_invite: (d) => `
     <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:0">
