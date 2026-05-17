@@ -43,6 +43,7 @@ export function CreateLegacyTeamDialog({ league, open, onOpenChange }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [cityId, setCityId] = useState("");
   const [locationId, setLocationId] = useState("");
