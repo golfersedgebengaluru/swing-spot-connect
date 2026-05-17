@@ -3473,8 +3473,10 @@ export type Database = {
           bay_name: string | null
           calendar_email: string | null
           city: string
+          coupon_code: string | null
           created_at: string
           currency: string
+          discount_amount: number
           duration_minutes: number
           end_time: string
           error_message: string | null
@@ -3483,6 +3485,7 @@ export type Database = {
           guest_name: string
           guest_phone: string | null
           id: string
+          original_amount: number | null
           razorpay_order_id: string
           session_type: string | null
           start_time: string
@@ -3495,8 +3498,10 @@ export type Database = {
           bay_name?: string | null
           calendar_email?: string | null
           city: string
+          coupon_code?: string | null
           created_at?: string
           currency?: string
+          discount_amount?: number
           duration_minutes: number
           end_time: string
           error_message?: string | null
@@ -3505,6 +3510,7 @@ export type Database = {
           guest_name: string
           guest_phone?: string | null
           id?: string
+          original_amount?: number | null
           razorpay_order_id: string
           session_type?: string | null
           start_time: string
@@ -3517,8 +3523,10 @@ export type Database = {
           bay_name?: string | null
           calendar_email?: string | null
           city?: string
+          coupon_code?: string | null
           created_at?: string
           currency?: string
+          discount_amount?: number
           duration_minutes?: number
           end_time?: string
           error_message?: string | null
@@ -3527,6 +3535,7 @@ export type Database = {
           guest_name?: string
           guest_phone?: string | null
           id?: string
+          original_amount?: number | null
           razorpay_order_id?: string
           session_type?: string | null
           start_time?: string
