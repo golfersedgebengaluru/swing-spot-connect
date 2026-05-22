@@ -91,6 +91,9 @@
     --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
     --tracking-normal: 0em;
     --spacing: 0.25rem;
+
+    /* Light neon green accent for EdgeCollective wordmark */
+    --neon-green: 96 80% 55%;
   }
 
   .dark {
@@ -182,6 +185,11 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+
+  .text-neon-green {
+    color: hsl(var(--neon-green));
+    text-shadow: 0 0 24px hsl(var(--neon-green) / 0.35);
   }
 
   .bg-gradient-hero {
