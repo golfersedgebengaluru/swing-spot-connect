@@ -9,6 +9,7 @@ import { AdminRoute } from "@/components/AdminRoute";
 import { CitySelectionModal } from "@/components/CitySelectionModal";
 import { PageLoader } from "@/components/PageLoader";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ReconsentBanner } from "@/components/ReconsentBanner";
 
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -56,6 +57,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <CitySelectionModal />
+          <ReconsentBanner />
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<ErrorBoundary><Index /></ErrorBoundary>} />
