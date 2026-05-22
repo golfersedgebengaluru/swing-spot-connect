@@ -189,9 +189,32 @@ async function getAdminAndSiteAdminIds(adminClient: any, city: string, excludeUs
   return [...ids];
 }
 
-// Send admin email notification to all relevant admins/site-admins
+// Send admin email notification to all relevant admins/site-admins.
+// Respects the `global_admins_receive_booking_emails` admin_config flag —
+// when set to "false", users with the global `admin` role are skipped
+// (site-admins for the city still receive the email).
 async function notifyAdmins(adminClient: any, adminIds: string[], template: string, subject: string, data: Record<string, any>) {
-  for (const adminId of adminIds) {
+  let recipientIds = adminIds;
+  try {
+    const { data: cfg } = await adminClient
+      .from("admin_config")
+      .select("value")
+      .eq("key", "global_admins_receive_booking_emails")
+      .maybeSingle();
+    const includeGlobalAdmins = (cfg?.value ?? "true") !== "false";
+    if (!includeGlobalAdmins) {
+      const { data: globalAdmins } = await adminClient
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin");
+      const globalAdminSet = new Set((globalAdmins ?? []).map((r: any) => r.user_id));
+      recipientIds = adminIds.filter((id) => !globalAdminSet.has(id));
+    }
+  } catch (e) {
+    console.error("Failed to read global_admins_receive_booking_emails flag:", (e as Error).message);
+  }
+
+  for (const adminId of recipientIds) {
     try {
       const adminName = await resolveProfileDisplayName(adminClient, adminId, "Admin");
       await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
@@ -212,6 +235,7 @@ async function notifyAdmins(adminClient: any, adminIds: string[], template: stri
     }
   }
 }
+
 
 // Send in-app notification to all relevant admins/site-admins
 async function notifyAdminsInApp(adminClient: any, adminIds: string[], title: string, message: string, actionUrl?: string) {
