@@ -36,6 +36,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const LeagueTeamJoin = lazy(() => import("./pages/LeagueTeamJoin"));
 const LeagueScreen = lazy(() => import("./pages/LeagueScreen"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Grievance = lazy(() => import("./pages/Grievance"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -82,6 +83,7 @@ const App = () => (
               <Route path="/forgot-password" element={<ErrorBoundary><ForgotPassword /></ErrorBoundary>} />
               <Route path="/reset-password" element={<ErrorBoundary><ResetPassword /></ErrorBoundary>} />
               <Route path="/page/:slug" element={<ErrorBoundary><PageView /></ErrorBoundary>} />
+              <Route path="/grievance" element={<ErrorBoundary><Grievance /></ErrorBoundary>} />
               <Route path="*" element={<ErrorBoundary><NotFound /></ErrorBoundary>} />
             </Routes>
           </Suspense>

@@ -263,9 +263,31 @@ export default function Auth() {
               </div>
             </div>
 
+            {isSignUp && (
+              <div className="space-y-3 rounded-md border border-border bg-muted/30 p-3">
+                <div className="flex items-start gap-2">
+                  <Checkbox id="terms" checked={agreedToTerms} onCheckedChange={(v) => setAgreedToTerms(!!v)} className="mt-0.5" />
+                  <Label htmlFor="terms" className="text-xs font-normal leading-relaxed cursor-pointer">
+                    I agree to the{" "}
+                    <Link to="/page/terms" target="_blank" className="underline text-primary">Terms of Service</Link>{" "}
+                    and{" "}
+                    <Link to="/page/privacy" target="_blank" className="underline text-primary">Privacy Policy</Link>{" "}
+                    (DPDP Act, 2023 compliant). <span className="text-destructive">*</span>
+                  </Label>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Checkbox id="marketing" checked={marketingOptIn} onCheckedChange={(v) => setMarketingOptIn(!!v)} className="mt-0.5" />
+                  <Label htmlFor="marketing" className="text-xs font-normal leading-relaxed cursor-pointer text-muted-foreground">
+                    Send me occasional marketing emails about offers, events and new features. You can opt out anytime.
+                  </Label>
+                </div>
+              </div>
+            )}
+
             <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
               {isLoading ? "Loading..." : isSignUp ? "Join the Collective" : "Sign In"}
             </Button>
+
           </form>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">

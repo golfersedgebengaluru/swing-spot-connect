@@ -21,6 +21,7 @@ import {
   GraduationCap,
   Building2,
   KeyRound,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -69,6 +70,7 @@ const configItems = [
   { id: "pricing", label: "Pricing", icon: CreditCard },
   { id: "payments", label: "Payments", icon: CreditCard },
   { id: "emails", label: "Emails", icon: Mail },
+  { id: "grievances", label: "Grievances", icon: ShieldCheck, adminOrSiteAdminOnly: true },
   { id: "settings", label: "Settings", icon: Award, adminOnly: true },
   { id: "finance", label: "Finance Settings", icon: Receipt },
   { id: "bayconfig", label: "Locations", icon: MapPin },
