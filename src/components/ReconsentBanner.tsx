@@ -7,7 +7,7 @@ import { ShieldAlert } from "lucide-react";
 
 export function ReconsentBanner() {
   const { user } = useAuth();
-  const [needed, setNeeded] = useState<{ tos: boolean; privacy: boolean } | null>(null);
+  const [needed, setNeeded] = useState<{ privacy: string | null; terms: string | null } | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -15,14 +15,12 @@ export function ReconsentBanner() {
     let cancelled = false;
     (async () => {
       try {
-        const [tos, privacy] = await Promise.all([
-          supabase.rpc("needs_reconsent" as any, { _user_id: user.id, _slug: "terms" } as any),
-          supabase.rpc("needs_reconsent" as any, { _user_id: user.id, _slug: "privacy" } as any),
-        ]);
-        if (cancelled) return;
-        const t = !!(tos.data ?? false);
-        const p = !!(privacy.data ?? false);
-        if (t || p) setNeeded({ tos: t, privacy: p });
+        const { data } = await supabase.rpc("needs_reconsent" as any, { _user_id: user.id } as any);
+        if (cancelled || !data) return;
+        const d = data as { needs_reconsent: boolean; latest_privacy_version: string | null; latest_terms_version: string | null };
+        if (d.needs_reconsent) {
+          setNeeded({ privacy: d.latest_privacy_version, terms: d.latest_terms_version });
+        }
       } catch (_) {}
     })();
     return () => { cancelled = true; };
@@ -33,8 +31,14 @@ export function ReconsentBanner() {
   const accept = async () => {
     setBusy(true);
     try {
-      if (needed.tos) await supabase.rpc("record_consent" as any, { _user_id: user.id, _email: user.email, _consent_type: "tos", _granted: true, _slug: "terms" } as any);
-      if (needed.privacy) await supabase.rpc("record_consent" as any, { _user_id: user.id, _email: user.email, _consent_type: "privacy", _granted: true, _slug: "privacy" } as any);
+      await supabase.rpc("record_consent" as any, {
+        _consent_type: "privacy", _granted: true, _policy_version: needed.privacy,
+        _email: user.email, _user_agent: navigator.userAgent,
+      } as any);
+      await supabase.rpc("record_consent" as any, {
+        _consent_type: "tos", _granted: true, _policy_version: needed.terms,
+        _email: user.email, _user_agent: navigator.userAgent,
+      } as any);
       setNeeded(null);
     } finally {
       setBusy(false);
