@@ -532,6 +532,58 @@ function LowHoursThresholdCard() {
   );
 }
 
+function GlobalAdminBookingEmailsCard() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const KEY = "global_admins_receive_booking_emails";
+
+  const { data: enabled, isLoading } = useQuery({
+    queryKey: ["admin_config", KEY],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("admin_config")
+        .select("value")
+        .eq("key", KEY)
+        .maybeSingle();
+      return (data?.value ?? "true") !== "false";
+    },
+  });
+
+  const handleToggle = async (checked: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("admin_config")
+        .upsert({ key: KEY, value: checked ? "true" : "false" }, { onConflict: "key" });
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["admin_config", KEY] });
+      toast({ title: "Saved", description: checked ? "Global admins will receive booking emails." : "Only site-admins will receive booking emails." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to update", variant: "destructive" });
+    }
+  };
+
+  if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
+
+  return (
+    <Card className="max-w-md">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5" />Global Admin Booking Emails</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-1">
+            <Label htmlFor="ga-booking-emails">Send booking notification emails to global admins</Label>
+            <p className="text-xs text-muted-foreground">
+              When off, only site-admins assigned to the booking's city receive the email. In-app notifications are unaffected.
+            </p>
+          </div>
+          <Switch id="ga-booking-emails" checked={!!enabled} onCheckedChange={handleToggle} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function AdminSettingsTab() {
   return (
     <div className="space-y-6">
@@ -550,8 +602,10 @@ export function AdminSettingsTab() {
       <LowHoursThresholdCard />
       <SenderEmailCard />
       <EmailRateLimitCard />
+      <GlobalAdminBookingEmailsCard />
       <EmailTemplatesEditor />
       <ChangePasswordCard />
     </div>
   );
 }
+
