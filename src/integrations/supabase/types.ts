@@ -662,6 +662,42 @@ export type Database = {
         }
         Relationships: []
       }
+      consent_log: {
+        Row: {
+          consent_type: string
+          created_at: string
+          email: string | null
+          granted: boolean
+          id: string
+          ip_address: string | null
+          policy_version: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          consent_type: string
+          created_at?: string
+          email?: string | null
+          granted: boolean
+          id?: string
+          ip_address?: string | null
+          policy_version?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          consent_type?: string
+          created_at?: string
+          email?: string | null
+          granted?: boolean
+          id?: string
+          ip_address?: string | null
+          policy_version?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       corporate_accounts: {
         Row: {
           billing_address: string | null
@@ -800,6 +836,66 @@ export type Database = {
           max_uses_per_user?: number | null
           total_used?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      deletion_requests: {
+        Row: {
+          email: string | null
+          error: string | null
+          id: string
+          processed_at: string | null
+          reason: string | null
+          requested_at: string
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          email?: string | null
+          error?: string | null
+          id?: string
+          processed_at?: string | null
+          reason?: string | null
+          requested_at?: string
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          email?: string | null
+          error?: string | null
+          id?: string
+          processed_at?: string | null
+          reason?: string | null
+          requested_at?: string
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      dsar_requests: {
+        Row: {
+          completed_at: string | null
+          error: string | null
+          file_size_bytes: number | null
+          id: string
+          requested_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          error?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          requested_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          error?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          requested_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1220,6 +1316,57 @@ export type Database = {
           trigger_event?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      grievance_tickets: {
+        Row: {
+          body: string
+          category: string
+          created_at: string
+          due_at: string | null
+          email: string
+          id: string
+          name: string | null
+          phone: string | null
+          resolved_at: string | null
+          responded_by: string | null
+          response: string | null
+          status: string
+          subject: string
+          user_id: string | null
+        }
+        Insert: {
+          body: string
+          category: string
+          created_at?: string
+          due_at?: string | null
+          email: string
+          id?: string
+          name?: string | null
+          phone?: string | null
+          resolved_at?: string | null
+          responded_by?: string | null
+          response?: string | null
+          status?: string
+          subject: string
+          user_id?: string | null
+        }
+        Update: {
+          body?: string
+          category?: string
+          created_at?: string
+          due_at?: string | null
+          email?: string
+          id?: string
+          name?: string | null
+          phone?: string | null
+          resolved_at?: string | null
+          responded_by?: string | null
+          response?: string | null
+          status?: string
+          subject?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -3795,6 +3942,36 @@ export type Database = {
           },
         ]
       }
+      policy_versions: {
+        Row: {
+          content: string
+          id: string
+          published_at: string
+          published_by: string | null
+          slug: string
+          summary: string | null
+          version: string
+        }
+        Insert: {
+          content: string
+          id?: string
+          published_at?: string
+          published_by?: string | null
+          slug: string
+          summary?: string | null
+          version: string
+        }
+        Update: {
+          content?: string
+          id?: string
+          published_at?: string
+          published_by?: string | null
+          slug?: string
+          summary?: string | null
+          version?: string
+        }
+        Relationships: []
+      }
       product_categories: {
         Row: {
           created_at: string
@@ -4747,9 +4924,20 @@ export type Database = {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
       }
+      needs_reconsent: { Args: { _user_id: string }; Returns: Json }
       promote_legacy_team_member: {
         Args: { _registration_id: string; _user_id: string }
         Returns: Json
+      }
+      record_consent: {
+        Args: {
+          _consent_type: string
+          _email?: string
+          _granted: boolean
+          _policy_version?: string
+          _user_agent?: string
+        }
+        Returns: string
       }
       upsert_member_hours: {
         Args: { p_hours: number; p_user_id: string }
