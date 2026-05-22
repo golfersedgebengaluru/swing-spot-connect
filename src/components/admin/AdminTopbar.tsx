@@ -52,6 +52,7 @@ const tabTitles: Record<string, string> = {
   coupons: "Coupons",
   coaching: "Coaching",
   corporate: "Corporate Accounts",
+  grievances: "Grievances",
   settings: "Settings",
 };
 
