@@ -3,6 +3,7 @@ import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +21,8 @@ export default function Auth() {
   const [isSignUp, setIsSignUp] = useState(searchParams.get("mode") === "signup");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -70,7 +73,12 @@ export default function Auth() {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        if (!agreedToTerms) {
+          toast({ title: "Please accept the Terms and Privacy Policy", variant: "destructive" });
+          setIsLoading(false);
+          return;
+        }
+        const { data: signupData, error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {
@@ -79,6 +87,16 @@ export default function Auth() {
           },
         });
         if (error) throw error;
+        try {
+          const newUserId = signupData?.user?.id;
+          if (newUserId) {
+            await supabase.from("consent_log" as any).insert([
+              { user_id: newUserId, email: formData.email, consent_type: "tos", granted: true, user_agent: navigator.userAgent },
+              { user_id: newUserId, email: formData.email, consent_type: "privacy", granted: true, user_agent: navigator.userAgent },
+              { user_id: newUserId, email: formData.email, consent_type: "marketing_email", granted: marketingOptIn, user_agent: navigator.userAgent },
+            ] as any);
+          }
+        } catch (_) { /* non-blocking */ }
         toast({
           title: "Check your email!",
           description: "We sent you a confirmation link to complete your signup.",
@@ -245,9 +263,31 @@ export default function Auth() {
               </div>
             </div>
 
+            {isSignUp && (
+              <div className="space-y-3 rounded-md border border-border bg-muted/30 p-3">
+                <div className="flex items-start gap-2">
+                  <Checkbox id="terms" checked={agreedToTerms} onCheckedChange={(v) => setAgreedToTerms(!!v)} className="mt-0.5" />
+                  <Label htmlFor="terms" className="text-xs font-normal leading-relaxed cursor-pointer">
+                    I agree to the{" "}
+                    <Link to="/page/terms" target="_blank" className="underline text-primary">Terms of Service</Link>{" "}
+                    and{" "}
+                    <Link to="/page/privacy" target="_blank" className="underline text-primary">Privacy Policy</Link>{" "}
+                    (DPDP Act, 2023 compliant). <span className="text-destructive">*</span>
+                  </Label>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Checkbox id="marketing" checked={marketingOptIn} onCheckedChange={(v) => setMarketingOptIn(!!v)} className="mt-0.5" />
+                  <Label htmlFor="marketing" className="text-xs font-normal leading-relaxed cursor-pointer text-muted-foreground">
+                    Send me occasional marketing emails about offers, events and new features. You can opt out anytime.
+                  </Label>
+                </div>
+              </div>
+            )}
+
             <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
               {isLoading ? "Loading..." : isSignUp ? "Join the Collective" : "Sign In"}
             </Button>
+
           </form>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">

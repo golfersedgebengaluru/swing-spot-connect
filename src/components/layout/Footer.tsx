@@ -26,6 +26,7 @@ export function Footer() {
             <Link to="/page/contact" className="hover:text-foreground transition-colors">Contact</Link>
             <Link to="/page/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link to="/page/terms" className="hover:text-foreground transition-colors">Terms</Link>
+            <Link to="/grievance" className="hover:text-foreground transition-colors">Grievance Officer</Link>
           </div>
 
           {/* Copyright */}
