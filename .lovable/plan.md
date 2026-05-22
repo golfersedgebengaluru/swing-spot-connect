@@ -1,40 +1,42 @@
-## Vendor Management + Vendor Advances in Expenses tab
+# Community Landing — Light Theme Restyle
 
-### Current state
-- `vendors` table + full CRUD hooks (`useVendors`) already exist.
-- `VendorsCard` component is built but lives in Settings, not in Expenses.
-- `advance_transactions` only supports customers (`customer_id`, `source_type`: credit_note / manual_deposit / drawdown).
-- No vendor-advance concept yet.
+## Goal
+Keep the current community landing structure (Hero + Features + Leagues + CTA) but switch it from the dark "gradient-hero" look to the **light background / dark text** look used by the Booking-only landing. Accent the brand wordmark **"EdgeCollective"** in a **light neon green**.
 
-### What I'll build
+## Save current template
+Snapshot existing files unchanged as backup before edits:
+- `src/components/home/HeroSection.tsx` → `HeroSection.dark.tsx.bak`
+- `src/components/home/CTASection.tsx` → `CTASection.dark.tsx.bak`
 
-**1. Add Vendors sub-section inside the Expenses tab**
-- Convert `AdminExpensesTab` to a small tabbed/sectioned layout: **Expenses**, **Vendors**, **Vendor Advances**.
-- Reuse existing `VendorsCard` (add / edit / delete vendors, already supports GSTIN validation, CSV import/export).
+(Backups inside `src/components/home/_backup/` so they don't compile into the app.)
 
-**2. Database: extend `advance_transactions` to support vendors**
-- Add `vendor_id uuid NULL` and `entity_type text` ('customer' | 'vendor', default 'customer').
-- Make `customer_id` nullable; add CHECK: exactly one of `customer_id` / `vendor_id` set.
-- Extend `source_type` enum values to include `vendor_payment` (advance given to vendor) and `expense_settlement` (drawdown to pay an expense).
-- New RPC `get_vendor_advance_balance(p_vendor_id uuid)` mirroring `get_advance_balance`.
-- RLS: same admin/site-admin policies as existing rows, scoped by city.
+## Visual changes
 
-**3. New "Vendor Advances" panel**
-- Lists each vendor for the selected city with **current advance balance**, last transaction date, and actions.
-- **"Add Advance"** button → dialog: amount, payment method (cash / bank / UPI), reference, date, notes. Records a `credit` row (`source_type='vendor_payment'`) and optionally creates a paired `expenses`-style payment record if you want it to hit P&L (asked below).
-- **"Settle from Advance"** button (enabled only when balance > 0) → dialog showing unpaid/recent expenses for that vendor; pick one (or enter free amount up to balance) → records a `debit` row (`source_type='expense_settlement'`, `source_id=expense_id`) and marks expense as settled.
-- **History drawer** per vendor showing all advance transactions (credits + debits) with running balance.
+### Tokens (index.css)
+- Add `--neon-green: 96 80% 60%` (light neon green, HSL).
+- Add utility `.text-neon-green { color: hsl(var(--neon-green)); }` (and a subtle text-shadow glow).
 
-**4. Expense creation hook-in**
-- In `AddExpenseDialog`, when a vendor is selected and they have advance balance > 0, show a checkbox **"Settle from vendor advance (₹X available)"**. If checked, on submit also insert the matching `expense_settlement` debit so the advance is drawn down automatically.
+### HeroSection.tsx (community)
+- Replace dark `bg-gradient-hero` wrapper + image overlay with the **light** treatment from `BookingHeroSection`:
+  - `bg-background`, subtle primary/accent blurred orbs.
+- Text: `text-foreground` (headline), `text-muted-foreground` (sub).
+- Badge: light variant (`bg-primary/5 border-primary/10 text-foreground`).
+- Wordmark: keep `<span className="text-neon-green">EdgeCollective</span>` (replaces `text-gradient-gold`).
+- Buttons: primary "Book Now" uses default primary; "Join the Collective" + "Sign In" use `variant="outline"`.
+- Feature pills: light card style (`bg-card border-border text-foreground`, icon in `text-primary`).
+- Remove dark bottom wave (not needed on light bg).
 
-**5. Reports**
-- Add vendor balances to the existing `AdvanceAccountsReport` (or a sibling) so admins can see total vendor advances outstanding per city.
+### CTASection.tsx
+- Swap dark `bg-gradient-hero` panel for a **light** card: `bg-card border border-border` (or soft `bg-muted/40`) with the same blurred orbs at low opacity.
+- Headline `text-foreground`; "EdgeCollective?" span → `text-neon-green`.
+- Sub copy → `text-muted-foreground`.
+- Primary CTA: default primary button. Secondary: `variant="outline"`.
 
-### Open questions before I build
+### Untouched
+- `FeaturesSection`, `LeaguesLandingSection`, `Navbar`, `Footer` — already light-themed, no change.
+- Booking-mode landing — no change.
 
-1. **Accounting of advance given:** when you "Add Advance" to a vendor, should it also create an `expenses` row right then (so cash leaves the books immediately, P&L neutral until settled — treated as a prepaid asset), or only record it in `advance_transactions` (P&L hit happens when actual expense is logged and settled)? Standard accounting = the second one, but tell me your preference.
-2. **Settlement granularity:** allow partial settlements against a single expense, or only full-amount settlements?
-3. Should `VendorsCard` stay in Settings too, or move entirely into the Expenses tab?
-
-Approve and answer the 3 questions and I'll implement.
+## Out of scope
+- No copy changes.
+- No structural/layout changes beyond color/background.
+- No changes to admin or member app theme tokens.
