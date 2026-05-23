@@ -340,7 +340,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             guest_name: customerName,
             guest_email: customerEmail || null,
             guest_phone: customerPhone || null,
-            calendar_email: currentBay.calendar_email,
+            
             payment_id: isCorporate ? null : (paymentReference || null),
             order_id: null,
             amount: isCorporate ? 0 : totalCost,
