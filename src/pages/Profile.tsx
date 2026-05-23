@@ -273,6 +273,11 @@ export default function Profile() {
             <PrivacyDataCard />
           </div>
 
+          {/* Nominee (DPDP §13) */}
+          <div className="mt-6">
+            <NominationCard />
+          </div>
+
         </div>
       </main>
 
