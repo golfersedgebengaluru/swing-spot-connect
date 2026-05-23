@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { AdminDashboardTab } from "@/components/admin/AdminDashboardTab";
 import { AdminEventsTab } from "@/components/admin/AdminEventsTab";
 import { AdminProductsTab } from "@/components/admin/AdminProductsTab";
-import { AdminRewardsTab } from "@/components/admin/AdminRewardsTab";
+
 import { AdminEdgeRewardsTab } from "@/components/admin/AdminEdgeRewardsTab";
 import { AdminMembersTab } from "@/components/admin/AdminMembersTab";
 import { AdminAllUsersTab } from "@/components/admin/AdminAllUsersTab";
