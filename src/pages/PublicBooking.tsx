@@ -263,7 +263,6 @@ export default function PublicBooking() {
 
                 if (user) {
                   const bookingResult = await createBooking.mutateAsync({
-                    calendar_email: currentBay.calendar_email,
                     start_time: selectedSlot,
                     end_time: endTime!,
                     duration_minutes: duration,
