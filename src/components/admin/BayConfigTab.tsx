@@ -149,7 +149,7 @@ export function BayConfigTab() {
     : (allBays ?? []).filter((b: any) => assignedCities.includes(b.city));
 
   // Group bays by city
-  const cities = Array.from(new Set(bays.map((b: any) => b.city))).sort();
+  const cities = (Array.from(new Set(bays.map((b: any) => b.city))) as string[]).sort();
 
   const handleSave = async () => {
     if (!editing) return;
