@@ -60,6 +60,7 @@ const App = () => (
         <AuthProvider>
           <CitySelectionModal />
           <ReconsentBanner />
+          <CookieBanner />
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<ErrorBoundary><Index /></ErrorBoundary>} />
