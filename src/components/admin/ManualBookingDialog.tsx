@@ -306,7 +306,6 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
         const res = await supabase.functions.invoke("calendar-sync", {
           body: {
             action: "create_booking",
-            calendar_email: currentBay.calendar_email,
             start_time: startTime,
             end_time: endTime,
             duration_minutes: duration,
