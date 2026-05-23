@@ -39,6 +39,7 @@ const LeagueTeamJoin = lazy(() => import("./pages/LeagueTeamJoin"));
 const LeagueScreen = lazy(() => import("./pages/LeagueScreen"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Grievance = lazy(() => import("./pages/Grievance"));
+const ParentalConsent = lazy(() => import("./pages/ParentalConsent"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
