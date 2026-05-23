@@ -85,6 +85,11 @@ const reportsItems = [
   { id: "reports_gstr1", label: "GSTR-1", icon: BarChart3 },
 ];
 
+const dataPrivacyItems = [
+  { id: "grievances", label: "Grievances", icon: ShieldCheck, adminOrSiteAdminOnly: true },
+  { id: "retention", label: "Data Retention", icon: ShieldCheck, adminOrSiteAdminOnly: true },
+];
+
 function NavItem({
   item,
   active,
