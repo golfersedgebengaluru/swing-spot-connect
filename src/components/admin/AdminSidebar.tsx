@@ -283,10 +283,12 @@ export function AdminSidebar({
           <>
             <AccordionGroup label="Users" items={filterItems(usersItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
             <AccordionGroup label="Operations" items={filterItems(operationsItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
-            <AccordionGroup label="Config" items={filterItems(configItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
+            <AccordionGroup label="Finance Config" items={filterItems(financeConfigItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
+            <AccordionGroup label="General Config" items={filterItems(generalConfigItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
             {visibleReportsItems.length > 0 && (
               <AccordionGroup label="Reports" items={visibleReportsItems} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
             )}
+            <AccordionGroup label="Data Privacy" items={filterItems(dataPrivacyItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
           </>
         )}
       </div>
