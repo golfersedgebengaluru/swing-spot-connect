@@ -12,17 +12,32 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Require authenticated caller
+    const authHeader = req.headers.get("Authorization") || "";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    const authed = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user } } = await authed.auth.getUser();
+    if (!user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = await req.json();
 
-    if (!razorpay_order_id || !razorpay_payment_id) {
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
+        JSON.stringify({ error: "Missing required fields (order_id, payment_id, signature)" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const adminClient = createClient(supabaseUrl, serviceKey);
 
     // 1. Find the pending purchase
@@ -39,6 +54,14 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Ensure the caller owns this pending purchase
+    if (pending.user_id !== user.id) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Already completed — idempotent
     if (pending.status === "completed") {
       return new Response(
@@ -47,8 +70,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 2. Verify payment with Razorpay (optional but recommended)
-    // Get gateway credentials for signature verification
+    // 2. MANDATORY Razorpay signature verification
     const { data: gateway } = await adminClient
       .from("payment_gateways")
       .select("api_key, api_secret")
@@ -57,35 +79,40 @@ Deno.serve(async (req) => {
       .eq("is_active", true)
       .single();
 
-    if (gateway?.api_secret && razorpay_signature) {
-      const citySlug = pending.city.toUpperCase().replace(/[^A-Z0-9]/g, "_");
-      const secret = Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) || (gateway.api_secret || "").trim();
-      
-      const encoder = new TextEncoder();
-      const key = await crypto.subtle.importKey(
-        "raw",
-        encoder.encode(secret),
-        { name: "HMAC", hash: "SHA-256" },
-        false,
-        ["sign"]
+    const citySlug = pending.city.toUpperCase().replace(/[^A-Z0-9]/g, "_");
+    const secret = Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) || (gateway?.api_secret || "").trim();
+
+    if (!secret) {
+      return new Response(
+        JSON.stringify({ error: "Payment gateway not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
-      const data = `${razorpay_order_id}|${razorpay_payment_id}`;
-      const sigBytes = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
-      const computed = Array.from(new Uint8Array(sigBytes))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
+    }
 
-      if (computed !== razorpay_signature) {
-        await adminClient.from("pending_purchases").update({
-          status: "signature_failed",
-          error_message: "Payment signature verification failed",
-        }).eq("id", pending.id);
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    const data = `${razorpay_order_id}|${razorpay_payment_id}`;
+    const sigBytes = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
+    const computed = Array.from(new Uint8Array(sigBytes))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
 
-        return new Response(
-          JSON.stringify({ error: "Payment signature verification failed" }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+    if (computed !== razorpay_signature) {
+      await adminClient.from("pending_purchases").update({
+        status: "signature_failed",
+        error_message: "Payment signature verification failed",
+      }).eq("id", pending.id);
+
+      return new Response(
+        JSON.stringify({ error: "Payment signature verification failed" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // 3. Atomically complete the purchase via DB function

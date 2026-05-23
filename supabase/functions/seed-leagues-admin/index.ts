@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// SECURITY: Service-role gated. Password is read from CONTESTS_ADMIN_PASSWORD secret — never hardcoded.
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -9,20 +11,31 @@ const corsHeaders = {
 };
 
 const TARGET_EMAIL = "contests@golfers-edge.com";
-const TARGET_PASSWORD = "Passwd@geb1234!";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const admin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const auth = req.headers.get("Authorization") ?? "";
+    if (!auth.includes(serviceKey)) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Forbidden" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
-    // 1) Find or create the auth user
+    const password = Deno.env.get("CONTESTS_ADMIN_PASSWORD");
+    if (!password) {
+      return new Response(
+        JSON.stringify({ success: false, error: "CONTESTS_ADMIN_PASSWORD secret not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
+
     let userId: string | null = null;
-    // Page through users to find existing
     let page = 1;
     while (true) {
       const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
@@ -36,24 +49,21 @@ serve(async (req) => {
     if (!userId) {
       const { data: created, error: createErr } = await admin.auth.admin.createUser({
         email: TARGET_EMAIL,
-        password: TARGET_PASSWORD,
+        password,
         email_confirm: true,
         user_metadata: { full_name: "Contests Admin" },
       });
       if (createErr) throw createErr;
       userId = created.user!.id;
     } else {
-      // Ensure password matches the requested one (idempotent reset)
-      await admin.auth.admin.updateUserById(userId, { password: TARGET_PASSWORD, email_confirm: true });
+      await admin.auth.admin.updateUserById(userId, { password, email_confirm: true });
     }
 
-    // 2) Grant admin role
     const { error: roleErr } = await admin
       .from("user_roles")
       .upsert({ user_id: userId, role: "admin" }, { onConflict: "user_id,role" });
     if (roleErr) throw roleErr;
 
-    // 3) Mark as leagues-only
     const { error: flagErr } = await admin
       .from("leagues_only_admins")
       .upsert({ user_id: userId }, { onConflict: "user_id" });
