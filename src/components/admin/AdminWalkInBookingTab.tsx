@@ -130,7 +130,7 @@ export function AdminWalkInBookingTab() {
           guest_name: guestName,
           guest_email: guestEmail || null,
           guest_phone: guestPhone || null,
-          calendar_email: currentBay.calendar_email,
+          
           payment_id: paymentReference || null,
           order_id: null,
           amount: totalCost,
