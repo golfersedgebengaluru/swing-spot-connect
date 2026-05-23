@@ -89,6 +89,17 @@ export default function Auth() {
           setIsLoading(false);
           return;
         }
+        if (!formData.dob) {
+          toast({ title: "Date of birth is required", variant: "destructive" });
+          setIsLoading(false);
+          return;
+        }
+        if (isMinor && !formData.parentEmail.trim()) {
+          toast({ title: "Parent's email is required for users under 18", variant: "destructive" });
+          setIsLoading(false);
+          return;
+        }
+        const effectiveMarketing = isMinor ? false : marketingOptIn;
         const { data: signupData, error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
@@ -101,16 +112,32 @@ export default function Auth() {
         try {
           const newUserId = signupData?.user?.id;
           if (newUserId) {
+            await supabase.from("profiles").update({
+              date_of_birth: formData.dob,
+              parent_email: isMinor ? formData.parentEmail.trim().toLowerCase() : null,
+              parent_consent_status: isMinor ? "pending" : "not_required",
+            }).eq("user_id", newUserId);
+
             await supabase.from("consent_log" as any).insert([
               { user_id: newUserId, email: formData.email, consent_type: "tos", granted: true, user_agent: navigator.userAgent },
               { user_id: newUserId, email: formData.email, consent_type: "privacy", granted: true, user_agent: navigator.userAgent },
-              { user_id: newUserId, email: formData.email, consent_type: "marketing_email", granted: marketingOptIn, user_agent: navigator.userAgent },
+              { user_id: newUserId, email: formData.email, consent_type: "marketing_email", granted: effectiveMarketing, user_agent: navigator.userAgent },
             ] as any);
+
+            if (isMinor) {
+              try {
+                await supabase.functions.invoke("request-parental-consent", {
+                  body: { parent_email: formData.parentEmail.trim().toLowerCase() },
+                });
+              } catch (_) { /* non-blocking */ }
+            }
           }
         } catch (_) { /* non-blocking */ }
         toast({
           title: "Check your email!",
-          description: "We sent you a confirmation link to complete your signup.",
+          description: isMinor
+            ? "We've also emailed your parent for consent before your account is active."
+            : "We sent you a confirmation link to complete your signup.",
         });
       } else {
         const { error } = await supabase.auth.signInWithPassword({
