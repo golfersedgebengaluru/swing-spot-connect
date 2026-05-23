@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { AdminDashboardTab } from "@/components/admin/AdminDashboardTab";
 import { AdminEventsTab } from "@/components/admin/AdminEventsTab";
 import { AdminProductsTab } from "@/components/admin/AdminProductsTab";
-import { AdminRewardsTab } from "@/components/admin/AdminRewardsTab";
+
 import { AdminEdgeRewardsTab } from "@/components/admin/AdminEdgeRewardsTab";
 import { AdminMembersTab } from "@/components/admin/AdminMembersTab";
 import { AdminAllUsersTab } from "@/components/admin/AdminAllUsersTab";
@@ -20,7 +20,7 @@ import { ExpenseReports } from "@/components/admin/ExpenseReports";
 import { ProfitLossView } from "@/components/admin/ProfitLossView";
 import { GSTR1DownloadCard } from "@/components/admin/GSTR1DownloadCard";
 import { ProductProfitabilityReport } from "@/components/admin/ProductProfitabilityReport";
-import { AdminWalkInBookingTab } from "@/components/admin/AdminWalkInBookingTab";
+
 import { AdminFinanceTab } from "@/components/admin/AdminFinanceTab";
 import { AdminSalesInvoicesTab } from "@/components/admin/AdminSalesInvoicesTab";
 import { AdminExpensesTab } from "@/components/admin/AdminExpensesTab";
@@ -74,12 +74,11 @@ function ReportsGSTR1Wrapper() {
 
 const tabComponents: Record<string, React.ComponentType<any>> = {
   dashboard: AdminDashboardTab,
-  walkin: AdminWalkInBookingTab,
+  
   events: AdminEventsTab,
   products: AdminProductsTab,
   salesinvoices: AdminSalesInvoicesTab,
   expenses: AdminExpensesTab,
-  rewards: AdminRewardsTab,
   edgerewards: AdminEdgeRewardsTab,
   leagues: AdminLeaguesTab,
   

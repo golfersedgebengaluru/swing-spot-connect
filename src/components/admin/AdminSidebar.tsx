@@ -45,12 +45,9 @@ interface AdminSidebarProps {
 
 const coreItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, adminOrSiteAdminOnly: true },
-  { id: "walkin", label: "Walk-in Booking", icon: CalendarDays, adminOrSiteAdminOnly: true },
   { id: "bookinglogs", label: "Bookings", icon: CalendarDays, adminOrSiteAdminOnly: true },
   { id: "leagues", label: "Leagues", icon: Trophy, adminOrSiteAdminOnly: true },
-  
   { id: "coaching", label: "Coaching", icon: GraduationCap },
-  { id: "edgerewards", label: "EDGE Rewards", icon: Award, adminOrSiteAdminOnly: true },
 ];
 
 const usersItems = [
@@ -64,18 +61,20 @@ const operationsItems = [
   { id: "expenses", label: "Expenses", icon: Receipt },
   { id: "products", label: "Products", icon: ShoppingBag },
   { id: "coupons", label: "Coupons", icon: Ticket },
+  { id: "edgerewards", label: "EDGE Rewards", icon: Award, adminOrSiteAdminOnly: true },
 ];
 
-const configItems = [
+const financeConfigItems = [
   { id: "pricing", label: "Pricing", icon: CreditCard },
   { id: "payments", label: "Payments", icon: CreditCard },
-  { id: "emails", label: "Emails", icon: Mail },
-  { id: "grievances", label: "Grievances", icon: ShieldCheck, adminOrSiteAdminOnly: true },
-  { id: "retention", label: "Data Retention", icon: ShieldCheck, adminOrSiteAdminOnly: true },
-  { id: "settings", label: "Settings", icon: Award, adminOnly: true },
   { id: "finance", label: "Finance Settings", icon: Receipt },
+];
+
+const generalConfigItems = [
   { id: "bayconfig", label: "Locations", icon: MapPin },
+  { id: "emails", label: "Emails", icon: Mail },
   { id: "pages", label: "Page Settings", icon: BarChart3, adminOnly: true },
+  { id: "settings", label: "General Settings", icon: Award, adminOnly: true },
 ];
 
 const reportsItems = [
@@ -84,6 +83,11 @@ const reportsItems = [
   { id: "reports_pnl", label: "P&L", icon: BarChart3 },
   { id: "reports_profitability", label: "Product Profitability", icon: BarChart3 },
   { id: "reports_gstr1", label: "GSTR-1", icon: BarChart3 },
+];
+
+const dataPrivacyItems = [
+  { id: "grievances", label: "Grievances", icon: ShieldCheck, adminOrSiteAdminOnly: true },
+  { id: "retention", label: "Data Retention", icon: ShieldCheck, adminOrSiteAdminOnly: true },
 ];
 
 function NavItem({
@@ -279,10 +283,12 @@ export function AdminSidebar({
           <>
             <AccordionGroup label="Users" items={filterItems(usersItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
             <AccordionGroup label="Operations" items={filterItems(operationsItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
-            <AccordionGroup label="Config" items={filterItems(configItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
+            <AccordionGroup label="Finance Config" items={filterItems(financeConfigItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
+            <AccordionGroup label="General Config" items={filterItems(generalConfigItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
             {visibleReportsItems.length > 0 && (
               <AccordionGroup label="Reports" items={visibleReportsItems} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
             )}
+            <AccordionGroup label="Data Privacy" items={filterItems(dataPrivacyItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
           </>
         )}
       </div>
@@ -378,10 +384,12 @@ export function AdminSidebar({
                   <>
                     <AccordionGroup label="Users" items={filterItems(usersItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
                     <AccordionGroup label="Operations" items={filterItems(operationsItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
-                    <AccordionGroup label="Config" items={filterItems(configItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
+                    <AccordionGroup label="Finance Config" items={filterItems(financeConfigItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
+                    <AccordionGroup label="General Config" items={filterItems(generalConfigItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
                     {visibleReportsItems.length > 0 && (
                       <AccordionGroup label="Reports" items={visibleReportsItems} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
                     )}
+                    <AccordionGroup label="Data Privacy" items={filterItems(dataPrivacyItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
                   </>
                 )}
               </div>

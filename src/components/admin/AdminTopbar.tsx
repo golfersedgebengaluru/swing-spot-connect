@@ -26,10 +26,8 @@ interface AdminTopbarProps {
 
 const tabTitles: Record<string, string> = {
   dashboard: "Dashboard",
-  walkin: "Walk-in Booking",
   events: "Events",
   products: "Products",
-  rewards: "Rewards",
   edgerewards: "EDGE Rewards",
   leagues: "Leagues",
   
@@ -54,7 +52,7 @@ const tabTitles: Record<string, string> = {
   corporate: "Corporate Accounts",
   grievances: "Grievances",
   retention: "Data Retention",
-  settings: "Settings",
+  settings: "General Settings",
 };
 
 export function getTabTitle(tab: string) {
