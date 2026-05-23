@@ -80,8 +80,8 @@ export default function Grievance() {
               <CardTitle className="text-base">Grievance Officer Contact</CardTitle>
             </CardHeader>
             <CardContent className="text-sm space-y-1 text-muted-foreground">
-              <p><span className="text-foreground font-medium">Name:</span> Grievance Officer, Teetime Ventures Pvt Ltd</p>
-              <p><span className="text-foreground font-medium">Email:</span> grievance@golfers-edge.in</p>
+              <p><span className="text-foreground font-medium">Name:</span> {officer?.name ?? "—"}</p>
+              <p><span className="text-foreground font-medium">Email:</span> {officer?.email ?? "—"}</p>
               <p><span className="text-foreground font-medium">Response SLA:</span> 30 days</p>
             </CardContent>
           </Card>
