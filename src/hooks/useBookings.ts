@@ -7,9 +7,13 @@ export function useBays() {
   return useQuery({
     queryKey: ["bays"],
     queryFn: async () => {
+      // NOTE: `calendar_email` is intentionally NOT selected here.
+      // The column is private (revoked from `anon`) and resolved server-side
+      // by edge functions using `bay_id`. Admin UI that needs to edit it
+      // should query `bays` separately with an explicit column list.
       const { data, error } = await supabase
         .from("bays")
-        .select("*")
+        .select("id, city, name, sort_order, is_active, open_time, close_time, coaching_mode, coaching_hours, coaching_cancellation_refund_hours, requires_approval, allow_extended_hours, extended_open_time, extended_close_time")
         .order("city")
         .order("sort_order");
       if (error) throw error;
@@ -22,9 +26,10 @@ export function useBayConfig() {
   return useQuery({
     queryKey: ["bay_config"],
     queryFn: async () => {
+      // calendar_email intentionally excluded — see useBays note.
       const { data, error } = await supabase
         .from("bay_config")
-        .select("*")
+        .select("id, city, open_time, close_time")
         .order("city");
       if (error) throw error;
       return data as any[];
