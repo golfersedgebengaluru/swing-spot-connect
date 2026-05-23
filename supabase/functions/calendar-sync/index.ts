@@ -174,6 +174,41 @@ function createAdminClient() {
   );
 }
 
+// Resolve a bay's Google Calendar mailbox server-side so clients never need to
+// pass `calendar_email` (which is private and revoked from the `anon` role).
+// Prefers the bay-specific calendar, falling back to the city-level bay_config.
+async function resolveCalendarEmail(
+  adminClient: ReturnType<typeof createAdminClient>,
+  opts: { bay_id?: string | null; city?: string | null; fallback?: string | null }
+): Promise<string | null> {
+  if (opts.fallback) return opts.fallback;
+  if (opts.bay_id) {
+    const { data: bay } = await adminClient
+      .from("bays")
+      .select("calendar_email, city")
+      .eq("id", opts.bay_id)
+      .maybeSingle();
+    if (bay?.calendar_email) return bay.calendar_email as string;
+    const cityFromBay = bay?.city || opts.city;
+    if (cityFromBay) {
+      const { data: cfg } = await adminClient
+        .from("bay_config")
+        .select("calendar_email")
+        .eq("city", cityFromBay)
+        .maybeSingle();
+      if (cfg?.calendar_email) return cfg.calendar_email as string;
+    }
+  } else if (opts.city) {
+    const { data: cfg } = await adminClient
+      .from("bay_config")
+      .select("calendar_email")
+      .eq("city", opts.city)
+      .maybeSingle();
+    if (cfg?.calendar_email) return cfg.calendar_email as string;
+  }
+  return null;
+}
+
 // Get admin + city-scoped site-admin user IDs for notifications
 async function getAdminAndSiteAdminIds(adminClient: any, city: string, excludeUserId?: string): Promise<string[]> {
   // Get all admins
@@ -775,15 +810,21 @@ Deno.serve(async (req) => {
       const {
         payment_id, order_id,
         start_time, end_time, duration_minutes, city, bay_id, bay_name,
-        session_type, guest_name, guest_email, guest_phone, calendar_email,
+        session_type, guest_name, guest_email, guest_phone,
         user_id_override,
         billing_status, // 'deferred' for corporate monthly customers
         backdated, // true for corporate accounting entries in the past
       } = params;
+      let { calendar_email } = params;
       const isDeferred = billing_status === "deferred";
       const isBackdated = backdated === true;
 
       const adminClient = createAdminClient();
+
+      // Resolve calendar mailbox server-side (guests cannot read it from the client)
+      if (!calendar_email) {
+        calendar_email = await resolveCalendarEmail(adminClient, { bay_id, city });
+      }
 
       // Idempotency: if a revenue_transaction already exists for this Razorpay order,
       // the booking has already been finalized (by the browser flow OR webhook). Skip.
@@ -1035,7 +1076,18 @@ Deno.serve(async (req) => {
     // list_slots is a read-only action that does NOT require authentication
     // so that public/guest users can see real-time availability
     if (action === "list_slots") {
-      const { calendar_email, date, open_time, close_time } = params;
+      const { date, open_time, close_time, bay_id, city } = params;
+      let { calendar_email } = params;
+      if (!calendar_email) {
+        const adminClient = createAdminClient();
+        calendar_email = await resolveCalendarEmail(adminClient, { bay_id, city });
+      }
+      if (!calendar_email) {
+        return new Response(
+          JSON.stringify({ error: "Unable to resolve calendar for this bay" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       const accessToken = await getAccessToken(serviceAccountKey);
 
       // Get the calendar's actual timezone
@@ -1115,7 +1167,8 @@ Deno.serve(async (req) => {
     // list_slots is handled above (before auth check) — this block is intentionally removed
 
     if (action === "create_booking") {
-      const { calendar_email, start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type, payment_method, user_id_override } = params;
+      const { start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type, payment_method, user_id_override } = params;
+      let { calendar_email } = params;
 
       // If an admin/site_admin is booking on behalf of a member, use their user_id
       let bookingUserId = userId;
@@ -1125,6 +1178,18 @@ Deno.serve(async (req) => {
         if (callerIsAdminOrSA) {
           bookingUserId = user_id_override;
         }
+      }
+
+      // Resolve calendar mailbox server-side so clients don't need to send it
+      if (!calendar_email) {
+        const adminClient = createAdminClient();
+        calendar_email = await resolveCalendarEmail(adminClient, { bay_id, city });
+      }
+      if (!calendar_email) {
+        return new Response(
+          JSON.stringify({ error: "Unable to resolve calendar for this bay" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
 
       // If payment was made via a gateway (e.g. Razorpay), skip hours check/deduction

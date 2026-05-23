@@ -88,7 +88,7 @@ export default function PublicBooking() {
 
   // Fetch real-time slots for ALL users (including guests)
   const { data: slots, isLoading: loadingSlots } = useAvailableSlots(
-    currentBay?.calendar_email,
+    currentBay?.id,
     dateStr,
     bookableWindow?.openTime,
     bookableWindow?.closeTime,
@@ -156,7 +156,6 @@ export default function PublicBooking() {
       if (user && paymentMethod === "hours") {
         // Member booking with hours — no payment needed
         await createBooking.mutateAsync({
-          calendar_email: currentBay.calendar_email,
           start_time: selectedSlot,
           end_time: endTime,
           duration_minutes: duration,
@@ -209,7 +208,6 @@ export default function PublicBooking() {
               city: selectedCity,
               bay_id: currentBay.id,
               bay_name: currentBay.name,
-              calendar_email: currentBay.calendar_email,
               start_time: selectedSlot,
               end_time: endTime,
               duration_minutes: duration,
@@ -265,7 +263,6 @@ export default function PublicBooking() {
 
                 if (user) {
                   const bookingResult = await createBooking.mutateAsync({
-                    calendar_email: currentBay.calendar_email,
                     start_time: selectedSlot,
                     end_time: endTime!,
                     duration_minutes: duration,
@@ -307,7 +304,7 @@ export default function PublicBooking() {
                       guest_name: guestName,
                       guest_email: guestEmail,
                       guest_phone: guestPhone,
-                      calendar_email: currentBay.calendar_email,
+                      
                       payment_id: response.razorpay_payment_id,
                       order_id: response.razorpay_order_id,
                       amount: amountToCharge,

@@ -83,7 +83,7 @@ import { getDayShort } from "@/lib/bay-schedule-utils";
 import { useBays } from "@/hooks/useBookings";
 import { CURRENCIES, getCurrencySymbol } from "@/lib/currencies";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
 interface BayForm {
@@ -122,7 +122,20 @@ const emptyForm: BayForm = {
 };
 
 export function BayConfigTab() {
-  const { data: allBays, isLoading } = useBays();
+  // Admin-only view: include `calendar_email` (authenticated role has SELECT).
+  // We bypass `useBays()` (which omits the column for the public path).
+  const { data: allBays, isLoading } = useQuery({
+    queryKey: ["bays", "admin-with-calendar"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bays")
+        .select("*")
+        .order("city")
+        .order("sort_order");
+      if (error) throw error;
+      return data as any[];
+    },
+  });
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isAdmin, assignedCities } = useAdmin();
@@ -136,7 +149,7 @@ export function BayConfigTab() {
     : (allBays ?? []).filter((b: any) => assignedCities.includes(b.city));
 
   // Group bays by city
-  const cities = Array.from(new Set(bays.map((b: any) => b.city))).sort();
+  const cities = (Array.from(new Set(bays.map((b: any) => b.city))) as string[]).sort();
 
   const handleSave = async () => {
     if (!editing) return;

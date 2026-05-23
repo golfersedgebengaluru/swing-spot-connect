@@ -7,9 +7,13 @@ export function useBays() {
   return useQuery({
     queryKey: ["bays"],
     queryFn: async () => {
+      // NOTE: `calendar_email` is intentionally NOT selected here.
+      // The column is private (revoked from `anon`) and resolved server-side
+      // by edge functions using `bay_id`. Admin UI that needs to edit it
+      // should query `bays` separately with an explicit column list.
       const { data, error } = await supabase
         .from("bays")
-        .select("*")
+        .select("id, city, name, sort_order, is_active, open_time, close_time, coaching_mode, coaching_hours, coaching_cancellation_refund_hours, currency, peak_start, peak_end, weekly_off_days, extended_open_time, extended_close_time, extended_hours_enabled")
         .order("city")
         .order("sort_order");
       if (error) throw error;
@@ -22,9 +26,10 @@ export function useBayConfig() {
   return useQuery({
     queryKey: ["bay_config"],
     queryFn: async () => {
+      // calendar_email intentionally excluded — see useBays note.
       const { data, error } = await supabase
         .from("bay_config")
-        .select("*")
+        .select("id, city, open_time, close_time, is_active, cancellation_fee_pct")
         .order("city");
       if (error) throw error;
       return data as any[];
@@ -33,7 +38,7 @@ export function useBayConfig() {
 }
 
 export function useAvailableSlots(
-  calendarEmail: string | undefined,
+  bayId: string | undefined,
   date: string | undefined,
   openTime: string | undefined,
   closeTime: string | undefined,
@@ -41,13 +46,15 @@ export function useAvailableSlots(
 ) {
   const { includeExtended, ...queryOptions } = options;
   return useQuery({
-    queryKey: ["available_slots", calendarEmail, date, openTime, closeTime, !!includeExtended],
-    enabled: !!calendarEmail && !!date && !!openTime && !!closeTime,
+    queryKey: ["available_slots", bayId, date, openTime, closeTime, !!includeExtended],
+    enabled: !!bayId && !!date && !!openTime && !!closeTime,
     queryFn: async () => {
+      // calendar_email is resolved server-side from bay_id (private column,
+      // hidden from anonymous visitors).
       const res = await supabase.functions.invoke("calendar-sync", {
         body: {
           action: "list_slots",
-          calendar_email: calendarEmail,
+          bay_id: bayId,
           date,
           open_time: openTime,
           close_time: closeTime,
@@ -97,7 +104,7 @@ export function useCreateBooking() {
 
   return useMutation({
     mutationFn: async (params: {
-      calendar_email: string;
+      calendar_email?: string;
       start_time: string;
       end_time: string;
       duration_minutes: number;
@@ -107,6 +114,8 @@ export function useCreateBooking() {
       session_type?: string;
       payment_method?: string;
     }) => {
+      // calendar_email is optional and resolved server-side from bay_id.
+      const { calendar_email: _ignore, ...safeParams } = params;
       const profile = await supabase
         .from("profiles")
         .select("display_name, user_type")
@@ -116,7 +125,7 @@ export function useCreateBooking() {
       const res = await supabase.functions.invoke("calendar-sync", {
         body: {
           action: "create_booking",
-          ...params,
+          ...safeParams,
           display_name: profile.data?.display_name || user?.email,
         },
       });

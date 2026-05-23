@@ -72,7 +72,7 @@ export default function Bookings() {
   const bookableWindow = getBookableWindow(currentBay, includeExtended);
 
   const { data: slots, isLoading: loadingSlots } = useAvailableSlots(
-    currentBay?.calendar_email,
+    currentBay?.id,
     dateStr,
     bookableWindow?.openTime,
     bookableWindow?.closeTime,
@@ -113,7 +113,7 @@ export default function Bookings() {
     if (!selectedSlot || !endTime || !currentBay) return;
     try {
       const result = await createBooking.mutateAsync({
-        calendar_email: currentBay.calendar_email,
+        
         start_time: selectedSlot,
         end_time: endTime,
         duration_minutes: duration,

@@ -112,7 +112,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
   const effectiveShowExtended = showExtended && canUseExtended;
   const bookableWindow = getBookableWindow(currentBay as any, effectiveShowExtended);
   const { data: availableSlots, isLoading: slotsLoading } = useAvailableSlots(
-    currentBay?.calendar_email,
+    currentBay?.id,
     slotDate,
     bookableWindow?.openTime,
     bookableWindow?.closeTime,
@@ -306,7 +306,6 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
         const res = await supabase.functions.invoke("calendar-sync", {
           body: {
             action: "create_booking",
-            calendar_email: currentBay.calendar_email,
             start_time: startTime,
             end_time: endTime,
             duration_minutes: duration,
@@ -341,7 +340,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             guest_name: customerName,
             guest_email: customerEmail || null,
             guest_phone: customerPhone || null,
-            calendar_email: currentBay.calendar_email,
+            
             payment_id: isCorporate ? null : (paymentReference || null),
             order_id: null,
             amount: isCorporate ? 0 : totalCost,
