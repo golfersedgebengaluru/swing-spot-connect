@@ -72,7 +72,7 @@ export default function Bookings() {
   const bookableWindow = getBookableWindow(currentBay, includeExtended);
 
   const { data: slots, isLoading: loadingSlots } = useAvailableSlots(
-    currentBay?.calendar_email,
+    currentBay?.id,
     dateStr,
     bookableWindow?.openTime,
     bookableWindow?.closeTime,
