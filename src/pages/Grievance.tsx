@@ -26,6 +26,7 @@ const CATEGORIES = [
 export default function Grievance() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { data: officer } = useGrievanceOfficer();
   const [busy, setBusy] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [form, setForm] = useState({
