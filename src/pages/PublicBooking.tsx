@@ -304,7 +304,7 @@ export default function PublicBooking() {
                       guest_name: guestName,
                       guest_email: guestEmail,
                       guest_phone: guestPhone,
-                      calendar_email: currentBay.calendar_email,
+                      
                       payment_id: response.razorpay_payment_id,
                       order_id: response.razorpay_order_id,
                       amount: amountToCharge,
