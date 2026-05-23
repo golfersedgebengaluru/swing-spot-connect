@@ -101,6 +101,7 @@ const tabComponents: Record<string, React.ComponentType<any>> = {
   reports_gstr1: ReportsGSTR1Wrapper,
   finance: AdminFinanceTab,
   grievances: AdminGrievancesTab,
+  retention: AdminRetentionTab,
   settings: AdminSettingsTab,
 };
 
