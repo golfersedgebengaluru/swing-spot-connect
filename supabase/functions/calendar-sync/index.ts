@@ -1070,7 +1070,18 @@ Deno.serve(async (req) => {
     // list_slots is a read-only action that does NOT require authentication
     // so that public/guest users can see real-time availability
     if (action === "list_slots") {
-      const { calendar_email, date, open_time, close_time } = params;
+      const { date, open_time, close_time, bay_id, city } = params;
+      let { calendar_email } = params;
+      if (!calendar_email) {
+        const adminClient = createAdminClient();
+        calendar_email = await resolveCalendarEmail(adminClient, { bay_id, city });
+      }
+      if (!calendar_email) {
+        return new Response(
+          JSON.stringify({ error: "Unable to resolve calendar for this bay" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       const accessToken = await getAccessToken(serviceAccountKey);
 
       // Get the calendar's actual timezone
