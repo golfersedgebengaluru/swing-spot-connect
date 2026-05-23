@@ -122,7 +122,20 @@ const emptyForm: BayForm = {
 };
 
 export function BayConfigTab() {
-  const { data: allBays, isLoading } = useBays();
+  // Admin-only view: include `calendar_email` (authenticated role has SELECT).
+  // We bypass `useBays()` (which omits the column for the public path).
+  const { data: allBays, isLoading } = useQuery({
+    queryKey: ["bays", "admin-with-calendar"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bays")
+        .select("*")
+        .order("city")
+        .order("sort_order");
+      if (error) throw error;
+      return data as any[];
+    },
+  });
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isAdmin, assignedCities } = useAdmin();
