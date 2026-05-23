@@ -257,6 +257,41 @@ export default function Auth() {
               </div>
             )}
 
+            {isSignUp && (
+              <div>
+                <Label htmlFor="dob">Date of birth</Label>
+                <Input
+                  id="dob"
+                  type="date"
+                  value={formData.dob}
+                  onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                  className="mt-2"
+                  required={isSignUp}
+                  max={new Date().toISOString().split("T")[0]}
+                />
+                {isMinor && (
+                  <p className="mt-1 text-xs text-amber-600">
+                    You're under 18 — we'll need your parent or guardian's consent.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {isSignUp && isMinor && (
+              <div>
+                <Label htmlFor="parentEmail">Parent / guardian email</Label>
+                <Input
+                  id="parentEmail"
+                  type="email"
+                  placeholder="parent@example.com"
+                  value={formData.parentEmail}
+                  onChange={(e) => setFormData({ ...formData, parentEmail: e.target.value })}
+                  className="mt-2"
+                  required
+                />
+              </div>
+            )}
+
             <div>
               <Label htmlFor="email">Email address</Label>
               <Input
