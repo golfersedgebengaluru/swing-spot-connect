@@ -1,182 +1,101 @@
-## Part 1 — Audit of your current Privacy Policy
+## P1 DPDP Bundle — Scope
 
-Your existing policy (`/page/privacy`, last updated 15/03/2026) is a **decent pre-DPDP policy but not DPDP-compliant**. Here's exactly what's missing / wrong:
-
-### What's OK
-- Lists categories of data collected
-- Lists purposes of use
-- Names a contact email
-- Mentions children, cookies, security, policy updates
-
-### What's missing for DPDP (must add)
-1. **Data Fiduciary identity not formal** — must say "Teetime Ventures Pvt Ltd, [registered address], CIN: [____] is the Data Fiduciary under the DPDP Act, 2023"
-2. **No Grievance Officer named** — DPDP §8(10) mandates a named officer + email + response SLA
-3. **No DPO / Contact Person** — required for cross-border / significant processing
-4. **No legal basis** stated — every purpose must cite consent or "legitimate use" (DPDP §7)
-5. **No retention periods** — must say how long each data category is kept
-6. **No data principal rights enumerated** — DPDP §11–14: access, correction, erasure, grievance, nomination (death)
-7. **Children's clause is wrong** — DPDP says <18 (not 13) and requires *verifiable parental consent*, not just "supervision"
-8. **No cross-border transfer disclosure** — your data hits Lovable Cloud / Supabase (EU/US) — must disclose
-9. **No mention of automated decision-making** (loyalty tiers, pricing) — DPDP §11(1)(b)
-10. **No withdrawal-of-consent mechanism** — must be as easy as giving it
-11. **No breach notification commitment** to data principals
-12. **"We may share with partners"** is too vague — DPDP requires named sub-processor categories
-13. **No DPDP-specific language** — the act isn't even mentioned by name
-14. **No franchisee/multi-tenant disclosure** — once you franchise (Option A), franchisees become joint/independent Data Fiduciaries for their city — policy must say so
-
-**Verdict:** Rewrite required, not patch. I'll generate a DPDP-compliant replacement as part of P0.
+Implementing the 4 highest-risk P1 items from the previous list. Other P1s (granular consent, sub-processor page, DPIA doc, breach workflow, audit export, consent withdrawal toggle, correction form, reconsent email automation) are deferred.
 
 ---
 
-## Part 2 — P0 DPDP Bundle (what I'll build)
+### 1. Cookie / Tracking Banner
 
-Six features, all server-enforced, minimal UI surface.
+- New table `cookie_consents` (`id, user_id?, session_id, necessary, analytics, marketing, ip, user_agent, policy_version, created_at`)
+- New component `CookieBanner.tsx` shown to all visitors until a choice is made (localStorage flag `cookie_consent_v1`)
+- 3 buttons: **Accept all**, **Reject all** (same prominence), **Manage** (opens dialog with analytics + marketing toggles; "Necessary" locked on)
+- Writes a row to `cookie_consents` on choice + sets localStorage
+- Mounted globally in `App.tsx` alongside `ReconsentBanner`
+- New `/page/cookies` short policy page (seeded into `page_content`)
 
-### 1. Signup consent capture + audit log
-- New table `consent_log` (immutable, append-only)
-  - `id, user_id, consent_type, granted, policy_version, ip, user_agent, created_at`
-  - `consent_type` enum: `tos`, `privacy`, `marketing_email`, `marketing_whatsapp`
-- Add **2 checkboxes** to `src/pages/Auth.tsx` signup form:
-  - [Required] "I agree to the Terms of Service and Privacy Policy v{X}"
-  - [Optional] "Send me marketing emails and offers"
-- Submit blocks until required consent is ticked
-- On signup success, write 2–3 rows to `consent_log`
-- For existing users: re-consent banner on next login (`needs_reconsent` check against latest policy version)
+### 2. Verifiable Parental Consent (minors <18)
 
-### 2. Policy versioning
-- New table `policy_versions` (`slug, version, content, published_at, published_by`)
-- When `/page/privacy` or `/page/terms` is edited in admin, a new version row is written automatically
-- Public page shows current version + "Last updated" + link to "Previous versions" archive
-- `consent_log.policy_version` references this so we can prove *what* the user agreed to
+- Add `date_of_birth` and `parent_email`, `parent_consent_status`, `parent_consent_token`, `parent_consent_at` columns to `profiles`
+- DOB capture: add to `Auth.tsx` signup (required) and `PhoneCompletionModal` for existing users without DOB
+- On signup, if computed age <18:
+  - Block marketing consent (force `granted=false` for marketing_email / marketing_whatsapp regardless of checkbox)
+  - Set `parent_consent_status='pending'`, collect `parent_email`
+  - New edge function `request-parental-consent` sends email with signed token URL → `/parental-consent/:token`
+  - New page `ParentalConsent.tsx` lets parent approve/reject; updates status
+- New helper `is_minor(_user_id)` SQL function + RLS guards: minors blocked from posting in community, leaderboard opt-out by default
+- Profile page shows minor badge + parental status
 
-### 3. Self-serve data export (DSAR — Right to Access)
-- New "Privacy & Data" section on `src/pages/Profile.tsx`
-- "Download my data" button → calls edge function `dsar-export`
-- Edge function gathers ALL rows across ~30 tables keyed to user_id (bookings, points, hours, transactions, league entries, coaching, gifts, consent_log, etc.)
-- Returns a single ZIP with one JSON file per table + a `README.txt` explaining structure
-- Rate-limited to 1 export / 24 hrs / user
-- Logged to `dsar_requests` table for audit
+### 3. Retention Auto-Purge Jobs
 
-### 4. Self-serve account deletion (Right to Erasure)
-- "Delete my account" button on Profile → confirmation dialog (type email to confirm)
-- Calls edge function `account-deletion-request`
-- **Soft-delete model** (not hard delete — you need financial records for GST/income tax 8 yrs):
-  - Profile anonymized: `display_name='Deleted User'`, `email=NULL`, `phone=NULL`, `avatar=NULL`
-  - `auth.users` row deleted (login killed)
-  - Bookings/transactions retained but de-identified (replace user_id with NULL on non-FK columns; keep FK for ledger integrity)
-  - Community posts: option to "delete content" or "keep as anonymous"
-- Logs to `deletion_requests` table with reason + timestamp
-- Policy discloses 30-day retention + which data is kept for legal reasons
+- New edge function `retention-purge` (service-role; idempotent)
+  - Anonymises bookings >8 years old (clear notes, set user_id null where FK allows; keep financial totals)
+  - Purges `consent_log` rows >7 years past account closure (joined via `deletion_requests`)
+  - Deletes guest `profiles` with no activity for 2 years (no bookings, no orders, no league entries)
+  - Logs each run into new `retention_runs` table (`id, run_at, rows_anonymised, rows_purged_consent, rows_purged_guests, duration_ms, status, error`)
+- Schedule via pg_cron weekly (Sunday 03:00 IST) — uses `supabase--insert` per the scheduled-jobs guide
+- Admin can view last 20 runs in new `AdminRetentionTab.tsx` (under Compliance section in admin sidebar)
 
-### 5. Grievance Officer form + workflow
-- New table `grievance_tickets` (`id, user_id, category, subject, body, status, response, created_at, resolved_at`)
-- Public form at `/grievance` (or contact page) — no login required (per DPDP)
-- Admin tab "Grievances" in admin panel: list, respond, mark resolved
-- Email notification to Grievance Officer on new ticket + auto-ack email to complainant
-- 30-day SLA tracking with overdue badge
+### 4. Nomination (Right of Nomination, DPDP §13)
 
-### 6. DPDP-compliant Privacy Policy + Terms rewrite
-- Replace `/page/privacy` content with a full DPDP-compliant template (covers all 14 gaps above)
-- Add new `/page/terms` if missing
-- Include franchisee/multi-tenant clause so the same policy works after Option A franchising
-- Set initial `policy_versions` row to v2.0
+- New table `nominations` (`id, user_id, nominee_name, nominee_email, nominee_phone, relationship, notes, status, created_at, updated_at, revoked_at`)
+  - One active nomination per user (partial unique on `status='active'`)
+- RLS: user can CRUD own; admins can read all
+- New component `NominationCard.tsx` in `Profile.tsx`: form to add/edit/revoke nominee
+- New edge function `nominee-invoke` (placeholder admin workflow): accepts death-certificate upload + nominee identity; opens a grievance ticket of category `nomination_invocation` for admin manual review
+- No automated data transfer — manual admin process; DPDP-compliant disclosure
 
 ---
 
-## Technical sections
+### Technical sections
 
-### New tables (migration)
+#### New tables
 ```sql
--- consent_log (append-only)
-create table public.consent_log (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users(id) on delete set null,
-  email text,
-  consent_type text not null check (consent_type in ('tos','privacy','marketing_email','marketing_whatsapp')),
-  granted boolean not null,
-  policy_version text,
-  ip_address text,
-  user_agent text,
-  created_at timestamptz not null default now()
-);
--- RLS: user can SELECT own rows; only service role inserts. No UPDATE/DELETE policies.
-
-create table public.policy_versions (
-  id uuid primary key default gen_random_uuid(),
-  slug text not null,
-  version text not null,
-  content text not null,
-  published_at timestamptz not null default now(),
-  published_by uuid references auth.users(id),
-  unique(slug, version)
-);
--- RLS: SELECT public; INSERT admin only.
-
-create table public.dsar_requests (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  requested_at timestamptz not null default now(),
-  completed_at timestamptz,
-  file_size_bytes int
-);
-
-create table public.deletion_requests (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid,
-  email text,
-  reason text,
-  requested_at timestamptz not null default now(),
-  processed_at timestamptz,
-  status text not null default 'pending' check (status in ('pending','completed','cancelled'))
-);
-
-create table public.grievance_tickets (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users(id) on delete set null,
-  email text not null,
-  name text,
-  category text not null,
-  subject text not null,
-  body text not null,
-  status text not null default 'open' check (status in ('open','in_progress','resolved','closed')),
-  response text,
-  created_at timestamptz not null default now(),
-  resolved_at timestamptz,
-  due_at timestamptz generated always as (created_at + interval '30 days') stored
-);
--- RLS: INSERT public (anyone can file); SELECT own + admins; UPDATE admins only.
+create table cookie_consents (...);
+create table retention_runs (...);
+create table nominations (...);
+-- profiles: add date_of_birth, parent_email, parent_consent_status, parent_consent_token, parent_consent_at
 ```
 
-### Edge functions
-- `dsar-export` — gathers user data into ZIP, returns signed URL
-- `account-deletion-request` — performs soft-delete + anonymization
-- Existing `send-notification-email` reused for grievance ack + officer alert
+#### New helper functions
+- `public.is_minor(_user_id uuid) returns boolean`
+- `public.age_years(dob date) returns int`
 
-### Frontend additions
-- `src/pages/Auth.tsx` — 2 checkboxes + validation
-- `src/pages/Profile.tsx` — new "Privacy & Data" card with 3 buttons
-- `src/pages/Grievance.tsx` — public form (new route)
-- `src/components/admin/GrievancesTab.tsx` — admin queue
-- `src/components/ReconsentBanner.tsx` — shown when policy version changes
-- Footer link added for "Grievance Officer"
+#### New edge functions
+- `request-parental-consent` — sends signed token email
+- `confirm-parental-consent` — validates token, updates status
+- `retention-purge` — service-role purge job
+- `nominee-invoke` — opens grievance for nominee data access
 
-### Out of scope (P1 — for later)
-- Granular per-purpose consent on every action
-- Verifiable parental consent flow
-- Cookie banner (we use functional-only cookies; light banner sufficient — P1)
-- DPIA documentation
-- Sub-processor public list page
+#### Frontend additions
+- `src/components/CookieBanner.tsx` (mounted in `App.tsx`)
+- `src/components/NominationCard.tsx` (in `Profile.tsx`)
+- `src/pages/ParentalConsent.tsx` (public route `/parental-consent/:token`)
+- `src/components/admin/AdminRetentionTab.tsx`
+- `Auth.tsx` — DOB field; minor branch
+- `PhoneCompletionModal.tsx` — DOB capture if missing
+- `Profile.tsx` — minor badge + parental status display
+- Footer — add "Cookie Policy" link
+
+#### Policy updates
+- Bump `policy_versions` privacy → 2.1 with cookie + minor + nomination clauses
+- Seed `/page/cookies` content
 
 ---
 
-## Build order
-1. Migration (5 tables + RLS + helper functions)
-2. Privacy + Terms content rewrite (write to `page_content` + seed `policy_versions` v2.0)
-3. Auth.tsx consent checkboxes + signup integration
-4. Profile.tsx Privacy & Data section
-5. `dsar-export` edge function
-6. `account-deletion-request` edge function
-7. `/grievance` public page + email notifications
-8. Admin Grievances tab
-9. Reconsent banner
-10. Footer + routing wiring
+### Build order
+1. Migration: 3 new tables + profile columns + helper functions + RLS
+2. Cookie banner UI + edge-function-free local write
+3. Parental consent: edge functions + DOB capture + Parent page
+4. Retention purge edge function + pg_cron schedule + admin tab
+5. Nomination card + table CRUD + nominee-invoke function
+6. Policy content bump to v2.1
+7. Footer + routing wiring
+
+### Out of scope (deferred to P2)
+- Granular per-purpose consent on every action
+- Sub-processor public list page
+- DPIA internal doc
+- Breach notification admin workflow
+- Audit log regulator export
+- Reconsent automation email blast
+- Correction request form
