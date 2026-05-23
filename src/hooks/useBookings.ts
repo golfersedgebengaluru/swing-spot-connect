@@ -125,7 +125,7 @@ export function useCreateBooking() {
       const res = await supabase.functions.invoke("calendar-sync", {
         body: {
           action: "create_booking",
-          ...params,
+          ...safeParams,
           display_name: profile.data?.display_name || user?.email,
         },
       });
