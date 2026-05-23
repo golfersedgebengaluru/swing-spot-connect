@@ -13,7 +13,7 @@ export function useBays() {
       // should query `bays` separately with an explicit column list.
       const { data, error } = await supabase
         .from("bays")
-        .select("id, city, name, sort_order, is_active, open_time, close_time, coaching_mode, coaching_hours, coaching_cancellation_refund_hours, requires_approval, allow_extended_hours, extended_open_time, extended_close_time")
+        .select("id, city, name, sort_order, is_active, open_time, close_time, coaching_mode, coaching_hours, coaching_cancellation_refund_hours, currency, peak_start, peak_end, weekly_off_days, extended_open_time, extended_close_time, extended_hours_enabled")
         .order("city")
         .order("sort_order");
       if (error) throw error;
