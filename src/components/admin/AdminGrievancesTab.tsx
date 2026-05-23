@@ -80,6 +80,9 @@ export function AdminGrievancesTab() {
         <p className="text-sm text-muted-foreground">DPDP Act, 2023 — 30-day response SLA.</p>
       </div>
 
+      <OfficerSettingsCard />
+
+
       {isLoading ? <p className="text-muted-foreground">Loading…</p> :
         tickets.length === 0 ? <Card><CardContent className="py-12 text-center text-muted-foreground">No grievances yet.</CardContent></Card> :
         <div className="grid gap-3">
