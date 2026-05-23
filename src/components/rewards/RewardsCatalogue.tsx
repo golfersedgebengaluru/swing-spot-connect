@@ -6,6 +6,7 @@ import { useRewards } from "@/hooks/useRewards";
 import { useRedeemPoints } from "@/hooks/usePoints";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 interface RewardsCatalogueProps {
   currentPoints: number;
@@ -74,7 +75,7 @@ export function RewardsCatalogue({ currentPoints, usagePercentage = 100 }: Rewar
                     {reward.description && (
                       <div
                         className="text-sm text-muted-foreground prose prose-sm prose-neutral dark:prose-invert max-w-none prose-p:my-0 mt-1"
-                        dangerouslySetInnerHTML={{ __html: reward.description }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(reward.description) }}
                       />
                     )}
                   </div>

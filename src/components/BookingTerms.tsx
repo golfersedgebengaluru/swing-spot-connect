@@ -2,6 +2,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { usePageContent } from "@/hooks/usePageContent";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 interface BookingTermsProps {
   slug: "booking-terms" | "package-terms";
@@ -19,7 +20,7 @@ export function BookingTerms({ slug, accepted, onAcceptedChange }: BookingTermsP
     <div className="space-y-3">
       <div
         className="rounded-lg border border-border bg-muted/30 p-4 text-sm text-muted-foreground max-h-48 overflow-y-auto prose prose-sm dark:prose-invert prose-headings:text-foreground prose-headings:text-sm prose-headings:font-semibold prose-p:my-1 prose-ul:my-1 prose-li:my-0"
-        dangerouslySetInnerHTML={{ __html: page.content }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(page.content) }}
       />
       <div className="flex items-start gap-2">
         <Checkbox

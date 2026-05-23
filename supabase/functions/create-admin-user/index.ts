@@ -1,10 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// This function creates or updates the admin@golfers-edge.com Supabase auth user.
-// The auth user's login password is sourced from the ADMIN_AUTH_PASSWORD env var
-// (set via Supabase secrets), NOT from admin_config which stores a bcrypt hash
-// used only for the admin setup flow.
+// SECURITY: Service-role only. Caller MUST supply the service-role key in Authorization.
+// The admin user's password is read from ADMIN_AUTH_PASSWORD secret.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") || "*",
@@ -19,9 +17,17 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    const auth = req.headers.get("Authorization") ?? "";
+    if (!auth.includes(supabaseServiceKey)) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Read the Supabase auth login password from a dedicated env var
     const adminAuthPassword = Deno.env.get("ADMIN_AUTH_PASSWORD");
     if (!adminAuthPassword) {
       return new Response(
@@ -32,18 +38,14 @@ serve(async (req) => {
 
     const adminEmail = "admin@golfers-edge.com";
 
-    // Check if admin user already exists
     const { data: existingUsers } = await adminClient.auth.admin.listUsers();
     const existingAdmin = existingUsers?.users?.find((u: { email?: string }) => u.email === adminEmail);
 
     if (existingAdmin) {
-      // Update password
       await adminClient.auth.admin.updateUserById(existingAdmin.id, {
         password: adminAuthPassword,
         email_confirm: true,
       });
-
-      // Ensure admin role exists
       await adminClient
         .from("user_roles")
         .upsert({ user_id: existingAdmin.id, role: "admin" }, { onConflict: "user_id,role" });
@@ -54,7 +56,6 @@ serve(async (req) => {
       );
     }
 
-    // Create the admin user
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email: adminEmail,
       password: adminAuthPassword,
@@ -69,7 +70,6 @@ serve(async (req) => {
       );
     }
 
-    // Grant admin role
     await adminClient
       .from("user_roles")
       .upsert({ user_id: newUser.user!.id, role: "admin" }, { onConflict: "user_id,role" });
