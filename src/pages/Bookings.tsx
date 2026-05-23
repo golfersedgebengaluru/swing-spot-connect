@@ -113,7 +113,7 @@ export default function Bookings() {
     if (!selectedSlot || !endTime || !currentBay) return;
     try {
       const result = await createBooking.mutateAsync({
-        calendar_email: currentBay.calendar_email,
+        
         start_time: selectedSlot,
         end_time: endTime,
         duration_minutes: duration,
