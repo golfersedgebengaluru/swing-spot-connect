@@ -81,7 +81,7 @@ export function AdminWalkInBookingTab() {
   // flow and avoids early-morning calendar conflicts blanking out the slot grid.
   const bookableWindow = getBookableWindow(currentBay as any, false);
   const { data: slots, isLoading: loadingSlots } = useAvailableSlots(
-    currentBay?.calendar_email,
+    currentBay?.id,
     dateStr,
     bookableWindow?.openTime,
     bookableWindow?.closeTime,
