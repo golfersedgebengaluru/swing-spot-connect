@@ -38,7 +38,7 @@ export function useBayConfig() {
 }
 
 export function useAvailableSlots(
-  calendarEmail: string | undefined,
+  bayId: string | undefined,
   date: string | undefined,
   openTime: string | undefined,
   closeTime: string | undefined,
@@ -46,13 +46,15 @@ export function useAvailableSlots(
 ) {
   const { includeExtended, ...queryOptions } = options;
   return useQuery({
-    queryKey: ["available_slots", calendarEmail, date, openTime, closeTime, !!includeExtended],
-    enabled: !!calendarEmail && !!date && !!openTime && !!closeTime,
+    queryKey: ["available_slots", bayId, date, openTime, closeTime, !!includeExtended],
+    enabled: !!bayId && !!date && !!openTime && !!closeTime,
     queryFn: async () => {
+      // calendar_email is resolved server-side from bay_id (private column,
+      // hidden from anonymous visitors).
       const res = await supabase.functions.invoke("calendar-sync", {
         body: {
           action: "list_slots",
-          calendar_email: calendarEmail,
+          bay_id: bayId,
           date,
           open_time: openTime,
           close_time: closeTime,
