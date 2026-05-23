@@ -89,6 +89,7 @@ const App = () => (
               <Route path="/reset-password" element={<ErrorBoundary><ResetPassword /></ErrorBoundary>} />
               <Route path="/page/:slug" element={<ErrorBoundary><PageView /></ErrorBoundary>} />
               <Route path="/grievance" element={<ErrorBoundary><Grievance /></ErrorBoundary>} />
+              <Route path="/parental-consent/:token" element={<ErrorBoundary><ParentalConsent /></ErrorBoundary>} />
               <Route path="*" element={<ErrorBoundary><NotFound /></ErrorBoundary>} />
             </Routes>
           </Suspense>
