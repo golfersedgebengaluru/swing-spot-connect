@@ -29,7 +29,7 @@ export function useBayConfig() {
       // calendar_email intentionally excluded — see useBays note.
       const { data, error } = await supabase
         .from("bay_config")
-        .select("id, city, open_time, close_time")
+        .select("id, city, open_time, close_time, is_active, cancellation_fee_pct")
         .order("city");
       if (error) throw error;
       return data as any[];
