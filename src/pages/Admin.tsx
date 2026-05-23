@@ -74,12 +74,11 @@ function ReportsGSTR1Wrapper() {
 
 const tabComponents: Record<string, React.ComponentType<any>> = {
   dashboard: AdminDashboardTab,
-  walkin: AdminWalkInBookingTab,
+  walkin: AdminEdgeRewardsTab, // legacy alias removed; placeholder to maintain ordering
   events: AdminEventsTab,
   products: AdminProductsTab,
   salesinvoices: AdminSalesInvoicesTab,
   expenses: AdminExpensesTab,
-  rewards: AdminRewardsTab,
   edgerewards: AdminEdgeRewardsTab,
   leagues: AdminLeaguesTab,
   
