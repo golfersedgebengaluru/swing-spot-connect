@@ -45,12 +45,9 @@ interface AdminSidebarProps {
 
 const coreItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, adminOrSiteAdminOnly: true },
-  { id: "walkin", label: "Walk-in Booking", icon: CalendarDays, adminOrSiteAdminOnly: true },
   { id: "bookinglogs", label: "Bookings", icon: CalendarDays, adminOrSiteAdminOnly: true },
   { id: "leagues", label: "Leagues", icon: Trophy, adminOrSiteAdminOnly: true },
-  
   { id: "coaching", label: "Coaching", icon: GraduationCap },
-  { id: "edgerewards", label: "EDGE Rewards", icon: Award, adminOrSiteAdminOnly: true },
 ];
 
 const usersItems = [
@@ -64,18 +61,20 @@ const operationsItems = [
   { id: "expenses", label: "Expenses", icon: Receipt },
   { id: "products", label: "Products", icon: ShoppingBag },
   { id: "coupons", label: "Coupons", icon: Ticket },
+  { id: "edgerewards", label: "EDGE Rewards", icon: Award, adminOrSiteAdminOnly: true },
 ];
 
-const configItems = [
+const financeConfigItems = [
   { id: "pricing", label: "Pricing", icon: CreditCard },
   { id: "payments", label: "Payments", icon: CreditCard },
-  { id: "emails", label: "Emails", icon: Mail },
-  { id: "grievances", label: "Grievances", icon: ShieldCheck, adminOrSiteAdminOnly: true },
-  { id: "retention", label: "Data Retention", icon: ShieldCheck, adminOrSiteAdminOnly: true },
-  { id: "settings", label: "Settings", icon: Award, adminOnly: true },
   { id: "finance", label: "Finance Settings", icon: Receipt },
+];
+
+const generalConfigItems = [
   { id: "bayconfig", label: "Locations", icon: MapPin },
+  { id: "emails", label: "Emails", icon: Mail },
   { id: "pages", label: "Page Settings", icon: BarChart3, adminOnly: true },
+  { id: "settings", label: "General Settings", icon: Award, adminOnly: true },
 ];
 
 const reportsItems = [
