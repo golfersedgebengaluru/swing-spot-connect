@@ -88,7 +88,7 @@ export default function PublicBooking() {
 
   // Fetch real-time slots for ALL users (including guests)
   const { data: slots, isLoading: loadingSlots } = useAvailableSlots(
-    currentBay?.calendar_email,
+    currentBay?.id,
     dateStr,
     bookableWindow?.openTime,
     bookableWindow?.closeTime,
