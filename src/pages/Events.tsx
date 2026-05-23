@@ -9,6 +9,7 @@ import { CardSkeleton, EmptyState } from "@/components/ui/PageSkeleton";
 import { cn } from "@/lib/utils";
 import { useEvents } from "@/hooks/useEvents";
 import { format } from "date-fns";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 const getTypeColor = (type: string) => {
   switch (type) {
