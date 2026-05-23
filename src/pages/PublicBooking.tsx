@@ -208,7 +208,6 @@ export default function PublicBooking() {
               city: selectedCity,
               bay_id: currentBay.id,
               bay_name: currentBay.name,
-              calendar_email: currentBay.calendar_email,
               start_time: selectedSlot,
               end_time: endTime,
               duration_minutes: duration,
