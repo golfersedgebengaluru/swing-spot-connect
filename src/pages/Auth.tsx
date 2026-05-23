@@ -28,7 +28,18 @@ export default function Auth() {
     email: "",
     password: "",
     name: "",
+    dob: "",
+    parentEmail: "",
   });
+
+  const ageYears = (dobStr: string): number | null => {
+    if (!dobStr) return null;
+    const d = new Date(dobStr);
+    if (isNaN(d.getTime())) return null;
+    return Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000));
+  };
+  const age = ageYears(formData.dob);
+  const isMinor = age !== null && age < 18;
 
   const redirectTo = searchParams.get("redirect") || "/dashboard";
 
