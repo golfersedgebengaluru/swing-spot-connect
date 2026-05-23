@@ -104,7 +104,7 @@ export function useCreateBooking() {
 
   return useMutation({
     mutationFn: async (params: {
-      calendar_email: string;
+      calendar_email?: string;
       start_time: string;
       end_time: string;
       duration_minutes: number;
@@ -114,6 +114,8 @@ export function useCreateBooking() {
       session_type?: string;
       payment_method?: string;
     }) => {
+      // calendar_email is optional and resolved server-side from bay_id.
+      const { calendar_email: _ignore, ...safeParams } = params;
       const profile = await supabase
         .from("profiles")
         .select("display_name, user_type")
