@@ -1161,7 +1161,8 @@ Deno.serve(async (req) => {
     // list_slots is handled above (before auth check) — this block is intentionally removed
 
     if (action === "create_booking") {
-      const { calendar_email, start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type, payment_method, user_id_override } = params;
+      const { start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type, payment_method, user_id_override } = params;
+      let { calendar_email } = params;
 
       // If an admin/site_admin is booking on behalf of a member, use their user_id
       let bookingUserId = userId;
@@ -1171,6 +1172,18 @@ Deno.serve(async (req) => {
         if (callerIsAdminOrSA) {
           bookingUserId = user_id_override;
         }
+      }
+
+      // Resolve calendar mailbox server-side so clients don't need to send it
+      if (!calendar_email) {
+        const adminClient = createAdminClient();
+        calendar_email = await resolveCalendarEmail(adminClient, { bay_id, city });
+      }
+      if (!calendar_email) {
+        return new Response(
+          JSON.stringify({ error: "Unable to resolve calendar for this bay" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
 
       // If payment was made via a gateway (e.g. Razorpay), skip hours check/deduction
