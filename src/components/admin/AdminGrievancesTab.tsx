@@ -3,12 +3,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow, isPast } from "date-fns";
+import { useGrievanceOfficer, useUpdateGrievanceOfficer } from "@/hooks/useGrievanceOfficer";
+import { Settings2 } from "lucide-react";
 
 type Ticket = {
   id: string;
@@ -75,6 +79,9 @@ export function AdminGrievancesTab() {
         <h2 className="font-display text-2xl font-bold">Grievances</h2>
         <p className="text-sm text-muted-foreground">DPDP Act, 2023 — 30-day response SLA.</p>
       </div>
+
+      <OfficerSettingsCard />
+
 
       {isLoading ? <p className="text-muted-foreground">Loading…</p> :
         tickets.length === 0 ? <Card><CardContent className="py-12 text-center text-muted-foreground">No grievances yet.</CardContent></Card> :
@@ -151,3 +158,72 @@ export function AdminGrievancesTab() {
     </div>
   );
 }
+
+function OfficerSettingsCard() {
+  const { toast } = useToast();
+  const { data: officer, isLoading } = useGrievanceOfficer();
+  const update = useUpdateGrievanceOfficer();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    if (officer) { setName(officer.name); setEmail(officer.email); }
+  }, [officer]);
+
+  const dirty = !!officer && (name !== officer.name || email !== officer.email);
+
+  const save = () => {
+    if (!name.trim() || !email.trim()) {
+      toast({ title: "Name and email are required", variant: "destructive" });
+      return;
+    }
+    update.mutate(
+      { name: name.trim(), email: email.trim() },
+      {
+        onSuccess: () => toast({ title: "Grievance Officer updated" }),
+        onError: (e: unknown) =>
+          toast({ title: "Failed", description: e instanceof Error ? e.message : "Error", variant: "destructive" }),
+      },
+    );
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Settings2 className="h-4 w-4" /> Grievance Officer
+        </CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Shown on the Grievance form, Privacy Policy contact info, and DPDP notices.
+        </p>
+      </CardHeader>
+      <CardContent className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] items-end">
+        <div>
+          <Label htmlFor="go-name" className="text-xs">Name</Label>
+          <Input
+            id="go-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={isLoading}
+            placeholder="Grievance Officer, Acme Pvt Ltd"
+          />
+        </div>
+        <div>
+          <Label htmlFor="go-email" className="text-xs">Email</Label>
+          <Input
+            id="go-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={isLoading}
+            placeholder="grievance@example.com"
+          />
+        </div>
+        <Button onClick={save} disabled={!dirty || update.isPending}>
+          {update.isPending ? "Saving…" : "Save"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+

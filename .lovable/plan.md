@@ -1,101 +1,35 @@
-## P1 DPDP Bundle — Scope
+## Cleanup & Configurable Grievance Officer
 
-Implementing the 4 highest-risk P1 items from the previous list. Other P1s (granular consent, sub-processor page, DPIA doc, breach workflow, audit export, consent withdrawal toggle, correction form, reconsent email automation) are deferred.
+### Problem
+1. The Privacy Policy page (`/page/privacy`) has a chunk of raw markdown (`--- ## Update — 23 May 2026 (v2.1) ...`) appended after section 14. Since the page renders HTML, the markdown is shown literally — looks broken.
+2. Section "14. Contact" duplicates info that already lives in the `contact` page (`/page/contact`). It should not be hardcoded inside the Privacy Policy.
+3. Grievance Officer name + email are hardcoded in 4 places (`Grievance.tsx`, `PrivacyDataCard.tsx`, `Footer.tsx`, `account-deletion-request` edge function) and inside the privacy HTML — making them impossible to change without a code edit.
 
----
+### Fix
 
-### 1. Cookie / Tracking Banner
+**1. Clean the Privacy Policy content (DB migration, content update only):**
+- Remove the trailing `---` markdown block and the duplicated section 14.
+- Convert the v2.1 update note into proper HTML and place it as a short "Update — 23 May 2026 (v2.1)" block at the top, before section 1.
+- Replace section 14 with a single sentence: *"See our [Contact page](/page/contact) for how to reach our Grievance Officer and general team."*
 
-- New table `cookie_consents` (`id, user_id?, session_id, necessary, analytics, marketing, ip, user_agent, policy_version, created_at`)
-- New component `CookieBanner.tsx` shown to all visitors until a choice is made (localStorage flag `cookie_consent_v1`)
-- 3 buttons: **Accept all**, **Reject all** (same prominence), **Manage** (opens dialog with analytics + marketing toggles; "Necessary" locked on)
-- Writes a row to `cookie_consents` on choice + sets localStorage
-- Mounted globally in `App.tsx` alongside `ReconsentBanner`
-- New `/page/cookies` short policy page (seeded into `page_content`)
+**2. Make Grievance Officer configurable via `admin_config`:**
+- Seed two keys: `grievance_officer_name` (default "Grievance Officer, Teetime Ventures Pvt Ltd") and `grievance_officer_email` (default "grievance@golfers-edge.in").
+- Add a new `useGrievanceOfficer()` hook that reads both keys with TanStack Query.
+- Wire it into:
+  - `src/pages/Grievance.tsx` — the "Grievance Officer Contact" card.
+  - `src/components/PrivacyDataCard.tsx` — wherever the email is shown.
+  - `src/components/layout/Footer.tsx` — if displayed.
+- Edge function `account-deletion-request` will read `grievance_officer_email` from `admin_config` at request time (instead of a hardcoded string).
 
-### 2. Verifiable Parental Consent (minors <18)
+**3. Settings panel in the Grievances admin tab:**
+- Add a collapsible "Settings" card at the top of `AdminGrievancesTab.tsx` with two inputs (Name, Email) and a Save button.
+- On save, upsert both keys into `admin_config` and invalidate the `useGrievanceOfficer` query.
 
-- Add `date_of_birth` and `parent_email`, `parent_consent_status`, `parent_consent_token`, `parent_consent_at` columns to `profiles`
-- DOB capture: add to `Auth.tsx` signup (required) and `PhoneCompletionModal` for existing users without DOB
-- On signup, if computed age <18:
-  - Block marketing consent (force `granted=false` for marketing_email / marketing_whatsapp regardless of checkbox)
-  - Set `parent_consent_status='pending'`, collect `parent_email`
-  - New edge function `request-parental-consent` sends email with signed token URL → `/parental-consent/:token`
-  - New page `ParentalConsent.tsx` lets parent approve/reject; updates status
-- New helper `is_minor(_user_id)` SQL function + RLS guards: minors blocked from posting in community, leaderboard opt-out by default
-- Profile page shows minor badge + parental status
+### Out of scope
+- No changes to grievance ticket schema, RLS, retention, cookie banner, parental consent, or nominee flow.
+- Contact page itself is already managed via Page Settings — left untouched.
 
-### 3. Retention Auto-Purge Jobs
-
-- New edge function `retention-purge` (service-role; idempotent)
-  - Anonymises bookings >8 years old (clear notes, set user_id null where FK allows; keep financial totals)
-  - Purges `consent_log` rows >7 years past account closure (joined via `deletion_requests`)
-  - Deletes guest `profiles` with no activity for 2 years (no bookings, no orders, no league entries)
-  - Logs each run into new `retention_runs` table (`id, run_at, rows_anonymised, rows_purged_consent, rows_purged_guests, duration_ms, status, error`)
-- Schedule via pg_cron weekly (Sunday 03:00 IST) — uses `supabase--insert` per the scheduled-jobs guide
-- Admin can view last 20 runs in new `AdminRetentionTab.tsx` (under Compliance section in admin sidebar)
-
-### 4. Nomination (Right of Nomination, DPDP §13)
-
-- New table `nominations` (`id, user_id, nominee_name, nominee_email, nominee_phone, relationship, notes, status, created_at, updated_at, revoked_at`)
-  - One active nomination per user (partial unique on `status='active'`)
-- RLS: user can CRUD own; admins can read all
-- New component `NominationCard.tsx` in `Profile.tsx`: form to add/edit/revoke nominee
-- New edge function `nominee-invoke` (placeholder admin workflow): accepts death-certificate upload + nominee identity; opens a grievance ticket of category `nomination_invocation` for admin manual review
-- No automated data transfer — manual admin process; DPDP-compliant disclosure
-
----
-
-### Technical sections
-
-#### New tables
-```sql
-create table cookie_consents (...);
-create table retention_runs (...);
-create table nominations (...);
--- profiles: add date_of_birth, parent_email, parent_consent_status, parent_consent_token, parent_consent_at
-```
-
-#### New helper functions
-- `public.is_minor(_user_id uuid) returns boolean`
-- `public.age_years(dob date) returns int`
-
-#### New edge functions
-- `request-parental-consent` — sends signed token email
-- `confirm-parental-consent` — validates token, updates status
-- `retention-purge` — service-role purge job
-- `nominee-invoke` — opens grievance for nominee data access
-
-#### Frontend additions
-- `src/components/CookieBanner.tsx` (mounted in `App.tsx`)
-- `src/components/NominationCard.tsx` (in `Profile.tsx`)
-- `src/pages/ParentalConsent.tsx` (public route `/parental-consent/:token`)
-- `src/components/admin/AdminRetentionTab.tsx`
-- `Auth.tsx` — DOB field; minor branch
-- `PhoneCompletionModal.tsx` — DOB capture if missing
-- `Profile.tsx` — minor badge + parental status display
-- Footer — add "Cookie Policy" link
-
-#### Policy updates
-- Bump `policy_versions` privacy → 2.1 with cookie + minor + nomination clauses
-- Seed `/page/cookies` content
-
----
-
-### Build order
-1. Migration: 3 new tables + profile columns + helper functions + RLS
-2. Cookie banner UI + edge-function-free local write
-3. Parental consent: edge functions + DOB capture + Parent page
-4. Retention purge edge function + pg_cron schedule + admin tab
-5. Nomination card + table CRUD + nominee-invoke function
-6. Policy content bump to v2.1
-7. Footer + routing wiring
-
-### Out of scope (deferred to P2)
-- Granular per-purpose consent on every action
-- Sub-processor public list page
-- DPIA internal doc
-- Breach notification admin workflow
-- Audit log regulator export
-- Reconsent automation email blast
-- Correction request form
+### Files
+- Migration: clean `page_content` row for `privacy`; seed two `admin_config` keys.
+- New: `src/hooks/useGrievanceOfficer.ts`.
+- Edit: `AdminGrievancesTab.tsx`, `Grievance.tsx`, `PrivacyDataCard.tsx`, `Footer.tsx`, `supabase/functions/account-deletion-request/index.ts`.

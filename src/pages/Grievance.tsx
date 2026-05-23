@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useGrievanceOfficer } from "@/hooks/useGrievanceOfficer";
 import { ShieldCheck } from "lucide-react";
 
 const CATEGORIES = [
@@ -25,6 +26,7 @@ const CATEGORIES = [
 export default function Grievance() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { data: officer } = useGrievanceOfficer();
   const [busy, setBusy] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [form, setForm] = useState({
@@ -78,8 +80,8 @@ export default function Grievance() {
               <CardTitle className="text-base">Grievance Officer Contact</CardTitle>
             </CardHeader>
             <CardContent className="text-sm space-y-1 text-muted-foreground">
-              <p><span className="text-foreground font-medium">Name:</span> Grievance Officer, Teetime Ventures Pvt Ltd</p>
-              <p><span className="text-foreground font-medium">Email:</span> grievance@golfers-edge.in</p>
+              <p><span className="text-foreground font-medium">Name:</span> {officer?.name ?? "—"}</p>
+              <p><span className="text-foreground font-medium">Email:</span> {officer?.email ?? "—"}</p>
               <p><span className="text-foreground font-medium">Response SLA:</span> 30 days</p>
             </CardContent>
           </Card>
