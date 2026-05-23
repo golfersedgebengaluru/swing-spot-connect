@@ -20,7 +20,7 @@ import { ExpenseReports } from "@/components/admin/ExpenseReports";
 import { ProfitLossView } from "@/components/admin/ProfitLossView";
 import { GSTR1DownloadCard } from "@/components/admin/GSTR1DownloadCard";
 import { ProductProfitabilityReport } from "@/components/admin/ProductProfitabilityReport";
-import { AdminWalkInBookingTab } from "@/components/admin/AdminWalkInBookingTab";
+
 import { AdminFinanceTab } from "@/components/admin/AdminFinanceTab";
 import { AdminSalesInvoicesTab } from "@/components/admin/AdminSalesInvoicesTab";
 import { AdminExpensesTab } from "@/components/admin/AdminExpensesTab";
