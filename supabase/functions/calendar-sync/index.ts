@@ -810,15 +810,21 @@ Deno.serve(async (req) => {
       const {
         payment_id, order_id,
         start_time, end_time, duration_minutes, city, bay_id, bay_name,
-        session_type, guest_name, guest_email, guest_phone, calendar_email,
+        session_type, guest_name, guest_email, guest_phone,
         user_id_override,
         billing_status, // 'deferred' for corporate monthly customers
         backdated, // true for corporate accounting entries in the past
       } = params;
+      let { calendar_email } = params;
       const isDeferred = billing_status === "deferred";
       const isBackdated = backdated === true;
 
       const adminClient = createAdminClient();
+
+      // Resolve calendar mailbox server-side (guests cannot read it from the client)
+      if (!calendar_email) {
+        calendar_email = await resolveCalendarEmail(adminClient, { bay_id, city });
+      }
 
       // Idempotency: if a revenue_transaction already exists for this Razorpay order,
       // the booking has already been finalized (by the browser flow OR webhook). Skip.
