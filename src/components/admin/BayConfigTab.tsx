@@ -83,7 +83,7 @@ import { getDayShort } from "@/lib/bay-schedule-utils";
 import { useBays } from "@/hooks/useBookings";
 import { CURRENCIES, getCurrencySymbol } from "@/lib/currencies";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
 interface BayForm {
