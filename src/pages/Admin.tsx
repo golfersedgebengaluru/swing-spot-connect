@@ -28,6 +28,7 @@ import { AdminLeaguesTab } from "@/components/admin/AdminLeaguesTab";
 
 import { AdminCouponsTab } from "@/components/admin/AdminCouponsTab";
 import { AdminGrievancesTab } from "@/components/admin/AdminGrievancesTab";
+import { AdminRetentionTab } from "@/components/admin/AdminRetentionTab";
 import { AdminCoachingTab } from "@/components/admin/AdminCoachingTab";
 import { AdminCorporateAccountsTab } from "@/components/admin/AdminCorporateAccountsTab";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
@@ -100,6 +101,7 @@ const tabComponents: Record<string, React.ComponentType<any>> = {
   reports_gstr1: ReportsGSTR1Wrapper,
   finance: AdminFinanceTab,
   grievances: AdminGrievancesTab,
+  retention: AdminRetentionTab,
   settings: AdminSettingsTab,
 };
 

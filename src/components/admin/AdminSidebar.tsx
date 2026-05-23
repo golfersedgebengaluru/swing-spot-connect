@@ -71,6 +71,7 @@ const configItems = [
   { id: "payments", label: "Payments", icon: CreditCard },
   { id: "emails", label: "Emails", icon: Mail },
   { id: "grievances", label: "Grievances", icon: ShieldCheck, adminOrSiteAdminOnly: true },
+  { id: "retention", label: "Data Retention", icon: ShieldCheck, adminOrSiteAdminOnly: true },
   { id: "settings", label: "Settings", icon: Award, adminOnly: true },
   { id: "finance", label: "Finance Settings", icon: Receipt },
   { id: "bayconfig", label: "Locations", icon: MapPin },

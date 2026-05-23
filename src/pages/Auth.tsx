@@ -28,7 +28,18 @@ export default function Auth() {
     email: "",
     password: "",
     name: "",
+    dob: "",
+    parentEmail: "",
   });
+
+  const ageYears = (dobStr: string): number | null => {
+    if (!dobStr) return null;
+    const d = new Date(dobStr);
+    if (isNaN(d.getTime())) return null;
+    return Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000));
+  };
+  const age = ageYears(formData.dob);
+  const isMinor = age !== null && age < 18;
 
   const redirectTo = searchParams.get("redirect") || "/dashboard";
 
@@ -78,6 +89,17 @@ export default function Auth() {
           setIsLoading(false);
           return;
         }
+        if (!formData.dob) {
+          toast({ title: "Date of birth is required", variant: "destructive" });
+          setIsLoading(false);
+          return;
+        }
+        if (isMinor && !formData.parentEmail.trim()) {
+          toast({ title: "Parent's email is required for users under 18", variant: "destructive" });
+          setIsLoading(false);
+          return;
+        }
+        const effectiveMarketing = isMinor ? false : marketingOptIn;
         const { data: signupData, error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
@@ -90,16 +112,32 @@ export default function Auth() {
         try {
           const newUserId = signupData?.user?.id;
           if (newUserId) {
+            await supabase.from("profiles").update({
+              date_of_birth: formData.dob,
+              parent_email: isMinor ? formData.parentEmail.trim().toLowerCase() : null,
+              parent_consent_status: isMinor ? "pending" : "not_required",
+            }).eq("user_id", newUserId);
+
             await supabase.from("consent_log" as any).insert([
               { user_id: newUserId, email: formData.email, consent_type: "tos", granted: true, user_agent: navigator.userAgent },
               { user_id: newUserId, email: formData.email, consent_type: "privacy", granted: true, user_agent: navigator.userAgent },
-              { user_id: newUserId, email: formData.email, consent_type: "marketing_email", granted: marketingOptIn, user_agent: navigator.userAgent },
+              { user_id: newUserId, email: formData.email, consent_type: "marketing_email", granted: effectiveMarketing, user_agent: navigator.userAgent },
             ] as any);
+
+            if (isMinor) {
+              try {
+                await supabase.functions.invoke("request-parental-consent", {
+                  body: { parent_email: formData.parentEmail.trim().toLowerCase() },
+                });
+              } catch (_) { /* non-blocking */ }
+            }
           }
         } catch (_) { /* non-blocking */ }
         toast({
           title: "Check your email!",
-          description: "We sent you a confirmation link to complete your signup.",
+          description: isMinor
+            ? "We've also emailed your parent for consent before your account is active."
+            : "We sent you a confirmation link to complete your signup.",
         });
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -215,6 +253,41 @@ export default function Auth() {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="mt-2"
                   required={isSignUp}
+                />
+              </div>
+            )}
+
+            {isSignUp && (
+              <div>
+                <Label htmlFor="dob">Date of birth</Label>
+                <Input
+                  id="dob"
+                  type="date"
+                  value={formData.dob}
+                  onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                  className="mt-2"
+                  required={isSignUp}
+                  max={new Date().toISOString().split("T")[0]}
+                />
+                {isMinor && (
+                  <p className="mt-1 text-xs text-amber-600">
+                    You're under 18 — we'll need your parent or guardian's consent.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {isSignUp && isMinor && (
+              <div>
+                <Label htmlFor="parentEmail">Parent / guardian email</Label>
+                <Input
+                  id="parentEmail"
+                  type="email"
+                  placeholder="parent@example.com"
+                  value={formData.parentEmail}
+                  onChange={(e) => setFormData({ ...formData, parentEmail: e.target.value })}
+                  className="mt-2"
+                  required
                 />
               </div>
             )}

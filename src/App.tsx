@@ -10,6 +10,7 @@ import { CitySelectionModal } from "@/components/CitySelectionModal";
 import { PageLoader } from "@/components/PageLoader";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ReconsentBanner } from "@/components/ReconsentBanner";
+import { CookieBanner } from "@/components/CookieBanner";
 
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -38,6 +39,7 @@ const LeagueTeamJoin = lazy(() => import("./pages/LeagueTeamJoin"));
 const LeagueScreen = lazy(() => import("./pages/LeagueScreen"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Grievance = lazy(() => import("./pages/Grievance"));
+const ParentalConsent = lazy(() => import("./pages/ParentalConsent"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -58,6 +60,7 @@ const App = () => (
         <AuthProvider>
           <CitySelectionModal />
           <ReconsentBanner />
+          <CookieBanner />
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<ErrorBoundary><Index /></ErrorBoundary>} />
@@ -86,6 +89,7 @@ const App = () => (
               <Route path="/reset-password" element={<ErrorBoundary><ResetPassword /></ErrorBoundary>} />
               <Route path="/page/:slug" element={<ErrorBoundary><PageView /></ErrorBoundary>} />
               <Route path="/grievance" element={<ErrorBoundary><Grievance /></ErrorBoundary>} />
+              <Route path="/parental-consent/:token" element={<ErrorBoundary><ParentalConsent /></ErrorBoundary>} />
               <Route path="*" element={<ErrorBoundary><NotFound /></ErrorBoundary>} />
             </Routes>
           </Suspense>
