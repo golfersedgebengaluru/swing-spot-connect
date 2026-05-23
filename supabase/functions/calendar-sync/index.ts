@@ -174,6 +174,41 @@ function createAdminClient() {
   );
 }
 
+// Resolve a bay's Google Calendar mailbox server-side so clients never need to
+// pass `calendar_email` (which is private and revoked from the `anon` role).
+// Prefers the bay-specific calendar, falling back to the city-level bay_config.
+async function resolveCalendarEmail(
+  adminClient: ReturnType<typeof createAdminClient>,
+  opts: { bay_id?: string | null; city?: string | null; fallback?: string | null }
+): Promise<string | null> {
+  if (opts.fallback) return opts.fallback;
+  if (opts.bay_id) {
+    const { data: bay } = await adminClient
+      .from("bays")
+      .select("calendar_email, city")
+      .eq("id", opts.bay_id)
+      .maybeSingle();
+    if (bay?.calendar_email) return bay.calendar_email as string;
+    const cityFromBay = bay?.city || opts.city;
+    if (cityFromBay) {
+      const { data: cfg } = await adminClient
+        .from("bay_config")
+        .select("calendar_email")
+        .eq("city", cityFromBay)
+        .maybeSingle();
+      if (cfg?.calendar_email) return cfg.calendar_email as string;
+    }
+  } else if (opts.city) {
+    const { data: cfg } = await adminClient
+      .from("bay_config")
+      .select("calendar_email")
+      .eq("city", opts.city)
+      .maybeSingle();
+    if (cfg?.calendar_email) return cfg.calendar_email as string;
+  }
+  return null;
+}
+
 // Get admin + city-scoped site-admin user IDs for notifications
 async function getAdminAndSiteAdminIds(adminClient: any, city: string, excludeUserId?: string): Promise<string[]> {
   // Get all admins
