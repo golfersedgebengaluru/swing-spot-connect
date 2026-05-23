@@ -156,7 +156,6 @@ export default function PublicBooking() {
       if (user && paymentMethod === "hours") {
         // Member booking with hours — no payment needed
         await createBooking.mutateAsync({
-          calendar_email: currentBay.calendar_email,
           start_time: selectedSlot,
           end_time: endTime,
           duration_minutes: duration,
