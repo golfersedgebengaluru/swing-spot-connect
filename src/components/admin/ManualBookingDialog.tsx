@@ -112,7 +112,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
   const effectiveShowExtended = showExtended && canUseExtended;
   const bookableWindow = getBookableWindow(currentBay as any, effectiveShowExtended);
   const { data: availableSlots, isLoading: slotsLoading } = useAvailableSlots(
-    currentBay?.calendar_email,
+    currentBay?.id,
     slotDate,
     bookableWindow?.openTime,
     bookableWindow?.closeTime,
