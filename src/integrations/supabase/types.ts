@@ -698,6 +698,45 @@ export type Database = {
         }
         Relationships: []
       }
+      cookie_consents: {
+        Row: {
+          analytics: boolean
+          created_at: string
+          id: string
+          ip_address: string | null
+          marketing: boolean
+          necessary: boolean
+          policy_version: string | null
+          session_id: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          analytics?: boolean
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          marketing?: boolean
+          necessary?: boolean
+          policy_version?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          analytics?: boolean
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          marketing?: boolean
+          necessary?: boolean
+          policy_version?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       corporate_accounts: {
         Row: {
           billing_address: string | null
@@ -3423,6 +3462,48 @@ export type Database = {
         }
         Relationships: []
       }
+      nominations: {
+        Row: {
+          created_at: string
+          id: string
+          nominee_email: string
+          nominee_name: string
+          nominee_phone: string | null
+          notes: string | null
+          relationship: string | null
+          revoked_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nominee_email: string
+          nominee_name: string
+          nominee_phone?: string | null
+          notes?: string | null
+          relationship?: string | null
+          revoked_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nominee_email?: string
+          nominee_name?: string
+          nominee_phone?: string | null
+          notes?: string | null
+          relationship?: string | null
+          revoked_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           action_url: string | null
@@ -4104,11 +4185,16 @@ export type Database = {
           billing_mode: string
           corporate_account_id: string | null
           created_at: string
+          date_of_birth: string | null
           display_name: string | null
           email: string | null
           extended_hours_access: boolean
           handicap: number | null
           id: string
+          parent_consent_at: string | null
+          parent_consent_status: string | null
+          parent_consent_token: string | null
+          parent_email: string | null
           phone: string | null
           points: number | null
           preferred_city: string | null
@@ -4124,11 +4210,16 @@ export type Database = {
           billing_mode?: string
           corporate_account_id?: string | null
           created_at?: string
+          date_of_birth?: string | null
           display_name?: string | null
           email?: string | null
           extended_hours_access?: boolean
           handicap?: number | null
           id?: string
+          parent_consent_at?: string | null
+          parent_consent_status?: string | null
+          parent_consent_token?: string | null
+          parent_email?: string | null
           phone?: string | null
           points?: number | null
           preferred_city?: string | null
@@ -4144,11 +4235,16 @@ export type Database = {
           billing_mode?: string
           corporate_account_id?: string | null
           created_at?: string
+          date_of_birth?: string | null
           display_name?: string | null
           email?: string | null
           extended_hours_access?: boolean
           handicap?: number | null
           id?: string
+          parent_consent_at?: string | null
+          parent_consent_status?: string | null
+          parent_consent_token?: string | null
+          parent_email?: string | null
           phone?: string | null
           points?: number | null
           preferred_city?: string | null
@@ -4545,6 +4641,39 @@ export type Database = {
           },
         ]
       }
+      retention_runs: {
+        Row: {
+          duration_ms: number | null
+          error: string | null
+          id: string
+          rows_anonymised: number
+          rows_purged_consent: number
+          rows_purged_guests: number
+          run_at: string
+          status: string
+        }
+        Insert: {
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          rows_anonymised?: number
+          rows_purged_consent?: number
+          rows_purged_guests?: number
+          run_at?: string
+          status?: string
+        }
+        Update: {
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          rows_anonymised?: number
+          rows_purged_consent?: number
+          rows_purged_guests?: number
+          run_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       revenue_transactions: {
         Row: {
           amount: number
@@ -4827,6 +4956,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      age_years: { Args: { _dob: string }; Returns: number }
       auto_create_invoice_for_revenue: {
         Args: { p_revenue_id: string }
         Returns: string
@@ -4866,6 +4996,10 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      confirm_parental_consent: {
+        Args: { _approve: boolean; _token: string }
+        Returns: boolean
       }
       decrement_user_points_safe: {
         Args: { p_delta: number; p_user_id: string }
@@ -4923,6 +5057,16 @@ export type Database = {
       is_franchise_or_site_admin: {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
+      }
+      is_minor: { Args: { _user_id: string }; Returns: boolean }
+      lookup_parental_consent_token: {
+        Args: { _token: string }
+        Returns: {
+          display_name: string
+          parent_email: string
+          status: string
+          user_id: string
+        }[]
       }
       needs_reconsent: { Args: { _user_id: string }; Returns: Json }
       promote_legacy_team_member: {
