@@ -232,8 +232,8 @@ Deno.serve(async (req) => {
 
     const updatePayload: Record<string, unknown> = {
       status: "completed",
-      completed_at: new Date().toISOString(),
     };
+    if (!forceRegenerate) updatePayload.completed_at = new Date().toISOString();
 
     const auditDetails: Record<string, unknown> = {};
 
