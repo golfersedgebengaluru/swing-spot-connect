@@ -646,6 +646,15 @@ export function AdminAllUsersTab() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={dialogOpen === "bookinghistory"} onOpenChange={(open) => { setDialogOpen(open ? "bookinghistory" : null); if (!open) setViewingBookingHistory(null); }}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader><DialogTitle>Booking History</DialogTitle></DialogHeader>
+          {viewingBookingHistory && <BookingTransactionHistory userId={viewingBookingHistory.userId} profileId={viewingBookingHistory.profileId} />}
+        </DialogContent>
+      </Dialog>
+
+
+
       <Dialog open={dialogOpen === "inlineallocate"} onOpenChange={(open) => { setDialogOpen(open ? "inlineallocate" : null); if (!open) setSelectedUser(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Allocate Points</DialogTitle></DialogHeader>
