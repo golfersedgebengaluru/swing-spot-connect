@@ -71,7 +71,7 @@ function buildCardSvg(opts: {
   <text x="550" y="510" text-anchor="middle" font-family="Playfair Display, serif" font-size="68" fill="#1A1A1A" font-weight="bold">${escapeXml(opts.winnerName)}</text>
   <text x="550" y="610" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="26" fill="#777" letter-spacing="3">${valueLabel.toUpperCase()}</text>
   <text x="550" y="730" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="96" fill="${accent}" font-weight="bold">${formatted}</text>
-  <text x="550" y="830" text-anchor="middle" font-family="Playfair Display, serif" font-size="36" fill="#2C2C2C" font-style="italic">${escapeXml(opts.competitionName)}</text>
+  <text x="550" y="830" text-anchor="middle" font-family="Playfair Display, serif" font-size="${opts.competitionName.length > 40 ? 22 : opts.competitionName.length > 28 ? 28 : 36}" fill="#2C2C2C" font-style="italic" textLength="${opts.competitionName.length > 28 ? 880 : ''}" lengthAdjust="${opts.competitionName.length > 28 ? 'spacingAndGlyphs' : ''}">${escapeXml(opts.competitionName)}</text>
   <text x="550" y="880" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="22" fill="#888">${escapeXml(opts.date)}</text>
   ${sponsor}
 </svg>`;
