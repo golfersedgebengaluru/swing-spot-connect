@@ -306,6 +306,16 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
               </AlertDialogContent>
             </AlertDialog>
           )}
+          {isCompleted && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => endComp.mutate({ competitionId, forceRegenerate: true })}
+              disabled={endComp.isPending}
+            >
+              <Flag className="h-4 w-4" /> Regenerate certificates
+            </Button>
+          )}
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button size="sm" variant="outline" className="text-destructive hover:text-destructive">

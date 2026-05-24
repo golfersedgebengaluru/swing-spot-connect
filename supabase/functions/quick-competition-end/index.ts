@@ -71,7 +71,12 @@ function buildCardSvg(opts: {
   <text x="550" y="510" text-anchor="middle" font-family="Playfair Display, serif" font-size="68" fill="#1A1A1A" font-weight="bold">${escapeXml(opts.winnerName)}</text>
   <text x="550" y="610" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="26" fill="#777" letter-spacing="3">${valueLabel.toUpperCase()}</text>
   <text x="550" y="730" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="96" fill="${accent}" font-weight="bold">${formatted}</text>
-  <text x="550" y="830" text-anchor="middle" font-family="Playfair Display, serif" font-size="${opts.competitionName.length > 40 ? 22 : opts.competitionName.length > 28 ? 28 : 36}" fill="#2C2C2C" font-style="italic" textLength="${opts.competitionName.length > 28 ? 880 : ''}" lengthAdjust="${opts.competitionName.length > 28 ? 'spacingAndGlyphs' : ''}">${escapeXml(opts.competitionName)}</text>
+  ${(() => {
+    const n = opts.competitionName.length;
+    // Conservative italic-Playfair sizing so long titles stay inside the 1020-wide frame.
+    const fs = n > 60 ? 16 : n > 48 ? 19 : n > 36 ? 22 : n > 28 ? 26 : 32;
+    return `<text x="550" y="830" text-anchor="middle" font-family="Playfair Display, serif" font-size="${fs}" fill="#2C2C2C" font-style="italic">${escapeXml(opts.competitionName)}</text>`;
+  })()}
   <text x="550" y="880" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="22" fill="#888">${escapeXml(opts.date)}</text>
   ${sponsor}
 </svg>`;
@@ -116,7 +121,8 @@ Deno.serve(async (req) => {
     });
     if (!isAdmin) return ok({ success: false, error: "Forbidden" });
 
-    if (comp.status === "completed") {
+    const forceRegenerate = body.force_regenerate === true;
+    if (comp.status === "completed" && !forceRegenerate) {
       return ok({ success: true, already_completed: true, competition: comp });
     }
 
@@ -226,8 +232,8 @@ Deno.serve(async (req) => {
 
     const updatePayload: Record<string, unknown> = {
       status: "completed",
-      completed_at: new Date().toISOString(),
     };
+    if (!forceRegenerate) updatePayload.completed_at = new Date().toISOString();
 
     const auditDetails: Record<string, unknown> = {};
 
