@@ -119,9 +119,12 @@ export function CustomerFinanceDialog({ open, onOpenChange, userId, profileId, d
     }
   };
 
-  // Merge advance transactions and invoices for combined timeline
+  // Merge invoices + advance transactions + raw revenue transactions for combined timeline.
+  // We de-dupe revenue rows that already have a matching invoice to avoid showing them twice.
   const combinedHistory = (() => {
     const items: { date: string; type: string; description: string; amount: number; variant: "credit" | "debit" | "neutral" }[] = [];
+
+    const invoicedRevenueIds = new Set<string>(); // not tracked yet, but reserved for future linkage
 
     for (const inv of (invoiceHistory ?? [])) {
       items.push({
@@ -130,6 +133,26 @@ export function CustomerFinanceDialog({ open, onOpenChange, userId, profileId, d
         description: inv.invoice_number,
         amount: Number(inv.total),
         variant: inv.invoice_type === "credit_note" ? "credit" : "debit",
+      });
+    }
+
+    // Raw revenue rows that have no invoice (guest bookings, gateway payments, refunds)
+    for (const r of (revenueHistory ?? [])) {
+      if (invoicedRevenueIds.has(r.id)) continue;
+      const isRefund = r.transaction_type === "refund";
+      const typeLabel = r.transaction_type === "guest_booking" ? "Guest Booking"
+        : r.transaction_type === "product_order" ? "Shop Order"
+        : r.transaction_type === "refund" ? "Refund"
+        : r.transaction_type === "payment" ? "Payment"
+        : r.transaction_type === "booking" ? "Booking"
+        : r.transaction_type === "purchase" ? "Purchase"
+        : String(r.transaction_type);
+      items.push({
+        date: (r.created_at as string).split("T")[0],
+        type: typeLabel,
+        description: r.description || r.city || "",
+        amount: Number(r.amount),
+        variant: isRefund ? "credit" : "debit",
       });
     }
 
@@ -144,7 +167,7 @@ export function CustomerFinanceDialog({ open, onOpenChange, userId, profileId, d
     }
 
     items.sort((a, b) => b.date.localeCompare(a.date));
-    return items.slice(0, 50);
+    return items.slice(0, 100);
   })();
 
   const isLoading = balLoading || txnLoading;
