@@ -352,6 +352,7 @@ export function AdminAllUsersTab() {
   const [dialogOpen, setDialogOpen] = useState<string | null>(null);
   const [viewingPointsHistory, setViewingPointsHistory] = useState<string | null>(null);
   const [viewingHoursHistory, setViewingHoursHistory] = useState<string | null>(null);
+  const [viewingBookingHistory, setViewingBookingHistory] = useState<{ userId: string; profileId?: string } | null>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
