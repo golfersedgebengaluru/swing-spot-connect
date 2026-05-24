@@ -810,7 +810,7 @@ Deno.serve(async (req) => {
       const {
         payment_id, order_id,
         start_time, end_time, duration_minutes, city, bay_id, bay_name,
-        session_type, guest_name, guest_email, guest_phone,
+        session_type, guest_name, guest_email, guest_phone, num_players,
         user_id_override,
         billing_status, // 'deferred' for corporate monthly customers
         backdated, // true for corporate accounting entries in the past
@@ -875,7 +875,8 @@ Deno.serve(async (req) => {
           const accessToken = await getAccessToken(serviceAccountKey);
           const calTz = await getCalendarTimezone(accessToken, calendar_email);
           const summary = `${bay_name || city} - ${guest_name} (${bracketTag})`;
-          const desc = `Guest booking by ${guest_name}\nEmail: ${guest_email}\nPhone: ${guest_phone}`;
+          const amtPaid = params.amount != null ? `${params.currency || "INR"} ${Number(params.amount).toFixed(2)}` : "N/A";
+          const desc = `Guest booking by ${guest_name}\nEmail: ${guest_email}\nPhone: ${guest_phone}\nNumber of persons: ${num_players ?? 1}\nAmount paid: ${amtPaid}`;
           const calEvent = await createEvent(accessToken, calendar_email, summary, start_time, end_time, calTz, desc);
           calendarEventId = calEvent.id;
         } catch (e) {
