@@ -74,7 +74,7 @@ function buildCardSvg(opts: {
   ${(() => {
     const n = opts.competitionName.length;
     // Conservative italic-Playfair sizing so long titles stay inside the 1020-wide frame.
-    const fs = n > 60 ? 16 : n > 48 ? 19 : n > 36 ? 22 : n > 28 ? 26 : 32;
+    const fs = n > 60 ? 18 : n > 48 ? 21 : n > 36 ? 24 : n > 28 ? 28 : 34;
     return `<text x="550" y="830" text-anchor="middle" font-family="Playfair Display, serif" font-size="${fs}" fill="#2C2C2C" font-style="italic">${escapeXml(opts.competitionName)}</text>`;
   })()}
   <text x="550" y="880" text-anchor="middle" font-family="DM Sans, sans-serif" font-size="22" fill="#888">${escapeXml(opts.date)}</text>
