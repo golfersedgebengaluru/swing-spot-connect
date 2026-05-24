@@ -836,6 +836,7 @@ export function AdminAllUsersTab() {
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setViewingBookingHistory({ userId: u.user_id || u.id, profileId: u.id }); setDialogOpen("bookinghistory"); }}>
                                 <History className="mr-2 h-4 w-4" />Booking History
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("finance"); }}>
                                 <Wallet className="mr-2 h-4 w-4" />Finance
                               </DropdownMenuItem>
