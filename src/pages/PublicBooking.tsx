@@ -645,6 +645,11 @@ export default function PublicBooking() {
                 </Card>
               )}
 
+              {/* First-time golfer notice */}
+              <p className="text-sm text-amber-600 dark:text-amber-500">
+                *For first time golfers, there will be an additional charge of 500/group or 250/person/couple towards basic coaching charges. This additional payment will be collected when you check-in at our facility.
+              </p>
+
               {/* Proceed Button */}
               <Button
                 className="w-full"
