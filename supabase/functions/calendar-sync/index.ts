@@ -949,10 +949,18 @@ Deno.serve(async (req) => {
       // Create revenue transaction for guest booking — SKIP for deferred (corporate) bookings
       if (!isDeferred) {
         try {
+          // Always attach the resolved profile/auth id so the customer's Finance tab
+          // can reconcile this revenue. guestUserId resolves to auth.user_id when
+          // available, otherwise profiles.id (dual-key mapping). Skip the placeholder
+          // zero-uuid used when no email was provided.
+          const revUserId = guestUserId && guestUserId !== "00000000-0000-0000-0000-000000000000"
+            ? guestUserId
+            : null;
           await adminClient.from("revenue_transactions").insert({
             transaction_type: "guest_booking",
             amount: params.amount || 0,
             currency: params.currency || "INR",
+            user_id: revUserId,
             guest_name,
             guest_email,
             guest_phone,

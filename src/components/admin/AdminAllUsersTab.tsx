@@ -704,6 +704,7 @@ export function AdminAllUsersTab() {
           open
           onOpenChange={(open) => { if (!open) { setDialogOpen(null); setSelectedUser(null); } }}
           userId={selectedUser.user_id || selectedUser.id}
+          profileId={selectedUser.id}
           displayName={selectedUser.display_name || "User"}
           city={selectedCity || undefined}
         />
