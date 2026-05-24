@@ -18,38 +18,46 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userId: string;
+  profileId?: string;
   displayName: string;
   city?: string;
 }
 
-export function CustomerFinanceDialog({ open, onOpenChange, userId, displayName, city }: Props) {
+export function CustomerFinanceDialog({ open, onOpenChange, userId, profileId, displayName, city }: Props) {
   const currency = useDefaultCurrency();
   const { toast } = useToast();
   const { data: advanceBalance, isLoading: balLoading } = useAdvanceBalance(userId);
   const { data: advanceTransactions, isLoading: txnLoading } = useAdvanceTransactions(userId);
   const addCredit = useAddAdvanceCredit();
 
-  // Lifetime revenue
+  // Dual-key lookup: rows may be keyed by either auth.user_id or profiles.id
+  // depending on whether the customer was a guest at the time the row was written.
+  const ids = Array.from(new Set([userId, profileId].filter(Boolean))) as string[];
+
+  // Lifetime revenue (refunds reduce the total)
   const { data: lifetimeRevenue } = useQuery({
-    queryKey: ["customer_lifetime_revenue", userId],
-    enabled: !!userId,
+    queryKey: ["customer_lifetime_revenue", ids],
+    enabled: ids.length > 0,
     queryFn: async () => {
       const { data } = await supabase.from("revenue_transactions")
-        .select("amount")
-        .eq("user_id", userId)
+        .select("amount, transaction_type")
+        .in("user_id", ids)
         .eq("status", "confirmed");
-      return (data ?? []).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
+      return (data ?? []).reduce((sum: number, r: any) => {
+        const amt = Number(r.amount);
+        return r.transaction_type === "refund" ? sum - amt : sum + amt;
+      }, 0);
     },
   });
 
   // Outstanding credit notes
   const { data: outstandingCreditNotes } = useQuery({
-    queryKey: ["customer_credit_notes", userId],
-    enabled: !!userId,
+    queryKey: ["customer_credit_notes", ids],
+    enabled: ids.length > 0,
     queryFn: async () => {
       const { data } = await supabase.from("invoices")
         .select("id, invoice_number, total, invoice_date, credit_note_disposition")
-        .eq("customer_user_id", userId)
+        .in("customer_user_id", ids)
         .eq("invoice_type", "credit_note")
         .eq("status", "issued")
         .order("created_at", { ascending: false });
@@ -57,16 +65,31 @@ export function CustomerFinanceDialog({ open, onOpenChange, userId, displayName,
     },
   });
 
-  // Combined transaction history (invoices + advance transactions)
+  // Invoice history
   const { data: invoiceHistory } = useQuery({
-    queryKey: ["customer_invoice_history", userId],
-    enabled: !!userId,
+    queryKey: ["customer_invoice_history", ids],
+    enabled: ids.length > 0,
     queryFn: async () => {
       const { data } = await supabase.from("invoices")
         .select("id, invoice_number, total, invoice_date, invoice_type, status, payment_method")
-        .eq("customer_user_id", userId)
+        .in("customer_user_id", ids)
         .order("invoice_date", { ascending: false })
         .limit(50);
+      return data ?? [];
+    },
+  });
+
+  // Raw revenue transactions (covers guest_booking / payment / refund / product_order, including those without an invoice)
+  const { data: revenueHistory } = useQuery({
+    queryKey: ["customer_revenue_history", ids],
+    enabled: ids.length > 0,
+    queryFn: async () => {
+      const { data } = await supabase.from("revenue_transactions")
+        .select("id, amount, currency, transaction_type, status, description, city, created_at, booking_id")
+        .in("user_id", ids)
+        .eq("status", "confirmed")
+        .order("created_at", { ascending: false })
+        .limit(100);
       return data ?? [];
     },
   });
