@@ -76,6 +76,79 @@ function HoursTransactionHistory({ userId }: { userId: string }) {
   );
 }
 
+function BookingTransactionHistory({ userId, profileId }: { userId: string; profileId?: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin_user_booking_history", userId, profileId],
+    queryFn: async () => {
+      const ids = Array.from(new Set([userId, profileId].filter(Boolean) as string[]));
+      const { data: bookings } = await supabase
+        .from("bookings")
+        .select("id, start_time, end_time, duration_minutes, city, bay_id, session_type, status, note")
+        .in("user_id", ids)
+        .order("start_time", { ascending: false });
+      const bookingIds = (bookings ?? []).map((b: any) => b.id);
+      let txByBooking = new Map<string, number>();
+      let currency = "INR";
+      if (bookingIds.length) {
+        const { data: txs } = await supabase
+          .from("revenue_transactions")
+          .select("booking_id, amount, currency, transaction_type, status")
+          .in("booking_id", bookingIds)
+          .eq("status", "confirmed");
+        (txs ?? []).forEach((t: any) => {
+          if (!t.booking_id) return;
+          const sign = t.transaction_type === "refund" ? -1 : 1;
+          txByBooking.set(t.booking_id, (txByBooking.get(t.booking_id) ?? 0) + sign * Number(t.amount || 0));
+          if (t.currency) currency = t.currency;
+        });
+      }
+      // Sort ascending for running total, then reverse for display
+      const sortedAsc = [...(bookings ?? [])].sort(
+        (a: any, b: any) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+      );
+      let running = 0;
+      const withTotals = sortedAsc.map((b: any) => {
+        const amt = txByBooking.get(b.id) ?? 0;
+        running += amt;
+        return { ...b, amount_paid: amt, running_total: running };
+      });
+      return { rows: withTotals.reverse(), grandTotal: running, currency };
+    },
+  });
+
+  if (isLoading) return <Loader2 className="mx-auto h-6 w-6 animate-spin" />;
+  if (!data?.rows?.length) return <p className="text-sm text-muted-foreground">No bookings yet.</p>;
+  const fmt = (n: number) => `${data.currency} ${n.toFixed(2)}`;
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-sm border-b pb-2">
+        <span className="text-muted-foreground">{data.rows.length} booking{data.rows.length !== 1 ? "s" : ""}</span>
+        <span className="font-medium">Total paid: {fmt(data.grandTotal)}</span>
+      </div>
+      <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+        {data.rows.map((b: any) => (
+          <div key={b.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+            <div className="min-w-0">
+              <div className="font-medium truncate">
+                {new Date(b.start_time).toLocaleDateString()} · {new Date(b.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {b.city} · {b.session_type} · {(b.duration_minutes / 60).toFixed(1)}h · <span className="capitalize">{b.status}</span>
+              </div>
+            </div>
+            <div className="text-right shrink-0 ml-3">
+              <div className={b.amount_paid < 0 ? "text-destructive" : "text-primary"}>{fmt(b.amount_paid)}</div>
+              <div className="text-xs text-muted-foreground">Running: {fmt(b.running_total)}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+
 function AllocatePointsForm({ profiles, onSave, onCancel }: { profiles: any[]; onSave: (data: { user_id: string; points: number; description: string; isProfileId?: boolean }) => void; onCancel: () => void }) {
   const [form, setForm] = useState({ user_id: "", points: 0, description: "" });
   return (
@@ -279,6 +352,7 @@ export function AdminAllUsersTab() {
   const [dialogOpen, setDialogOpen] = useState<string | null>(null);
   const [viewingPointsHistory, setViewingPointsHistory] = useState<string | null>(null);
   const [viewingHoursHistory, setViewingHoursHistory] = useState<string | null>(null);
+  const [viewingBookingHistory, setViewingBookingHistory] = useState<{ userId: string; profileId?: string } | null>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
@@ -572,6 +646,15 @@ export function AdminAllUsersTab() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={dialogOpen === "bookinghistory"} onOpenChange={(open) => { setDialogOpen(open ? "bookinghistory" : null); if (!open) setViewingBookingHistory(null); }}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader><DialogTitle>Booking History</DialogTitle></DialogHeader>
+          {viewingBookingHistory && <BookingTransactionHistory userId={viewingBookingHistory.userId} profileId={viewingBookingHistory.profileId} />}
+        </DialogContent>
+      </Dialog>
+
+
+
       <Dialog open={dialogOpen === "inlineallocate"} onOpenChange={(open) => { setDialogOpen(open ? "inlineallocate" : null); if (!open) setSelectedUser(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Allocate Points</DialogTitle></DialogHeader>
@@ -750,6 +833,9 @@ export function AdminAllUsersTab() {
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setViewingHoursHistory(u.user_id || u.id); setDialogOpen("hourshistory"); }}>
                                 <History className="mr-2 h-4 w-4" />Hours History
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { setViewingBookingHistory({ userId: u.user_id || u.id, profileId: u.id }); setDialogOpen("bookinghistory"); }}>
+                                <History className="mr-2 h-4 w-4" />Booking History
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("finance"); }}>
                                 <Wallet className="mr-2 h-4 w-4" />Finance
