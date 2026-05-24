@@ -810,7 +810,7 @@ Deno.serve(async (req) => {
       const {
         payment_id, order_id,
         start_time, end_time, duration_minutes, city, bay_id, bay_name,
-        session_type, guest_name, guest_email, guest_phone,
+        session_type, guest_name, guest_email, guest_phone, num_players,
         user_id_override,
         billing_status, // 'deferred' for corporate monthly customers
         backdated, // true for corporate accounting entries in the past
