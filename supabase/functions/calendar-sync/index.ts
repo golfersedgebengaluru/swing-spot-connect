@@ -875,7 +875,8 @@ Deno.serve(async (req) => {
           const accessToken = await getAccessToken(serviceAccountKey);
           const calTz = await getCalendarTimezone(accessToken, calendar_email);
           const summary = `${bay_name || city} - ${guest_name} (${bracketTag})`;
-          const desc = `Guest booking by ${guest_name}\nEmail: ${guest_email}\nPhone: ${guest_phone}`;
+          const amtPaid = params.amount != null ? `${params.currency || "INR"} ${Number(params.amount).toFixed(2)}` : "N/A";
+          const desc = `Guest booking by ${guest_name}\nEmail: ${guest_email}\nPhone: ${guest_phone}\nNumber of persons: ${num_players ?? 1}\nAmount paid: ${amtPaid}`;
           const calEvent = await createEvent(accessToken, calendar_email, summary, start_time, end_time, calTz, desc);
           calendarEventId = calEvent.id;
         } catch (e) {
