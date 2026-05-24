@@ -121,7 +121,8 @@ Deno.serve(async (req) => {
     });
     if (!isAdmin) return ok({ success: false, error: "Forbidden" });
 
-    if (comp.status === "completed") {
+    const forceRegenerate = body.force_regenerate === true;
+    if (comp.status === "completed" && !forceRegenerate) {
       return ok({ success: true, already_completed: true, competition: comp });
     }
 
