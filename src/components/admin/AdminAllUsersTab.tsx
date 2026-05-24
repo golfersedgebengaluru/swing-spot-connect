@@ -145,6 +145,9 @@ function BookingTransactionHistory({ userId, profileId }: { userId: string; prof
       </div>
     </div>
   );
+}
+
+
 
 function AllocatePointsForm({ profiles, onSave, onCancel }: { profiles: any[]; onSave: (data: { user_id: string; points: number; description: string; isProfileId?: boolean }) => void; onCancel: () => void }) {
   const [form, setForm] = useState({ user_id: "", points: 0, description: "" });
