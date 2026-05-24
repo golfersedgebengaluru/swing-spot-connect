@@ -559,18 +559,23 @@ export function useEndQuickCompetition() {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async (competitionId: string) => {
+    mutationFn: async (args: string | { competitionId: string; forceRegenerate?: boolean }) => {
+      const { competitionId, forceRegenerate } =
+        typeof args === "string" ? { competitionId: args, forceRegenerate: false } : args;
       const { data, error } = await supabase.functions.invoke("quick-competition-end", {
-        body: { competition_id: competitionId },
+        body: { competition_id: competitionId, force_regenerate: !!forceRegenerate },
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "Failed to end competition");
-      return data.competition as QuickCompetition;
+      return { competition: data.competition as QuickCompetition, forceRegenerate: !!forceRegenerate };
     },
-    onSuccess: (d) => {
+    onSuccess: ({ competition: d, forceRegenerate }) => {
       qc.invalidateQueries({ queryKey: ["quick-comp", d.id] });
       qc.invalidateQueries({ queryKey: ["quick-comps", d.tenant_id] });
-      toast({ title: "Competition ended", description: "Winner cards generated." });
+      toast({
+        title: forceRegenerate ? "Certificates regenerated" : "Competition ended",
+        description: forceRegenerate ? "Winner cards rebuilt with latest template." : "Winner cards generated.",
+      });
     },
     onError: (e: Error) => toast({ title: "Could not end", description: e.message, variant: "destructive" }),
   });
