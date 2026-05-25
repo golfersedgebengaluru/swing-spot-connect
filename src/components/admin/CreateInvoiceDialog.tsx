@@ -154,6 +154,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
     setCustomerProfileId(user.id || null);
     setCustomerName(user.display_name || "");
     setCustomerEmail(user.email || "");
+    setCustomerPhone(user.phone || "");
     setCustomerSearch("");
   };
 
