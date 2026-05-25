@@ -624,8 +624,8 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
       });
 
       // Mark items as invoiced
-      const bookingIds = items.filter((i) => i.kind === "booking").map((i) => i.id);
-      const coachingIds = items.filter((i) => i.kind === "coaching").map((i) => i.id);
+      const bookingIds = billableItems.filter((i) => i.kind === "booking").map((i) => i.id);
+      const coachingIds = billableItems.filter((i) => i.kind === "coaching").map((i) => i.id);
       if (bookingIds.length) {
         await supabase.from("bookings")
           .update({ billing_status: "invoiced", invoice_id: invoice.id })
