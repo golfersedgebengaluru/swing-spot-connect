@@ -247,6 +247,12 @@ export function AdminBookingLogsTab() {
 
         {/* Filters row */}
         <div className="flex flex-wrap gap-2 mt-3">
+          <Input
+            placeholder="Search by name…"
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); resetPage(); }}
+            className="w-full sm:w-[200px]"
+          />
           {!globalCity && (
             <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); resetPage(); }}>
               <SelectTrigger className="w-full sm:w-[140px]"><SelectValue /></SelectTrigger>
