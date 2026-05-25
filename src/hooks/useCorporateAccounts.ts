@@ -239,10 +239,11 @@ export interface DeferredBookingRow {
 export function useDeferredItemsForCorporate(
   corporateAccountId?: string | null,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  city?: string | null
 ) {
   return useQuery({
-    queryKey: ["deferred_items_corporate", corporateAccountId, startDate, endDate],
+    queryKey: ["deferred_items_corporate", corporateAccountId, startDate, endDate, city || null],
     enabled: !!corporateAccountId,
     queryFn: async () => {
       // 1. Get member profile ids/user_ids of this corporate account
