@@ -750,7 +750,7 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
           {!city && (
             <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs">
               <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-              <span>Sessions have no city set. The invoice cannot be generated until a city is resolved.</span>
+              <span>Pick a city from the top bar to generate that franchisee's invoice. Each city invoices its own bookings separately using its own GST profile.</span>
             </div>
           )}
 
@@ -764,12 +764,11 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5" />
-              Invoice will be issued to <strong>{account.name}</strong>
-              {account.billing_email ? ` (${account.billing_email})` : ""}.
+              {city ? <>Invoice from <strong>{city}</strong> to <strong>{account.name}</strong>{account.billing_email ? ` (${account.billing_email})` : ""}.</> : <>Invoice will be issued to <strong>{account.name}</strong>{account.billing_email ? ` (${account.billing_email})` : ""}.</>}
             </p>
             <Button onClick={generate} disabled={generating || !city || !billingProduct}>
               {generating ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Receipt className="h-4 w-4 mr-1" />}
-              Generate Consolidated Invoice
+              Generate {city ? `${city} ` : ""}Invoice
             </Button>
           </div>
         </>
