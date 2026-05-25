@@ -209,6 +209,8 @@ export interface DeferredBookingRow {
   duration_minutes: number | null;
   bay_name: string | null;
   session_type: string | null;
+  status: string | null;
+  cancelled: boolean;
 }
 
 export function useDeferredItemsForCorporate(
@@ -247,7 +249,6 @@ export function useDeferredItemsForCorporate(
         .select("id, user_id, city, start_time, end_time, duration_minutes, session_type, bay_id, status")
         .eq("billing_status", "deferred")
         .in("user_id", idList)
-        .neq("status", "cancelled")
         .order("start_time");
       if (startDate) bq = bq.gte("start_time", startDate);
       if (endDate) bq = bq.lte("start_time", endDate);
@@ -287,6 +288,8 @@ export function useDeferredItemsForCorporate(
           duration_minutes: b.duration_minutes,
           bay_name: b.bay_id ? bayMap.get(b.bay_id) ?? null : null,
           session_type: b.session_type,
+          status: b.status,
+          cancelled: b.status === "cancelled",
         });
       }
       for (const c of coachings ?? []) {
@@ -301,6 +304,8 @@ export function useDeferredItemsForCorporate(
           duration_minutes: null,
           bay_name: null,
           session_type: "coaching",
+          status: null,
+          cancelled: false,
         });
       }
       return rows;

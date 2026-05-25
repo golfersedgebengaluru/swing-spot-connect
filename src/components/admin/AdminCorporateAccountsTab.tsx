@@ -537,23 +537,23 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
     [corporateProducts, billingProductId]
   );
 
-  // Determine quantity: 30-min slots = each session counts as one "session"
-  // We measure in number of sessions (each booking = 1 session, regardless of duration?).
-  // For Apexlynx use case, 31 sessions = 31 units. We treat each booking row as 1 session.
-  const sessionCount = items?.length ?? 0;
+  // Determine quantity: each non-cancelled session counts as one unit; cancelled rows are shown but excluded
+  const billableItems = useMemo(() => (items ?? []).filter((i) => !i.cancelled), [items]);
+  const cancelledItems = useMemo(() => (items ?? []).filter((i) => i.cancelled), [items]);
+  const sessionCount = billableItems.length;
 
   // City of items — use majority city for invoice (so GST profile matches)
   const city = useMemo(() => {
-    if (!items || items.length === 0) return null;
+    if (!billableItems || billableItems.length === 0) return null;
     const counts = new Map<string, number>();
-    for (const i of items) {
+    for (const i of billableItems) {
       if (i.city) counts.set(i.city, (counts.get(i.city) ?? 0) + 1);
     }
     let top: string | null = null;
     let max = 0;
     for (const [c, n] of counts) if (n > max) { top = c; max = n; }
     return top;
-  }, [items]);
+  }, [billableItems]);
 
   const grossTotal = useMemo(() => {
     if (!billingProduct) return 0;
@@ -624,8 +624,8 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
       });
 
       // Mark items as invoiced
-      const bookingIds = items.filter((i) => i.kind === "booking").map((i) => i.id);
-      const coachingIds = items.filter((i) => i.kind === "coaching").map((i) => i.id);
+      const bookingIds = billableItems.filter((i) => i.kind === "booking").map((i) => i.id);
+      const coachingIds = billableItems.filter((i) => i.kind === "coaching").map((i) => i.id);
       if (bookingIds.length) {
         await supabase.from("bookings")
           .update({ billing_status: "invoiced", invoice_id: invoice.id })
@@ -701,20 +701,35 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
               </thead>
               <tbody>
                 {items.map((row) => (
-                  <tr key={`${row.kind}-${row.id}`} className="border-t">
-                    <td className="p-2 text-xs">{format(new Date(row.start_time), "dd MMM yy HH:mm")}</td>
-                    <td className="p-2 text-xs">{row.user_name || "—"}</td>
-                    <td className="p-2 hidden sm:table-cell text-xs capitalize">{row.kind}</td>
-                    <td className="p-2 hidden md:table-cell text-xs">{row.bay_name || row.city || "—"}</td>
-                    <td className="p-2 text-right text-xs">
+                  <tr
+                    key={`${row.kind}-${row.id}`}
+                    className={`border-t ${row.cancelled ? "bg-destructive/5 text-muted-foreground" : ""}`}
+                  >
+                    <td className={`p-2 text-xs ${row.cancelled ? "line-through" : ""}`}>{format(new Date(row.start_time), "dd MMM yy HH:mm")}</td>
+                    <td className={`p-2 text-xs ${row.cancelled ? "line-through" : ""}`}>{row.user_name || "—"}</td>
+                    <td className="p-2 hidden sm:table-cell text-xs capitalize">
+                      {row.kind}
+                      {row.cancelled && (
+                        <Badge variant="destructive" className="ml-2 text-[10px] uppercase">Cancelled</Badge>
+                      )}
+                    </td>
+                    <td className={`p-2 hidden md:table-cell text-xs ${row.cancelled ? "line-through" : ""}`}>{row.bay_name || row.city || "—"}</td>
+                    <td className={`p-2 text-right text-xs ${row.cancelled ? "line-through" : ""}`}>
                       {row.duration_minutes ? `${row.duration_minutes} min` : "—"}
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="bg-muted/30 font-medium">
+                {cancelledItems.length > 0 && (
+                  <tr className="text-xs text-muted-foreground">
+                    <td colSpan={3} className="p-2 text-right">Cancelled (excluded)</td>
+                    <td className="p-2 text-right">{cancelledItems.length}</td>
+                    <td className="p-2 text-right">—</td>
+                  </tr>
+                )}
                 <tr>
-                  <td colSpan={3} className="p-2 text-right text-xs">Sessions</td>
+                  <td colSpan={3} className="p-2 text-right text-xs">Billable sessions</td>
                   <td className="p-2 text-right text-xs">{sessionCount} × {billingProduct ? `₹${Number(billingProduct.price).toLocaleString()}` : "—"}</td>
                   <td className="p-2 text-right">{billingProduct ? `₹${grossTotal.toLocaleString()}` : "—"}</td>
                 </tr>
