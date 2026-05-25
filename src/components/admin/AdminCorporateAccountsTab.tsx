@@ -52,7 +52,9 @@ export function AdminCorporateAccountsTab() {
             <Building2 className="h-5 w-5" /> Corporate Accounts
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Customers billed monthly via consolidated invoice instead of paying per session.
+            {selectedCity
+              ? `Showing corporate customers with activity in ${selectedCity}. Each city invoices its own bookings using its own GST profile.`
+              : "Customers billed monthly via consolidated invoice. Pick a city to scope to that franchisee."}
           </p>
         </div>
         <Button size="sm" onClick={() => setCreating(true)}>
