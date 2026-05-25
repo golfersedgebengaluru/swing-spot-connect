@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Track every from() call
 const fromCalls: string[] = [];
 
 function makeChain(data: any) {
@@ -34,6 +33,15 @@ vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: { id: "u-self" } }),
 }));
 
+// Stub useQuery so it just runs the queryFn synchronously and returns result.
+vi.mock("@tanstack/react-query", () => ({
+  useQuery: (opts: any) => {
+    return { queryFn: opts.queryFn };
+  },
+  useMutation: (opts: any) => ({ mutate: opts.mutationFn, mutateAsync: opts.mutationFn }),
+  useQueryClient: () => ({ invalidateQueries: () => {} }),
+}));
+
 import { useCommunityPosts } from "../useCommunity";
 
 describe("useCommunityPosts (PII-safe author lookup)", () => {
@@ -42,26 +50,29 @@ describe("useCommunityPosts (PII-safe author lookup)", () => {
   });
 
   it("never queries the raw profiles table for community authors", async () => {
-    // Call the queryFn directly
-    const hookDescriptor = (useCommunityPosts as any);
-    // Easier: drive query via the underlying queryFn factory
-    // Re-implement minimal access by calling hook config via React Query API would be heavy.
-    // Instead invoke the function: useCommunityPosts is a custom hook calling useQuery,
-    // so we exercise it by inspecting the queryFn through a tiny wrapper:
-    const { useQuery } = await import("@tanstack/react-query");
-    let capturedFn: any = null;
-    const origUseQuery = useQuery as any;
-    vi.spyOn(await import("@tanstack/react-query"), "useQuery").mockImplementation((opts: any) => {
-      capturedFn = opts.queryFn;
-      return { data: undefined, isSuccess: false } as any;
-    });
-    useCommunityPosts();
-    expect(capturedFn).toBeTruthy();
-    const data = await capturedFn();
+    const hook = useCommunityPosts() as any;
+    const data = await hook.queryFn();
 
     expect(fromCalls).toContain("community_posts");
     expect(fromCalls).toContain("public_profiles");
     expect(fromCalls).not.toContain("profiles");
     expect(data[0]).toMatchObject({ id: "p1", profiles: { display_name: "Alice" } });
+  });
+
+  it("falls back to null display_name when author missing", async () => {
+    // Replace mock to return empty author list
+    fromCalls.length = 0;
+    const { supabase } = await import("@/integrations/supabase/client");
+    (supabase.from as any).mockImplementation((table: string) => {
+      fromCalls.push(table);
+      if (table === "community_posts") {
+        return makeChain([{ id: "p2", user_id: "u-unknown", content: "x" }]);
+      }
+      return makeChain([]);
+    });
+
+    const hook = useCommunityPosts() as any;
+    const data = await hook.queryFn();
+    expect(data[0].profiles).toEqual({ display_name: null });
   });
 });
