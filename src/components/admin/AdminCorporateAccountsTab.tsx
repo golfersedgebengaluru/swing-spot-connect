@@ -630,7 +630,7 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
         amountPaid: 0,
         paymentStatus: "unpaid",
         dueDate: format(dueDate, "yyyy-MM-dd"),
-        notes: `Consolidated invoice for ${sessionCount} session(s) from ${startDate} to ${endDate}.`,
+        notes: `Consolidated invoice for ${sessionCount} session(s) booked in ${city} from ${startDate} to ${endDate}.`,
       });
 
       // Mark items as invoiced
