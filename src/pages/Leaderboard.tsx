@@ -23,7 +23,7 @@ function useLeaderboard() {
         .order("handicap", { ascending: true })
         .limit(50);
       if (error) throw error;
-      return (data ?? []).map((p, i) => ({
+      return ((data ?? []) as any[]).map((p: any, i: number) => ({
         rank: i + 1,
         user_id: p.user_id,
         name: p.display_name || "Member",
@@ -31,6 +31,7 @@ function useLeaderboard() {
         rounds: p.total_rounds ?? 0,
         avatar: (p.display_name || "M").split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2),
       }));
+
     },
   });
 }
