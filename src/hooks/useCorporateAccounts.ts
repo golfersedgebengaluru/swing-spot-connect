@@ -209,6 +209,8 @@ export interface DeferredBookingRow {
   duration_minutes: number | null;
   bay_name: string | null;
   session_type: string | null;
+  status: string | null;
+  cancelled: boolean;
 }
 
 export function useDeferredItemsForCorporate(
