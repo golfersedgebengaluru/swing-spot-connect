@@ -47,7 +47,7 @@ function useProfileSearch(search: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, user_id, display_name, email")
+        .select("id, user_id, display_name, email, phone")
         .or(`display_name.ilike.%${search}%,email.ilike.%${search}%`)
         .limit(10);
       if (error) throw error;
@@ -154,6 +154,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
     setCustomerProfileId(user.id || null);
     setCustomerName(user.display_name || "");
     setCustomerEmail(user.email || "");
+    setCustomerPhone(user.phone || "");
     setCustomerSearch("");
   };
 
