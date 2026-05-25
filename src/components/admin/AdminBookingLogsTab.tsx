@@ -67,6 +67,7 @@ export function AdminBookingLogsTab() {
   const [period, setPeriod] = useState<Period>("all");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const resetPage = () => setPage(0);
   const [rejectMessages, setRejectMessages] = useState<Record<string, string>>({});
   const [page, setPage] = useState(0);
