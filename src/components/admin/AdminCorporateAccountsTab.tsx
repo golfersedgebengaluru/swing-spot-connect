@@ -701,20 +701,35 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
               </thead>
               <tbody>
                 {items.map((row) => (
-                  <tr key={`${row.kind}-${row.id}`} className="border-t">
-                    <td className="p-2 text-xs">{format(new Date(row.start_time), "dd MMM yy HH:mm")}</td>
-                    <td className="p-2 text-xs">{row.user_name || "—"}</td>
-                    <td className="p-2 hidden sm:table-cell text-xs capitalize">{row.kind}</td>
-                    <td className="p-2 hidden md:table-cell text-xs">{row.bay_name || row.city || "—"}</td>
-                    <td className="p-2 text-right text-xs">
+                  <tr
+                    key={`${row.kind}-${row.id}`}
+                    className={`border-t ${row.cancelled ? "bg-destructive/5 text-muted-foreground" : ""}`}
+                  >
+                    <td className={`p-2 text-xs ${row.cancelled ? "line-through" : ""}`}>{format(new Date(row.start_time), "dd MMM yy HH:mm")}</td>
+                    <td className={`p-2 text-xs ${row.cancelled ? "line-through" : ""}`}>{row.user_name || "—"}</td>
+                    <td className="p-2 hidden sm:table-cell text-xs capitalize">
+                      {row.kind}
+                      {row.cancelled && (
+                        <Badge variant="destructive" className="ml-2 text-[10px] uppercase">Cancelled</Badge>
+                      )}
+                    </td>
+                    <td className={`p-2 hidden md:table-cell text-xs ${row.cancelled ? "line-through" : ""}`}>{row.bay_name || row.city || "—"}</td>
+                    <td className={`p-2 text-right text-xs ${row.cancelled ? "line-through" : ""}`}>
                       {row.duration_minutes ? `${row.duration_minutes} min` : "—"}
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="bg-muted/30 font-medium">
+                {cancelledItems.length > 0 && (
+                  <tr className="text-xs text-muted-foreground">
+                    <td colSpan={3} className="p-2 text-right">Cancelled (excluded)</td>
+                    <td className="p-2 text-right">{cancelledItems.length}</td>
+                    <td className="p-2 text-right">—</td>
+                  </tr>
+                )}
                 <tr>
-                  <td colSpan={3} className="p-2 text-right text-xs">Sessions</td>
+                  <td colSpan={3} className="p-2 text-right text-xs">Billable sessions</td>
                   <td className="p-2 text-right text-xs">{sessionCount} × {billingProduct ? `₹${Number(billingProduct.price).toLocaleString()}` : "—"}</td>
                   <td className="p-2 text-right">{billingProduct ? `₹${grossTotal.toLocaleString()}` : "—"}</td>
                 </tr>
