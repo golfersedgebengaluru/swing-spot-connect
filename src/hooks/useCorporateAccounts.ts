@@ -304,6 +304,8 @@ export function useDeferredItemsForCorporate(
           duration_minutes: null,
           bay_name: null,
           session_type: "coaching",
+          status: null,
+          cancelled: false,
         });
       }
       return rows;
