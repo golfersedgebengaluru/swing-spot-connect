@@ -276,6 +276,7 @@ export function useDeferredItemsForCorporate(
         .order("start_time");
       if (startDate) bq = bq.gte("start_time", startDate);
       if (endDate) bq = bq.lte("start_time", endDate);
+      if (city) bq = bq.eq("city", city);
       const { data: bookings, error: bErr } = await bq;
       if (bErr) throw bErr;
 
