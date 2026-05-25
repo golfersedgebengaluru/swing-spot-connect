@@ -113,6 +113,7 @@ export function AdminBookingLogsTab() {
   // Apply all filters
   const effectiveCityFilter = globalCity || cityFilter;
   const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     return (scopedBookings ?? []).filter((b: any) => {
       if (effectiveCityFilter !== "all" && effectiveCityFilter && b.city !== effectiveCityFilter) return false;
       if (statusFilter !== "all" && b.status !== statusFilter) return false;
@@ -121,9 +122,13 @@ export function AdminBookingLogsTab() {
         const bookingDate = new Date(b.start_time);
         if (!isWithinInterval(bookingDate, { start: dateRange.start, end: dateRange.end })) return false;
       }
+      if (q) {
+        const hay = `${b.display_name || ""} ${b.email || ""} ${b.corporate_name || ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return true;
     });
-  }, [scopedBookings, effectiveCityFilter, statusFilter, typeFilter, dateRange]);
+  }, [scopedBookings, effectiveCityFilter, statusFilter, typeFilter, dateRange, searchQuery]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a: any, b: any) => {
