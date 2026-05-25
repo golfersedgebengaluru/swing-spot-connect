@@ -544,16 +544,16 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
 
   // City of items — use majority city for invoice (so GST profile matches)
   const city = useMemo(() => {
-    if (!items || items.length === 0) return null;
+    if (!billableItems || billableItems.length === 0) return null;
     const counts = new Map<string, number>();
-    for (const i of items) {
+    for (const i of billableItems) {
       if (i.city) counts.set(i.city, (counts.get(i.city) ?? 0) + 1);
     }
     let top: string | null = null;
     let max = 0;
     for (const [c, n] of counts) if (n > max) { top = c; max = n; }
     return top;
-  }, [items]);
+  }, [billableItems]);
 
   const grossTotal = useMemo(() => {
     if (!billingProduct) return 0;
