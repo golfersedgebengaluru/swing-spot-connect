@@ -28,9 +28,11 @@ import { calculateLineItems, getGstType, validateGSTIN, INDIAN_STATES } from "@/
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Package } from "lucide-react";
+import { useAdminCity } from "@/contexts/AdminCityContext";
 
 export function AdminCorporateAccountsTab() {
-  const { data: accounts, isLoading } = useCorporateAccounts(true);
+  const { selectedCity } = useAdminCity();
+  const { data: accounts, isLoading } = useCorporateAccounts(true, selectedCity || null);
   const [editing, setEditing] = useState<CorporateAccount | null>(null);
   const [creating, setCreating] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -50,7 +52,9 @@ export function AdminCorporateAccountsTab() {
             <Building2 className="h-5 w-5" /> Corporate Accounts
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Customers billed monthly via consolidated invoice instead of paying per session.
+            {selectedCity
+              ? `Showing corporate customers with activity in ${selectedCity}. Each city invoices its own bookings using its own GST profile.`
+              : "Customers billed monthly via consolidated invoice. Pick a city to scope to that franchisee."}
           </p>
         </div>
         <Button size="sm" onClick={() => setCreating(true)}>
@@ -508,6 +512,7 @@ function BillingItemsPanel({ account }: { account: CorporateAccount }) {
 function BillingPanel({ account }: { account: CorporateAccount }) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { selectedCity } = useAdminCity();
   const today = new Date();
   // Default range: previous calendar month
   const defaultStart = startOfMonth(subMonths(today, 1));
@@ -520,7 +525,8 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
   const { data: items, isLoading } = useDeferredItemsForCorporate(
     account.id,
     `${startDate}T00:00:00`,
-    `${endDate}T23:59:59`
+    `${endDate}T23:59:59`,
+    selectedCity || null
   );
   const { data: corporateProducts } = useCorporateProducts(account.id);
   const createInvoice = useCreateInvoice();
@@ -542,18 +548,8 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
   const cancelledItems = useMemo(() => (items ?? []).filter((i) => i.cancelled), [items]);
   const sessionCount = billableItems.length;
 
-  // City of items — use majority city for invoice (so GST profile matches)
-  const city = useMemo(() => {
-    if (!billableItems || billableItems.length === 0) return null;
-    const counts = new Map<string, number>();
-    for (const i of billableItems) {
-      if (i.city) counts.set(i.city, (counts.get(i.city) ?? 0) + 1);
-    }
-    let top: string | null = null;
-    let max = 0;
-    for (const [c, n] of counts) if (n > max) { top = c; max = n; }
-    return top;
-  }, [billableItems]);
+  // City is whichever city the admin has selected — invoice is issued by that franchisee.
+  const city = selectedCity || null;
 
   const grossTotal = useMemo(() => {
     if (!billingProduct) return 0;
@@ -567,6 +563,10 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
     }
     if (!billingProduct) {
       toast({ title: "Pick a billing item", description: "Select the product/service to invoice.", variant: "destructive" });
+      return;
+    }
+    if (!city) {
+      toast({ title: "Select a city", description: "Pick a city from the top bar — invoices are city-specific.", variant: "destructive" });
       return;
     }
     if (!city) {
@@ -588,14 +588,24 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
         gstRate: Number(billingProduct.gst_rate ?? 0),
       };
 
-      // GST profile of the city
+      // GST profile of the selected city (franchisee)
       const { data: gstProfile } = await supabase
         .from("gst_profiles")
         .select("state_code")
         .eq("city", city)
         .maybeSingle();
 
-      const gstType = getGstType(gstProfile?.state_code || "", account.gstin || undefined);
+      if (!gstProfile?.state_code) {
+        toast({
+          title: "GST profile missing",
+          description: `Set up the GST profile for ${city} in City Settings before invoicing.`,
+          variant: "destructive",
+        });
+        setGenerating(false);
+        return;
+      }
+
+      const gstType = getGstType(gstProfile.state_code, account.gstin || undefined);
       const calc = calculateLineItems([lineItem], gstType);
 
       // Compute due date
@@ -620,7 +630,7 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
         amountPaid: 0,
         paymentStatus: "unpaid",
         dueDate: format(dueDate, "yyyy-MM-dd"),
-        notes: `Consolidated invoice for ${sessionCount} session(s) from ${startDate} to ${endDate}.`,
+        notes: `Consolidated invoice for ${sessionCount} session(s) booked in ${city} from ${startDate} to ${endDate}.`,
       });
 
       // Mark items as invoiced
@@ -740,7 +750,7 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
           {!city && (
             <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs">
               <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-              <span>Sessions have no city set. The invoice cannot be generated until a city is resolved.</span>
+              <span>Pick a city from the top bar to generate that franchisee's invoice. Each city invoices its own bookings separately using its own GST profile.</span>
             </div>
           )}
 
@@ -754,12 +764,11 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5" />
-              Invoice will be issued to <strong>{account.name}</strong>
-              {account.billing_email ? ` (${account.billing_email})` : ""}.
+              {city ? <>Invoice from <strong>{city}</strong> to <strong>{account.name}</strong>{account.billing_email ? ` (${account.billing_email})` : ""}.</> : <>Invoice will be issued to <strong>{account.name}</strong>{account.billing_email ? ` (${account.billing_email})` : ""}.</>}
             </p>
             <Button onClick={generate} disabled={generating || !city || !billingProduct}>
               {generating ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Receipt className="h-4 w-4 mr-1" />}
-              Generate Consolidated Invoice
+              Generate {city ? `${city} ` : ""}Invoice
             </Button>
           </div>
         </>

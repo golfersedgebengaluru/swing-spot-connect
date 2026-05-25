@@ -23,15 +23,38 @@ export type CorporateAccountInput = Partial<Omit<CorporateAccount, "id" | "creat
 };
 
 // ─── List ───────────────────────────────────────────
-export function useCorporateAccounts(includeInactive = false) {
+export function useCorporateAccounts(includeInactive = false, cityFilter?: string | null) {
   return useQuery({
-    queryKey: ["corporate_accounts", { includeInactive }],
+    queryKey: ["corporate_accounts", { includeInactive, cityFilter: cityFilter || null }],
     queryFn: async () => {
       let q = supabase.from("corporate_accounts").select("*").order("name");
       if (!includeInactive) q = q.eq("is_active", true);
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as CorporateAccount[];
+      let accounts = (data ?? []) as CorporateAccount[];
+
+      // If a city is selected, restrict to accounts that have at least one
+      // booking OR coaching session in that city (any time, any status).
+      if (cityFilter) {
+        const [bRes, cRes] = await Promise.all([
+          supabase.from("bookings").select("user_id").eq("city", cityFilter).limit(5000),
+          supabase.from("coaching_sessions").select("student_user_id").eq("city", cityFilter).limit(5000),
+        ]);
+        const userIds = new Set<string>();
+        for (const r of bRes.data ?? []) if (r.user_id) userIds.add(r.user_id);
+        for (const r of cRes.data ?? []) if (r.student_user_id) userIds.add(r.student_user_id);
+        if (userIds.size === 0) return [];
+        const idList = Array.from(userIds).join(",");
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("corporate_account_id, user_id, id")
+          .not("corporate_account_id", "is", null)
+          .or(`user_id.in.(${idList}),id.in.(${idList})`);
+        const corpIds = new Set<string>();
+        for (const p of profs ?? []) if (p.corporate_account_id) corpIds.add(p.corporate_account_id);
+        accounts = accounts.filter((a) => corpIds.has(a.id));
+      }
+      return accounts;
     },
   });
 }
@@ -216,10 +239,11 @@ export interface DeferredBookingRow {
 export function useDeferredItemsForCorporate(
   corporateAccountId?: string | null,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  city?: string | null
 ) {
   return useQuery({
-    queryKey: ["deferred_items_corporate", corporateAccountId, startDate, endDate],
+    queryKey: ["deferred_items_corporate", corporateAccountId, startDate, endDate, city || null],
     enabled: !!corporateAccountId,
     queryFn: async () => {
       // 1. Get member profile ids/user_ids of this corporate account
@@ -252,6 +276,7 @@ export function useDeferredItemsForCorporate(
         .order("start_time");
       if (startDate) bq = bq.gte("start_time", startDate);
       if (endDate) bq = bq.lte("start_time", endDate);
+      if (city) bq = bq.eq("city", city);
       const { data: bookings, error: bErr } = await bq;
       if (bErr) throw bErr;
 
@@ -264,6 +289,7 @@ export function useDeferredItemsForCorporate(
         .order("session_date");
       if (startDate) cq = cq.gte("session_date", startDate.slice(0, 10));
       if (endDate) cq = cq.lte("session_date", endDate.slice(0, 10));
+      if (city) cq = cq.eq("city", city);
       const { data: coachings, error: cErr } = await cq;
       if (cErr) throw cErr;
 
