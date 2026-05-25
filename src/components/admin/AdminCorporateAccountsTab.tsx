@@ -588,14 +588,24 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
         gstRate: Number(billingProduct.gst_rate ?? 0),
       };
 
-      // GST profile of the city
+      // GST profile of the selected city (franchisee)
       const { data: gstProfile } = await supabase
         .from("gst_profiles")
         .select("state_code")
         .eq("city", city)
         .maybeSingle();
 
-      const gstType = getGstType(gstProfile?.state_code || "", account.gstin || undefined);
+      if (!gstProfile?.state_code) {
+        toast({
+          title: "GST profile missing",
+          description: `Set up the GST profile for ${city} in City Settings before invoicing.`,
+          variant: "destructive",
+        });
+        setGenerating(false);
+        return;
+      }
+
+      const gstType = getGstType(gstProfile.state_code, account.gstin || undefined);
       const calc = calculateLineItems([lineItem], gstType);
 
       // Compute due date
