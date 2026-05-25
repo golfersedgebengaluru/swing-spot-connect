@@ -31,7 +31,8 @@ import { Package } from "lucide-react";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 
 export function AdminCorporateAccountsTab() {
-  const { data: accounts, isLoading } = useCorporateAccounts(true);
+  const { selectedCity } = useAdminCity();
+  const { data: accounts, isLoading } = useCorporateAccounts(true, selectedCity || null);
   const [editing, setEditing] = useState<CorporateAccount | null>(null);
   const [creating, setCreating] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
