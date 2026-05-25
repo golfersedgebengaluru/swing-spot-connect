@@ -537,10 +537,10 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
     [corporateProducts, billingProductId]
   );
 
-  // Determine quantity: 30-min slots = each session counts as one "session"
-  // We measure in number of sessions (each booking = 1 session, regardless of duration?).
-  // For Apexlynx use case, 31 sessions = 31 units. We treat each booking row as 1 session.
-  const sessionCount = items?.length ?? 0;
+  // Determine quantity: each non-cancelled session counts as one unit; cancelled rows are shown but excluded
+  const billableItems = useMemo(() => (items ?? []).filter((i) => !i.cancelled), [items]);
+  const cancelledItems = useMemo(() => (items ?? []).filter((i) => i.cancelled), [items]);
+  const sessionCount = billableItems.length;
 
   // City of items — use majority city for invoice (so GST profile matches)
   const city = useMemo(() => {
