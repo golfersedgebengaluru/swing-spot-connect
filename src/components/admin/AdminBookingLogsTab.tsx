@@ -67,6 +67,7 @@ export function AdminBookingLogsTab() {
   const [period, setPeriod] = useState<Period>("all");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const resetPage = () => setPage(0);
   const [rejectMessages, setRejectMessages] = useState<Record<string, string>>({});
   const [page, setPage] = useState(0);
@@ -112,6 +113,7 @@ export function AdminBookingLogsTab() {
   // Apply all filters
   const effectiveCityFilter = globalCity || cityFilter;
   const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     return (scopedBookings ?? []).filter((b: any) => {
       if (effectiveCityFilter !== "all" && effectiveCityFilter && b.city !== effectiveCityFilter) return false;
       if (statusFilter !== "all" && b.status !== statusFilter) return false;
@@ -120,9 +122,13 @@ export function AdminBookingLogsTab() {
         const bookingDate = new Date(b.start_time);
         if (!isWithinInterval(bookingDate, { start: dateRange.start, end: dateRange.end })) return false;
       }
+      if (q) {
+        const hay = `${b.display_name || ""} ${b.email || ""} ${b.corporate_name || ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return true;
     });
-  }, [scopedBookings, effectiveCityFilter, statusFilter, typeFilter, dateRange]);
+  }, [scopedBookings, effectiveCityFilter, statusFilter, typeFilter, dateRange, searchQuery]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a: any, b: any) => {
@@ -241,6 +247,12 @@ export function AdminBookingLogsTab() {
 
         {/* Filters row */}
         <div className="flex flex-wrap gap-2 mt-3">
+          <Input
+            placeholder="Search by name…"
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); resetPage(); }}
+            className="w-full sm:w-[200px]"
+          />
           {!globalCity && (
             <Select value={cityFilter} onValueChange={(v) => { setCityFilter(v); resetPage(); }}>
               <SelectTrigger className="w-full sm:w-[140px]"><SelectValue /></SelectTrigger>
@@ -359,6 +371,11 @@ export function AdminBookingLogsTab() {
                     <Badge variant="outline" className={`text-[10px] px-1 py-0 ${b.session_type === "coaching" ? "text-primary" : ""}`}>
                       {b.session_type === "coaching" ? "🎓 Coaching" : "Practice"}
                     </Badge>
+                    {b.corporate_name && (
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 mt-0.5 block w-fit text-indigo-600 border-indigo-300">
+                        🏢 {b.corporate_name}
+                      </Badge>
+                    )}
                     <Badge variant="outline" className={`text-[9px] px-1 py-0 mt-0.5 block w-fit ${b.note?.startsWith("Invoice") ? "text-blue-600 border-blue-300" : "text-emerald-600 border-emerald-300"}`}>
                       {b.note?.startsWith("Invoice") ? "📄 Invoice" : "🌐 Online"}
                     </Badge>
