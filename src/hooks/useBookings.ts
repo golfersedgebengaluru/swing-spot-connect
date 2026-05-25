@@ -397,12 +397,23 @@ export function useAllBookings() {
 
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, user_id, display_name, email, user_type");
+        .select("id, user_id, display_name, email, user_type, corporate_account_id");
+
+      const corpIds = [...new Set((profiles ?? []).map((p: any) => p.corporate_account_id).filter(Boolean))];
+      let corpMap = new Map<string, string>();
+      if (corpIds.length > 0) {
+        const { data: corps } = await supabase
+          .from("corporate_accounts")
+          .select("id, name, nickname")
+          .in("id", corpIds as string[]);
+        corpMap = new Map((corps ?? []).map((c: any) => [c.id, (c.nickname || c.name) as string]));
+      }
 
       const profileMap = new Map<string, any>();
       for (const p of profiles ?? []) {
-        if (p.user_id) profileMap.set(p.user_id, p);
-        profileMap.set(p.id, p);
+        const enriched = { ...p, corporate_name: p.corporate_account_id ? corpMap.get(p.corporate_account_id) || null : null };
+        if (p.user_id) profileMap.set(p.user_id, enriched);
+        profileMap.set(p.id, enriched);
       }
 
       const bayIds = [...new Set((bookings ?? []).map((b: any) => b.bay_id).filter(Boolean))];
@@ -412,13 +423,17 @@ export function useAllBookings() {
         bayMap = new Map((bays ?? []).map((b: any) => [b.id, b.name]));
       }
 
-      return (bookings ?? []).map((b: any) => ({
-        ...b,
-        display_name: profileMap.get(b.user_id)?.display_name || "Unknown",
-        email: profileMap.get(b.user_id)?.email || "",
-        user_type: profileMap.get(b.user_id)?.user_type || "non-registered",
-        bay_name: bayMap.get(b.bay_id) || null,
-      }));
+      return (bookings ?? []).map((b: any) => {
+        const prof = profileMap.get(b.user_id);
+        return {
+          ...b,
+          display_name: prof?.display_name || "Unknown",
+          email: prof?.email || "",
+          user_type: prof?.user_type || "non-registered",
+          corporate_name: prof?.corporate_name || null,
+          bay_name: bayMap.get(b.bay_id) || null,
+        };
+      });
     },
   });
 }
