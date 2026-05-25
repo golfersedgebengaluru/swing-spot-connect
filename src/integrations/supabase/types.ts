@@ -497,8 +497,22 @@ export type Database = {
             foreignKeyName: "coach_students_student_profile_id_fkey"
             columns: ["student_profile_id"]
             isOneToOne: false
+            referencedRelation: "coach_student_contacts"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "coach_students_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_students_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["profile_id"]
           },
         ]
       }
@@ -4953,7 +4967,120 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      coach_student_contacts: {
+        Row: {
+          coach_id: string | null
+          display_name: string | null
+          email: string | null
+          phone: string | null
+          profile_id: string | null
+          student_profile_id: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_students_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_students_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "coach_student_contacts"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "coach_students_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_students_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      my_coach_contact: {
+        Row: {
+          coach_city: string | null
+          coach_display_name: string | null
+          coach_email: string | null
+          coach_id: string | null
+          coach_user_id: string | null
+          student_profile_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_students_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_students_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "coach_student_contacts"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "coach_students_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_students_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      public_profiles: {
+        Row: {
+          avatar_url: string | null
+          display_name: string | null
+          handicap: number | null
+          points: number | null
+          preferred_city: string | null
+          profile_id: string | null
+          total_rounds: number | null
+          user_id: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          display_name?: string | null
+          handicap?: number | null
+          points?: number | null
+          preferred_city?: string | null
+          profile_id?: string | null
+          total_rounds?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          display_name?: string | null
+          handicap?: number | null
+          points?: number | null
+          preferred_city?: string | null
+          profile_id?: string | null
+          total_rounds?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       age_years: { Args: { _dob: string }; Returns: number }
@@ -5054,6 +5181,10 @@ export type Database = {
       }
       is_admin_or_site_admin: { Args: { _user_id: string }; Returns: boolean }
       is_coach: { Args: { _user_id: string }; Returns: boolean }
+      is_coach_of_student: {
+        Args: { _student_profile_id: string }
+        Returns: boolean
+      }
       is_franchise_or_site_admin: {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean

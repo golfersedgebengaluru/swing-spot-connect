@@ -49,11 +49,29 @@ async function attachProfiles(rows: any[]): Promise<any[]> {
   const userIds = Array.from(
     new Set(rows.flatMap((r) => [r.coach_user_id, r.student_user_id, r.user_id].filter(Boolean)))
   );
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("user_id, display_name, email")
+  if (!userIds.length) return rows;
+
+  // public_profiles: display_name visible to all (no PII)
+  const { data: publicProfiles } = await supabase
+    .from("public_profiles" as any)
+    .select("user_id, display_name")
     .in("user_id", userIds);
-  const map = new Map((profiles ?? []).map((p: any) => [p.user_id, p]));
+  // profiles: email/phone returned only for rows the caller's RLS allows
+  // (own row, admin, or coach-of-student).
+  const { data: privateProfiles } = await supabase
+    .from("profiles")
+    .select("user_id, email")
+    .in("user_id", userIds);
+
+  const map = new Map<string, { display_name: string | null; email: string | null }>();
+  (publicProfiles ?? []).forEach((p: any) => {
+    map.set(p.user_id, { display_name: p.display_name ?? null, email: null });
+  });
+  (privateProfiles ?? []).forEach((p: any) => {
+    const existing = map.get(p.user_id) ?? { display_name: null, email: null };
+    map.set(p.user_id, { ...existing, email: p.email ?? null });
+  });
+
   return rows.map((r) => ({
     ...r,
     coach_profile: r.coach_user_id ? map.get(r.coach_user_id) ?? null : undefined,
@@ -61,6 +79,7 @@ async function attachProfiles(rows: any[]): Promise<any[]> {
     profile: r.user_id ? map.get(r.user_id) ?? null : undefined,
   }));
 }
+
 
 /* ---------- STUDENT: my sessions ---------- */
 export function useMyStudentSessions() {
@@ -427,6 +446,7 @@ export interface CoachStudentLink {
 async function attachStudentProfilesToLinks(rows: any[]): Promise<CoachStudentLink[]> {
   if (!rows.length) return rows as CoachStudentLink[];
   const ids = Array.from(new Set(rows.map((r) => r.student_profile_id)));
+  // profiles RLS lets admins read all and coaches read their assigned students.
   const { data: profiles } = await supabase
     .from("profiles")
     .select("id, user_id, display_name, email")
@@ -434,6 +454,7 @@ async function attachStudentProfilesToLinks(rows: any[]): Promise<CoachStudentLi
   const map = new Map((profiles ?? []).map((p) => [p.id, p]));
   return rows.map((r) => ({ ...r, student: map.get(r.student_profile_id) ?? null })) as CoachStudentLink[];
 }
+
 
 /** All students assigned to a given coach (by coaches.id). */
 export function useCoachStudents(coachId: string | undefined) {

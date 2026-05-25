@@ -15,14 +15,15 @@ function useLeaderboard() {
     queryKey: ["leaderboard"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("profiles")
+        .from("public_profiles" as any)
         .select("user_id, display_name, handicap, total_rounds")
+
         .not("handicap", "is", null)
         .not("user_id", "is", null)
         .order("handicap", { ascending: true })
         .limit(50);
       if (error) throw error;
-      return (data ?? []).map((p, i) => ({
+      return ((data ?? []) as any[]).map((p: any, i: number) => ({
         rank: i + 1,
         user_id: p.user_id,
         name: p.display_name || "Member",
@@ -30,6 +31,7 @@ function useLeaderboard() {
         rounds: p.total_rounds ?? 0,
         avatar: (p.display_name || "M").split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2),
       }));
+
     },
   });
 }
