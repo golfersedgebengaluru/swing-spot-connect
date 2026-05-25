@@ -15,8 +15,9 @@ function useLeaderboard() {
     queryKey: ["leaderboard"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("profiles")
+        .from("public_profiles" as any)
         .select("user_id, display_name, handicap, total_rounds")
+
         .not("handicap", "is", null)
         .not("user_id", "is", null)
         .order("handicap", { ascending: true })
