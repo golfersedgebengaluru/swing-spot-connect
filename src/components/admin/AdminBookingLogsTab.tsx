@@ -371,6 +371,11 @@ export function AdminBookingLogsTab() {
                     <Badge variant="outline" className={`text-[10px] px-1 py-0 ${b.session_type === "coaching" ? "text-primary" : ""}`}>
                       {b.session_type === "coaching" ? "🎓 Coaching" : "Practice"}
                     </Badge>
+                    {b.corporate_name && (
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 mt-0.5 block w-fit text-indigo-600 border-indigo-300">
+                        🏢 {b.corporate_name}
+                      </Badge>
+                    )}
                     <Badge variant="outline" className={`text-[9px] px-1 py-0 mt-0.5 block w-fit ${b.note?.startsWith("Invoice") ? "text-blue-600 border-blue-300" : "text-emerald-600 border-emerald-300"}`}>
                       {b.note?.startsWith("Invoice") ? "📄 Invoice" : "🌐 Online"}
                     </Badge>
