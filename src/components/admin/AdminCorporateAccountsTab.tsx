@@ -28,6 +28,7 @@ import { calculateLineItems, getGstType, validateGSTIN, INDIAN_STATES } from "@/
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Package } from "lucide-react";
+import { useAdminCity } from "@/contexts/AdminCityContext";
 
 export function AdminCorporateAccountsTab() {
   const { data: accounts, isLoading } = useCorporateAccounts(true);
