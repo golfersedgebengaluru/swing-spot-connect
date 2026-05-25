@@ -8,14 +8,30 @@ export function useCommunityPosts() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("community_posts")
-        .select("*, profiles:user_id(display_name)")
+        .select("*")
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
-      return data ?? [];
+      const rows = (data ?? []) as any[];
+      const userIds = Array.from(new Set(rows.map((r) => r.user_id).filter(Boolean)));
+      let authorMap = new Map<string, { display_name: string | null }>();
+      if (userIds.length) {
+        const { data: authors } = await supabase
+          .from("public_profiles" as any)
+          .select("user_id, display_name")
+          .in("user_id", userIds);
+        authorMap = new Map(
+          ((authors ?? []) as any[]).map((a: any) => [a.user_id, { display_name: a.display_name ?? null }])
+        );
+      }
+      return rows.map((r) => ({
+        ...r,
+        profiles: authorMap.get(r.user_id) ?? { display_name: null },
+      }));
     },
   });
 }
+
 
 export function useCreatePost() {
   const queryClient = useQueryClient();
