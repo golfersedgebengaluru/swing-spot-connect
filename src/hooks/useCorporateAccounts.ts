@@ -288,6 +288,8 @@ export function useDeferredItemsForCorporate(
           duration_minutes: b.duration_minutes,
           bay_name: b.bay_id ? bayMap.get(b.bay_id) ?? null : null,
           session_type: b.session_type,
+          status: b.status,
+          cancelled: b.status === "cancelled",
         });
       }
       for (const c of coachings ?? []) {
