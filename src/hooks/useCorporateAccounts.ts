@@ -249,7 +249,6 @@ export function useDeferredItemsForCorporate(
         .select("id, user_id, city, start_time, end_time, duration_minutes, session_type, bay_id, status")
         .eq("billing_status", "deferred")
         .in("user_id", idList)
-        .neq("status", "cancelled")
         .order("start_time");
       if (startDate) bq = bq.gte("start_time", startDate);
       if (endDate) bq = bq.lte("start_time", endDate);
