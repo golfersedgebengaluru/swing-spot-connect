@@ -4,17 +4,20 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import { mockSupabase, createQueryMock } from "@/test/supabase-mock";
 
-const supabaseMock = mockSupabase();
-
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: supabaseMock,
-}));
+vi.mock("@/integrations/supabase/client", () => {
+  const { mockSupabase } = require("@/test/supabase-mock");
+  return { supabase: mockSupabase() };
+});
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: { id: "u-self" } }),
 }));
 
+import { supabase } from "@/integrations/supabase/client";
+const supabaseMock = supabase as any;
+
 import { useCommunityPosts } from "../useCommunity";
+
 
 function wrapper({ children }: { children: React.ReactNode }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
