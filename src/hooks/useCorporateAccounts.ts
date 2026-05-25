@@ -289,6 +289,7 @@ export function useDeferredItemsForCorporate(
         .order("session_date");
       if (startDate) cq = cq.gte("session_date", startDate.slice(0, 10));
       if (endDate) cq = cq.lte("session_date", endDate.slice(0, 10));
+      if (city) cq = cq.eq("city", city);
       const { data: coachings, error: cErr } = await cq;
       if (cErr) throw cErr;
 
