@@ -512,6 +512,7 @@ function BillingItemsPanel({ account }: { account: CorporateAccount }) {
 function BillingPanel({ account }: { account: CorporateAccount }) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { selectedCity } = useAdminCity();
   const today = new Date();
   // Default range: previous calendar month
   const defaultStart = startOfMonth(subMonths(today, 1));
@@ -524,7 +525,8 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
   const { data: items, isLoading } = useDeferredItemsForCorporate(
     account.id,
     `${startDate}T00:00:00`,
-    `${endDate}T23:59:59`
+    `${endDate}T23:59:59`,
+    selectedCity || null
   );
   const { data: corporateProducts } = useCorporateProducts(account.id);
   const createInvoice = useCreateInvoice();
@@ -546,18 +548,8 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
   const cancelledItems = useMemo(() => (items ?? []).filter((i) => i.cancelled), [items]);
   const sessionCount = billableItems.length;
 
-  // City of items — use majority city for invoice (so GST profile matches)
-  const city = useMemo(() => {
-    if (!billableItems || billableItems.length === 0) return null;
-    const counts = new Map<string, number>();
-    for (const i of billableItems) {
-      if (i.city) counts.set(i.city, (counts.get(i.city) ?? 0) + 1);
-    }
-    let top: string | null = null;
-    let max = 0;
-    for (const [c, n] of counts) if (n > max) { top = c; max = n; }
-    return top;
-  }, [billableItems]);
+  // City is whichever city the admin has selected — invoice is issued by that franchisee.
+  const city = selectedCity || null;
 
   const grossTotal = useMemo(() => {
     if (!billingProduct) return 0;
