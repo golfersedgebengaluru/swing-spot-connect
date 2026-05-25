@@ -446,6 +446,7 @@ export interface CoachStudentLink {
 async function attachStudentProfilesToLinks(rows: any[]): Promise<CoachStudentLink[]> {
   if (!rows.length) return rows as CoachStudentLink[];
   const ids = Array.from(new Set(rows.map((r) => r.student_profile_id)));
+  // profiles RLS lets admins read all and coaches read their assigned students.
   const { data: profiles } = await supabase
     .from("profiles")
     .select("id, user_id, display_name, email")
@@ -453,6 +454,7 @@ async function attachStudentProfilesToLinks(rows: any[]): Promise<CoachStudentLi
   const map = new Map((profiles ?? []).map((p) => [p.id, p]));
   return rows.map((r) => ({ ...r, student: map.get(r.student_profile_id) ?? null })) as CoachStudentLink[];
 }
+
 
 /** All students assigned to a given coach (by coaches.id). */
 export function useCoachStudents(coachId: string | undefined) {
