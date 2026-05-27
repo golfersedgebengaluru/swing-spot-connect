@@ -601,11 +601,23 @@ export function AdminAllUsersTab() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Pre-Register New User</DialogTitle></DialogHeader>
             <PreRegisterUserForm onSave={async (data) => {
-              const insertData: Record<string, string> = { display_name: data.display_name, email: data.email.trim().toLowerCase(), user_type: 'guest' };
+              const email = data.email.trim().toLowerCase();
+              // Duplicate pre-check
+              const { data: existing } = await supabase
+                .from("profiles")
+                .select("id, display_name, user_id")
+                .ilike("email", email)
+                .limit(1)
+                .maybeSingle();
+              if (existing) {
+                toast({ title: "User already exists", description: `${existing.display_name || email} is already ${existing.user_id ? "registered" : "pre-registered"}. Open their profile instead of creating a duplicate.`, variant: "destructive" });
+                return;
+              }
+              const insertData: Record<string, string> = { display_name: data.display_name, email, user_type: 'guest' };
               if (selectedCity) insertData.preferred_city = selectedCity;
               const { error } = await supabase.from("profiles").insert(insertData);
               if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-              toast({ title: "User pre-registered", description: `${data.display_name} will be linked when they sign in with ${data.email}.` });
+              toast({ title: "User pre-registered", description: `${data.display_name} will be linked when they sign in with ${email}.` });
               queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
               setDialogOpen(null);
             }} onCancel={() => setDialogOpen(null)} />
@@ -613,12 +625,26 @@ export function AdminAllUsersTab() {
         </Dialog>
 
         <Dialog open={dialogOpen === "registeruser"} onOpenChange={(open) => setDialogOpen(open ? "registeruser" : null)}>
-          <DialogTrigger asChild><Button variant="outline" size="sm"><UserCheck className="mr-2 h-4 w-4" />Register</Button></DialogTrigger>
+          <DialogTrigger asChild><Button variant="outline" size="sm"><UserCheck className="mr-2 h-4 w-4" />Register User</Button></DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Register New User</DialogTitle></DialogHeader>
             <RegisterUserForm onSave={async (data) => {
+              const email = data.email.trim().toLowerCase();
+              // Duplicate pre-check (only if email provided)
+              if (email) {
+                const { data: existing } = await supabase
+                  .from("profiles")
+                  .select("id, display_name, user_id")
+                  .ilike("email", email)
+                  .limit(1)
+                  .maybeSingle();
+                if (existing) {
+                  toast({ title: "User already exists", description: `${existing.display_name || email} is already ${existing.user_id ? "registered" : "pre-registered"}. Open their profile instead of creating a duplicate.`, variant: "destructive" });
+                  return;
+                }
+              }
               const insertData: Record<string, string> = { display_name: data.display_name.trim() };
-              if (data.email.trim()) insertData.email = data.email.trim().toLowerCase();
+              if (email) insertData.email = email;
               if (data.phone.trim()) insertData.phone = data.phone.trim();
               if (selectedCity) insertData.preferred_city = selectedCity;
               const { error } = await supabase.from("profiles").insert(insertData);
