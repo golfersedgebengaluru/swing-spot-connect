@@ -613,19 +613,6 @@ export function AdminAllUsersTab() {
             }} onCancel={() => setDialogOpen(null)} />
           </DialogContent>
         </Dialog>
-
-              const insertData: Record<string, string> = { display_name: data.display_name.trim() };
-              if (email) insertData.email = email;
-              if (data.phone.trim()) insertData.phone = data.phone.trim();
-              if (selectedCity) insertData.preferred_city = selectedCity;
-              const { error } = await supabase.from("profiles").insert(insertData);
-              if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-              toast({ title: "User registered", description: `${data.display_name} has been registered.` });
-              queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
-              setDialogOpen(null);
-            }} onCancel={() => setDialogOpen(null)} />
-          </DialogContent>
-        </Dialog>
       </div>
 
       {/* Dialogs for history, inline actions, edit */}
