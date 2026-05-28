@@ -226,20 +226,6 @@ function AdminRedeemForm({ profiles, rewards, onSave, onCancel }: { profiles: an
   );
 }
 
-function PreRegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_name: string; email: string }) => void; onCancel: () => void }) {
-  const [form, setForm] = useState({ display_name: "", email: "" });
-  return (
-    <div className="space-y-4">
-      <div><Label>Display Name</Label><Input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder="John Smith" /></div>
-      <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="john@example.com" /></div>
-      <p className="text-xs text-muted-foreground">This user will be automatically linked when they sign in with Google or Apple using this email.</p>
-      <div className="flex gap-2 justify-end">
-        <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button onClick={() => onSave(form)} disabled={!form.display_name || !form.email}>Add User</Button>
-      </div>
-    </div>
-  );
-}
 
 function RegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_name: string; email: string; phone: string }) => void; onCancel: () => void }) {
   const [form, setForm] = useState({ display_name: "", email: "", phone: "" });
@@ -596,36 +582,8 @@ export function AdminAllUsersTab() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={dialogOpen === "adduser"} onOpenChange={(open) => setDialogOpen(open ? "adduser" : null)}>
-          <DialogTrigger asChild><Button size="sm"><Plus className="mr-2 h-4 w-4" />Pre-Register</Button></DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader><DialogTitle>Pre-Register New User</DialogTitle></DialogHeader>
-            <PreRegisterUserForm onSave={async (data) => {
-              const email = data.email.trim().toLowerCase();
-              // Duplicate pre-check
-              const { data: existing } = await supabase
-                .from("profiles")
-                .select("id, display_name, user_id")
-                .ilike("email", email)
-                .limit(1)
-                .maybeSingle();
-              if (existing) {
-                toast({ title: "User already exists", description: `${existing.display_name || email} is already ${existing.user_id ? "registered" : "pre-registered"}. Open their profile instead of creating a duplicate.`, variant: "destructive" });
-                return;
-              }
-              const insertData: Record<string, string> = { display_name: data.display_name, email, user_type: 'guest' };
-              if (selectedCity) insertData.preferred_city = selectedCity;
-              const { error } = await supabase.from("profiles").insert(insertData);
-              if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-              toast({ title: "User pre-registered", description: `${data.display_name} will be linked when they sign in with ${email}.` });
-              queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
-              setDialogOpen(null);
-            }} onCancel={() => setDialogOpen(null)} />
-          </DialogContent>
-        </Dialog>
-
         <Dialog open={dialogOpen === "registeruser"} onOpenChange={(open) => setDialogOpen(open ? "registeruser" : null)}>
-          <DialogTrigger asChild><Button variant="outline" size="sm"><UserCheck className="mr-2 h-4 w-4" />Register User</Button></DialogTrigger>
+          <DialogTrigger asChild><Button size="sm"><UserCheck className="mr-2 h-4 w-4" />Register User</Button></DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Register New User</DialogTitle></DialogHeader>
             <RegisterUserForm onSave={async (data) => {
@@ -639,17 +597,17 @@ export function AdminAllUsersTab() {
                   .limit(1)
                   .maybeSingle();
                 if (existing) {
-                  toast({ title: "User already exists", description: `${existing.display_name || email} is already ${existing.user_id ? "registered" : "pre-registered"}. Open their profile instead of creating a duplicate.`, variant: "destructive" });
+                  toast({ title: "User already exists", description: `${existing.display_name || email} is already registered${existing.user_id ? "" : " (not yet claimed)"}. Open their profile instead of creating a duplicate.`, variant: "destructive" });
                   return;
                 }
               }
-              const insertData: Record<string, string> = { display_name: data.display_name.trim() };
+              const insertData: Record<string, string> = { display_name: data.display_name.trim(), user_type: 'guest' };
               if (email) insertData.email = email;
               if (data.phone.trim()) insertData.phone = data.phone.trim();
               if (selectedCity) insertData.preferred_city = selectedCity;
               const { error } = await supabase.from("profiles").insert(insertData);
               if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-              toast({ title: "User registered", description: `${data.display_name} has been registered.` });
+              toast({ title: "User registered", description: email ? `${data.display_name} has been registered. They can claim the account by signing in with ${email}.` : `${data.display_name} has been registered.` });
               queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
               setDialogOpen(null);
             }} onCancel={() => setDialogOpen(null)} />
