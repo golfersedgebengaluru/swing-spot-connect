@@ -500,6 +500,7 @@ export function useUpdateQuickCompetition() {
       remove_uld_logo?: boolean;
       uld_location_logo_file?: File | null;
       remove_uld_location_logo?: boolean;
+      logos_mode?: "single" | "multi";
     }) => {
       async function uploadLogo(prefix: string, file: File): Promise<string> {
         const ext = file.name.split(".").pop() || "png";
@@ -512,6 +513,7 @@ export function useUpdateQuickCompetition() {
       }
       const patch: Record<string, unknown> = {};
       if (input.name !== undefined) patch.name = input.name.trim();
+      if (input.logos_mode !== undefined) patch.logos_mode = input.logos_mode;
       if (input.sponsor_enabled !== undefined) patch.sponsor_enabled = input.sponsor_enabled;
       if (input.remove_sponsor_logo) patch.sponsor_logo_url = null;
       if (input.sponsor_logo_file) {
