@@ -29,6 +29,10 @@ export function QuickCompetitionDialog({
   const [refundsAllowed, setRefundsAllowed] = useState(false);
   const [categoriesEnabled, setCategoriesEnabled] = useState(false);
   const [categoriesText, setCategoriesText] = useState("Men, Ladies");
+  // Multi-logo (organizer top-left + event/sponsor top-right) vs single sponsor (centered, "Brought to you by")
+  const [logosMode, setLogosMode] = useState<"single" | "multi">("single");
+  const [organizerLogoFile, setOrganizerLogoFile] = useState<File | null>(null);
+  const [eventLogoFile, setEventLogoFile] = useState<File | null>(null);
   // ULD-specific
   const [uldSets, setUldSets] = useState<string>("2");
   const [uldShots, setUldShots] = useState<string>("6");
