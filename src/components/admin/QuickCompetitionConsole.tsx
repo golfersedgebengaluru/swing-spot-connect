@@ -61,6 +61,7 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
   const [editUldLocationLogoFile, setEditUldLocationLogoFile] = useState<File | null>(null);
   const [removeUldLogo, setRemoveUldLogo] = useState(false);
   const [removeUldLocationLogo, setRemoveUldLocationLogo] = useState(false);
+  const [editLogosMode, setEditLogosMode] = useState<"single" | "multi">("single");
   // Top "Add Player & Score" card state
   const [entryPlayerId, setEntryPlayerId] = useState<string>("");
   const [entryDistance, setEntryDistance] = useState("");
@@ -149,13 +150,13 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
-          {comp.format === "uld" && comp.uld_logo_url && (
-            <img src={comp.uld_logo_url} alt="ULD" className="h-12 w-auto rounded border bg-white p-1" />
+          {comp.logos_mode === "multi" && comp.uld_logo_url && (
+            <img src={comp.uld_logo_url} alt="Organizer" className="h-12 w-auto rounded border bg-white p-1" />
           )}
-          {comp.format === "uld" && comp.uld_location_logo_url && (
-            <img src={comp.uld_location_logo_url} alt="Location" className="h-12 w-auto rounded border bg-white p-1" />
+          {comp.logos_mode === "multi" && comp.uld_location_logo_url && (
+            <img src={comp.uld_location_logo_url} alt="Event sponsor" className="h-12 w-auto rounded border bg-white p-1" />
           )}
-          {comp.sponsor_enabled && comp.sponsor_logo_url && (
+          {comp.logos_mode !== "multi" && comp.sponsor_enabled && comp.sponsor_logo_url && (
             <img src={comp.sponsor_logo_url} alt="Sponsor" className="h-12 w-auto rounded border bg-white p-1" />
           )}
           <div>
@@ -194,6 +195,7 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                 setEditUldLocationLogoFile(null);
                 setRemoveUldLogo(false);
                 setRemoveUldLocationLogo(false);
+                setEditLogosMode(comp.logos_mode ?? "single");
               }
             }}>
               <DialogTrigger asChild>
@@ -220,21 +222,37 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                         </div>
                       </div>
                       <p className="text-[11px] text-muted-foreground">Sets and shots per set are locked once the competition starts.</p>
+                    </div>
+                  )}
+
+                  {comp.format !== "uld" && (
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="lm-toggle" className="cursor-pointer">
+                        Multi-logo display
+                        <span className="block text-xs font-normal text-muted-foreground">Organizer left + event/sponsor right</span>
+                      </Label>
+                      <Switch id="lm-toggle" checked={editLogosMode === "multi"} onCheckedChange={(c) => setEditLogosMode(c ? "multi" : "single")} />
+                    </div>
+                  )}
+
+                  {(editLogosMode === "multi" || comp.format === "uld") && (
+                    <div className="space-y-3 border rounded-md p-3 bg-muted/30">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Header logos</p>
                       <div className="space-y-1">
-                        <Label className="text-xs">ULD logo (top-left)</Label>
+                        <Label className="text-xs">Organizer logo (top-left)</Label>
                         {comp.uld_logo_url && !editUldLogoFile && !removeUldLogo && (
                           <div className="flex items-center gap-2">
-                            <img src={comp.uld_logo_url} alt="ULD" className="h-10 rounded border bg-white p-1" />
+                            <img src={comp.uld_logo_url} alt="Organizer" className="h-10 rounded border bg-white p-1" />
                             <Button type="button" size="sm" variant="ghost" onClick={() => setRemoveUldLogo(true)}>Remove</Button>
                           </div>
                         )}
                         <Input type="file" accept="image/*" onChange={(e) => { setEditUldLogoFile(e.target.files?.[0] ?? null); setRemoveUldLogo(false); }} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Location / sponsor logo (top-right)</Label>
+                        <Label className="text-xs">Event / sponsor logo (top-right)</Label>
                         {comp.uld_location_logo_url && !editUldLocationLogoFile && !removeUldLocationLogo && (
                           <div className="flex items-center gap-2">
-                            <img src={comp.uld_location_logo_url} alt="Location" className="h-10 rounded border bg-white p-1" />
+                            <img src={comp.uld_location_logo_url} alt="Event sponsor" className="h-10 rounded border bg-white p-1" />
                             <Button type="button" size="sm" variant="ghost" onClick={() => setRemoveUldLocationLogo(true)}>Remove</Button>
                           </div>
                         )}
@@ -242,18 +260,23 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                       </div>
                     </div>
                   )}
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="sp-toggle">Sponsor logo on result cards</Label>
-                    <Switch id="sp-toggle" checked={editSponsorEnabled} onCheckedChange={setEditSponsorEnabled} />
-                  </div>
-                  {editSponsorEnabled && (
-                    <div className="space-y-1.5">
-                      <Label>Upload logo {comp.sponsor_logo_url ? "(replaces current)" : ""}</Label>
-                      <Input type="file" accept="image/*" onChange={(e) => setEditSponsorFile(e.target.files?.[0] ?? null)} />
-                      {comp.sponsor_logo_url && !editSponsorFile && (
-                        <img src={comp.sponsor_logo_url} alt="Current sponsor" className="h-12 mt-2 rounded border bg-white p-1" />
+
+                  {editLogosMode === "single" && comp.format !== "uld" && (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="sp-toggle">Sponsor logo on result cards</Label>
+                        <Switch id="sp-toggle" checked={editSponsorEnabled} onCheckedChange={setEditSponsorEnabled} />
+                      </div>
+                      {editSponsorEnabled && (
+                        <div className="space-y-1.5">
+                          <Label>Upload logo {comp.sponsor_logo_url ? "(replaces current)" : ""}</Label>
+                          <Input type="file" accept="image/*" onChange={(e) => setEditSponsorFile(e.target.files?.[0] ?? null)} />
+                          {comp.sponsor_logo_url && !editSponsorFile && (
+                            <img src={comp.sponsor_logo_url} alt="Current sponsor" className="h-12 mt-2 rounded border bg-white p-1" />
+                          )}
+                        </div>
                       )}
-                    </div>
+                    </>
                   )}
                 </div>
                 <DialogFooter>
@@ -263,19 +286,23 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                     onClick={async () => {
                       const dur = parseInt(editUldDuration, 10);
                       const maxOff = parseFloat(editUldMaxOffline);
+                      const isMulti = editLogosMode === "multi" || comp.format === "uld";
                       await updateComp.mutateAsync({
                         competition_id: competitionId,
                         name: editName,
-                        sponsor_enabled: editSponsorEnabled,
-                        sponsor_logo_file: editSponsorFile,
-                        remove_sponsor_logo: !editSponsorEnabled && !!comp.sponsor_logo_url,
+                        logos_mode: comp.format === "uld" ? undefined : editLogosMode,
+                        sponsor_enabled: isMulti ? false : editSponsorEnabled,
+                        sponsor_logo_file: isMulti ? null : editSponsorFile,
+                        remove_sponsor_logo: isMulti
+                          ? !!comp.sponsor_logo_url
+                          : (!editSponsorEnabled && !!comp.sponsor_logo_url),
+                        uld_logo_file: isMulti ? editUldLogoFile : null,
+                        remove_uld_logo: isMulti ? removeUldLogo : !!comp.uld_logo_url,
+                        uld_location_logo_file: isMulti ? editUldLocationLogoFile : null,
+                        remove_uld_location_logo: isMulti ? removeUldLocationLogo : !!comp.uld_location_logo_url,
                         ...(comp.format === "uld" ? {
                           uld_set_duration_seconds: Number.isFinite(dur) && dur >= 10 ? dur : undefined,
                           uld_max_offline: editUldMaxOffline.trim() === "" ? null : (Number.isFinite(maxOff) && maxOff > 0 ? maxOff : undefined),
-                          uld_logo_file: editUldLogoFile,
-                          remove_uld_logo: removeUldLogo,
-                          uld_location_logo_file: editUldLocationLogoFile,
-                          remove_uld_location_logo: removeUldLocationLogo,
                         } : {}),
                       });
                       setEditOpen(false);

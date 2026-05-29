@@ -4516,6 +4516,7 @@ export type Database = {
           entry_type: string
           format: string
           id: string
+          logos_mode: string
           longest_card_url: string | null
           longest_winner_player_id: string | null
           longest_winner_value: number | null
@@ -4550,6 +4551,7 @@ export type Database = {
           entry_type?: string
           format?: string
           id?: string
+          logos_mode?: string
           longest_card_url?: string | null
           longest_winner_player_id?: string | null
           longest_winner_value?: number | null
@@ -4584,6 +4586,7 @@ export type Database = {
           entry_type?: string
           format?: string
           id?: string
+          logos_mode?: string
           longest_card_url?: string | null
           longest_winner_player_id?: string | null
           longest_winner_value?: number | null

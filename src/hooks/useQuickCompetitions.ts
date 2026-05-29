@@ -34,6 +34,7 @@ export type QuickCompetition = {
   uld_max_offline: number | null;
   uld_logo_url: string | null;
   uld_location_logo_url: string | null;
+  logos_mode: "single" | "multi";
 };
 
 export type QCWinnerEntry = { player_id: string; player_name: string; value: number; card_url: string | null };
@@ -209,6 +210,7 @@ export function useCreateQuickCompetition() {
       uld_max_offline?: number | null;
       uld_logo_file?: File | null;
       uld_location_logo_file?: File | null;
+      logos_mode?: "single" | "multi";
     }) => {
       async function uploadLogo(prefix: string, file: File): Promise<string> {
         const ext = file.name.split(".").pop() || "png";
@@ -219,14 +221,16 @@ export function useCreateQuickCompetition() {
         if (upErr) throw upErr;
         return supabase.storage.from("quick-comp-sponsors").getPublicUrl(path).data.publicUrl;
       }
+      const logosMode = input.logos_mode ?? "single";
       let sponsor_logo_url: string | null = null;
-      if (input.sponsor_enabled && input.sponsor_logo_file) {
+      if (logosMode === "single" && input.sponsor_enabled && input.sponsor_logo_file) {
         sponsor_logo_url = await uploadLogo("logos", input.sponsor_logo_file);
       }
       const format = input.format ?? "standard";
       let uld_logo_url: string | null = null;
       let uld_location_logo_url: string | null = null;
-      if (format === "uld") {
+      // Multi-logo: organizer (top-left) + event/sponsor (top-right). Reuse uld_*_url columns regardless of format.
+      if (logosMode === "multi" || format === "uld") {
         if (input.uld_logo_file) uld_logo_url = await uploadLogo("uld-logos", input.uld_logo_file);
         if (input.uld_location_logo_file) uld_location_logo_url = await uploadLogo("location-logos", input.uld_location_logo_file);
       }
@@ -236,7 +240,7 @@ export function useCreateQuickCompetition() {
         name: input.name,
         unit: input.unit,
         max_attempts: input.max_attempts,
-        sponsor_enabled: input.sponsor_enabled,
+        sponsor_enabled: logosMode === "single" ? input.sponsor_enabled : false,
         sponsor_logo_url,
         entry_type: input.entry_type,
         entry_fee: input.entry_type === "paid" ? input.entry_fee ?? null : null,
@@ -245,14 +249,15 @@ export function useCreateQuickCompetition() {
         categories_enabled: input.categories_enabled ?? false,
         created_by: u.user?.id ?? null,
         format,
+        logos_mode: logosMode,
+        uld_logo_url,
+        uld_location_logo_url,
       };
       if (format === "uld") {
         insertPayload.uld_sets_per_player = input.uld_sets_per_player ?? 2;
         insertPayload.uld_shots_per_set = input.uld_shots_per_set ?? 6;
         insertPayload.uld_set_duration_seconds = input.uld_set_duration_seconds ?? 150;
         insertPayload.uld_max_offline = input.uld_max_offline ?? null;
-        insertPayload.uld_logo_url = uld_logo_url;
-        insertPayload.uld_location_logo_url = uld_location_logo_url;
         // For ULD, max_attempts derived from sets * shots
         insertPayload.max_attempts = (input.uld_sets_per_player ?? 2) * (input.uld_shots_per_set ?? 6);
       }
@@ -495,6 +500,7 @@ export function useUpdateQuickCompetition() {
       remove_uld_logo?: boolean;
       uld_location_logo_file?: File | null;
       remove_uld_location_logo?: boolean;
+      logos_mode?: "single" | "multi";
     }) => {
       async function uploadLogo(prefix: string, file: File): Promise<string> {
         const ext = file.name.split(".").pop() || "png";
@@ -507,6 +513,7 @@ export function useUpdateQuickCompetition() {
       }
       const patch: Record<string, unknown> = {};
       if (input.name !== undefined) patch.name = input.name.trim();
+      if (input.logos_mode !== undefined) patch.logos_mode = input.logos_mode;
       if (input.sponsor_enabled !== undefined) patch.sponsor_enabled = input.sponsor_enabled;
       if (input.remove_sponsor_logo) patch.sponsor_logo_url = null;
       if (input.sponsor_logo_file) {

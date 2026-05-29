@@ -29,6 +29,10 @@ export function QuickCompetitionDialog({
   const [refundsAllowed, setRefundsAllowed] = useState(false);
   const [categoriesEnabled, setCategoriesEnabled] = useState(false);
   const [categoriesText, setCategoriesText] = useState("Men, Ladies");
+  // Multi-logo (organizer top-left + event/sponsor top-right) vs single sponsor (centered, "Brought to you by")
+  const [logosMode, setLogosMode] = useState<"single" | "multi">("single");
+  const [organizerLogoFile, setOrganizerLogoFile] = useState<File | null>(null);
+  const [eventLogoFile, setEventLogoFile] = useState<File | null>(null);
   // ULD-specific
   const [uldSets, setUldSets] = useState<string>("2");
   const [uldShots, setUldShots] = useState<string>("6");
@@ -51,6 +55,9 @@ export function QuickCompetitionDialog({
     setRefundsAllowed(false);
     setCategoriesEnabled(false);
     setCategoriesText("Men, Ladies");
+    setLogosMode("single");
+    setOrganizerLogoFile(null);
+    setEventLogoFile(null);
     setUldSets("2");
     setUldShots("6");
     setUldDuration("150");
@@ -70,13 +77,18 @@ export function QuickCompetitionDialog({
     const shots = Math.max(1, Math.min(20, parseInt(uldShots, 10) || 6));
     const dur = Math.max(10, Math.min(3600, parseInt(uldDuration, 10) || 150));
     const maxOff = parseFloat(uldMaxOffline);
+    // ULD always uses multi-logo display. Standard format follows the user's toggle.
+    const effectiveLogosMode: "single" | "multi" = format === "uld" ? "multi" : logosMode;
+    // In multi mode, organizer/event files take precedence over ULD-specific inputs (which only render for ULD format).
+    const orgFile = effectiveLogosMode === "multi" ? (format === "uld" ? uldLogoFile : organizerLogoFile) : null;
+    const evtFile = effectiveLogosMode === "multi" ? (format === "uld" ? uldLocationLogoFile : eventLogoFile) : null;
     const result = await create.mutateAsync({
       tenant_id: tenantId,
       name: name.trim(),
       unit,
       max_attempts: n,
-      sponsor_enabled: sponsorEnabled,
-      sponsor_logo_file: sponsorEnabled ? logoFile : null,
+      sponsor_enabled: effectiveLogosMode === "single" ? sponsorEnabled : false,
+      sponsor_logo_file: effectiveLogosMode === "single" && sponsorEnabled ? logoFile : null,
       entry_type: entryType,
       entry_fee: entryType === "paid" ? fee : null,
       entry_currency: "INR",
@@ -88,8 +100,9 @@ export function QuickCompetitionDialog({
       uld_shots_per_set: shots,
       uld_set_duration_seconds: dur,
       uld_max_offline: format === "uld" && Number.isFinite(maxOff) && maxOff > 0 ? maxOff : null,
-      uld_logo_file: format === "uld" ? uldLogoFile : null,
-      uld_location_logo_file: format === "uld" ? uldLocationLogoFile : null,
+      uld_logo_file: orgFile,
+      uld_location_logo_file: evtFile,
+      logos_mode: effectiveLogosMode,
     });
     setOpen(false);
     reset();
@@ -206,19 +219,53 @@ export function QuickCompetitionDialog({
             </div>
           )}
 
-          <div className="space-y-2 border-t pt-3">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="qc-sponsor" className="cursor-pointer">Sponsor logo on winner cards</Label>
-              <Switch id="qc-sponsor" checked={sponsorEnabled} onCheckedChange={setSponsorEnabled} />
+          {format !== "uld" && (
+            <div className="space-y-2 border-t pt-3">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="qc-multi" className="cursor-pointer">
+                  Multi-logo display
+                  <span className="block text-xs font-normal text-muted-foreground">
+                    Organizer (top-left) + event/sponsor (top-right). Off = single sponsor centered.
+                  </span>
+                </Label>
+                <Switch id="qc-multi" checked={logosMode === "multi"} onCheckedChange={(c) => setLogosMode(c ? "multi" : "single")} />
+              </div>
+              {logosMode === "multi" ? (
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Organizer logo (top-left)</Label>
+                    <Input
+                      type="file"
+                      accept="image/png,image/jpeg,image/svg+xml"
+                      onChange={(e) => setOrganizerLogoFile(e.target.files?.[0] ?? null)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Event / sponsor logo (top-right)</Label>
+                    <Input
+                      type="file"
+                      accept="image/png,image/jpeg,image/svg+xml"
+                      onChange={(e) => setEventLogoFile(e.target.files?.[0] ?? null)}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="qc-sponsor" className="cursor-pointer">Sponsor logo on winner cards</Label>
+                    <Switch id="qc-sponsor" checked={sponsorEnabled} onCheckedChange={setSponsorEnabled} />
+                  </div>
+                  {sponsorEnabled && (
+                    <Input
+                      type="file"
+                      accept="image/png,image/jpeg,image/svg+xml"
+                      onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+                    />
+                  )}
+                </>
+              )}
             </div>
-            {sponsorEnabled && (
-              <Input
-                type="file"
-                accept="image/png,image/jpeg,image/svg+xml"
-                onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
-              />
-            )}
-          </div>
+          )}
 
           <div className="space-y-2 border-t pt-3">
             <div className="flex items-center justify-between">
