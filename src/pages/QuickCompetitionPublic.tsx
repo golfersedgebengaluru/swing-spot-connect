@@ -91,12 +91,12 @@ export default function QuickCompetitionPublic() {
   return (
     <div className="min-h-screen bg-white text-stone-900 p-6 sm:p-10">
       {comp.logos_mode === "multi" && (comp.uld_logo_url || comp.uld_location_logo_url) && (
-        <div className="flex items-start justify-between mb-6 max-w-7xl mx-auto">
-          <div className="h-20 sm:h-28 flex items-center">
-            {comp.uld_logo_url && <img src={comp.uld_logo_url} alt="Organizer" className="h-full w-auto object-contain" />}
+        <div className="flex items-start justify-between gap-4 mb-6 max-w-7xl mx-auto">
+          <div className="h-16 sm:h-20 w-32 sm:w-48 flex items-center justify-start">
+            {comp.uld_logo_url && <img src={comp.uld_logo_url} alt="Organizer" className="max-h-full max-w-full object-contain" />}
           </div>
-          <div className="h-20 sm:h-28 flex items-center">
-            {comp.uld_location_logo_url && <img src={comp.uld_location_logo_url} alt="Event sponsor" className="h-full w-auto object-contain" />}
+          <div className="h-16 sm:h-20 w-32 sm:w-48 flex items-center justify-end">
+            {comp.uld_location_logo_url && <img src={comp.uld_location_logo_url} alt="Event sponsor" className="max-h-full max-w-full object-contain" />}
           </div>
         </div>
       )}
