@@ -278,7 +278,7 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                       )}
                     </>
                   )}
-                  )}
+                </div>
                 </div>
                 <DialogFooter>
                   <Button variant="ghost" onClick={() => setEditOpen(false)}>Cancel</Button>
