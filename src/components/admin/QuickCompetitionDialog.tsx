@@ -219,19 +219,53 @@ export function QuickCompetitionDialog({
             </div>
           )}
 
-          <div className="space-y-2 border-t pt-3">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="qc-sponsor" className="cursor-pointer">Sponsor logo on winner cards</Label>
-              <Switch id="qc-sponsor" checked={sponsorEnabled} onCheckedChange={setSponsorEnabled} />
+          {format !== "uld" && (
+            <div className="space-y-2 border-t pt-3">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="qc-multi" className="cursor-pointer">
+                  Multi-logo display
+                  <span className="block text-xs font-normal text-muted-foreground">
+                    Organizer (top-left) + event/sponsor (top-right). Off = single sponsor centered.
+                  </span>
+                </Label>
+                <Switch id="qc-multi" checked={logosMode === "multi"} onCheckedChange={(c) => setLogosMode(c ? "multi" : "single")} />
+              </div>
+              {logosMode === "multi" ? (
+                <div className="space-y-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Organizer logo (top-left)</Label>
+                    <Input
+                      type="file"
+                      accept="image/png,image/jpeg,image/svg+xml"
+                      onChange={(e) => setOrganizerLogoFile(e.target.files?.[0] ?? null)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Event / sponsor logo (top-right)</Label>
+                    <Input
+                      type="file"
+                      accept="image/png,image/jpeg,image/svg+xml"
+                      onChange={(e) => setEventLogoFile(e.target.files?.[0] ?? null)}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="qc-sponsor" className="cursor-pointer">Sponsor logo on winner cards</Label>
+                    <Switch id="qc-sponsor" checked={sponsorEnabled} onCheckedChange={setSponsorEnabled} />
+                  </div>
+                  {sponsorEnabled && (
+                    <Input
+                      type="file"
+                      accept="image/png,image/jpeg,image/svg+xml"
+                      onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+                    />
+                  )}
+                </>
+              )}
             </div>
-            {sponsorEnabled && (
-              <Input
-                type="file"
-                accept="image/png,image/jpeg,image/svg+xml"
-                onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
-              />
-            )}
-          </div>
+          )}
 
           <div className="space-y-2 border-t pt-3">
             <div className="flex items-center justify-between">
