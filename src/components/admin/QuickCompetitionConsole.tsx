@@ -279,7 +279,6 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                     </>
                   )}
                 </div>
-                </div>
                 <DialogFooter>
                   <Button variant="ghost" onClick={() => setEditOpen(false)}>Cancel</Button>
                   <Button
@@ -287,19 +286,23 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                     onClick={async () => {
                       const dur = parseInt(editUldDuration, 10);
                       const maxOff = parseFloat(editUldMaxOffline);
+                      const isMulti = editLogosMode === "multi" || comp.format === "uld";
                       await updateComp.mutateAsync({
                         competition_id: competitionId,
                         name: editName,
-                        sponsor_enabled: editSponsorEnabled,
-                        sponsor_logo_file: editSponsorFile,
-                        remove_sponsor_logo: !editSponsorEnabled && !!comp.sponsor_logo_url,
+                        logos_mode: comp.format === "uld" ? undefined : editLogosMode,
+                        sponsor_enabled: isMulti ? false : editSponsorEnabled,
+                        sponsor_logo_file: isMulti ? null : editSponsorFile,
+                        remove_sponsor_logo: isMulti
+                          ? !!comp.sponsor_logo_url
+                          : (!editSponsorEnabled && !!comp.sponsor_logo_url),
+                        uld_logo_file: isMulti ? editUldLogoFile : null,
+                        remove_uld_logo: isMulti ? removeUldLogo : !!comp.uld_logo_url,
+                        uld_location_logo_file: isMulti ? editUldLocationLogoFile : null,
+                        remove_uld_location_logo: isMulti ? removeUldLocationLogo : !!comp.uld_location_logo_url,
                         ...(comp.format === "uld" ? {
                           uld_set_duration_seconds: Number.isFinite(dur) && dur >= 10 ? dur : undefined,
                           uld_max_offline: editUldMaxOffline.trim() === "" ? null : (Number.isFinite(maxOff) && maxOff > 0 ? maxOff : undefined),
-                          uld_logo_file: editUldLogoFile,
-                          remove_uld_logo: removeUldLogo,
-                          uld_location_logo_file: editUldLocationLogoFile,
-                          remove_uld_location_logo: removeUldLocationLogo,
                         } : {}),
                       });
                       setEditOpen(false);
@@ -307,6 +310,7 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                   >Save changes</Button>
                 </DialogFooter>
               </DialogContent>
+            </Dialog>
             </Dialog>
           )}
           {!isCompleted && (
