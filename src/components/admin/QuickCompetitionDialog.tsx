@@ -55,6 +55,9 @@ export function QuickCompetitionDialog({
     setRefundsAllowed(false);
     setCategoriesEnabled(false);
     setCategoriesText("Men, Ladies");
+    setLogosMode("single");
+    setOrganizerLogoFile(null);
+    setEventLogoFile(null);
     setUldSets("2");
     setUldShots("6");
     setUldDuration("150");
