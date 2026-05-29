@@ -151,10 +151,14 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
           {comp.logos_mode === "multi" && comp.uld_logo_url && (
-            <img src={comp.uld_logo_url} alt="Organizer" className="h-12 w-auto rounded border bg-white p-1" />
+            <div className="h-12 w-20 flex items-center justify-center rounded border bg-white p-1">
+              <img src={comp.uld_logo_url} alt="Organizer" className="max-h-full max-w-full object-contain" />
+            </div>
           )}
           {comp.logos_mode === "multi" && comp.uld_location_logo_url && (
-            <img src={comp.uld_location_logo_url} alt="Event sponsor" className="h-12 w-auto rounded border bg-white p-1" />
+            <div className="h-12 w-20 flex items-center justify-center rounded border bg-white p-1">
+              <img src={comp.uld_location_logo_url} alt="Event sponsor" className="max-h-full max-w-full object-contain" />
+            </div>
           )}
           {comp.logos_mode !== "multi" && comp.sponsor_enabled && comp.sponsor_logo_url && (
             <img src={comp.sponsor_logo_url} alt="Sponsor" className="h-12 w-auto rounded border bg-white p-1" />
