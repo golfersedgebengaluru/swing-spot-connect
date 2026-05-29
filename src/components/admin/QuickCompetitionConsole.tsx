@@ -311,7 +311,6 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            </Dialog>
           )}
           {!isCompleted && (
             <AlertDialog>
