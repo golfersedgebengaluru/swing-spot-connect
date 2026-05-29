@@ -177,9 +177,10 @@ Deno.serve(async (req) => {
       day: "numeric", month: "long", year: "numeric",
     });
     const compTitle = comp.name;
-    const sponsorLogo = comp.sponsor_enabled ? comp.sponsor_logo_url : null;
-    const uldLogo = comp.format === "uld" ? comp.uld_logo_url : null;
-    const locationLogo = comp.format === "uld" ? comp.uld_location_logo_url : null;
+    const isMulti = (comp as { logos_mode?: string }).logos_mode === "multi";
+    const sponsorLogo = !isMulti && comp.sponsor_enabled ? comp.sponsor_logo_url : null;
+    const uldLogo = isMulti || comp.format === "uld" ? comp.uld_logo_url : null;
+    const locationLogo = isMulti || comp.format === "uld" ? comp.uld_location_logo_url : null;
     const unitLabel = comp.unit === "yd" ? "yards" : "metres";
 
     async function uploadCard(
