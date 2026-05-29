@@ -90,13 +90,13 @@ export default function QuickCompetitionPublic() {
 
   return (
     <div className="min-h-screen bg-white text-stone-900 p-6 sm:p-10">
-      {comp.format === "uld" && (comp.uld_logo_url || comp.uld_location_logo_url) && (
+      {comp.logos_mode === "multi" && (comp.uld_logo_url || comp.uld_location_logo_url) && (
         <div className="flex items-start justify-between mb-6 max-w-7xl mx-auto">
           <div className="h-20 sm:h-28 flex items-center">
-            {comp.uld_logo_url && <img src={comp.uld_logo_url} alt="ULD" className="h-full w-auto object-contain" />}
+            {comp.uld_logo_url && <img src={comp.uld_logo_url} alt="Organizer" className="h-full w-auto object-contain" />}
           </div>
           <div className="h-20 sm:h-28 flex items-center">
-            {comp.uld_location_logo_url && <img src={comp.uld_location_logo_url} alt="Location" className="h-full w-auto object-contain" />}
+            {comp.uld_location_logo_url && <img src={comp.uld_location_logo_url} alt="Event sponsor" className="h-full w-auto object-contain" />}
           </div>
         </div>
       )}
@@ -120,7 +120,7 @@ export default function QuickCompetitionPublic() {
         </div>
       )}
 
-      {comp.sponsor_enabled && comp.sponsor_logo_url && (
+      {comp.logos_mode !== "multi" && comp.sponsor_enabled && comp.sponsor_logo_url && (
         <div className="flex flex-col items-center mb-10">
           <p className="text-xs uppercase tracking-[0.3em] text-stone-500 mb-3">Brought to you by</p>
           <img src={comp.sponsor_logo_url} alt="Sponsor" className="h-20 sm:h-24 object-contain" />
