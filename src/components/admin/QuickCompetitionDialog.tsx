@@ -77,13 +77,18 @@ export function QuickCompetitionDialog({
     const shots = Math.max(1, Math.min(20, parseInt(uldShots, 10) || 6));
     const dur = Math.max(10, Math.min(3600, parseInt(uldDuration, 10) || 150));
     const maxOff = parseFloat(uldMaxOffline);
+    // ULD always uses multi-logo display. Standard format follows the user's toggle.
+    const effectiveLogosMode: "single" | "multi" = format === "uld" ? "multi" : logosMode;
+    // In multi mode, organizer/event files take precedence over ULD-specific inputs (which only render for ULD format).
+    const orgFile = effectiveLogosMode === "multi" ? (format === "uld" ? uldLogoFile : organizerLogoFile) : null;
+    const evtFile = effectiveLogosMode === "multi" ? (format === "uld" ? uldLocationLogoFile : eventLogoFile) : null;
     const result = await create.mutateAsync({
       tenant_id: tenantId,
       name: name.trim(),
       unit,
       max_attempts: n,
-      sponsor_enabled: sponsorEnabled,
-      sponsor_logo_file: sponsorEnabled ? logoFile : null,
+      sponsor_enabled: effectiveLogosMode === "single" ? sponsorEnabled : false,
+      sponsor_logo_file: effectiveLogosMode === "single" && sponsorEnabled ? logoFile : null,
       entry_type: entryType,
       entry_fee: entryType === "paid" ? fee : null,
       entry_currency: "INR",
@@ -95,8 +100,9 @@ export function QuickCompetitionDialog({
       uld_shots_per_set: shots,
       uld_set_duration_seconds: dur,
       uld_max_offline: format === "uld" && Number.isFinite(maxOff) && maxOff > 0 ? maxOff : null,
-      uld_logo_file: format === "uld" ? uldLogoFile : null,
-      uld_location_logo_file: format === "uld" ? uldLocationLogoFile : null,
+      uld_logo_file: orgFile,
+      uld_location_logo_file: evtFile,
+      logos_mode: effectiveLogosMode,
     });
     setOpen(false);
     reset();
