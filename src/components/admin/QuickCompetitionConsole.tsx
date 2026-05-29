@@ -206,8 +206,6 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <Label>Name</Label>
-                    <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
-                  </div>
                   {comp.format === "uld" && (
                     <div className="space-y-3 border rounded-md p-3 bg-muted/30">
                       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">ULD configuration</p>
@@ -222,21 +220,37 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                         </div>
                       </div>
                       <p className="text-[11px] text-muted-foreground">Sets and shots per set are locked once the competition starts.</p>
+                    </div>
+                  )}
+
+                  {comp.format !== "uld" && (
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="lm-toggle" className="cursor-pointer">
+                        Multi-logo display
+                        <span className="block text-xs font-normal text-muted-foreground">Organizer left + event/sponsor right</span>
+                      </Label>
+                      <Switch id="lm-toggle" checked={editLogosMode === "multi"} onCheckedChange={(c) => setEditLogosMode(c ? "multi" : "single")} />
+                    </div>
+                  )}
+
+                  {(editLogosMode === "multi" || comp.format === "uld") && (
+                    <div className="space-y-3 border rounded-md p-3 bg-muted/30">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Header logos</p>
                       <div className="space-y-1">
-                        <Label className="text-xs">ULD logo (top-left)</Label>
+                        <Label className="text-xs">Organizer logo (top-left)</Label>
                         {comp.uld_logo_url && !editUldLogoFile && !removeUldLogo && (
                           <div className="flex items-center gap-2">
-                            <img src={comp.uld_logo_url} alt="ULD" className="h-10 rounded border bg-white p-1" />
+                            <img src={comp.uld_logo_url} alt="Organizer" className="h-10 rounded border bg-white p-1" />
                             <Button type="button" size="sm" variant="ghost" onClick={() => setRemoveUldLogo(true)}>Remove</Button>
                           </div>
                         )}
                         <Input type="file" accept="image/*" onChange={(e) => { setEditUldLogoFile(e.target.files?.[0] ?? null); setRemoveUldLogo(false); }} />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Location / sponsor logo (top-right)</Label>
+                        <Label className="text-xs">Event / sponsor logo (top-right)</Label>
                         {comp.uld_location_logo_url && !editUldLocationLogoFile && !removeUldLocationLogo && (
                           <div className="flex items-center gap-2">
-                            <img src={comp.uld_location_logo_url} alt="Location" className="h-10 rounded border bg-white p-1" />
+                            <img src={comp.uld_location_logo_url} alt="Event sponsor" className="h-10 rounded border bg-white p-1" />
                             <Button type="button" size="sm" variant="ghost" onClick={() => setRemoveUldLocationLogo(true)}>Remove</Button>
                           </div>
                         )}
@@ -244,18 +258,24 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                       </div>
                     </div>
                   )}
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="sp-toggle">Sponsor logo on result cards</Label>
-                    <Switch id="sp-toggle" checked={editSponsorEnabled} onCheckedChange={setEditSponsorEnabled} />
-                  </div>
-                  {editSponsorEnabled && (
-                    <div className="space-y-1.5">
-                      <Label>Upload logo {comp.sponsor_logo_url ? "(replaces current)" : ""}</Label>
-                      <Input type="file" accept="image/*" onChange={(e) => setEditSponsorFile(e.target.files?.[0] ?? null)} />
-                      {comp.sponsor_logo_url && !editSponsorFile && (
-                        <img src={comp.sponsor_logo_url} alt="Current sponsor" className="h-12 mt-2 rounded border bg-white p-1" />
+
+                  {editLogosMode === "single" && comp.format !== "uld" && (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="sp-toggle">Sponsor logo on result cards</Label>
+                        <Switch id="sp-toggle" checked={editSponsorEnabled} onCheckedChange={setEditSponsorEnabled} />
+                      </div>
+                      {editSponsorEnabled && (
+                        <div className="space-y-1.5">
+                          <Label>Upload logo {comp.sponsor_logo_url ? "(replaces current)" : ""}</Label>
+                          <Input type="file" accept="image/*" onChange={(e) => setEditSponsorFile(e.target.files?.[0] ?? null)} />
+                          {comp.sponsor_logo_url && !editSponsorFile && (
+                            <img src={comp.sponsor_logo_url} alt="Current sponsor" className="h-12 mt-2 rounded border bg-white p-1" />
+                          )}
+                        </div>
                       )}
-                    </div>
+                    </>
+                  )}
                   )}
                 </div>
                 <DialogFooter>
