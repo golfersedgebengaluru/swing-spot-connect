@@ -34,6 +34,7 @@ export type QuickCompetition = {
   uld_max_offline: number | null;
   uld_logo_url: string | null;
   uld_location_logo_url: string | null;
+  logos_mode: "single" | "multi";
 };
 
 export type QCWinnerEntry = { player_id: string; player_name: string; value: number; card_url: string | null };
