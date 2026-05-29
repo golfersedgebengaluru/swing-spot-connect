@@ -195,6 +195,7 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                 setEditUldLocationLogoFile(null);
                 setRemoveUldLogo(false);
                 setRemoveUldLocationLogo(false);
+                setEditLogosMode(comp.logos_mode ?? "single");
               }
             }}>
               <DialogTrigger asChild>
