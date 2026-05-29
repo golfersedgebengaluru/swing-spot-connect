@@ -206,6 +206,8 @@ export function QuickCompetitionConsole({ competitionId, onClose }: { competitio
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <Label>Name</Label>
+                    <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+                  </div>
                   {comp.format === "uld" && (
                     <div className="space-y-3 border rounded-md p-3 bg-muted/30">
                       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">ULD configuration</p>
