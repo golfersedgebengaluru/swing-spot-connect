@@ -19,8 +19,10 @@ Deno.serve(async (req) => {
   const signature = req.headers.get("x-razorpay-signature");
 
   if (!signature) {
-    return new Response(JSON.stringify({ error: "Missing signature" }), {
-      status: 400,
+    console.error("[razorpay-webhook] Missing x-razorpay-signature header");
+    // Return 200 so Razorpay does not auto-disable the endpoint on misconfig
+    return new Response(JSON.stringify({ ok: false, error: "Missing signature" }), {
+      status: 200,
       headers: { "Content-Type": "application/json" },
     });
   }
@@ -30,8 +32,9 @@ Deno.serve(async (req) => {
   try {
     payload = JSON.parse(rawBody);
   } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON payload" }), {
-      status: 400,
+    console.error("[razorpay-webhook] Invalid JSON payload");
+    return new Response(JSON.stringify({ ok: false, error: "Invalid JSON payload" }), {
+      status: 200,
       headers: { "Content-Type": "application/json" },
     });
   }
@@ -51,6 +54,7 @@ Deno.serve(async (req) => {
   const notesCity = notes?.city as string | undefined;
 
   let webhookSecret: string | null = null;
+  let secretSource = "none";
 
   if (notesCity) {
     const { data: gateway } = await adminClient
@@ -61,17 +65,22 @@ Deno.serve(async (req) => {
       .eq("is_active", true)
       .single();
     webhookSecret = gateway?.webhook_secret ?? null;
+    if (webhookSecret) secretSource = `payment_gateways:${notesCity}`;
   }
 
   // Fallback to global env var
   if (!webhookSecret) {
     webhookSecret = Deno.env.get("RAZORPAY_WEBHOOK_SECRET") ?? null;
+    if (webhookSecret) secretSource = "env:RAZORPAY_WEBHOOK_SECRET";
   }
 
+  console.log(`[razorpay-webhook] event=${eventType} order=${razorpayOrderId} city=${notesCity ?? "unknown"} secret_source=${secretSource} secret_len=${webhookSecret?.length ?? 0}`);
+
   if (!webhookSecret) {
-    console.error("No Razorpay webhook secret configured");
-    return new Response(JSON.stringify({ error: "Webhook secret not configured" }), {
-      status: 500,
+    console.error(`[razorpay-webhook] No webhook secret configured for city=${notesCity ?? "unknown"}`);
+    // Return 200 — don't let Razorpay auto-disable; admin must fix config
+    return new Response(JSON.stringify({ ok: false, error: "Webhook secret not configured", city: notesCity ?? null }), {
+      status: 200,
       headers: { "Content-Type": "application/json" },
     });
   }
@@ -91,22 +100,23 @@ Deno.serve(async (req) => {
     .join("");
 
   // Constant-time comparison
-  if (computedSignature.length !== signature.length) {
-    return new Response(JSON.stringify({ error: "Invalid signature" }), {
-      status: 403,
+  let sigValid = computedSignature.length === signature.length;
+  if (sigValid) {
+    let diff = 0;
+    for (let i = 0; i < computedSignature.length; i++) {
+      diff |= computedSignature.charCodeAt(i) ^ signature.charCodeAt(i);
+    }
+    sigValid = diff === 0;
+  }
+  if (!sigValid) {
+    console.error(`[razorpay-webhook] Invalid signature for event=${eventType} order=${razorpayOrderId} city=${notesCity ?? "unknown"} secret_source=${secretSource}`);
+    // Return 200 to prevent Razorpay auto-disable; surface the failure in logs instead
+    return new Response(JSON.stringify({ ok: false, error: "Invalid signature", city: notesCity ?? null }), {
+      status: 200,
       headers: { "Content-Type": "application/json" },
     });
   }
-  let diff = 0;
-  for (let i = 0; i < computedSignature.length; i++) {
-    diff |= computedSignature.charCodeAt(i) ^ signature.charCodeAt(i);
-  }
-  if (diff !== 0) {
-    return new Response(JSON.stringify({ error: "Invalid signature" }), {
-      status: 403,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+
 
   // Idempotency check — skip already-processed events
   const { data: existing } = await adminClient
