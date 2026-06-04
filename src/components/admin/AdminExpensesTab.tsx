@@ -68,7 +68,7 @@ export function AdminExpensesTab() {
             <ExpensesList city={selectedCity} />
           </TabsContent>
           <TabsContent value="vendors" className="mt-4">
-            <VendorsCard />
+            <VendorsCard city={selectedCity} />
           </TabsContent>
           <TabsContent value="advances" className="mt-4">
             <VendorAdvancesPanel city={selectedCity} />
