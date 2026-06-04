@@ -28,13 +28,13 @@ interface VendorForm {
 
 const emptyForm: VendorForm = { name: "", contact_name: "", phone: "", email: "", gstin: "", category: "", notes: "" };
 
-export function VendorsCard() {
+export function VendorsCard({ city: cityProp }: { city?: string } = {}) {
   const { toast } = useToast();
   const { selectedCity: globalCity } = useAdminCity();
   const { isAdmin, assignedCities } = useAdmin();
   const { data: allCities } = useAllCities();
   const cities = isAdmin ? allCities : (allCities ?? []).filter((c) => assignedCities.includes(c));
-  const city = globalCity || cities?.[0] || "";
+  const city = cityProp || globalCity || cities?.[0] || "";
 
   const { data: vendors, isLoading } = useVendors(city);
   const createVendor = useCreateVendor();

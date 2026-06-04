@@ -62,7 +62,7 @@ export function AdminReportsTab() {
 
       {showProfitability && (
         <TabsContent value="profitability">
-          <ProductProfitabilityReport city={globalCity || undefined} />
+          <ProductProfitabilityReport city={effectiveCity || undefined} />
         </TabsContent>
       )}
     </Tabs>
