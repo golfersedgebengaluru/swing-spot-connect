@@ -296,7 +296,19 @@ export function AdminRevenueTab() {
             { bg: "bg-rose-100", text: "text-rose-800" },
             { bg: "bg-blue-100", text: "text-blue-800" },
           ];
-          return displayCategories.map((cat, i) => (
+          // Append any extra categories present in summary (e.g. "Other", or
+          // product categories beyond the fixed five) so tiles always reconcile
+          // with Total Revenue.
+          const knownKeys = new Set(displayCategories.map((c) => c.key));
+          const extras = Object.keys(summary?.byCategory ?? {})
+            .filter((k) => !knownKeys.has(k) && (summary?.byCategory?.[k] ?? 0) > 0)
+            .sort();
+          const extraColor = { bg: "bg-slate-100", text: "text-slate-800" };
+          const allCats = [
+            ...displayCategories.map((c, i) => ({ ...c, color: catColors[i] })),
+            ...extras.map((k) => ({ label: k, key: k, color: extraColor })),
+          ];
+          return allCats.map((cat) => (
             <Card key={cat.key}>
               <CardContent className="p-3">
                 <div className="flex items-start justify-between gap-2">
@@ -306,8 +318,8 @@ export function AdminRevenueTab() {
                       {loadingSummary ? "…" : `${currencySymbol}${(summary?.byCategory?.[cat.key] ?? 0).toLocaleString()}`}
                     </p>
                   </div>
-                  <div className={`rounded-lg ${catColors[i].bg} p-1.5 shrink-0`}>
-                    <CreditCard className={`h-4 w-4 ${catColors[i].text}`} />
+                  <div className={`rounded-lg ${cat.color.bg} p-1.5 shrink-0`}>
+                    <CreditCard className={`h-4 w-4 ${cat.color.text}`} />
                   </div>
                 </div>
               </CardContent>
