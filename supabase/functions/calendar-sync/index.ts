@@ -1223,7 +1223,10 @@ Deno.serve(async (req) => {
 
       const isCoaching = session_type === "coaching";
       const needsApproval = isCoaching && coachingMode === "approval_required";
-      const hoursNeeded = isCoaching ? coachingHours : duration_minutes / 60;
+      const durationHours = duration_minutes / 60;
+      // Coaching: coaching_hours is the per-hour multiplier (e.g. 2 means 2h deducted per 1h booked).
+      // Scale by actual booking duration so multi-hour coaching sessions deduct correctly.
+      const hoursNeeded = isCoaching ? coachingHours * durationHours : durationHours;
 
       // Only check/deduct balance for non-pending, non-gateway-paid bookings
       if (!needsApproval && !paidViaGateway) {
