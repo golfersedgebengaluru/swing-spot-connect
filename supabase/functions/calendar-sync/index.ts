@@ -1223,7 +1223,10 @@ Deno.serve(async (req) => {
 
       const isCoaching = session_type === "coaching";
       const needsApproval = isCoaching && coachingMode === "approval_required";
-      const hoursNeeded = isCoaching ? coachingHours : duration_minutes / 60;
+      const durationHours = duration_minutes / 60;
+      // Coaching: coaching_hours is the per-hour multiplier (e.g. 2 means 2h deducted per 1h booked).
+      // Scale by actual booking duration so multi-hour coaching sessions deduct correctly.
+      const hoursNeeded = isCoaching ? coachingHours * durationHours : durationHours;
 
       // Only check/deduct balance for non-pending, non-gateway-paid bookings
       if (!needsApproval && !paidViaGateway) {
@@ -1585,7 +1588,8 @@ Deno.serve(async (req) => {
       // Get the calendar's timezone for consistent formatting
       const calTz = calendarEmail ? await getCalendarTimezone(accessToken, calendarEmail) : "UTC";
 
-      const hoursNeeded = booking.session_type === "coaching" ? coachingHours : booking.duration_minutes / 60;
+      const durationHoursApprove = booking.duration_minutes / 60;
+      const hoursNeeded = booking.session_type === "coaching" ? coachingHours * durationHoursApprove : durationHoursApprove;
 
       // Check balance
       const { data: hours } = await adminClient
@@ -1887,10 +1891,12 @@ Deno.serve(async (req) => {
       let hoursRefunded = 0;
       if (booking.status === "confirmed") {
         const isCoaching = booking.session_type === "coaching";
-        // For coaching: use configurable cancellation refund hours (capped at coaching_hours); for practice: refund actual duration
+        const durationHoursCancel = booking.duration_minutes / 60;
+        // Coaching: refund cap is per-hour (capped at coaching_hours), then scaled by duration.
+        // Practice: refund full duration.
         const hoursToRefund = isCoaching
-          ? Math.min(coachingCancellationRefundHours ?? coachingHours, coachingHours)
-          : booking.duration_minutes / 60;
+          ? Math.min(coachingCancellationRefundHours ?? coachingHours, coachingHours) * durationHoursCancel
+          : durationHoursCancel;
         hoursRefunded = hoursToRefund;
 
         const { data: memberHours } = await adminClient
