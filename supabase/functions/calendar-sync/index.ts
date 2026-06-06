@@ -1891,10 +1891,12 @@ Deno.serve(async (req) => {
       let hoursRefunded = 0;
       if (booking.status === "confirmed") {
         const isCoaching = booking.session_type === "coaching";
-        // For coaching: use configurable cancellation refund hours (capped at coaching_hours); for practice: refund actual duration
+        const durationHoursCancel = booking.duration_minutes / 60;
+        // Coaching: refund cap is per-hour (capped at coaching_hours), then scaled by duration.
+        // Practice: refund full duration.
         const hoursToRefund = isCoaching
-          ? Math.min(coachingCancellationRefundHours ?? coachingHours, coachingHours)
-          : booking.duration_minutes / 60;
+          ? Math.min(coachingCancellationRefundHours ?? coachingHours, coachingHours) * durationHoursCancel
+          : durationHoursCancel;
         hoursRefunded = hoursToRefund;
 
         const { data: memberHours } = await adminClient
