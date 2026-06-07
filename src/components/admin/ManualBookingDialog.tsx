@@ -901,7 +901,9 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
               <p className="text-sm text-muted-foreground">
                 ₹{currentPrice.price_per_hour}/hr · Total: <span className="font-medium text-foreground">₹{totalCost.toLocaleString()}</span>
               </p>
+            )}
             </fieldset>
+
 
             <Button className="w-full" disabled={!canProceedFromSlot} onClick={() => setStep("payment")}>
               Next: Payment <ArrowRight className="ml-2 h-4 w-4" />
