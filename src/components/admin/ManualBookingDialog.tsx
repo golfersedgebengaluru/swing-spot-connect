@@ -52,8 +52,8 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
   const { data: bays } = useBays();
   const { data: bayPricing } = useBayPricing();
   const { data: offlineMethods } = useOfflinePaymentMethods();
-  const { data: products } = useProducts();
-  const createInvoice = useCreateInvoice();
+  // products / createInvoice no longer needed — see comment near imports
+
   const { data: cities = [] } = useCities();
   const { selectedCity: globalCity } = useAdminCity();
   const { isAdmin, assignedCities } = useAdmin();
