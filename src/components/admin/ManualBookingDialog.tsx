@@ -40,9 +40,11 @@ type PaymentMode = "manual" | "hours";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  participantOf?: any | null; // when set, dialog adds a participant to this existing booking
 }
 
-export function ManualBookingDialog({ open, onOpenChange }: Props) {
+export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props) {
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
