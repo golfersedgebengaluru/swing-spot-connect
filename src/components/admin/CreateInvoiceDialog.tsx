@@ -33,7 +33,7 @@ function useProductCatalogue() {
   return useQuery({
     queryKey: ["products", "catalogue"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("products").select("*").order("sort_order");
+      const { data, error } = await (supabase.from as any)("products_public").select("*").order("sort_order");
       if (error) throw error;
       return data ?? [];
     },
