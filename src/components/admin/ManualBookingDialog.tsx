@@ -369,6 +369,8 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
             user_id_override: customerUserId || undefined,
             billing_status: isCorporate ? "deferred" : "immediate",
             backdated: isBackdated,
+            parent_booking_id: participantOf?.id || null,
+
           },
         });
         if (res.error) {
