@@ -1186,7 +1186,9 @@ Deno.serve(async (req) => {
     // list_slots is handled above (before auth check) — this block is intentionally removed
 
     if (action === "create_booking") {
-      const { start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type, payment_method, user_id_override } = params;
+      const { start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type, payment_method, user_id_override, parent_booking_id } = params;
+      const isParticipant = !!parent_booking_id;
+
       let { calendar_email } = params;
 
       // If an admin/site_admin is booking on behalf of a member, use their user_id
