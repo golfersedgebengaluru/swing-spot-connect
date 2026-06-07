@@ -5,7 +5,6 @@ const PERMISSION_KEYS = [
   "site_admin_expense_reports_visible",
   "site_admin_pnl_visible",
   "site_admin_product_profitability_visible",
-  "site_admin_cost_price_visible",
 ] as const;
 
 export type SiteAdminPermissions = Record<string, boolean>;
