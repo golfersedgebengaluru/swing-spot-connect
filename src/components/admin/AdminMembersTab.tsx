@@ -240,8 +240,10 @@ export function AdminMembersTab() {
       type: data.type,
       hours: data.hours,
       note: data.note || null,
+      reason: data.reason || null,
+      service_date: data.type === "deduction" ? data.service_date : null,
       created_by: user?.id,
-    }).select("id").single();
+    } as any).select("id").single();
 
     // Create revenue transaction for purchase-type adjustments
     if (data.type === "purchase") {
