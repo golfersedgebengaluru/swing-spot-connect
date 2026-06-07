@@ -8,6 +8,7 @@ import { Loader2, Search, ArrowUpDown } from "lucide-react";
 import { useAllProducts } from "@/hooks/useProducts";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { useProductCategories } from "@/hooks/useProductCategories";
+import { useProductCostPrices } from "@/hooks/useCostPrice";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -20,6 +21,8 @@ export function ProductProfitabilityReport({ city }: Props) {
   const { data: products, isLoading } = useAllProducts();
   const currency = useDefaultCurrency();
   const { data: categories } = useProductCategories();
+  const productIds = useMemo(() => (products ?? []).map((p: any) => p.id), [products]);
+  const { data: costPriceMap } = useProductCostPrices(productIds.length ? productIds : undefined);
 
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -56,7 +59,7 @@ export function ProductProfitabilityReport({ city }: Props) {
     return list
       .map((p) => {
         const sellingPrice = Number(p.price) || 0;
-        const costPrice = Number(p.cost_price) || 0;
+        const costPrice = costPriceMap?.get(p.id) ?? 0;
         const margin = sellingPrice - costPrice;
         const marginPct = sellingPrice > 0 ? (margin / sellingPrice) * 100 : 0;
         return {
@@ -77,7 +80,7 @@ export function ProductProfitabilityReport({ city }: Props) {
         const mult = sortDir === "desc" ? -1 : 1;
         return (a[sortBy] - b[sortBy]) * mult;
       });
-  }, [products, city, categoryFilter, search, sortBy, sortDir]);
+  }, [products, city, categoryFilter, search, sortBy, sortDir, costPriceMap]);
 
   const totalRevenuePotential = rows.reduce((s, r) => s + r.sellingPrice, 0);
   const totalCost = rows.reduce((s, r) => s + r.costPrice, 0);

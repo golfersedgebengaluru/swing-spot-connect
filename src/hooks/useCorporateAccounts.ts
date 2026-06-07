@@ -181,8 +181,7 @@ export function useCorporateProducts(corporateAccountId?: string | null) {
     queryKey: ["corporate_products", corporateAccountId],
     enabled: !!corporateAccountId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
+      const { data, error } = await (supabase.from as any)("products_public")
         .select("*")
         .eq("corporate_account_id", corporateAccountId!)
         .order("name");

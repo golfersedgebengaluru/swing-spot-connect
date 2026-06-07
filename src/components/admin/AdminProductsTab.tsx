@@ -16,6 +16,7 @@ import { ProductForm } from "@/components/admin/ProductForm";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useCities } from "@/hooks/useBookings";
 import { useAdminCity } from "@/contexts/AdminCityContext";
+import { useProductCostPrices, useSetProductCostPrice } from "@/hooks/useCostPrice";
 
 const CSV_HEADERS = ["name", "description", "price", "cost_price", "category", "item_type", "sku", "unit_of_measure", "hsn_code", "sac_code", "gst_rate", "in_stock", "opening_stock", "reorder_level", "reorder_quantity", "duration_minutes", "bookable", "city"];
 
@@ -82,11 +83,32 @@ export function AdminProductsTab() {
     return list;
   }, [products, effectiveCityFilter, isAdmin, isSiteAdmin, assignedCities, searchQuery]);
 
+  const setCostPriceMut = useSetProductCostPrice();
+  const productIds = useMemo(() => (products ?? []).map((p: any) => p.id), [products]);
+  const { data: costPriceMap } = useProductCostPrices(productIds.length ? productIds : undefined);
+
   const handleSave = async (data: any) => {
-    const { error } = editingProduct?.id
-      ? await supabase.from("products").update(data).eq("id", editingProduct.id)
-      : await supabase.from("products").insert(data);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    // Extract the pending cost_price (set via RPC since column is REVOKED)
+    const pendingCost = data.__cost_price_pending;
+    delete data.__cost_price_pending;
+
+    let savedId: string | undefined = editingProduct?.id;
+    if (savedId) {
+      const { error } = await supabase.from("products").update(data).eq("id", savedId);
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    } else {
+      const { data: ins, error } = await supabase.from("products").insert(data).select("id").single();
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      savedId = ins?.id;
+    }
+
+    if (savedId && typeof pendingCost === "number") {
+      try { await setCostPriceMut.mutateAsync({ id: savedId, cost: pendingCost }); }
+      catch (err: any) {
+        toast({ title: "Cost price not saved", description: err.message, variant: "destructive" });
+      }
+    }
+
     toast({ title: editingProduct?.id ? "Product updated" : "Product created" });
     queryClient.invalidateQueries({ queryKey: ["products"] });
     setEditingProduct(null);
@@ -106,7 +128,12 @@ export function AdminProductsTab() {
   const handleExport = () => {
     if (!filteredProducts.length) return;
     const rows = filteredProducts.map((p: any) => CSV_HEADERS.map((h) => {
-      const val = p[h];
+      let val: any;
+      if (h === "cost_price") {
+        val = costPriceMap?.get(p.id) ?? "";
+      } else {
+        val = p[h];
+      }
       if (val === null || val === undefined) return "";
       const str = String(val);
       return str.includes(",") || str.includes('"') || str.includes("\n") ? `"${str.replace(/"/g, '""')}"` : str;
@@ -142,7 +169,9 @@ export function AdminProductsTab() {
         });
         if (!row.name) continue;
         row.price = Number(row.price) || 0;
-        row.cost_price = Number(row.cost_price) || 0;
+        const pendingCost = row.cost_price !== undefined && row.cost_price !== "" ? Number(row.cost_price) || 0 : null;
+        delete row.cost_price; // column is REVOKED; set via RPC after row insert/update
+        row.__pending_cost = pendingCost;
         row.gst_rate = Number(row.gst_rate) || 0;
         row.in_stock = row.in_stock === undefined || row.in_stock === "" || row.in_stock === "true" || row.in_stock === "TRUE" || row.in_stock === "1";
         row.bookable = row.bookable === "true" || row.bookable === "TRUE" || row.bookable === "1";
@@ -172,28 +201,40 @@ export function AdminProductsTab() {
       // Upsert by SKU if available, otherwise insert (append)
       let upserted = 0;
       let inserted = 0;
+      let costFailed = 0;
       for (const row of rows) {
+        const pendingCost: number | null = row.__pending_cost;
+        delete row.__pending_cost;
+        let savedId: string | undefined;
         if (row.sku) {
           const { data: existing } = await supabase.from("products").select("id").eq("sku", row.sku).maybeSingle();
           if (existing) {
             const { error } = await supabase.from("products").update(row).eq("id", existing.id);
             if (error) throw error;
+            savedId = existing.id;
             upserted++;
           } else {
-            const { error } = await supabase.from("products").insert(row);
+            const { data: ins, error } = await supabase.from("products").insert(row).select("id").single();
             if (error) throw error;
+            savedId = ins?.id;
             inserted++;
           }
         } else {
-          const { error } = await supabase.from("products").insert(row);
+          const { data: ins, error } = await supabase.from("products").insert(row).select("id").single();
           if (error) throw error;
+          savedId = ins?.id;
           inserted++;
+        }
+        if (savedId && pendingCost !== null) {
+          try { await setCostPriceMut.mutateAsync({ id: savedId, cost: pendingCost }); }
+          catch { costFailed++; }
         }
       }
       queryClient.invalidateQueries({ queryKey: ["products"] });
       const parts = [];
       if (inserted > 0) parts.push(`${inserted} added`);
       if (upserted > 0) parts.push(`${upserted} updated`);
+      if (costFailed > 0) parts.push(`${costFailed} cost prices skipped (not authorized)`);
       toast({ title: "Imported", description: parts.join(", ") + "." });
     } catch (err: any) {
       toast({ title: "Import failed", description: err.message, variant: "destructive" });

@@ -20,11 +20,6 @@ const permissionItems = [
     label: "Product Profitability",
     description: "Allow site admins to view the Product Profitability report under Reports",
   },
-  {
-    key: "site_admin_cost_price_visible",
-    label: "Product Cost Price",
-    description: "Allow site admins to see and edit cost prices in the Products module",
-  },
 ];
 
 export function SiteAdminPermissionsCard() {
