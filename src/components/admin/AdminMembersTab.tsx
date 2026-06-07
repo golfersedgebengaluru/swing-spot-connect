@@ -42,9 +42,20 @@ function TransactionHistory({ userId }: { userId: string }) {
 
 // MemberHoursForm removed — hours are now managed via the Adjust button only
 
+const ADJUST_REASONS = ["Correction", "Comp", "Refund", "Walk-in", "Missed booking", "Other"] as const;
+
 function AdjustHoursForm({ member, onSave, onCancel }: { member: any; onSave: (data: any) => void; onCancel: () => void }) {
-  const [form, setForm] = useState({ type: "deduction" as string, hours: 0, note: "" });
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const [form, setForm] = useState({ type: "deduction" as string, hours: 0, note: "", reason: "" as string, service_date: todayISO });
   const remaining = member.hours_purchased - member.hours_used;
+  const isDeduction = form.type === "deduction";
+  const nudgeManualBooking = isDeduction && (form.reason === "Walk-in" || form.reason === "Missed booking");
+  const noteTrimmed = form.note.trim();
+  const canConfirm =
+    form.hours > 0 &&
+    !!form.reason &&
+    noteTrimmed.length > 0 &&
+    (!isDeduction || !!form.service_date);
   return (
     <div className="space-y-4">
       <div className="rounded-lg bg-muted p-3">
@@ -63,10 +74,34 @@ function AdjustHoursForm({ member, onSave, onCancel }: { member: any; onSave: (d
         </Select>
       </div>
       <div><Label>Hours</Label><Input type="number" step="0.5" min="0" value={form.hours || ""} onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })} /></div>
-      <div><Label>Note (optional)</Label><Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="e.g. Bay session 2hrs" /></div>
+      <div>
+        <Label>Reason <span className="text-destructive">*</span></Label>
+        <Select value={form.reason} onValueChange={(v) => setForm({ ...form, reason: v })}>
+          <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
+          <SelectContent>
+            {ADJUST_REASONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      {nudgeManualBooking && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
+          For walk-ins or missed entries, prefer <strong>Manual Booking</strong> with a back-dated date — it creates a proper booking record, invoice, and "My Bookings" entry. Use this form only if no booking row is needed.
+        </div>
+      )}
+      {isDeduction && (
+        <div>
+          <Label>Service Date <span className="text-destructive">*</span></Label>
+          <Input type="date" max={todayISO} value={form.service_date} onChange={(e) => setForm({ ...form, service_date: e.target.value })} />
+          <p className="mt-1 text-xs text-muted-foreground">When were the hours actually used?</p>
+        </div>
+      )}
+      <div>
+        <Label>Note <span className="text-destructive">*</span></Label>
+        <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Details for the audit trail" />
+      </div>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button onClick={() => onSave(form)} disabled={form.hours <= 0}>Confirm</Button>
+        <Button onClick={() => onSave({ ...form, note: noteTrimmed })} disabled={!canConfirm}>Confirm</Button>
       </div>
     </div>
   );
