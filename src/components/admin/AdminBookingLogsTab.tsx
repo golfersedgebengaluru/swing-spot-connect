@@ -73,6 +73,8 @@ export function AdminBookingLogsTab() {
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
   const [manualBookingOpen, setManualBookingOpen] = useState(false);
+  const [participantOf, setParticipantOf] = useState<any | null>(null);
+
 
   // Auto-apply filters from URL params (e.g. from notification click)
   useEffect(() => {
