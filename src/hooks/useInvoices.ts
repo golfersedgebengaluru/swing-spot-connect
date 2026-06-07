@@ -364,7 +364,13 @@ export function useCreateInvoice() {
       }
 
       // 7. If booking category, create a booking record
-      if (params.invoiceCategory === "booking" && params.bookingDate && params.bookingStartTime && params.bookingEndTime) {
+      if (params.invoiceCategory === "booking") {
+        if (!params.bookingDate || !params.bookingStartTime || !params.bookingEndTime) {
+          throw new Error(
+            "Booking date, start time and end time are required when invoice category is 'Booking'."
+          );
+        }
+
         // Build timezone-aware ISO strings so Postgres stores the correct instant.
         // We derive the local UTC offset from the browser so the time the admin typed
         // is treated as local time, not UTC.
@@ -382,8 +388,29 @@ export function useCreateInvoice() {
         const endD = new Date(endDateTime);
         const durationMinutes = Math.max(Math.round((endD.getTime() - startD.getTime()) / 60000), 0);
 
+        const bookingUserId = params.bookingUserId || params.customerUserId || createdProfileId || null;
+
+        // Duplicate guard — refuse if a confirmed/completed booking already exists
+        // for the same user + bay + start_time (prevents accounting duplicates).
+        if (bookingUserId && params.bookingBayId) {
+          const { data: existing } = await supabase
+            .from("bookings")
+            .select("id, status")
+            .eq("user_id", bookingUserId)
+            .eq("bay_id", params.bookingBayId)
+            .eq("start_time", startD.toISOString())
+            .in("status", ["confirmed", "completed", "pending"])
+            .maybeSingle();
+          if (existing) {
+            throw new Error(
+              `A booking already exists for this customer at this bay & time (status: ${existing.status}). ` +
+              `Refusing to create a duplicate. If you intended a second session, change the time or bay.`
+            );
+          }
+        }
+
         const bookingPayload: Record<string, any> = {
-          user_id: params.bookingUserId || params.customerUserId || createdProfileId || null,
+          user_id: bookingUserId,
           city: params.city,
           start_time: startDateTime,
           end_time: endDateTime,
@@ -410,6 +437,7 @@ export function useCreateInvoice() {
           .update({ booking_id: booking.id })
           .eq("id", revTxn.id);
       }
+
 
       return invoice;
     },
