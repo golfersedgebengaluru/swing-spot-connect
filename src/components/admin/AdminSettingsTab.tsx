@@ -21,6 +21,7 @@ import { InvoiceSettingsCard } from "@/components/admin/InvoiceSettingsCard";
 import { VendorsCard } from "@/components/admin/VendorsCard";
 import { ExpenseCategoriesCard } from "@/components/admin/ExpenseCategoriesCard";
 import { SiteAdminPermissionsCard } from "@/components/admin/SiteAdminPermissionsCard";
+import { CityCostPriceAccessCard } from "@/components/admin/CityCostPriceAccessCard";
 
 const pageVisibilityItems = [
   { key: "page_events_visible", label: "Events", description: "Show the Events tab in navigation" },
@@ -589,6 +590,7 @@ export function AdminSettingsTab() {
     <div className="space-y-6">
       <BrandingSettingsCard />
       <SiteAdminPermissionsCard />
+      <CityCostPriceAccessCard />
       <AdminRolesManager />
       <FinancialYearSettingsSection />
       <InvoiceSettingsCard />
