@@ -480,6 +480,45 @@ export function useUpdateInvoice() {
   return useMutation({
     mutationFn: async (params: UpdateInvoiceParams) => {
       const { invoiceId, lineItems, ...invoiceFields } = params;
+
+      // Guard: if invoice category is being changed TO "booking", make sure a
+      // booking row exists for this invoice. We never silently flip the category
+      // without a matching booking — that's how phantom-booking invoices were
+      // being created previously (see Jonas duplicate, invoice 1130).
+      if (invoiceFields.invoiceCategory === "booking") {
+        const { data: current } = await supabase
+          .from("invoices")
+          .select("invoice_category, invoice_number, revenue_transaction_id")
+          .eq("id", invoiceId)
+          .maybeSingle();
+        const wasBooking = current?.invoice_category === "booking";
+        if (!wasBooking) {
+          let hasBooking = false;
+          if (current?.revenue_transaction_id) {
+            const { data: rev } = await supabase
+              .from("revenue_transactions")
+              .select("booking_id")
+              .eq("id", current.revenue_transaction_id)
+              .maybeSingle();
+            if (rev?.booking_id) hasBooking = true;
+          }
+          if (!hasBooking && current?.invoice_number) {
+            const { data: matched } = await supabase
+              .from("bookings")
+              .select("id")
+              .eq("note", `Invoice ${current.invoice_number}`)
+              .maybeSingle();
+            if (matched?.id) hasBooking = true;
+          }
+          if (!hasBooking) {
+            throw new Error(
+              "Cannot change invoice category to 'Booking' — no booking record is linked to this invoice. " +
+              "Use 'Back-fill booking' from the invoice view, or cancel this invoice and re-issue it via Create Invoice → Booking."
+            );
+          }
+        }
+      }
+
       const updatePayload: Record<string, any> = {};
       if (invoiceFields.customerName !== undefined) updatePayload.customer_name = invoiceFields.customerName;
       if (invoiceFields.customerEmail !== undefined) updatePayload.customer_email = invoiceFields.customerEmail || null;
@@ -505,6 +544,7 @@ export function useUpdateInvoice() {
         const { error } = await supabase.from("invoices").update(updatePayload).eq("id", invoiceId);
         if (error) throw error;
       }
+
 
       if (lineItems) {
         await supabase.from("invoice_line_items").delete().eq("invoice_id", invoiceId);
