@@ -380,75 +380,16 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
         }
         if (res.data?.error) throw new Error(res.data.error);
 
-        // Skip per-session invoice for corporate (issued at month-end as consolidated invoice)
-        if (isCorporate) {
-          // no-op for invoice / advance drawdown
-        } else {
+        // NOTE: We intentionally do NOT call `createInvoice` here for non-corporate
+        // manual bookings. The DB trigger `auto_create_invoice_after_revenue` on
+        // `revenue_transactions` automatically generates the tax invoice for the
+        // guest_booking RTX that calendar-sync just inserted (idempotent by
+        // revenue_transaction_id). Calling createInvoice on the client used to
+        // generate a *second* orphan revenue transaction + duplicate invoice
+        // (see Sreekesh Pai / Jonas double-invoice incidents). Corporate
+        // bookings are deferred and get a consolidated monthly invoice; no per-
+        // session invoice is needed here either.
 
-        // Generate invoice
-        try {
-          const linkedPricing = currentPrice as any;
-          const serviceProductId = linkedPricing?.service_product_id;
-          const serviceProduct = serviceProductId ? (products ?? []).find((p: any) => p.id === serviceProductId) : null;
-
-          const itemName = serviceProduct?.name || `${currentBay.name} - ${playerSessionType} session`;
-          const gstRate = serviceProduct?.gst_rate ?? 18;
-          const sacCode = serviceProduct?.sac_code || "";
-          const hsnCode = serviceProduct?.hsn_code || "";
-
-          const { data: gstProfile } = await supabase.from("gst_profiles")
-            .select("state_code")
-            .eq("city", selectedCity)
-            .maybeSingle();
-
-          const gstType = getGstType(gstProfile?.state_code || "", undefined);
-          const lineItems = [{
-            itemName,
-            itemType: "service" as const,
-            hsnCode: hsnCode || undefined,
-            sacCode: sacCode || undefined,
-            quantity: duration / 60,
-            unitPrice: currentPrice?.price_per_hour || totalCost,
-            gstRate,
-          }];
-          const calc = calculateLineItems(lineItems, gstType);
-
-          let revenueTransactionId: string | undefined;
-          if (res.data?.booking?.id) {
-            const { data: revTx } = await supabase
-              .from("revenue_transactions")
-              .select("id")
-              .eq("booking_id", res.data.booking.id)
-              .maybeSingle();
-            revenueTransactionId = revTx?.id;
-          }
-
-          await createInvoice.mutateAsync({
-            customerName: customerName || "",
-            customerEmail: customerEmail || undefined,
-            customerPhone: customerPhone || undefined,
-            lineItems: calc.lines,
-            subtotal: calc.subtotal,
-            cgstTotal: calc.cgstTotal,
-            sgstTotal: calc.sgstTotal,
-            igstTotal: calc.igstTotal,
-            total: calc.total,
-            paymentMethod: selectedPaymentMethod,
-            revenueTransactionId,
-            city: selectedCity,
-            invoiceCategory: "booking",
-            bookingBayId: currentBay.id,
-            bookingSessionType: sessionType,
-            bookingDate: selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined,
-            bookingStartTime: startTime || undefined,
-            bookingEndTime: endTime || undefined,
-            bookingUserId: customerUserId || undefined,
-            customerUserId: customerUserId || undefined,
-          });
-        } catch (invoiceErr: any) {
-          console.error("Invoice generation failed (non-fatal):", invoiceErr);
-        }
-        } // end else (non-corporate invoice)
       }
 
       // Process advance drawdown — skip for corporate (deferred billing)
