@@ -301,6 +301,13 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "bay_pricing_service_product_id_fkey"
+            columns: ["service_product_id"]
+            isOneToOne: false
+            referencedRelation: "products_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       bays: {
@@ -1242,6 +1249,13 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "expense_line_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       expenses: {
@@ -1653,6 +1667,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_line_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_public"
             referencedColumns: ["id"]
           },
         ]
@@ -5096,6 +5117,104 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "public_profiles"
             referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      products_public: {
+        Row: {
+          badge: string | null
+          bookable: boolean | null
+          category: string | null
+          city: string | null
+          colors: string[] | null
+          corporate_account_id: string | null
+          created_at: string | null
+          description: string | null
+          duration_minutes: number | null
+          gst_rate: number | null
+          hsn_code: string | null
+          id: string | null
+          image_url: string | null
+          in_stock: boolean | null
+          item_type: string | null
+          name: string | null
+          opening_stock: number | null
+          price: number | null
+          reorder_level: number | null
+          reorder_quantity: number | null
+          sac_code: string | null
+          sizes: string[] | null
+          sku: string | null
+          sort_order: number | null
+          type: string | null
+          unit_of_measure: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          badge?: string | null
+          bookable?: boolean | null
+          category?: string | null
+          city?: string | null
+          colors?: string[] | null
+          corporate_account_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          gst_rate?: number | null
+          hsn_code?: string | null
+          id?: string | null
+          image_url?: string | null
+          in_stock?: boolean | null
+          item_type?: string | null
+          name?: string | null
+          opening_stock?: number | null
+          price?: number | null
+          reorder_level?: number | null
+          reorder_quantity?: number | null
+          sac_code?: string | null
+          sizes?: string[] | null
+          sku?: string | null
+          sort_order?: number | null
+          type?: string | null
+          unit_of_measure?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          badge?: string | null
+          bookable?: boolean | null
+          category?: string | null
+          city?: string | null
+          colors?: string[] | null
+          corporate_account_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          gst_rate?: number | null
+          hsn_code?: string | null
+          id?: string | null
+          image_url?: string | null
+          in_stock?: boolean | null
+          item_type?: string | null
+          name?: string | null
+          opening_stock?: number | null
+          price?: number | null
+          reorder_level?: number | null
+          reorder_quantity?: number | null
+          sac_code?: string | null
+          sizes?: string[] | null
+          sku?: string | null
+          sort_order?: number | null
+          type?: string | null
+          unit_of_measure?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_corporate_account_id_fkey"
+            columns: ["corporate_account_id"]
+            isOneToOne: false
+            referencedRelation: "corporate_accounts"
+            referencedColumns: ["id"]
           },
         ]
       }
