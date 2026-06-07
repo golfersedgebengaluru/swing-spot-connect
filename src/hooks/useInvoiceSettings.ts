@@ -113,14 +113,37 @@ export function useDeleteCityInvoiceSettings() {
   });
 }
 
+/**
+ * Convert the logo to a base64 data URL and embed it directly in invoice_settings.
+ * Keeps the asset private (no storage bucket dependency), makes PDFs fully
+ * self-contained, and avoids the public-bucket security finding.
+ *
+ * We cap the original file at 500 KB to keep the admin_config/invoice_settings
+ * row reasonable in size (~670 KB encoded worst case).
+ */
+const MAX_LOGO_BYTES = 500 * 1024;
+
 export async function uploadInvoiceLogo(file: File): Promise<string> {
-  const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-  const path = `logo_${Date.now()}.${ext}`;
-  const { error } = await supabase.storage.from("invoice-assets").upload(path, file, {
-    upsert: true,
-    contentType: file.type,
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Logo must be an image file (PNG, JPEG, SVG, or WebP).");
+  }
+  if (file.size > MAX_LOGO_BYTES) {
+    throw new Error(
+      `Logo is too large (${(file.size / 1024).toFixed(0)} KB). Please use an image under 500 KB.`,
+    );
+  }
+
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== "string") {
+        reject(new Error("Failed to read logo file."));
+        return;
+      }
+      resolve(result); // data:<mime>;base64,<...>
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Failed to read logo file."));
+    reader.readAsDataURL(file);
   });
-  if (error) throw error;
-  const { data } = supabase.storage.from("invoice-assets").getPublicUrl(path);
-  return data.publicUrl;
 }
