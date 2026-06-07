@@ -122,20 +122,30 @@ const emptyForm: BayForm = {
 };
 
 export function BayConfigTab() {
-  // Admin-only view: include `calendar_email` (authenticated role has SELECT).
-  // We bypass `useBays()` (which omits the column for the public path).
+  // `calendar_email` column SELECT is revoked from anon/authenticated.
+  // We read non-sensitive bay columns directly and merge calendar_email
+  // via a SECURITY DEFINER RPC that is gated by admin/site_admin role.
   const { data: allBays, isLoading } = useQuery({
     queryKey: ["bays", "admin-with-calendar"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bays")
-        .select("*")
+        .select("id, city, name, sort_order, is_active, open_time, close_time, coaching_mode, coaching_hours, coaching_cancellation_refund_hours, currency, peak_start, peak_end, weekly_off_days, extended_open_time, extended_close_time, extended_hours_enabled, created_at, updated_at")
         .order("city")
         .order("sort_order");
       if (error) throw error;
-      return data as any[];
+
+      // Merge calendar_email for admins (RPC returns rows the caller may see).
+      const { data: emails } = await supabase.rpc("admin_get_bay_calendar_emails" as never);
+      const emailMap = new Map<string, string>(
+        ((emails as { bay_id: string; calendar_email: string | null }[] | null) ?? [])
+          .filter((r) => !!r.calendar_email)
+          .map((r) => [r.bay_id, r.calendar_email as string])
+      );
+      return (data ?? []).map((b) => ({ ...b, calendar_email: emailMap.get(b.id) ?? "" }));
     },
   });
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isAdmin, assignedCities } = useAdmin();
