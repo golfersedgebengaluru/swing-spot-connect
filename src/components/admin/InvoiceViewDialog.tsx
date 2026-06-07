@@ -48,7 +48,17 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
   const currency = useDefaultCurrency();
   const { toast } = useToast();
   const updateInvoice = useUpdateInvoice();
+  const backfillBooking = useBackfillInvoiceBooking();
   const [editing, setEditing] = useState(false);
+
+  // Back-fill booking state (for invoices flagged 'booking' but with no booking row)
+  const [showBackfill, setShowBackfill] = useState(false);
+  const [bfDate, setBfDate] = useState("");
+  const [bfStart, setBfStart] = useState("10:00");
+  const [bfEnd, setBfEnd] = useState("11:00");
+  const [bfBayId, setBfBayId] = useState("");
+  const [bfSession, setBfSession] = useState<"practice" | "coaching">("practice");
+
 
   // Edit form state
   const [customerName, setCustomerName] = useState("");
