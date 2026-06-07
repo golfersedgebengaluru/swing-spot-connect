@@ -680,7 +680,7 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
             )}
 
             <Button className="w-full" disabled={!canProceedFromCustomer} onClick={() => setStep("slot")}>
-              Next: Select Slot <ArrowRight className="ml-2 h-4 w-4" />
+              Next: {isParticipantMode ? "Review Slot" : "Select Slot"} <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         )}
@@ -690,6 +690,16 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
           <div className="space-y-4">
             <Button variant="ghost" size="sm" onClick={() => setStep("customer")}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
+            </Button>
+
+            {isParticipantMode && (
+              <div className="rounded-md border border-primary/30 bg-primary/5 p-2.5 text-xs text-primary">
+                Slot is locked to the parent booking. No calendar event or conflict check — this rides on the existing session.
+              </div>
+            )}
+
+            <fieldset disabled={isParticipantMode} className={cn(isParticipantMode && "opacity-70 pointer-events-none")}>
+
             </Button>
 
             {/* City */}
