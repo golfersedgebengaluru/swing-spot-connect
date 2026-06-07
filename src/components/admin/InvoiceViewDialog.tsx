@@ -125,6 +125,48 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
     ).slice(0, 8);
   }, [catalogue, catalogueSearch]);
 
+  // Detect missing booking row for booking-category invoices
+  const { data: linkedBooking } = useQuery({
+    queryKey: ["invoice-booking-link", invoice?.id],
+    enabled: !!invoice && invoice.invoice_category === "booking",
+    queryFn: async () => {
+      // Check revenue_transactions.booking_id first
+      let bookingId: string | null = null;
+      if (invoice?.revenue_transaction_id) {
+        const { data: rev } = await supabase
+          .from("revenue_transactions")
+          .select("booking_id")
+          .eq("id", invoice.revenue_transaction_id)
+          .maybeSingle();
+        bookingId = (rev as any)?.booking_id || null;
+      }
+      if (!bookingId && invoice?.invoice_number) {
+        const { data: b } = await supabase
+          .from("bookings")
+          .select("id")
+          .eq("note", `Invoice ${invoice.invoice_number}`)
+          .maybeSingle();
+        bookingId = b?.id || null;
+      }
+      return bookingId;
+    },
+  });
+  const missingBooking = invoice?.invoice_category === "booking" && linkedBooking === null;
+
+  // Bays for back-fill panel
+  const { data: cityBays } = useQuery({
+    queryKey: ["bays-for-city", invoice?.city],
+    enabled: !!invoice?.city && showBackfill,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("bays")
+        .select("id, name, is_active")
+        .eq("city", invoice!.city);
+      return (data ?? []).filter((b: any) => b.is_active);
+    },
+  });
+
+
   const handleGstinChange = (val: string) => {
     const upper = val.toUpperCase();
     setCustomerGstin(upper);
