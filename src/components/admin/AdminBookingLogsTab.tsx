@@ -435,6 +435,16 @@ export function AdminBookingLogsTab() {
                         🚫 Cancel
                       </Badge>
                     )}
+                    {b.status === "confirmed" && !b.parent_booking_id && (
+                      <Badge
+                        onClick={() => { setParticipantOf(b); setManualBookingOpen(true); }}
+                        className="cursor-pointer mt-1 ml-1 bg-primary/10 text-primary border-primary/30 hover:bg-primary/20 text-[10px] px-1.5 py-0"
+                        variant="outline"
+                      >
+                        <UserPlus className="h-2.5 w-2.5 mr-0.5" /> Add Participant
+                      </Badge>
+                    )}
+
                     {b.status === "rejected" && b.note && (
                       <span className="text-[10px] text-muted-foreground italic">"{b.note}"</span>
                     )}
