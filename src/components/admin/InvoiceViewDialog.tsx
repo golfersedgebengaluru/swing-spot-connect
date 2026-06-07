@@ -644,7 +644,92 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
                   )}
                 </div>
               )}
+
+              {/* Back-fill booking panel (only when invoice is 'booking' category but has no booking row) */}
+              {missingBooking && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">⚠ No booking record linked</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        This invoice is categorised as a Booking but no booking row exists. Back-fill one so it shows in Booking Logs.
+                      </p>
+                    </div>
+                    {!showBackfill && (
+                      <Button size="sm" variant="outline" onClick={() => setShowBackfill(true)}>
+                        Back-fill booking
+                      </Button>
+                    )}
+                  </div>
+                  {showBackfill && (
+                    <div className="space-y-3 pt-2 border-t border-amber-200 dark:border-amber-900">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs">Date</Label>
+                          <Input type="date" value={bfDate} onChange={(e) => setBfDate(e.target.value)} className="mt-1" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Bay</Label>
+                          <Select value={bfBayId} onValueChange={setBfBayId}>
+                            <SelectTrigger className="mt-1"><SelectValue placeholder="Select bay" /></SelectTrigger>
+                            <SelectContent>
+                              {(cityBays ?? []).map((b: any) => (
+                                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Start time</Label>
+                          <Input type="time" value={bfStart} onChange={(e) => setBfStart(e.target.value)} className="mt-1" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">End time</Label>
+                          <Input type="time" value={bfEnd} onChange={(e) => setBfEnd(e.target.value)} className="mt-1" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Session type</Label>
+                          <Select value={bfSession} onValueChange={(v) => setBfSession(v as "practice" | "coaching")}>
+                            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="practice">Practice</SelectItem>
+                              <SelectItem value="coaching">Coaching</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <Button variant="outline" size="sm" onClick={() => setShowBackfill(false)}>Cancel</Button>
+                        <Button size="sm" disabled={backfillBooking.isPending} onClick={async () => {
+                          if (!bfDate) {
+                            toast({ title: "Select a date", variant: "destructive" });
+                            return;
+                          }
+                          try {
+                            await backfillBooking.mutateAsync({
+                              invoiceId: invoice.id,
+                              bookingDate: bfDate,
+                              bookingStartTime: bfStart,
+                              bookingEndTime: bfEnd,
+                              bookingBayId: bfBayId || undefined,
+                              bookingSessionType: bfSession,
+                            });
+                            toast({ title: "Booking created", description: "Now visible in Booking Logs." });
+                            setShowBackfill(false);
+                          } catch (err: any) {
+                            toast({ title: "Back-fill failed", description: err.message, variant: "destructive" });
+                          }
+                        }}>
+                          {backfillBooking.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                          Create booking
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
+
           )
         ) : null}
       </DialogContent>
