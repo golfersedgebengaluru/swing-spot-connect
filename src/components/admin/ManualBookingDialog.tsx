@@ -700,7 +700,7 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
 
             <fieldset disabled={isParticipantMode} className={cn(isParticipantMode && "opacity-70 pointer-events-none")}>
 
-            </Button>
+
 
             {/* City */}
             <div>
