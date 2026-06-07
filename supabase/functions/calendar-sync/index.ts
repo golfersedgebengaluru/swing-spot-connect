@@ -1257,30 +1257,33 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Check no overlap with existing bookings for this specific bay (both confirmed and pending block slots)
-      const overlapQuery = adminClient
-        .from("bookings")
-        .select("*")
-        .in("status", ["confirmed", "pending"])
-        .gt("end_time", start_time)
-        .lt("start_time", end_time);
+      // Check no overlap with existing bookings for this specific bay (both confirmed and pending block slots).
+      // Skip overlap check for participant add-ons — they ride on an existing booking's slot.
+      if (!isParticipant) {
+        const overlapQuery = adminClient
+          .from("bookings")
+          .select("*")
+          .in("status", ["confirmed", "pending"])
+          .gt("end_time", start_time)
+          .lt("start_time", end_time);
 
-      if (bay_id) {
-        overlapQuery.eq("bay_id", bay_id);
-      } else {
-        overlapQuery.eq("city", city);
+        if (bay_id) {
+          overlapQuery.eq("bay_id", bay_id);
+        } else {
+          overlapQuery.eq("city", city);
+        }
+
+        const { data: existingBookings } = await overlapQuery;
+
+        if (existingBookings && existingBookings.length > 0) {
+          return new Response(
+            JSON.stringify({ error: "This slot is no longer available. Please refresh and try again." }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
 
-      const { data: existingBookings } = await overlapQuery;
-
-      if (existingBookings && existingBookings.length > 0) {
-        return new Response(
-          JSON.stringify({ error: "This slot is no longer available. Please refresh and try again." }),
-          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Create calendar event
+      // Create calendar event — skip for participant add-ons (parent already has the event)
       const bayLabel = bay_name || city;
       const calSummary = needsApproval
         ? `⏳ Pending Coaching Approval - ${display_name || "Member"}`
@@ -1289,10 +1292,15 @@ Deno.serve(async (req) => {
         ? `Pending coaching approval for ${display_name || "Member"} via Golfer's Edge`
         : `Booked by ${display_name || "Member"} via Golfer's Edge${isCoaching ? " - Coaching Session" : ""}`;
 
-      const calEvent = await createEvent(accessToken, calendar_email, calSummary, start_time, end_time, calTz, calDesc);
+      let calEventId: string | null = null;
+      if (!isParticipant) {
+        const calEvent = await createEvent(accessToken, calendar_email, calSummary, start_time, end_time, calTz, calDesc);
+        calEventId = calEvent.id;
+      }
 
       // Create booking record
       const bookingStatus = needsApproval ? "pending" : "confirmed";
+      const noteSuffix = isParticipant ? "[Participant add-on]" : null;
       const bookingInsert: any = {
         user_id: bookingUserId,
         city,
@@ -1300,10 +1308,13 @@ Deno.serve(async (req) => {
         end_time,
         duration_minutes,
         status: bookingStatus,
-        calendar_event_id: calEvent.id,
+        calendar_event_id: calEventId,
         session_type: session_type || "practice",
+        parent_booking_id: parent_booking_id || null,
+        note: noteSuffix,
       };
       if (bay_id) bookingInsert.bay_id = bay_id;
+
 
       const { data: booking, error: bookingError } = await adminClient.from("bookings").insert(bookingInsert).select().single();
       if (bookingError) throw bookingError;
