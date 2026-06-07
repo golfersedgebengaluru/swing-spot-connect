@@ -846,8 +846,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Check for overlapping bookings (skip for backdated accounting entries)
-      if (!isBackdated) {
+      // Check for overlapping bookings (skip for backdated accounting entries
+      // and for participant add-ons that ride on an existing booking's slot).
+      if (!isBackdated && !isParticipant) {
         const overlapQuery = adminClient
           .from("bookings")
           .select("id")
@@ -865,6 +866,7 @@ Deno.serve(async (req) => {
           );
         }
       }
+
 
       // Resolve bracket tag: corporate name's first word if profile is corporate-linked, else "Guest"
       const bracketTag = await resolveCorporateTag(adminClient, user_id_override ?? null, "Guest");
