@@ -100,6 +100,22 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
     if (globalCity) setSelectedCity(globalCity);
   }, [globalCity]);
 
+  const isParticipantMode = !!participantOf;
+
+  // Prefill slot fields from the parent booking when adding a participant.
+  useEffect(() => {
+    if (!open || !participantOf) return;
+    setSelectedCity(participantOf.city || "");
+    if (participantOf.bay_id) setSelectedBayId(participantOf.bay_id);
+    const start = new Date(participantOf.start_time);
+    setSelectedDate(start);
+    setStartHour(String(start.getHours()).padStart(2, "0"));
+    setStartMinute(String(start.getMinutes()).padStart(2, "0"));
+    setDuration(participantOf.duration_minutes || 60);
+    setSessionType(participantOf.session_type || "practice");
+  }, [open, participantOf]);
+
+
   const cityBays = useMemo(() => (bays ?? []).filter((b: any) => b.city === selectedCity && b.is_active), [bays, selectedCity]);
   const effectiveBayId = cityBays.length === 1 ? cityBays[0]?.id : selectedBayId;
   const currentBay = cityBays.find((b: any) => b.id === effectiveBayId);
