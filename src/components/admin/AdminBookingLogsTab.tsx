@@ -231,7 +231,12 @@ export function AdminBookingLogsTab() {
       </Button>
     </div>
 
-    <ManualBookingDialog open={manualBookingOpen} onOpenChange={setManualBookingOpen} />
+    <ManualBookingDialog
+      open={manualBookingOpen}
+      onOpenChange={(o) => { setManualBookingOpen(o); if (!o) setParticipantOf(null); }}
+      participantOf={participantOf}
+    />
+
 
     <Card>
       <CardHeader>
