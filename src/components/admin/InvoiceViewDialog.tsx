@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Printer, Loader2, Pencil, Save, X, Plus, Trash2, Search, CheckCircle, XCircle, CalendarIcon } from "lucide-react";
-import { useInvoiceWithItems, useUpdateInvoice } from "@/hooks/useInvoices";
+import { useInvoiceWithItems, useUpdateInvoice, useBackfillInvoiceBooking } from "@/hooks/useInvoices";
 import { useOfflinePaymentMethods } from "@/hooks/useOfflinePaymentMethods";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { useToast } from "@/hooks/use-toast";
