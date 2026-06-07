@@ -933,6 +933,7 @@ Deno.serve(async (req) => {
       // Insert booking
       const noteParts = [`Guest: ${guest_name} | ${guest_email} | ${guest_phone}`];
       if (isBackdated) noteParts.push("[Backdated accounting entry]");
+      if (isParticipant) noteParts.push("[Participant add-on]");
       const { data: booking, error: bookingError } = await adminClient
         .from("bookings")
         .insert({
@@ -947,9 +948,11 @@ Deno.serve(async (req) => {
           calendar_event_id: calendarEventId,
           note: noteParts.join(" "),
           billing_status: isDeferred ? "deferred" : "immediate",
+          parent_booking_id: parent_booking_id || null,
         })
         .select()
         .single();
+
 
       if (bookingError) throw bookingError;
 
