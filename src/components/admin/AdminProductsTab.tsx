@@ -128,7 +128,12 @@ export function AdminProductsTab() {
   const handleExport = () => {
     if (!filteredProducts.length) return;
     const rows = filteredProducts.map((p: any) => CSV_HEADERS.map((h) => {
-      const val = p[h];
+      let val: any;
+      if (h === "cost_price") {
+        val = costPriceMap?.get(p.id) ?? "";
+      } else {
+        val = p[h];
+      }
       if (val === null || val === undefined) return "";
       const str = String(val);
       return str.includes(",") || str.includes('"') || str.includes("\n") ? `"${str.replace(/"/g, '""')}"` : str;
@@ -164,7 +169,9 @@ export function AdminProductsTab() {
         });
         if (!row.name) continue;
         row.price = Number(row.price) || 0;
-        row.cost_price = Number(row.cost_price) || 0;
+        const pendingCost = row.cost_price !== undefined && row.cost_price !== "" ? Number(row.cost_price) || 0 : null;
+        delete row.cost_price; // column is REVOKED; set via RPC after row insert/update
+        row.__pending_cost = pendingCost;
         row.gst_rate = Number(row.gst_rate) || 0;
         row.in_stock = row.in_stock === undefined || row.in_stock === "" || row.in_stock === "true" || row.in_stock === "TRUE" || row.in_stock === "1";
         row.bookable = row.bookable === "true" || row.bookable === "TRUE" || row.bookable === "1";
@@ -194,28 +201,40 @@ export function AdminProductsTab() {
       // Upsert by SKU if available, otherwise insert (append)
       let upserted = 0;
       let inserted = 0;
+      let costFailed = 0;
       for (const row of rows) {
+        const pendingCost: number | null = row.__pending_cost;
+        delete row.__pending_cost;
+        let savedId: string | undefined;
         if (row.sku) {
           const { data: existing } = await supabase.from("products").select("id").eq("sku", row.sku).maybeSingle();
           if (existing) {
             const { error } = await supabase.from("products").update(row).eq("id", existing.id);
             if (error) throw error;
+            savedId = existing.id;
             upserted++;
           } else {
-            const { error } = await supabase.from("products").insert(row);
+            const { data: ins, error } = await supabase.from("products").insert(row).select("id").single();
             if (error) throw error;
+            savedId = ins?.id;
             inserted++;
           }
         } else {
-          const { error } = await supabase.from("products").insert(row);
+          const { data: ins, error } = await supabase.from("products").insert(row).select("id").single();
           if (error) throw error;
+          savedId = ins?.id;
           inserted++;
+        }
+        if (savedId && pendingCost !== null) {
+          try { await setCostPriceMut.mutateAsync({ id: savedId, cost: pendingCost }); }
+          catch { costFailed++; }
         }
       }
       queryClient.invalidateQueries({ queryKey: ["products"] });
       const parts = [];
       if (inserted > 0) parts.push(`${inserted} added`);
       if (upserted > 0) parts.push(`${upserted} updated`);
+      if (costFailed > 0) parts.push(`${costFailed} cost prices skipped (not authorized)`);
       toast({ title: "Imported", description: parts.join(", ") + "." });
     } catch (err: any) {
       toast({ title: "Import failed", description: err.message, variant: "destructive" });
