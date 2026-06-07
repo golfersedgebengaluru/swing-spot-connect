@@ -9,8 +9,8 @@ import { useProductCategories } from "@/hooks/useProductCategories";
 import { useUnitsOfMeasure } from "@/hooks/useUnitsOfMeasure";
 import { useCities } from "@/hooks/useBookings";
 import { useAdmin } from "@/hooks/useAdmin";
-import { useSiteAdminPermissions } from "@/hooks/useSiteAdminPermissions";
 import { useCorporateAccounts } from "@/hooks/useCorporateAccounts";
+import { useProductCostPrices, useSetProductCostPrice, useCityCostPriceAccess } from "@/hooks/useCostPrice";
 
 function generateSKU(itemType: string) {
   const prefix = itemType === "service" ? "SVC" : "PRD";
@@ -28,9 +28,10 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const { data: units } = useUnitsOfMeasure();
   const { data: cities } = useCities();
   const { isAdmin, isSiteAdmin, assignedCities } = useAdmin();
-  const { data: permissions } = useSiteAdminPermissions();
   const { data: corporateAccounts } = useCorporateAccounts(false);
-  const showCostPrice = isAdmin || (isSiteAdmin && permissions?.site_admin_cost_price_visible);
+  const { data: cityCostAccess } = useCityCostPriceAccess();
+  const { data: costPriceMap } = useProductCostPrices(product?.id ? [product.id] : undefined);
+  const setCostPrice = useSetProductCostPrice();
 
   const [form, setForm] = useState({
     name: product?.name ?? "",
