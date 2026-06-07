@@ -524,7 +524,7 @@ export function AdminAllUsersTab() {
     }
   };
 
-  const handleInlineAdjustHours = async (userId: string, data: { type: string; hours: number; note: string }) => {
+  const handleInlineAdjustHours = async (userId: string, data: { type: string; hours: number; note: string; reason: string; service_date: string | null }) => {
     try {
       const { data: existing } = await supabase
         .from("member_hours")
@@ -546,8 +546,14 @@ export function AdminAllUsersTab() {
       }
 
       await supabase.from("hours_transactions").insert({
-        user_id: userId, type: data.type, hours: data.hours, note: data.note || null, created_by: user?.id,
-      });
+        user_id: userId,
+        type: data.type,
+        hours: data.hours,
+        note: data.note || null,
+        reason: data.reason || null,
+        service_date: data.type === "deduction" ? data.service_date : null,
+        created_by: user?.id,
+      } as any);
 
       if (data.type === "deduction") {
         const remaining = existing ? existing.hours_purchased - (existing.hours_used + data.hours) : -data.hours;
