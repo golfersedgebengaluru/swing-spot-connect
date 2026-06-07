@@ -553,7 +553,7 @@ export function AdminAllUsersTab() {
         reason: data.reason || null,
         service_date: data.type === "deduction" ? data.service_date : null,
         created_by: user?.id,
-      } as any);
+      });
 
       if (data.type === "deduction") {
         const remaining = existing ? existing.hours_purchased - (existing.hours_used + data.hours) : -data.hours;
