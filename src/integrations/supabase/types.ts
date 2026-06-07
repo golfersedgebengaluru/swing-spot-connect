@@ -464,6 +464,27 @@ export type Database = {
           },
         ]
       }
+      city_cost_price_access: {
+        Row: {
+          city: string
+          enabled: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          city: string
+          enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          city?: string
+          enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       coach_students: {
         Row: {
           assigned_by: string | null
@@ -5127,6 +5148,10 @@ export type Database = {
           city: string
         }[]
       }
+      admin_set_product_cost_price: {
+        Args: { p_cost: number; p_id: string }
+        Returns: undefined
+      }
       age_years: { Args: { _dob: string }; Returns: number }
       auto_create_invoice_for_revenue: {
         Args: { p_revenue_id: string }
@@ -5186,6 +5211,13 @@ export type Database = {
           p_start?: number
         }
         Returns: string
+      }
+      get_product_cost_prices: {
+        Args: { p_ids?: string[] }
+        Returns: {
+          cost_price: number
+          id: string
+        }[]
       }
       get_user_tenant_ids: { Args: { _user_id: string }; Returns: string[] }
       get_vendor_advance_balance: {
