@@ -24,9 +24,10 @@ import { useOfflinePaymentMethods } from "@/hooks/useOfflinePaymentMethods";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCreateInvoice } from "@/hooks/useInvoices";
-import { calculateLineItems, getGstType } from "@/lib/gst-utils";
-import { useProducts } from "@/hooks/useProducts";
+// useCreateInvoice / calculateLineItems / useProducts removed — the DB trigger
+// `auto_create_invoice_after_revenue` now generates the invoice for manual
+// bookings. Keeping this client-side call caused duplicate orphan invoices.
+
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAdvanceBalance, useDrawdownAdvance } from "@/hooks/useAdvanceAccount";
