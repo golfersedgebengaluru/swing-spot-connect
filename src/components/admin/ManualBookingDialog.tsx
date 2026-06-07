@@ -554,8 +554,15 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
-          <DialogTitle>Manual Booking</DialogTitle>
+          <DialogTitle>{isParticipantMode ? "Add Participant" : "Manual Booking"}</DialogTitle>
+          {isParticipantMode && participantOf && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Joining: {participantOf.display_name || "Booking"} · {participantOf.city}
+              {participantOf.bay_name ? ` · ${participantOf.bay_name}` : ""} · {format(new Date(participantOf.start_time), "PP h:mm a")}
+            </p>
+          )}
         </DialogHeader>
+
 
         {/* Step Indicator */}
         <div className="flex items-center gap-1.5 mb-4">
