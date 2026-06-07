@@ -879,3 +879,123 @@ export function useReassignInvoiceCity() {
     },
   });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Back-fill: create a booking row for an existing 'booking'-category invoice
+// that has no linked booking (e.g. invoice was originally created as Purchase
+// then later edited to Booking, or imported from legacy data).
+// ─────────────────────────────────────────────────────────────────────────────
+export interface BackfillBookingParams {
+  invoiceId: string;
+  bookingDate: string;       // yyyy-mm-dd
+  bookingStartTime: string;  // HH:mm
+  bookingEndTime: string;    // HH:mm
+  bookingBayId?: string;
+  bookingSessionType?: "practice" | "coaching";
+  bookingCoachName?: string;
+}
+
+export function useBackfillInvoiceBooking() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: BackfillBookingParams) => {
+      const { data: invoice, error: invErr } = await supabase
+        .from("invoices")
+        .select("id, invoice_number, city, customer_user_id, invoice_category, revenue_transaction_id")
+        .eq("id", params.invoiceId)
+        .maybeSingle();
+      if (invErr) throw invErr;
+      if (!invoice) throw new Error("Invoice not found.");
+      if (invoice.invoice_category !== "booking") {
+        throw new Error("Only invoices with category 'Booking' can have a booking back-filled.");
+      }
+
+      // Refuse if a booking is already linked
+      if (invoice.revenue_transaction_id) {
+        const { data: rev } = await supabase
+          .from("revenue_transactions")
+          .select("booking_id")
+          .eq("id", invoice.revenue_transaction_id)
+          .maybeSingle();
+        if (rev?.booking_id) {
+          throw new Error("A booking is already linked to this invoice.");
+        }
+      }
+      const { data: byNote } = await supabase
+        .from("bookings")
+        .select("id")
+        .eq("note", `Invoice ${invoice.invoice_number}`)
+        .maybeSingle();
+      if (byNote?.id) {
+        throw new Error("A booking with this invoice's number already exists.");
+      }
+
+      // Build local-time ISO strings
+      const tzOffset = (() => {
+        const d = new Date(`${params.bookingDate}T${params.bookingStartTime}:00`);
+        const off = -d.getTimezoneOffset();
+        const sign = off >= 0 ? "+" : "-";
+        const hh = String(Math.floor(Math.abs(off) / 60)).padStart(2, "0");
+        const mm = String(Math.abs(off) % 60).padStart(2, "0");
+        return `${sign}${hh}:${mm}`;
+      })();
+      const startDateTime = `${params.bookingDate}T${params.bookingStartTime}:00${tzOffset}`;
+      const endDateTime = `${params.bookingDate}T${params.bookingEndTime}:00${tzOffset}`;
+      const startD = new Date(startDateTime);
+      const endD = new Date(endDateTime);
+      const durationMinutes = Math.max(Math.round((endD.getTime() - startD.getTime()) / 60000), 0);
+
+      // Duplicate guard (same customer/bay/start)
+      if (invoice.customer_user_id && params.bookingBayId) {
+        const { data: existing } = await supabase
+          .from("bookings")
+          .select("id, status")
+          .eq("user_id", invoice.customer_user_id)
+          .eq("bay_id", params.bookingBayId)
+          .eq("start_time", startD.toISOString())
+          .in("status", ["confirmed", "completed", "pending"])
+          .maybeSingle();
+        if (existing) {
+          throw new Error(
+            `A booking already exists for this customer/bay/time (status: ${existing.status}). Cannot back-fill a duplicate.`
+          );
+        }
+      }
+
+      const bookingPayload: Record<string, any> = {
+        user_id: invoice.customer_user_id || null,
+        city: invoice.city,
+        start_time: startDateTime,
+        end_time: endDateTime,
+        duration_minutes: durationMinutes,
+        status: "confirmed",
+        session_type: params.bookingSessionType || "practice",
+        note: `Invoice ${invoice.invoice_number}`,
+      };
+      if (params.bookingBayId) bookingPayload.bay_id = params.bookingBayId;
+      if (params.bookingCoachName) bookingPayload.coach_name = params.bookingCoachName;
+
+      const { data: booking, error: bookErr } = await supabase
+        .from("bookings")
+        .insert(bookingPayload as any)
+        .select()
+        .single();
+      if (bookErr) throw bookErr;
+
+      if (invoice.revenue_transaction_id) {
+        await supabase
+          .from("revenue_transactions")
+          .update({ booking_id: booking.id })
+          .eq("id", invoice.revenue_transaction_id);
+      }
+
+      return booking;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: ["all_bookings"] });
+      qc.invalidateQueries({ queryKey: ["revenue_transactions"] });
+    },
+  });
+}
+
