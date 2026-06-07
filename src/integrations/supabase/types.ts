@@ -5113,6 +5113,20 @@ export type Database = {
       }
     }
     Functions: {
+      admin_get_bay_calendar_emails: {
+        Args: never
+        Returns: {
+          bay_id: string
+          calendar_email: string
+        }[]
+      }
+      admin_get_bay_config_calendar_emails: {
+        Args: never
+        Returns: {
+          calendar_email: string
+          city: string
+        }[]
+      }
       age_years: { Args: { _dob: string }; Returns: number }
       auto_create_invoice_for_revenue: {
         Args: { p_revenue_id: string }
