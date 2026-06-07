@@ -243,7 +243,7 @@ export function AdminMembersTab() {
       reason: data.reason || null,
       service_date: data.type === "deduction" ? data.service_date : null,
       created_by: user?.id,
-    } as any).select("id").single();
+    }).select("id").single();
 
     // Create revenue transaction for purchase-type adjustments
     if (data.type === "purchase") {
