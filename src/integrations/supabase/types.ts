@@ -1509,33 +1509,50 @@ export type Database = {
       }
       hours_transactions: {
         Row: {
+          booking_id: string | null
           created_at: string
           created_by: string | null
           hours: number
           id: string
           note: string | null
+          reason: string | null
+          service_date: string | null
           type: string
           user_id: string
         }
         Insert: {
+          booking_id?: string | null
           created_at?: string
           created_by?: string | null
           hours: number
           id?: string
           note?: string | null
+          reason?: string | null
+          service_date?: string | null
           type: string
           user_id: string
         }
         Update: {
+          booking_id?: string | null
           created_at?: string
           created_by?: string | null
           hours?: number
           id?: string
           note?: string | null
+          reason?: string | null
+          service_date?: string | null
           type?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "hours_transactions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invoice_line_items: {
         Row: {

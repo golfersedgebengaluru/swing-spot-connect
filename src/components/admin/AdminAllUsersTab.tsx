@@ -260,8 +260,19 @@ function InlineAllocatePointsForm({ displayName, onSave, onCancel }: { displayNa
   );
 }
 
-function InlineAdjustHoursForm({ displayName, hoursRemaining, onSave, onCancel }: { displayName: string; hoursRemaining: number; onSave: (data: { type: string; hours: number; note: string }) => void; onCancel: () => void }) {
-  const [form, setForm] = useState({ type: "purchase", hours: 0, note: "" });
+const INLINE_ADJUST_REASONS = ["Correction", "Comp", "Refund", "Walk-in", "Missed booking", "Other"] as const;
+
+function InlineAdjustHoursForm({ displayName, hoursRemaining, onSave, onCancel }: { displayName: string; hoursRemaining: number; onSave: (data: { type: string; hours: number; note: string; reason: string; service_date: string | null }) => void; onCancel: () => void }) {
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const [form, setForm] = useState({ type: "purchase", hours: 0, note: "", reason: "", service_date: todayISO });
+  const isDeduction = form.type === "deduction";
+  const nudge = isDeduction && (form.reason === "Walk-in" || form.reason === "Missed booking");
+  const noteTrimmed = form.note.trim();
+  const canConfirm =
+    form.hours > 0 &&
+    !!form.reason &&
+    noteTrimmed.length > 0 &&
+    (!isDeduction || !!form.service_date);
   return (
     <div className="space-y-4">
       <div className="rounded-lg bg-muted p-3">
@@ -280,10 +291,39 @@ function InlineAdjustHoursForm({ displayName, hoursRemaining, onSave, onCancel }
         </Select>
       </div>
       <div><Label>Hours</Label><Input type="number" step="0.5" min="0" value={form.hours || ""} onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })} /></div>
-      <div><Label>Note (optional)</Label><Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="e.g. Bay session 2hrs" /></div>
+      <div>
+        <Label>Reason <span className="text-destructive">*</span></Label>
+        <Select value={form.reason} onValueChange={(v) => setForm({ ...form, reason: v })}>
+          <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
+          <SelectContent>
+            {INLINE_ADJUST_REASONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      {nudge && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
+          For walk-ins or missed entries, prefer <strong>Manual Booking</strong> (back-dated) — it creates a proper booking, invoice, and "My Bookings" entry. Use this form only when no booking row is needed.
+        </div>
+      )}
+      {isDeduction && (
+        <div>
+          <Label>Service Date <span className="text-destructive">*</span></Label>
+          <Input type="date" max={todayISO} value={form.service_date} onChange={(e) => setForm({ ...form, service_date: e.target.value })} />
+          <p className="mt-1 text-xs text-muted-foreground">When were the hours actually used?</p>
+        </div>
+      )}
+      <div>
+        <Label>Note <span className="text-destructive">*</span></Label>
+        <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Details for the audit trail" />
+      </div>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button onClick={() => onSave(form)} disabled={form.hours <= 0}>Confirm</Button>
+        <Button
+          onClick={() => onSave({ ...form, note: noteTrimmed, service_date: isDeduction ? form.service_date : null })}
+          disabled={!canConfirm}
+        >
+          Confirm
+        </Button>
       </div>
     </div>
   );
@@ -484,7 +524,7 @@ export function AdminAllUsersTab() {
     }
   };
 
-  const handleInlineAdjustHours = async (userId: string, data: { type: string; hours: number; note: string }) => {
+  const handleInlineAdjustHours = async (userId: string, data: { type: string; hours: number; note: string; reason: string; service_date: string | null }) => {
     try {
       const { data: existing } = await supabase
         .from("member_hours")
@@ -506,7 +546,13 @@ export function AdminAllUsersTab() {
       }
 
       await supabase.from("hours_transactions").insert({
-        user_id: userId, type: data.type, hours: data.hours, note: data.note || null, created_by: user?.id,
+        user_id: userId,
+        type: data.type,
+        hours: data.hours,
+        note: data.note || null,
+        reason: data.reason || null,
+        service_date: data.type === "deduction" ? data.service_date : null,
+        created_by: user?.id,
       });
 
       if (data.type === "deduction") {
