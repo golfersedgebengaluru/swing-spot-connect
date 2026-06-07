@@ -334,6 +334,8 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
             display_name: customerName,
             user_id_override: targetUserId,
             payment_method: "hours",
+            parent_booking_id: participantOf?.id || null,
+
           },
         });
         if (res.error) {
