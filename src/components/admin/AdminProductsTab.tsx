@@ -16,6 +16,7 @@ import { ProductForm } from "@/components/admin/ProductForm";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useCities } from "@/hooks/useBookings";
 import { useAdminCity } from "@/contexts/AdminCityContext";
+import { useProductCostPrices, useSetProductCostPrice } from "@/hooks/useCostPrice";
 
 const CSV_HEADERS = ["name", "description", "price", "cost_price", "category", "item_type", "sku", "unit_of_measure", "hsn_code", "sac_code", "gst_rate", "in_stock", "opening_stock", "reorder_level", "reorder_quantity", "duration_minutes", "bookable", "city"];
 
@@ -82,11 +83,32 @@ export function AdminProductsTab() {
     return list;
   }, [products, effectiveCityFilter, isAdmin, isSiteAdmin, assignedCities, searchQuery]);
 
+  const setCostPriceMut = useSetProductCostPrice();
+  const productIds = useMemo(() => (products ?? []).map((p: any) => p.id), [products]);
+  const { data: costPriceMap } = useProductCostPrices(productIds.length ? productIds : undefined);
+
   const handleSave = async (data: any) => {
-    const { error } = editingProduct?.id
-      ? await supabase.from("products").update(data).eq("id", editingProduct.id)
-      : await supabase.from("products").insert(data);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    // Extract the pending cost_price (set via RPC since column is REVOKED)
+    const pendingCost = data.__cost_price_pending;
+    delete data.__cost_price_pending;
+
+    let savedId: string | undefined = editingProduct?.id;
+    if (savedId) {
+      const { error } = await supabase.from("products").update(data).eq("id", savedId);
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    } else {
+      const { data: ins, error } = await supabase.from("products").insert(data).select("id").single();
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      savedId = ins?.id;
+    }
+
+    if (savedId && typeof pendingCost === "number") {
+      try { await setCostPriceMut.mutateAsync({ id: savedId, cost: pendingCost }); }
+      catch (err: any) {
+        toast({ title: "Cost price not saved", description: err.message, variant: "destructive" });
+      }
+    }
+
     toast({ title: editingProduct?.id ? "Product updated" : "Product created" });
     queryClient.invalidateQueries({ queryKey: ["products"] });
     setEditingProduct(null);
