@@ -41,7 +41,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     in_stock: product?.in_stock ?? true,
     sku: product?.sku ?? "",
     unit_of_measure: product?.unit_of_measure ?? "Each",
-    cost_price: product?.cost_price ?? 0,
+    cost_price: 0,
     price: product?.price ?? 0,
     hsn_code: product?.hsn_code ?? "",
     sac_code: product?.sac_code ?? "",
@@ -54,6 +54,20 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     city: product?.city ?? (isSiteAdmin && assignedCities.length === 1 ? assignedCities[0] : ""),
     corporate_account_id: product?.corporate_account_id ?? null,
   });
+
+  // Cost-price visibility: admin always; site admin only if their city has access enabled
+  const effectiveCity = form.city || product?.city || null;
+  const showCostPrice = isAdmin || (
+    isSiteAdmin && !!effectiveCity && (cityCostAccess?.[effectiveCity] === true)
+  );
+
+  // Load existing cost price via RPC (column is locked at DB level)
+  useEffect(() => {
+    if (product?.id && costPriceMap?.has(product.id)) {
+      setForm((f) => ({ ...f, cost_price: costPriceMap.get(product.id) ?? 0 }));
+    }
+  }, [product?.id, costPriceMap]);
+
 
   // Price toggle: true = inclusive entry, false = exclusive entry
   const [priceInclusive, setPriceInclusive] = useState(true);
@@ -110,13 +124,15 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
 
   const isProduct = form.item_type === "product";
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Determine city value
     const cityValue = isAdmin
       ? (form.city === "" || form.city === "all" ? null : form.city)
       : (form.city || (assignedCities.length === 1 ? assignedCities[0] : null));
 
-    onSave({
+    // cost_price is NOT included here — the column is REVOKED from authenticated;
+    // it must be set via admin_set_product_cost_price RPC after the row is saved.
+    const payload: any = {
       name: form.name,
       description: form.description || null,
       category: form.category,
@@ -125,7 +141,6 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
       in_stock: form.in_stock,
       sku: form.sku || null,
       unit_of_measure: form.unit_of_measure,
-      cost_price: Number(form.cost_price) || 0,
       price: Number(form.price) || 0,
       hsn_code: isProduct ? (form.hsn_code || null) : null,
       sac_code: !isProduct ? (form.sac_code || null) : null,
@@ -141,8 +156,17 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
       sizes: null,
       colors: null,
       sort_order: 0,
-    });
+    };
+
+    // Pass the optional cost_price as a separate hidden field for the parent
+    // to apply via RPC if the user is allowed to set it.
+    if (showCostPrice) {
+      payload.__cost_price_pending = Number(form.cost_price) || 0;
+    }
+
+    await onSave(payload);
   };
+
 
   return (
     <div className="space-y-4">
