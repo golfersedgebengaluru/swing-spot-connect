@@ -814,10 +814,13 @@ Deno.serve(async (req) => {
         user_id_override,
         billing_status, // 'deferred' for corporate monthly customers
         backdated, // true for corporate accounting entries in the past
+        parent_booking_id, // set when adding a participant to an existing booking
       } = params;
       let { calendar_email } = params;
       const isDeferred = billing_status === "deferred";
       const isBackdated = backdated === true;
+      const isParticipant = !!parent_booking_id;
+
 
       const adminClient = createAdminClient();
 
