@@ -269,7 +269,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
         {showCostPrice && (
           <div>
             <Label>Cost Price</Label>
-            <Input type="number" step="0.01" min={0} value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} />
+            <Input type="number" step="0.01" min={0} value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: Number(e.target.value) || 0 })} />
           </div>
         )}
       </div>
