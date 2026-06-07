@@ -871,10 +871,11 @@ Deno.serve(async (req) => {
       // Resolve bracket tag: corporate name's first word if profile is corporate-linked, else "Guest"
       const bracketTag = await resolveCorporateTag(adminClient, user_id_override ?? null, "Guest");
 
-      // Try to create Google Calendar event (skip if no service account configured, or if backdated)
+      // Try to create Google Calendar event (skip if no service account configured,
+      // if backdated, or if this is a participant add-on — parent already has the event).
       let calendarEventId: string | null = null;
       const serviceAccountKeyStr = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
-      if (!isBackdated && serviceAccountKeyStr && calendar_email) {
+      if (!isBackdated && !isParticipant && serviceAccountKeyStr && calendar_email) {
         try {
           const serviceAccountKey = JSON.parse(serviceAccountKeyStr);
           const accessToken = await getAccessToken(serviceAccountKey);
@@ -888,6 +889,7 @@ Deno.serve(async (req) => {
           console.error("Calendar event creation failed (non-fatal for guest):", e);
         }
       }
+
 
       // If user_id_override is provided (admin booking for existing member), use it directly
       let guestUserId = "00000000-0000-0000-0000-000000000000";
