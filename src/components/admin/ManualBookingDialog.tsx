@@ -40,9 +40,11 @@ type PaymentMode = "manual" | "hours";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  participantOf?: any | null; // when set, dialog adds a participant to this existing booking
 }
 
-export function ManualBookingDialog({ open, onOpenChange }: Props) {
+export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props) {
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -97,6 +99,22 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
   useEffect(() => {
     if (globalCity) setSelectedCity(globalCity);
   }, [globalCity]);
+
+  const isParticipantMode = !!participantOf;
+
+  // Prefill slot fields from the parent booking when adding a participant.
+  useEffect(() => {
+    if (!open || !participantOf) return;
+    setSelectedCity(participantOf.city || "");
+    if (participantOf.bay_id) setSelectedBayId(participantOf.bay_id);
+    const start = new Date(participantOf.start_time);
+    setSelectedDate(start);
+    setStartHour(String(start.getHours()).padStart(2, "0"));
+    setStartMinute(String(start.getMinutes()).padStart(2, "0"));
+    setDuration(participantOf.duration_minutes || 60);
+    setSessionType(participantOf.session_type || "practice");
+  }, [open, participantOf]);
+
 
   const cityBays = useMemo(() => (bays ?? []).filter((b: any) => b.city === selectedCity && b.is_active), [bays, selectedCity]);
   const effectiveBayId = cityBays.length === 1 ? cityBays[0]?.id : selectedBayId;
@@ -316,6 +334,8 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             display_name: customerName,
             user_id_override: targetUserId,
             payment_method: "hours",
+            parent_booking_id: participantOf?.id || null,
+
           },
         });
         if (res.error) {
@@ -349,6 +369,8 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             user_id_override: customerUserId || undefined,
             billing_status: isCorporate ? "deferred" : "immediate",
             backdated: isBackdated,
+            parent_booking_id: participantOf?.id || null,
+
           },
         });
         if (res.error) {
@@ -532,8 +554,15 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
-          <DialogTitle>Manual Booking</DialogTitle>
+          <DialogTitle>{isParticipantMode ? "Add Participant" : "Manual Booking"}</DialogTitle>
+          {isParticipantMode && participantOf && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Joining: {participantOf.display_name || "Booking"} · {participantOf.city}
+              {participantOf.bay_name ? ` · ${participantOf.bay_name}` : ""} · {format(new Date(participantOf.start_time), "PP h:mm a")}
+            </p>
+          )}
         </DialogHeader>
+
 
         {/* Step Indicator */}
         <div className="flex items-center gap-1.5 mb-4">
@@ -651,7 +680,7 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             )}
 
             <Button className="w-full" disabled={!canProceedFromCustomer} onClick={() => setStep("slot")}>
-              Next: Select Slot <ArrowRight className="ml-2 h-4 w-4" />
+              Next: {isParticipantMode ? "Review Slot" : "Select Slot"} <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         )}
@@ -662,6 +691,16 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
             <Button variant="ghost" size="sm" onClick={() => setStep("customer")}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
+
+            {isParticipantMode && (
+              <div className="rounded-md border border-primary/30 bg-primary/5 p-2.5 text-xs text-primary">
+                Slot is locked to the parent booking. No calendar event or conflict check — this rides on the existing session.
+              </div>
+            )}
+
+            <fieldset disabled={isParticipantMode} className={cn(isParticipantMode && "opacity-70 pointer-events-none")}>
+
+
 
             {/* City */}
             <div>
@@ -863,12 +902,15 @@ export function ManualBookingDialog({ open, onOpenChange }: Props) {
                 ₹{currentPrice.price_per_hour}/hr · Total: <span className="font-medium text-foreground">₹{totalCost.toLocaleString()}</span>
               </p>
             )}
+            </fieldset>
+
 
             <Button className="w-full" disabled={!canProceedFromSlot} onClick={() => setStep("payment")}>
               Next: Payment <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         )}
+
 
         {/* STEP 3: Payment */}
         {step === "payment" && (

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ClipboardList, Download, Loader2, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ClipboardList, Download, Loader2, ChevronLeft, ChevronRight, Plus, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAllBookings, useBays, useApproveBooking, useRejectBooking, useAdminCancelBooking, useAllCities } from "@/hooks/useBookings";
 import { ManualBookingDialog } from "./ManualBookingDialog";
@@ -73,6 +73,8 @@ export function AdminBookingLogsTab() {
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
   const [manualBookingOpen, setManualBookingOpen] = useState(false);
+  const [participantOf, setParticipantOf] = useState<any | null>(null);
+
 
   // Auto-apply filters from URL params (e.g. from notification click)
   useEffect(() => {
@@ -229,7 +231,12 @@ export function AdminBookingLogsTab() {
       </Button>
     </div>
 
-    <ManualBookingDialog open={manualBookingOpen} onOpenChange={setManualBookingOpen} />
+    <ManualBookingDialog
+      open={manualBookingOpen}
+      onOpenChange={(o) => { setManualBookingOpen(o); if (!o) setParticipantOf(null); }}
+      participantOf={participantOf}
+    />
+
 
     <Card>
       <CardHeader>
@@ -428,6 +435,16 @@ export function AdminBookingLogsTab() {
                         🚫 Cancel
                       </Badge>
                     )}
+                    {b.status === "confirmed" && !b.parent_booking_id && (
+                      <Badge
+                        onClick={() => { setParticipantOf(b); setManualBookingOpen(true); }}
+                        className="cursor-pointer mt-1 ml-1 bg-primary/10 text-primary border-primary/30 hover:bg-primary/20 text-[10px] px-1.5 py-0"
+                        variant="outline"
+                      >
+                        <UserPlus className="h-2.5 w-2.5 mr-0.5" /> Add Participant
+                      </Badge>
+                    )}
+
                     {b.status === "rejected" && b.note && (
                       <span className="text-[10px] text-muted-foreground italic">"{b.note}"</span>
                     )}

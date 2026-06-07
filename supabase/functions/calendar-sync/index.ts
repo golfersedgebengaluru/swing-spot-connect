@@ -814,10 +814,13 @@ Deno.serve(async (req) => {
         user_id_override,
         billing_status, // 'deferred' for corporate monthly customers
         backdated, // true for corporate accounting entries in the past
+        parent_booking_id, // set when adding a participant to an existing booking
       } = params;
       let { calendar_email } = params;
       const isDeferred = billing_status === "deferred";
       const isBackdated = backdated === true;
+      const isParticipant = !!parent_booking_id;
+
 
       const adminClient = createAdminClient();
 
@@ -843,8 +846,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Check for overlapping bookings (skip for backdated accounting entries)
-      if (!isBackdated) {
+      // Check for overlapping bookings (skip for backdated accounting entries
+      // and for participant add-ons that ride on an existing booking's slot).
+      if (!isBackdated && !isParticipant) {
         const overlapQuery = adminClient
           .from("bookings")
           .select("id")
@@ -863,13 +867,15 @@ Deno.serve(async (req) => {
         }
       }
 
+
       // Resolve bracket tag: corporate name's first word if profile is corporate-linked, else "Guest"
       const bracketTag = await resolveCorporateTag(adminClient, user_id_override ?? null, "Guest");
 
-      // Try to create Google Calendar event (skip if no service account configured, or if backdated)
+      // Try to create Google Calendar event (skip if no service account configured,
+      // if backdated, or if this is a participant add-on — parent already has the event).
       let calendarEventId: string | null = null;
       const serviceAccountKeyStr = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
-      if (!isBackdated && serviceAccountKeyStr && calendar_email) {
+      if (!isBackdated && !isParticipant && serviceAccountKeyStr && calendar_email) {
         try {
           const serviceAccountKey = JSON.parse(serviceAccountKeyStr);
           const accessToken = await getAccessToken(serviceAccountKey);
@@ -883,6 +889,7 @@ Deno.serve(async (req) => {
           console.error("Calendar event creation failed (non-fatal for guest):", e);
         }
       }
+
 
       // If user_id_override is provided (admin booking for existing member), use it directly
       let guestUserId = "00000000-0000-0000-0000-000000000000";
@@ -926,6 +933,7 @@ Deno.serve(async (req) => {
       // Insert booking
       const noteParts = [`Guest: ${guest_name} | ${guest_email} | ${guest_phone}`];
       if (isBackdated) noteParts.push("[Backdated accounting entry]");
+      if (isParticipant) noteParts.push("[Participant add-on]");
       const { data: booking, error: bookingError } = await adminClient
         .from("bookings")
         .insert({
@@ -940,9 +948,11 @@ Deno.serve(async (req) => {
           calendar_event_id: calendarEventId,
           note: noteParts.join(" "),
           billing_status: isDeferred ? "deferred" : "immediate",
+          parent_booking_id: parent_booking_id || null,
         })
         .select()
         .single();
+
 
       if (bookingError) throw bookingError;
 
@@ -1176,7 +1186,9 @@ Deno.serve(async (req) => {
     // list_slots is handled above (before auth check) — this block is intentionally removed
 
     if (action === "create_booking") {
-      const { start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type, payment_method, user_id_override } = params;
+      const { start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type, payment_method, user_id_override, parent_booking_id } = params;
+      const isParticipant = !!parent_booking_id;
+
       let { calendar_email } = params;
 
       // If an admin/site_admin is booking on behalf of a member, use their user_id
@@ -1245,30 +1257,33 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Check no overlap with existing bookings for this specific bay (both confirmed and pending block slots)
-      const overlapQuery = adminClient
-        .from("bookings")
-        .select("*")
-        .in("status", ["confirmed", "pending"])
-        .gt("end_time", start_time)
-        .lt("start_time", end_time);
+      // Check no overlap with existing bookings for this specific bay (both confirmed and pending block slots).
+      // Skip overlap check for participant add-ons — they ride on an existing booking's slot.
+      if (!isParticipant) {
+        const overlapQuery = adminClient
+          .from("bookings")
+          .select("*")
+          .in("status", ["confirmed", "pending"])
+          .gt("end_time", start_time)
+          .lt("start_time", end_time);
 
-      if (bay_id) {
-        overlapQuery.eq("bay_id", bay_id);
-      } else {
-        overlapQuery.eq("city", city);
+        if (bay_id) {
+          overlapQuery.eq("bay_id", bay_id);
+        } else {
+          overlapQuery.eq("city", city);
+        }
+
+        const { data: existingBookings } = await overlapQuery;
+
+        if (existingBookings && existingBookings.length > 0) {
+          return new Response(
+            JSON.stringify({ error: "This slot is no longer available. Please refresh and try again." }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
 
-      const { data: existingBookings } = await overlapQuery;
-
-      if (existingBookings && existingBookings.length > 0) {
-        return new Response(
-          JSON.stringify({ error: "This slot is no longer available. Please refresh and try again." }),
-          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Create calendar event
+      // Create calendar event — skip for participant add-ons (parent already has the event)
       const bayLabel = bay_name || city;
       const calSummary = needsApproval
         ? `⏳ Pending Coaching Approval - ${display_name || "Member"}`
@@ -1277,10 +1292,15 @@ Deno.serve(async (req) => {
         ? `Pending coaching approval for ${display_name || "Member"} via Golfer's Edge`
         : `Booked by ${display_name || "Member"} via Golfer's Edge${isCoaching ? " - Coaching Session" : ""}`;
 
-      const calEvent = await createEvent(accessToken, calendar_email, calSummary, start_time, end_time, calTz, calDesc);
+      let calEventId: string | null = null;
+      if (!isParticipant) {
+        const calEvent = await createEvent(accessToken, calendar_email, calSummary, start_time, end_time, calTz, calDesc);
+        calEventId = calEvent.id;
+      }
 
       // Create booking record
       const bookingStatus = needsApproval ? "pending" : "confirmed";
+      const noteSuffix = isParticipant ? "[Participant add-on]" : null;
       const bookingInsert: any = {
         user_id: bookingUserId,
         city,
@@ -1288,10 +1308,13 @@ Deno.serve(async (req) => {
         end_time,
         duration_minutes,
         status: bookingStatus,
-        calendar_event_id: calEvent.id,
+        calendar_event_id: calEventId,
         session_type: session_type || "practice",
+        parent_booking_id: parent_booking_id || null,
+        note: noteSuffix,
       };
       if (bay_id) bookingInsert.bay_id = bay_id;
+
 
       const { data: booking, error: bookingError } = await adminClient.from("bookings").insert(bookingInsert).select().single();
       if (bookingError) throw bookingError;

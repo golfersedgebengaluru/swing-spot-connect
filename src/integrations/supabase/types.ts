@@ -386,6 +386,7 @@ export type Database = {
           id: string
           invoice_id: string | null
           note: string | null
+          parent_booking_id: string | null
           session_type: string
           start_time: string
           status: string
@@ -405,6 +406,7 @@ export type Database = {
           id?: string
           invoice_id?: string | null
           note?: string | null
+          parent_booking_id?: string | null
           session_type?: string
           start_time: string
           status?: string
@@ -424,6 +426,7 @@ export type Database = {
           id?: string
           invoice_id?: string | null
           note?: string | null
+          parent_booking_id?: string | null
           session_type?: string
           start_time?: string
           status?: string
@@ -450,6 +453,13 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_parent_booking_id_fkey"
+            columns: ["parent_booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
         ]
