@@ -199,6 +199,26 @@ export function useCreateInvoice() {
     mutationFn: async (params: CreateInvoiceParams) => {
       if (!params.city) throw new Error("City is required for invoice generation.");
 
+      // ── Guardrail: refuse to create a duplicate invoice for an existing RTX ──
+      // The DB trigger `auto_create_invoice_after_revenue` auto-creates an invoice
+      // when a confirmed guest_booking/payment revenue_transaction is inserted.
+      // If a caller still passes a revenueTransactionId, make sure we don't end
+      // up with a second invoice tied to (a different RTX for) the same booking.
+      if (params.revenueTransactionId) {
+        const { data: existing } = await supabase
+          .from("invoices")
+          .select("id, invoice_number")
+          .eq("revenue_transaction_id", params.revenueTransactionId)
+          .eq("invoice_type", "invoice")
+          .maybeSingle();
+        if (existing) {
+          throw new Error(
+            `An invoice (${existing.invoice_number}) already exists for this revenue transaction. ` +
+            `Refusing to create a duplicate.`
+          );
+        }
+      }
+
       // 1. Get per-city GST profile
       const { data: gstProfile, error: gstErr } = await supabase.from("gst_profiles")
         .select("*")
@@ -206,6 +226,7 @@ export function useCreateInvoice() {
         .maybeSingle();
       if (gstErr) throw gstErr;
       if (!gstProfile) throw new Error(`GST profile not configured for ${params.city}. Please set up the GST profile in Finance → GST Settings.`);
+
 
       const gstRegistered = isGstRegistered(gstProfile.gstin);
       // Use GSTIN for sequencing if registered, otherwise use city as fallback identifier
