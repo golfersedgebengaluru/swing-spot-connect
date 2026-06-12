@@ -1,6 +1,41 @@
 import type { InvoiceTemplate, InvoiceSettings } from "@/hooks/useInvoiceSettings";
 import { isGstRegistered } from "@/lib/gst-utils";
 
+/**
+ * Optional city invoice profile fields. When provided they render as
+ * extra blocks (contact line, bank details, signature, declaration,
+ * jurisdiction). When absent, templates fall back to the legacy minimal
+ * layout — guaranteeing backwards compatibility.
+ */
+export interface InvoiceProfileExtras {
+  phone?: string;
+  email?: string;
+  website?: string;
+  pan?: string;
+  cin?: string;
+  msme_no?: string;
+  address_line2?: string;
+  pincode?: string;
+  country?: string;
+  bank_name?: string;
+  bank_account_holder?: string;
+  bank_account_no?: string;
+  bank_ifsc?: string;
+  bank_branch?: string;
+  bank_swift?: string;
+  upi_id?: string;
+  show_upi_qr?: boolean;
+  signature_url?: string;
+  authorised_signatory_name?: string;
+  show_signature?: boolean;
+  declaration?: string;
+  jurisdiction?: string;
+  payment_terms_label?: string;
+  payment_instructions?: string;
+}
+
+export type EffectiveInvoiceSettings = InvoiceSettings & InvoiceProfileExtras;
+
 interface InvoiceData {
   invoice_number: string;
   invoice_date: string;
@@ -24,6 +59,7 @@ interface InvoiceData {
   payment_method?: string;
   payment_reference?: string;
   notes?: string;
+  due_date?: string;
   line_items: any[];
   booking?: {
     start_time: string;
