@@ -233,8 +233,17 @@ export interface DeferredBookingRow {
   session_type: string | null;
   status: string | null;
   cancelled: boolean;
+  billing_status: string | null;
+  invoice_id: string | null;
+  invoice_number: string | null;
 }
 
+/**
+ * Returns corporate sessions in the date range across BOTH 'deferred' and
+ * 'invoiced' billing statuses. The caller decides which subset to bill
+ * (only 'deferred' rows are eligible). This preserves history so that
+ * previous months remain visible after an invoice is generated.
+ */
 export function useDeferredItemsForCorporate(
   corporateAccountId?: string | null,
   startDate?: string,
@@ -245,7 +254,6 @@ export function useDeferredItemsForCorporate(
     queryKey: ["deferred_items_corporate", corporateAccountId, startDate, endDate, city || null],
     enabled: !!corporateAccountId,
     queryFn: async () => {
-      // 1. Get member profile ids/user_ids of this corporate account
       const { data: members, error: memErr } = await supabase
         .from("profiles")
         .select("id, user_id, display_name")
@@ -254,23 +262,18 @@ export function useDeferredItemsForCorporate(
       const memberIds = new Set<string>();
       const nameByKey = new Map<string, string>();
       for (const m of members ?? []) {
-        if (m.id) {
-          memberIds.add(m.id);
-          nameByKey.set(m.id, m.display_name ?? "");
-        }
-        if (m.user_id) {
-          memberIds.add(m.user_id);
-          nameByKey.set(m.user_id, m.display_name ?? "");
-        }
+        if (m.id) { memberIds.add(m.id); nameByKey.set(m.id, m.display_name ?? ""); }
+        if (m.user_id) { memberIds.add(m.user_id); nameByKey.set(m.user_id, m.display_name ?? ""); }
       }
       const idList = Array.from(memberIds);
       if (idList.length === 0) return [] as DeferredBookingRow[];
 
-      // 2. Fetch deferred bookings
+      const STATUSES = ["deferred", "invoiced"];
+
       let bq = supabase
         .from("bookings")
-        .select("id, user_id, city, start_time, end_time, duration_minutes, session_type, bay_id, status")
-        .eq("billing_status", "deferred")
+        .select("id, user_id, city, start_time, end_time, duration_minutes, session_type, bay_id, status, billing_status, invoice_id")
+        .in("billing_status", STATUSES)
         .in("user_id", idList)
         .order("start_time");
       if (startDate) bq = bq.gte("start_time", startDate);
@@ -279,11 +282,10 @@ export function useDeferredItemsForCorporate(
       const { data: bookings, error: bErr } = await bq;
       if (bErr) throw bErr;
 
-      // 3. Fetch deferred coaching sessions
       let cq = supabase
         .from("coaching_sessions")
-        .select("id, student_user_id, city, session_date, booking_id")
-        .eq("billing_status", "deferred")
+        .select("id, student_user_id, city, session_date, booking_id, billing_status, invoice_id")
+        .in("billing_status", STATUSES)
         .in("student_user_id", idList)
         .order("session_date");
       if (startDate) cq = cq.gte("session_date", startDate.slice(0, 10));
@@ -292,12 +294,24 @@ export function useDeferredItemsForCorporate(
       const { data: coachings, error: cErr } = await cq;
       if (cErr) throw cErr;
 
-      // 4. Bay name lookup
+      // Bay names
       const bayIds = Array.from(new Set((bookings ?? []).map((b) => b.bay_id).filter(Boolean))) as string[];
       const bayMap = new Map<string, string>();
       if (bayIds.length) {
         const { data: bays } = await supabase.from("bays").select("id, name").in("id", bayIds);
         for (const b of bays ?? []) bayMap.set(b.id, b.name);
+      }
+
+      // Invoice numbers
+      const invoiceIds = Array.from(new Set([
+        ...(bookings ?? []).map((b: any) => b.invoice_id).filter(Boolean),
+        ...(coachings ?? []).map((c: any) => c.invoice_id).filter(Boolean),
+      ])) as string[];
+      const invMap = new Map<string, string>();
+      if (invoiceIds.length) {
+        const { data: invs } = await supabase
+          .from("invoices").select("id, invoice_number").in("id", invoiceIds);
+        for (const i of invs ?? []) invMap.set(i.id, i.invoice_number);
       }
 
       const rows: DeferredBookingRow[] = [];
@@ -315,6 +329,9 @@ export function useDeferredItemsForCorporate(
           session_type: b.session_type,
           status: b.status,
           cancelled: b.status === "cancelled",
+          billing_status: (b as any).billing_status ?? null,
+          invoice_id: (b as any).invoice_id ?? null,
+          invoice_number: (b as any).invoice_id ? invMap.get((b as any).invoice_id) ?? null : null,
         });
       }
       for (const c of coachings ?? []) {
@@ -331,6 +348,9 @@ export function useDeferredItemsForCorporate(
           session_type: "coaching",
           status: null,
           cancelled: false,
+          billing_status: (c as any).billing_status ?? null,
+          invoice_id: (c as any).invoice_id ?? null,
+          invoice_number: (c as any).invoice_id ? invMap.get((c as any).invoice_id) ?? null : null,
         });
       }
       return rows;
