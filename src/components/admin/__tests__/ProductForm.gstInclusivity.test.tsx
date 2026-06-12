@@ -45,7 +45,7 @@ describe("ProductForm GST inclusivity invariant", () => {
     render(<ProductForm onSave={onSave} onCancel={() => {}} />);
 
     // 1. Fill required name
-    const nameInput = screen.getByLabelText("Name") as HTMLInputElement;
+    const nameInput = getInputByLabel("Name") as HTMLInputElement;
     fireEvent.change(nameInput, { target: { value: "Test SKU" } });
 
     // 2. Set GST rate to 18
@@ -77,7 +77,7 @@ describe("ProductForm GST inclusivity invariant", () => {
   it("stores entered value verbatim when in Incl. GST mode", async () => {
     const onSave = vi.fn();
     render(<ProductForm onSave={onSave} onCancel={() => {}} />);
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "X" } });
+    fireEvent.change(getInputByLabel("Name"), { target: { value: "X" } });
     fireEvent.change(screen.getByPlaceholderText("18"), { target: { value: "18" } });
     fireEvent.change(getPriceInput(), { target: { value: "118" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -88,7 +88,7 @@ describe("ProductForm GST inclusivity invariant", () => {
   it("stores price unchanged when GST rate is 0 regardless of toggle", async () => {
     const onSave = vi.fn();
     render(<ProductForm onSave={onSave} onCancel={() => {}} />);
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "X" } });
+    fireEvent.change(getInputByLabel("Name"), { target: { value: "X" } });
     // gst_rate defaults to 0
     const priceBlock = screen.getByText("Selling Price").closest("div.rounded-lg") as HTMLElement;
     const priceToggle = priceBlock.querySelector('[role="switch"]') as HTMLElement;
