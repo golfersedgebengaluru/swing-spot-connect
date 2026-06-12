@@ -375,7 +375,7 @@ function modernTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, cu
 }
 
 // ─── COMPACT TEMPLATE ──────────────────────
-function compactTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: FormatCurrency) {
+function compactTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, currency: FormatCurrency) {
   const isIgst = Number(inv.igst_total) > 0;
   const docType = inv.invoice_type === "credit_note" ? "Credit Note" : "Tax Invoice";
   return `
