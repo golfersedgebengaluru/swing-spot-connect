@@ -569,8 +569,8 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
   }, [billingProduct, sessionCount]);
 
   const generate = async () => {
-    if (!items || items.length === 0) {
-      toast({ title: "Nothing to invoice", description: "No deferred sessions in this range." });
+    if (billableItems.length === 0) {
+      toast({ title: "Nothing to invoice", description: "No pending (deferred) sessions in this range." });
       return;
     }
     if (!billingProduct) {
