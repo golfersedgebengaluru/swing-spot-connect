@@ -29,11 +29,14 @@ vi.mock("@/components/ui/rich-text-editor", () => ({
 }));
 
 function getPriceInput(): HTMLInputElement {
-  // The selling-price input is the only number input above the GST block;
-  // grab it by label proximity.
   const label = screen.getByText("Selling Price");
   const container = label.closest("div.rounded-lg") as HTMLElement;
   return container.querySelector('input[type="number"]') as HTMLInputElement;
+}
+function getInputByLabel(text: string): HTMLInputElement {
+  const label = screen.getByText(text);
+  const wrap = label.parentElement as HTMLElement;
+  return wrap.querySelector("input") as HTMLInputElement;
 }
 
 describe("ProductForm GST inclusivity invariant", () => {
