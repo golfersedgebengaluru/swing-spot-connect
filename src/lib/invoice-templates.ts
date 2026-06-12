@@ -161,7 +161,74 @@ function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 }
 
-function buildFooter(settings: InvoiceSettings, inv: InvoiceData) {
+function buildBusinessContactLine(s: EffectiveInvoiceSettings) {
+  const bits: string[] = [];
+  if (s.phone) bits.push(`Tel: ${escapeHtml(s.phone)}`);
+  if (s.email) bits.push(`Email: ${escapeHtml(s.email)}`);
+  if (s.website) bits.push(`Web: ${escapeHtml(s.website)}`);
+  if (!bits.length) return "";
+  return `<p style="font-size:11px;color:#666;margin:2px 0;">${bits.join(" · ")}</p>`;
+}
+
+function buildIdentityIds(s: EffectiveInvoiceSettings) {
+  const bits: string[] = [];
+  if (s.pan) bits.push(`PAN: ${escapeHtml(s.pan)}`);
+  if (s.cin) bits.push(`CIN: ${escapeHtml(s.cin)}`);
+  if (s.msme_no) bits.push(`MSME/Udyam: ${escapeHtml(s.msme_no)}`);
+  if (!bits.length) return "";
+  return `<p style="font-size:11px;color:#666;margin:2px 0;">${bits.join(" · ")}</p>`;
+}
+
+function buildBankBlock(s: EffectiveInvoiceSettings) {
+  const hasBank = s.bank_name || s.bank_account_no || s.bank_ifsc || s.upi_id;
+  if (!hasBank) return "";
+  const rows: string[] = [];
+  if (s.bank_name) rows.push(`<strong>Bank:</strong> ${escapeHtml(s.bank_name)}`);
+  if (s.bank_account_holder) rows.push(`<strong>A/C Holder:</strong> ${escapeHtml(s.bank_account_holder)}`);
+  if (s.bank_account_no) rows.push(`<strong>A/C No:</strong> ${escapeHtml(s.bank_account_no)}`);
+  if (s.bank_ifsc) rows.push(`<strong>IFSC:</strong> ${escapeHtml(s.bank_ifsc)}`);
+  if (s.bank_branch) rows.push(`<strong>Branch:</strong> ${escapeHtml(s.bank_branch)}`);
+  if (s.bank_swift) rows.push(`<strong>SWIFT:</strong> ${escapeHtml(s.bank_swift)}`);
+  if (s.upi_id) rows.push(`<strong>UPI:</strong> ${escapeHtml(s.upi_id)}`);
+  return `<div style="margin-top:14px;padding:10px 12px;background:#fafafa;border:1px solid #eee;border-radius:6px;">
+    <p style="font-size:10px;font-weight:600;text-transform:uppercase;color:#666;margin:0 0 6px;">Payment Details</p>
+    <p style="font-size:11px;color:#333;line-height:1.6;margin:0;">${rows.join(" &middot; ")}</p>
+  </div>`;
+}
+
+function buildSignatureBlock(s: EffectiveInvoiceSettings) {
+  if (!s.show_signature) return "";
+  const hasAny = s.signature_url || s.authorised_signatory_name;
+  if (!hasAny) return "";
+  return `<div style="margin-top:24px;text-align:right;">
+    ${s.signature_url ? `<img src="${escapeHtml(s.signature_url)}" alt="Signature" style="max-height:48px;max-width:160px;object-fit:contain;margin-bottom:4px;" />` : ""}
+    <p style="font-size:11px;color:#444;margin:0;border-top:1px solid #999;padding-top:4px;display:inline-block;min-width:160px;">
+      ${s.authorised_signatory_name ? escapeHtml(s.authorised_signatory_name) : "Authorised Signatory"}
+    </p>
+  </div>`;
+}
+
+function buildDeclarationJurisdiction(s: EffectiveInvoiceSettings) {
+  let html = "";
+  if (s.declaration) {
+    html += `<p style="margin-top:14px;font-size:10px;color:#666;font-style:italic;">${escapeHtml(s.declaration)}</p>`;
+  }
+  if (s.jurisdiction) {
+    html += `<p style="margin-top:6px;font-size:10px;color:#666;">${escapeHtml(s.jurisdiction)}</p>`;
+  }
+  return html;
+}
+
+function buildPaymentTermsLine(inv: InvoiceData, s: EffectiveInvoiceSettings) {
+  const bits: string[] = [];
+  if (s.payment_terms_label) bits.push(`<strong>Terms:</strong> ${escapeHtml(s.payment_terms_label)}`);
+  if (inv.due_date) bits.push(`<strong>Due:</strong> ${formatDate(inv.due_date)}`);
+  if (s.payment_instructions) bits.push(escapeHtml(s.payment_instructions));
+  if (!bits.length) return "";
+  return `<p style="margin-top:10px;font-size:11px;color:#444;">${bits.join(" · ")}</p>`;
+}
+
+function buildFooter(settings: EffectiveInvoiceSettings, inv: InvoiceData) {
   let html = "";
   const paymentBits: string[] = [];
   if (inv.payment_method) paymentBits.push(`Method: ${escapeHtml(inv.payment_method)}`);
@@ -169,6 +236,8 @@ function buildFooter(settings: InvoiceSettings, inv: InvoiceData) {
   if (paymentBits.length) {
     html += `<p style="margin-top:16px;font-size:12px;color:#444;"><strong>Payment</strong> — ${paymentBits.join(" · ")}</p>`;
   }
+  html += buildPaymentTermsLine(inv, settings);
+  html += buildBankBlock(settings);
   if (inv.notes && inv.notes.trim()) {
     html += `<div style="margin-top:14px;padding:10px 12px;background:#fafafa;border:1px solid #eee;border-radius:6px;">
       <p style="font-size:10px;font-weight:600;text-transform:uppercase;color:#666;margin:0 0 4px;">Notes / Comments</p>
@@ -176,10 +245,12 @@ function buildFooter(settings: InvoiceSettings, inv: InvoiceData) {
     </div>`;
   }
   if (settings.terms) {
-    html += `<div style="margin-top:20px;padding-top:12px;border-top:1px solid #eee;"><p style="font-size:10px;font-weight:600;text-transform:uppercase;color:#888;margin-bottom:4px;">Terms & Conditions</p><p style="font-size:11px;color:#666;white-space:pre-line;">${settings.terms}</p></div>`;
+    html += `<div style="margin-top:20px;padding-top:12px;border-top:1px solid #eee;"><p style="font-size:10px;font-weight:600;text-transform:uppercase;color:#888;margin-bottom:4px;">Terms & Conditions</p><p style="font-size:11px;color:#666;white-space:pre-line;">${escapeHtml(settings.terms)}</p></div>`;
   }
+  html += buildSignatureBlock(settings);
+  html += buildDeclarationJurisdiction(settings);
   if (settings.footer_note) {
-    html += `<p style="margin-top:20px;text-align:center;font-size:12px;color:#666;font-style:italic;">${settings.footer_note}</p>`;
+    html += `<p style="margin-top:20px;text-align:center;font-size:12px;color:#666;font-style:italic;">${escapeHtml(settings.footer_note)}</p>`;
   }
   return html;
 }
