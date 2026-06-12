@@ -32,6 +32,7 @@ export interface InvoiceProfileExtras {
   jurisdiction?: string;
   payment_terms_label?: string;
   payment_instructions?: string;
+  brand_color?: string;
 }
 
 export type EffectiveInvoiceSettings = InvoiceSettings & InvoiceProfileExtras;
