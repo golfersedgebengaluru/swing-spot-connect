@@ -221,16 +221,20 @@ export function AdminFinanceTab() {
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList className="flex-wrap">
-          <TabsTrigger value="settings">GST Settings</TabsTrigger>
-          <TabsTrigger value="invoice_settings">Invoice Template</TabsTrigger>
+          <TabsTrigger value="invoice_profile">Invoice Profile</TabsTrigger>
+          <TabsTrigger value="legacy_settings">Legacy GST</TabsTrigger>
+          <TabsTrigger value="legacy_template">Legacy Template</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
           <TabsTrigger value="advance_accounts">Advance Accounts</TabsTrigger>
           {showCityFY && <TabsTrigger value="financial_year">Financial Year</TabsTrigger>}
         </TabsList>
-        <TabsContent value="settings">
+        <TabsContent value="invoice_profile">
+          {selectedCity ? <InvoiceProfileCard city={selectedCity} /> : <p className="text-sm text-muted-foreground">Pick a city above to edit its invoice profile.</p>}
+        </TabsContent>
+        <TabsContent value="legacy_settings">
           {selectedCity && <GstSettingsSection city={selectedCity} />}
         </TabsContent>
-        <TabsContent value="invoice_settings">
+        <TabsContent value="legacy_template">
           {selectedCity && <InvoiceSettingsCard city={selectedCity} />}
         </TabsContent>
         <TabsContent value="payments">
