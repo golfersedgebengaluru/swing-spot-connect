@@ -22,6 +22,8 @@ interface InvoiceData {
   igst_total: number;
   total: number;
   payment_method?: string;
+  payment_reference?: string;
+  notes?: string;
   line_items: any[];
   booking?: {
     start_time: string;
