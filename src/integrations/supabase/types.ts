@@ -492,6 +492,125 @@ export type Database = {
         }
         Relationships: []
       }
+      city_invoice_profiles: {
+        Row: {
+          address_line2: string
+          authorised_signatory_name: string
+          bank_account_holder: string
+          bank_account_no: string
+          bank_branch: string
+          bank_ifsc: string
+          bank_name: string
+          bank_swift: string
+          brand_color: string
+          cin: string
+          city: string
+          copy_labels: Json
+          country: string
+          created_at: string
+          declaration: string
+          default_place_of_supply: string
+          due_date_offset_days: number
+          einvoice_enabled: boolean
+          email: string
+          jurisdiction: string
+          msme_no: string
+          pan: string
+          payment_instructions: string
+          payment_terms_label: string
+          phone: string
+          pincode: string
+          reverse_charge_default: boolean
+          show_signature: boolean
+          show_upi_qr: boolean
+          signature_url: string
+          trade_name: string
+          updated_at: string
+          upi_id: string
+          website: string
+        }
+        Insert: {
+          address_line2?: string
+          authorised_signatory_name?: string
+          bank_account_holder?: string
+          bank_account_no?: string
+          bank_branch?: string
+          bank_ifsc?: string
+          bank_name?: string
+          bank_swift?: string
+          brand_color?: string
+          cin?: string
+          city: string
+          copy_labels?: Json
+          country?: string
+          created_at?: string
+          declaration?: string
+          default_place_of_supply?: string
+          due_date_offset_days?: number
+          einvoice_enabled?: boolean
+          email?: string
+          jurisdiction?: string
+          msme_no?: string
+          pan?: string
+          payment_instructions?: string
+          payment_terms_label?: string
+          phone?: string
+          pincode?: string
+          reverse_charge_default?: boolean
+          show_signature?: boolean
+          show_upi_qr?: boolean
+          signature_url?: string
+          trade_name?: string
+          updated_at?: string
+          upi_id?: string
+          website?: string
+        }
+        Update: {
+          address_line2?: string
+          authorised_signatory_name?: string
+          bank_account_holder?: string
+          bank_account_no?: string
+          bank_branch?: string
+          bank_ifsc?: string
+          bank_name?: string
+          bank_swift?: string
+          brand_color?: string
+          cin?: string
+          city?: string
+          copy_labels?: Json
+          country?: string
+          created_at?: string
+          declaration?: string
+          default_place_of_supply?: string
+          due_date_offset_days?: number
+          einvoice_enabled?: boolean
+          email?: string
+          jurisdiction?: string
+          msme_no?: string
+          pan?: string
+          payment_instructions?: string
+          payment_terms_label?: string
+          phone?: string
+          pincode?: string
+          reverse_charge_default?: boolean
+          show_signature?: boolean
+          show_upi_qr?: boolean
+          signature_url?: string
+          trade_name?: string
+          updated_at?: string
+          upi_id?: string
+          website?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "city_invoice_profiles_city_fkey"
+            columns: ["city"]
+            isOneToOne: true
+            referencedRelation: "gst_profiles"
+            referencedColumns: ["city"]
+          },
+        ]
+      }
       coach_students: {
         Row: {
           assigned_by: string | null
@@ -1681,6 +1800,7 @@ export type Database = {
       invoice_sequences: {
         Row: {
           created_at: string
+          doc_type: string
           financial_year_id: string
           gstin: string
           id: string
@@ -1690,6 +1810,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          doc_type?: string
           financial_year_id: string
           gstin: string
           id?: string
@@ -1699,6 +1820,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          doc_type?: string
           financial_year_id?: string
           gstin?: string
           id?: string
@@ -4692,6 +4814,7 @@ export type Database = {
       recycled_invoice_numbers: {
         Row: {
           created_at: string
+          doc_type: string
           financial_year_id: string
           gstin: string
           id: string
@@ -4701,6 +4824,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          doc_type?: string
           financial_year_id: string
           gstin: string
           id?: string
@@ -4710,6 +4834,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          doc_type?: string
           financial_year_id?: string
           gstin?: string
           id?: string
@@ -5322,15 +5447,26 @@ export type Database = {
       }
       get_advance_balance: { Args: { p_customer_id: string }; Returns: number }
       get_hours_balance: { Args: { p_user_id: string }; Returns: number }
-      get_next_invoice_number: {
-        Args: {
-          p_fy_id: string
-          p_gstin: string
-          p_prefix?: string
-          p_start?: number
-        }
-        Returns: string
-      }
+      get_next_invoice_number:
+        | {
+            Args: {
+              p_fy_id: string
+              p_gstin: string
+              p_prefix?: string
+              p_start?: number
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_doc_type?: string
+              p_fy_id: string
+              p_gstin: string
+              p_prefix?: string
+              p_start?: number
+            }
+            Returns: string
+          }
       get_product_cost_prices: {
         Args: { p_ids?: string[] }
         Returns: {
