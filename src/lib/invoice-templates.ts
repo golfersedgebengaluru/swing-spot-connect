@@ -261,17 +261,19 @@ function logoImg(url: string, maxH = 60) {
 }
 
 // ─── CLASSIC TEMPLATE ──────────────────────
-function classicTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: FormatCurrency) {
+function classicTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, currency: FormatCurrency) {
   const isIgst = Number(inv.igst_total) > 0;
   const docType = inv.invoice_type === "credit_note" ? "Credit Note" : "Tax Invoice";
   return `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
       <div>
         ${settings.logo_url ? `<div style="margin-bottom:8px;">${logoImg(settings.logo_url)}</div>` : ""}
-        <h1 style="font-size:18px;font-weight:700;margin:0;">${inv.business_name}</h1>
-        ${isGstRegistered(inv.business_gstin) ? `<p style="font-size:12px;color:#666;margin:2px 0;">GSTIN: ${inv.business_gstin}</p>` : ""}
-        ${inv.business_address ? `<p style="font-size:12px;color:#666;margin:2px 0;">${inv.business_address}</p>` : ""}
-        ${inv.business_state ? `<p style="font-size:12px;color:#666;margin:2px 0;">${inv.business_state} (${inv.business_state_code})</p>` : ""}
+        <h1 style="font-size:18px;font-weight:700;margin:0;">${escapeHtml(inv.business_name)}</h1>
+        ${isGstRegistered(inv.business_gstin) ? `<p style="font-size:12px;color:#666;margin:2px 0;">GSTIN: ${escapeHtml(inv.business_gstin)}</p>` : ""}
+        ${buildIdentityIds(settings)}
+        ${inv.business_address ? `<p style="font-size:12px;color:#666;margin:2px 0;">${escapeHtml(inv.business_address)}</p>` : ""}
+        ${inv.business_state ? `<p style="font-size:12px;color:#666;margin:2px 0;">${escapeHtml(inv.business_state)} (${escapeHtml(inv.business_state_code || "")})</p>` : ""}
+        ${buildBusinessContactLine(settings)}
       </div>
       <div style="text-align:right;">
         <p style="font-size:11px;padding:2px 8px;border:1px solid ${inv.invoice_type === "credit_note" ? "#e11" : "#888"};border-radius:4px;display:inline-block;color:${inv.invoice_type === "credit_note" ? "#e11" : "#444"};font-weight:600;">${docType}</p>
