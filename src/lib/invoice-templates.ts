@@ -449,7 +449,7 @@ function compactTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, c
 
 export function renderInvoiceHtml(
   invoice: InvoiceData,
-  settings: InvoiceSettings,
+  settings: EffectiveInvoiceSettings,
   currency: FormatCurrency,
 ): string {
   switch (settings.template) {
