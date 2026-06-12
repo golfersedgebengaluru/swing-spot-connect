@@ -327,8 +327,10 @@ function modernTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, cu
         <div>
           <p style="font-size:10px;text-transform:uppercase;color:#888;font-weight:600;margin:0 0 4px;">From</p>
           <p style="font-weight:600;margin:0;">${inv.business_name}</p>
-          ${inv.business_address ? `<p style="font-size:12px;color:#666;margin:2px 0;">${inv.business_address}</p>` : ""}
-          ${inv.business_state ? `<p style="font-size:12px;color:#666;margin:2px 0;">${inv.business_state}</p>` : ""}
+          ${inv.business_address ? `<p style="font-size:12px;color:#666;margin:2px 0;">${escapeHtml(inv.business_address)}</p>` : ""}
+          ${inv.business_state ? `<p style="font-size:12px;color:#666;margin:2px 0;">${escapeHtml(inv.business_state)}</p>` : ""}
+          ${buildBusinessContactLine(settings)}
+          ${buildIdentityIds(settings)}
         </div>
         <div>
           <p style="font-size:10px;text-transform:uppercase;color:#888;font-weight:600;margin:0 0 4px;">Bill To</p>
