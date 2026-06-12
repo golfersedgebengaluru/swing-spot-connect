@@ -303,10 +303,10 @@ function classicTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, c
 }
 
 // ─── MODERN TEMPLATE ───────────────────────
-function modernTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: FormatCurrency) {
+function modernTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, currency: FormatCurrency) {
   const isIgst = Number(inv.igst_total) > 0;
   const docType = inv.invoice_type === "credit_note" ? "CREDIT NOTE" : "TAX INVOICE";
-  const accent = "#2563eb";
+  const accent = settings.brand_color ? escapeHtml(settings.brand_color) : "#2563eb";
   return `
     <div style="border-top:4px solid ${accent};padding-top:20px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
