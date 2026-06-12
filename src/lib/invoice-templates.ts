@@ -354,15 +354,39 @@ export function renderInvoiceHtml(
 export function openPrintWindow(html: string, title: string) {
   const printWindow = window.open("", "_blank");
   if (!printWindow) return;
+  // Wait for all images (incl. remote logo) to finish loading before calling
+  // window.print(). Otherwise the print dialog opens before the logo network
+  // fetch completes and the logo prints blank. Fallback: 2.5s per image.
   printWindow.document.write(`
     <html><head><title>${title}</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; color: #111; padding: 24px; }
       @media print { body { padding: 0; } }
+      img { max-width: 100%; }
     </style></head><body>
     ${html}
-    <script>window.onload = function() { window.print(); }<\/script>
+    <script>
+      (function(){
+        function ready(){
+          var imgs = Array.prototype.slice.call(document.images || []);
+          if (imgs.length === 0) return Promise.resolve();
+          return Promise.all(imgs.map(function(img){
+            if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+            return new Promise(function(res){
+              var done = false;
+              function finish(){ if (done) return; done = true; res(); }
+              img.addEventListener('load', finish);
+              img.addEventListener('error', finish);
+              setTimeout(finish, 2500);
+            });
+          }));
+        }
+        window.addEventListener('load', function(){
+          ready().then(function(){ setTimeout(function(){ window.print(); }, 50); });
+        });
+      })();
+    <\/script>
     </body></html>
   `);
   printWindow.document.close();
