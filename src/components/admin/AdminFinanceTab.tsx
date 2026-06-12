@@ -174,7 +174,7 @@ function GstSettingsSection({ city }: { city: string }) {
 
 // ─── Main Tab ───────────────────────────────────────────
 export function AdminFinanceTab() {
-  const [tab, setTab] = useState("settings");
+  const [tab, setTab] = useState("invoice_profile");
   const { isAdmin, isSiteAdmin } = useAdmin();
   const { data: perCityFyEnabled } = usePerCityFyToggle();
   const { data: cities, isLoading: loadingCities } = useAvailableCities();
