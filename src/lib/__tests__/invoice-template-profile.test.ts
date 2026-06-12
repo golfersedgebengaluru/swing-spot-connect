@@ -70,7 +70,7 @@ describe("invoice template — city invoice profile fields", () => {
       expect(html).not.toContain("<script>alert(1)</script>");
       expect(html).not.toContain("<img src=x onerror=alert(1)>");
       expect(html).not.toContain("<svg/onload=alert(1)>");
-      expect(html).toContain("&lt;script&gt;");
+      expect(html).toContain("&lt;img src=x onerror=alert(1)&gt;");
     });
 
     it(`${tmpl}: shows signature block only when show_signature is true`, () => {
