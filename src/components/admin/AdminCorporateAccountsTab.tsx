@@ -544,9 +544,20 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
     [corporateProducts, billingProductId]
   );
 
-  // Determine quantity: each non-cancelled session counts as one unit; cancelled rows are shown but excluded
-  const billableItems = useMemo(() => (items ?? []).filter((i) => !i.cancelled), [items]);
-  const cancelledItems = useMemo(() => (items ?? []).filter((i) => i.cancelled), [items]);
+  // Only rows still 'deferred' AND not cancelled are eligible for the next invoice.
+  // 'invoiced' rows remain visible for history but are excluded from the billable count.
+  const billableItems = useMemo(
+    () => (items ?? []).filter((i) => !i.cancelled && i.billing_status === "deferred"),
+    [items]
+  );
+  const cancelledItems = useMemo(
+    () => (items ?? []).filter((i) => i.cancelled && i.billing_status === "deferred"),
+    [items]
+  );
+  const invoicedItems = useMemo(
+    () => (items ?? []).filter((i) => i.billing_status === "invoiced"),
+    [items]
+  );
   const sessionCount = billableItems.length;
 
   // City is whichever city the admin has selected — invoice is issued by that franchisee.
