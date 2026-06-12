@@ -22,6 +22,8 @@ interface InvoiceData {
   igst_total: number;
   total: number;
   payment_method?: string;
+  payment_reference?: string;
+  notes?: string;
   line_items: any[];
   booking?: {
     start_time: string;
@@ -119,10 +121,23 @@ function buildBookingInfo(inv: InvoiceData) {
   }
 }
 
+function escapeHtml(s: string) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+}
+
 function buildFooter(settings: InvoiceSettings, inv: InvoiceData) {
   let html = "";
-  if (inv.payment_method) {
-    html += `<p style="margin-top:16px;font-size:12px;color:#666;">Payment: ${inv.payment_method}</p>`;
+  const paymentBits: string[] = [];
+  if (inv.payment_method) paymentBits.push(`Method: ${escapeHtml(inv.payment_method)}`);
+  if (inv.payment_reference) paymentBits.push(`Reference: ${escapeHtml(inv.payment_reference)}`);
+  if (paymentBits.length) {
+    html += `<p style="margin-top:16px;font-size:12px;color:#444;"><strong>Payment</strong> — ${paymentBits.join(" · ")}</p>`;
+  }
+  if (inv.notes && inv.notes.trim()) {
+    html += `<div style="margin-top:14px;padding:10px 12px;background:#fafafa;border:1px solid #eee;border-radius:6px;">
+      <p style="font-size:10px;font-weight:600;text-transform:uppercase;color:#666;margin:0 0 4px;">Notes / Comments</p>
+      <p style="font-size:12px;color:#333;white-space:pre-line;margin:0;">${escapeHtml(inv.notes)}</p>
+    </div>`;
   }
   if (settings.terms) {
     html += `<div style="margin-top:20px;padding-top:12px;border-top:1px solid #eee;"><p style="font-size:10px;font-weight:600;text-transform:uppercase;color:#888;margin-bottom:4px;">Terms & Conditions</p><p style="font-size:11px;color:#666;white-space:pre-line;">${settings.terms}</p></div>`;

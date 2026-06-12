@@ -13,8 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Building2, Plus, Pencil, Trash2, Loader2, Receipt, Users, Calendar, CheckCircle2, AlertCircle,
-  Search, X, UserPlus,
+  Search, X, UserPlus, FileSpreadsheet,
 } from "lucide-react";
+import { exportCorporateUsageExcel } from "@/lib/corporate-usage-export";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -766,10 +767,31 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
               <Calendar className="h-3.5 w-3.5" />
               {city ? <>Invoice from <strong>{city}</strong> to <strong>{account.name}</strong>{account.billing_email ? ` (${account.billing_email})` : ""}.</> : <>Invoice will be issued to <strong>{account.name}</strong>{account.billing_email ? ` (${account.billing_email})` : ""}.</>}
             </p>
-            <Button onClick={generate} disabled={generating || !city || !billingProduct}>
-              {generating ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Receipt className="h-4 w-4 mr-1" />}
-              Generate {city ? `${city} ` : ""}Invoice
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  exportCorporateUsageExcel(items ?? [], {
+                    accountName: account.name,
+                    city,
+                    startDate,
+                    endDate,
+                    billingProductName: billingProduct?.name,
+                    unitPrice: billingProduct ? Number(billingProduct.price) : undefined,
+                    gstRate: billingProduct ? Number(billingProduct.gst_rate ?? 0) : undefined,
+                  });
+                  toast({ title: "Usage report downloaded", description: `${(items ?? []).length} session(s) exported.` });
+                }}
+                disabled={!items || items.length === 0}
+                title="Download usage report (Excel)"
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-1" /> Usage Report
+              </Button>
+              <Button onClick={generate} disabled={generating || !city || !billingProduct}>
+                {generating ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Receipt className="h-4 w-4 mr-1" />}
+                Generate {city ? `${city} ` : ""}Invoice
+              </Button>
+            </div>
           </div>
         </>
       )}
