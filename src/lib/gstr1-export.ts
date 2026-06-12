@@ -170,15 +170,21 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
   }));
 
   // ── HSN Summary ──
-  const hsnMap = new Map<string, { desc: string; qty: number; taxable: number; cgst: number; sgst: number; igst: number; rate: number }>();
+  // NOTE: unit_price is GST-INCLUSIVE (all prices in the system are inclusive of GST).
+  // line_total is also GST-inclusive and equals the gross value.
+  // Taxable = line_total - (cgst + sgst + igst).
+  const hsnMap = new Map<string, { desc: string; qty: number; taxable: number; cgst: number; sgst: number; igst: number; gross: number; rate: number }>();
   allLineItems.forEach((li) => {
     const code = li.hsn_code || li.sac_code || "N/A";
-    const existing = hsnMap.get(code) || { desc: li.item_name, qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0, rate: li.gst_rate };
-    existing.qty += li.quantity;
-    existing.taxable += li.unit_price * li.quantity;
-    existing.cgst += li.cgst_amount;
-    existing.sgst += li.sgst_amount;
-    existing.igst += li.igst_amount;
+    const existing = hsnMap.get(code) || { desc: li.item_name, qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0, gross: 0, rate: li.gst_rate };
+    const gross = Number(li.line_total) || Number(li.unit_price) * Number(li.quantity);
+    const gstAmt = Number(li.cgst_amount) + Number(li.sgst_amount) + Number(li.igst_amount);
+    existing.qty += Number(li.quantity);
+    existing.gross += gross;
+    existing.taxable += gross - gstAmt;
+    existing.cgst += Number(li.cgst_amount);
+    existing.sgst += Number(li.sgst_amount);
+    existing.igst += Number(li.igst_amount);
     hsnMap.set(code, existing);
   });
   const hsnRows = Array.from(hsnMap.entries()).map(([code, vals]) => ({
@@ -186,7 +192,7 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
     "Description": vals.desc,
     "UQC": "NOS",
     "Total Quantity": vals.qty,
-    "Total Value": round2(vals.taxable + vals.cgst + vals.sgst + vals.igst),
+    "Total Value": round2(vals.gross),
     "Taxable Value": round2(vals.taxable),
     "Rate": vals.rate,
     "CGST Amount": round2(vals.cgst),
