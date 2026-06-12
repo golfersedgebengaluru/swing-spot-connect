@@ -1,6 +1,42 @@
 import type { InvoiceTemplate, InvoiceSettings } from "@/hooks/useInvoiceSettings";
 import { isGstRegistered } from "@/lib/gst-utils";
 
+/**
+ * Optional city invoice profile fields. When provided they render as
+ * extra blocks (contact line, bank details, signature, declaration,
+ * jurisdiction). When absent, templates fall back to the legacy minimal
+ * layout — guaranteeing backwards compatibility.
+ */
+export interface InvoiceProfileExtras {
+  phone?: string;
+  email?: string;
+  website?: string;
+  pan?: string;
+  cin?: string;
+  msme_no?: string;
+  address_line2?: string;
+  pincode?: string;
+  country?: string;
+  bank_name?: string;
+  bank_account_holder?: string;
+  bank_account_no?: string;
+  bank_ifsc?: string;
+  bank_branch?: string;
+  bank_swift?: string;
+  upi_id?: string;
+  show_upi_qr?: boolean;
+  signature_url?: string;
+  authorised_signatory_name?: string;
+  show_signature?: boolean;
+  declaration?: string;
+  jurisdiction?: string;
+  payment_terms_label?: string;
+  payment_instructions?: string;
+  brand_color?: string;
+}
+
+export type EffectiveInvoiceSettings = InvoiceSettings & InvoiceProfileExtras;
+
 interface InvoiceData {
   invoice_number: string;
   invoice_date: string;
@@ -24,6 +60,7 @@ interface InvoiceData {
   payment_method?: string;
   payment_reference?: string;
   notes?: string;
+  due_date?: string;
   line_items: any[];
   booking?: {
     start_time: string;
@@ -125,7 +162,74 @@ function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 }
 
-function buildFooter(settings: InvoiceSettings, inv: InvoiceData) {
+function buildBusinessContactLine(s: EffectiveInvoiceSettings) {
+  const bits: string[] = [];
+  if (s.phone) bits.push(`Tel: ${escapeHtml(s.phone)}`);
+  if (s.email) bits.push(`Email: ${escapeHtml(s.email)}`);
+  if (s.website) bits.push(`Web: ${escapeHtml(s.website)}`);
+  if (!bits.length) return "";
+  return `<p style="font-size:11px;color:#666;margin:2px 0;">${bits.join(" · ")}</p>`;
+}
+
+function buildIdentityIds(s: EffectiveInvoiceSettings) {
+  const bits: string[] = [];
+  if (s.pan) bits.push(`PAN: ${escapeHtml(s.pan)}`);
+  if (s.cin) bits.push(`CIN: ${escapeHtml(s.cin)}`);
+  if (s.msme_no) bits.push(`MSME/Udyam: ${escapeHtml(s.msme_no)}`);
+  if (!bits.length) return "";
+  return `<p style="font-size:11px;color:#666;margin:2px 0;">${bits.join(" · ")}</p>`;
+}
+
+function buildBankBlock(s: EffectiveInvoiceSettings) {
+  const hasBank = s.bank_name || s.bank_account_no || s.bank_ifsc || s.upi_id;
+  if (!hasBank) return "";
+  const rows: string[] = [];
+  if (s.bank_name) rows.push(`<strong>Bank:</strong> ${escapeHtml(s.bank_name)}`);
+  if (s.bank_account_holder) rows.push(`<strong>A/C Holder:</strong> ${escapeHtml(s.bank_account_holder)}`);
+  if (s.bank_account_no) rows.push(`<strong>A/C No:</strong> ${escapeHtml(s.bank_account_no)}`);
+  if (s.bank_ifsc) rows.push(`<strong>IFSC:</strong> ${escapeHtml(s.bank_ifsc)}`);
+  if (s.bank_branch) rows.push(`<strong>Branch:</strong> ${escapeHtml(s.bank_branch)}`);
+  if (s.bank_swift) rows.push(`<strong>SWIFT:</strong> ${escapeHtml(s.bank_swift)}`);
+  if (s.upi_id) rows.push(`<strong>UPI:</strong> ${escapeHtml(s.upi_id)}`);
+  return `<div style="margin-top:14px;padding:10px 12px;background:#fafafa;border:1px solid #eee;border-radius:6px;">
+    <p style="font-size:10px;font-weight:600;text-transform:uppercase;color:#666;margin:0 0 6px;">Payment Details</p>
+    <p style="font-size:11px;color:#333;line-height:1.6;margin:0;">${rows.join(" &middot; ")}</p>
+  </div>`;
+}
+
+function buildSignatureBlock(s: EffectiveInvoiceSettings) {
+  if (!s.show_signature) return "";
+  const hasAny = s.signature_url || s.authorised_signatory_name;
+  if (!hasAny) return "";
+  return `<div style="margin-top:24px;text-align:right;">
+    ${s.signature_url ? `<img src="${escapeHtml(s.signature_url)}" alt="Signature" style="max-height:48px;max-width:160px;object-fit:contain;margin-bottom:4px;" />` : ""}
+    <p style="font-size:11px;color:#444;margin:0;border-top:1px solid #999;padding-top:4px;display:inline-block;min-width:160px;">
+      ${s.authorised_signatory_name ? escapeHtml(s.authorised_signatory_name) : "Authorised Signatory"}
+    </p>
+  </div>`;
+}
+
+function buildDeclarationJurisdiction(s: EffectiveInvoiceSettings) {
+  let html = "";
+  if (s.declaration) {
+    html += `<p style="margin-top:14px;font-size:10px;color:#666;font-style:italic;">${escapeHtml(s.declaration)}</p>`;
+  }
+  if (s.jurisdiction) {
+    html += `<p style="margin-top:6px;font-size:10px;color:#666;">${escapeHtml(s.jurisdiction)}</p>`;
+  }
+  return html;
+}
+
+function buildPaymentTermsLine(inv: InvoiceData, s: EffectiveInvoiceSettings) {
+  const bits: string[] = [];
+  if (s.payment_terms_label) bits.push(`<strong>Terms:</strong> ${escapeHtml(s.payment_terms_label)}`);
+  if (inv.due_date) bits.push(`<strong>Due:</strong> ${formatDate(inv.due_date)}`);
+  if (s.payment_instructions) bits.push(escapeHtml(s.payment_instructions));
+  if (!bits.length) return "";
+  return `<p style="margin-top:10px;font-size:11px;color:#444;">${bits.join(" · ")}</p>`;
+}
+
+function buildFooter(settings: EffectiveInvoiceSettings, inv: InvoiceData) {
   let html = "";
   const paymentBits: string[] = [];
   if (inv.payment_method) paymentBits.push(`Method: ${escapeHtml(inv.payment_method)}`);
@@ -133,6 +237,8 @@ function buildFooter(settings: InvoiceSettings, inv: InvoiceData) {
   if (paymentBits.length) {
     html += `<p style="margin-top:16px;font-size:12px;color:#444;"><strong>Payment</strong> — ${paymentBits.join(" · ")}</p>`;
   }
+  html += buildPaymentTermsLine(inv, settings);
+  html += buildBankBlock(settings);
   if (inv.notes && inv.notes.trim()) {
     html += `<div style="margin-top:14px;padding:10px 12px;background:#fafafa;border:1px solid #eee;border-radius:6px;">
       <p style="font-size:10px;font-weight:600;text-transform:uppercase;color:#666;margin:0 0 4px;">Notes / Comments</p>
@@ -140,10 +246,12 @@ function buildFooter(settings: InvoiceSettings, inv: InvoiceData) {
     </div>`;
   }
   if (settings.terms) {
-    html += `<div style="margin-top:20px;padding-top:12px;border-top:1px solid #eee;"><p style="font-size:10px;font-weight:600;text-transform:uppercase;color:#888;margin-bottom:4px;">Terms & Conditions</p><p style="font-size:11px;color:#666;white-space:pre-line;">${settings.terms}</p></div>`;
+    html += `<div style="margin-top:20px;padding-top:12px;border-top:1px solid #eee;"><p style="font-size:10px;font-weight:600;text-transform:uppercase;color:#888;margin-bottom:4px;">Terms & Conditions</p><p style="font-size:11px;color:#666;white-space:pre-line;">${escapeHtml(settings.terms)}</p></div>`;
   }
+  html += buildSignatureBlock(settings);
+  html += buildDeclarationJurisdiction(settings);
   if (settings.footer_note) {
-    html += `<p style="margin-top:20px;text-align:center;font-size:12px;color:#666;font-style:italic;">${settings.footer_note}</p>`;
+    html += `<p style="margin-top:20px;text-align:center;font-size:12px;color:#666;font-style:italic;">${escapeHtml(settings.footer_note)}</p>`;
   }
   return html;
 }
@@ -154,17 +262,19 @@ function logoImg(url: string, maxH = 60) {
 }
 
 // ─── CLASSIC TEMPLATE ──────────────────────
-function classicTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: FormatCurrency) {
+function classicTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, currency: FormatCurrency) {
   const isIgst = Number(inv.igst_total) > 0;
   const docType = inv.invoice_type === "credit_note" ? "Credit Note" : "Tax Invoice";
   return `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
       <div>
         ${settings.logo_url ? `<div style="margin-bottom:8px;">${logoImg(settings.logo_url)}</div>` : ""}
-        <h1 style="font-size:18px;font-weight:700;margin:0;">${inv.business_name}</h1>
-        ${isGstRegistered(inv.business_gstin) ? `<p style="font-size:12px;color:#666;margin:2px 0;">GSTIN: ${inv.business_gstin}</p>` : ""}
-        ${inv.business_address ? `<p style="font-size:12px;color:#666;margin:2px 0;">${inv.business_address}</p>` : ""}
-        ${inv.business_state ? `<p style="font-size:12px;color:#666;margin:2px 0;">${inv.business_state} (${inv.business_state_code})</p>` : ""}
+        <h1 style="font-size:18px;font-weight:700;margin:0;">${escapeHtml(inv.business_name)}</h1>
+        ${isGstRegistered(inv.business_gstin) ? `<p style="font-size:12px;color:#666;margin:2px 0;">GSTIN: ${escapeHtml(inv.business_gstin)}</p>` : ""}
+        ${buildIdentityIds(settings)}
+        ${inv.business_address ? `<p style="font-size:12px;color:#666;margin:2px 0;">${escapeHtml(inv.business_address)}</p>` : ""}
+        ${inv.business_state ? `<p style="font-size:12px;color:#666;margin:2px 0;">${escapeHtml(inv.business_state)} (${escapeHtml(inv.business_state_code || "")})</p>` : ""}
+        ${buildBusinessContactLine(settings)}
       </div>
       <div style="text-align:right;">
         <p style="font-size:11px;padding:2px 8px;border:1px solid ${inv.invoice_type === "credit_note" ? "#e11" : "#888"};border-radius:4px;display:inline-block;color:${inv.invoice_type === "credit_note" ? "#e11" : "#444"};font-weight:600;">${docType}</p>
@@ -194,10 +304,10 @@ function classicTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: 
 }
 
 // ─── MODERN TEMPLATE ───────────────────────
-function modernTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: FormatCurrency) {
+function modernTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, currency: FormatCurrency) {
   const isIgst = Number(inv.igst_total) > 0;
   const docType = inv.invoice_type === "credit_note" ? "CREDIT NOTE" : "TAX INVOICE";
-  const accent = "#2563eb";
+  const accent = settings.brand_color ? escapeHtml(settings.brand_color) : "#2563eb";
   return `
     <div style="border-top:4px solid ${accent};padding-top:20px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
@@ -217,8 +327,10 @@ function modernTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: F
         <div>
           <p style="font-size:10px;text-transform:uppercase;color:#888;font-weight:600;margin:0 0 4px;">From</p>
           <p style="font-weight:600;margin:0;">${inv.business_name}</p>
-          ${inv.business_address ? `<p style="font-size:12px;color:#666;margin:2px 0;">${inv.business_address}</p>` : ""}
-          ${inv.business_state ? `<p style="font-size:12px;color:#666;margin:2px 0;">${inv.business_state}</p>` : ""}
+          ${inv.business_address ? `<p style="font-size:12px;color:#666;margin:2px 0;">${escapeHtml(inv.business_address)}</p>` : ""}
+          ${inv.business_state ? `<p style="font-size:12px;color:#666;margin:2px 0;">${escapeHtml(inv.business_state)}</p>` : ""}
+          ${buildBusinessContactLine(settings)}
+          ${buildIdentityIds(settings)}
         </div>
         <div>
           <p style="font-size:10px;text-transform:uppercase;color:#888;font-weight:600;margin:0 0 4px;">Bill To</p>
@@ -263,7 +375,7 @@ function modernTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: F
 }
 
 // ─── COMPACT TEMPLATE ──────────────────────
-function compactTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: FormatCurrency) {
+function compactTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, currency: FormatCurrency) {
   const isIgst = Number(inv.igst_total) > 0;
   const docType = inv.invoice_type === "credit_note" ? "Credit Note" : "Tax Invoice";
   return `
@@ -279,8 +391,11 @@ function compactTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: 
       </div>
       <div style="display:flex;gap:24px;margin-bottom:12px;font-size:11px;">
         <div style="flex:1;">
-          <span style="font-weight:600;">From:</span> ${inv.business_name}${isGstRegistered(inv.business_gstin) ? ` · GSTIN: ${inv.business_gstin}` : ""}
-          ${inv.business_address ? ` · ${inv.business_address}` : ""}
+          <span style="font-weight:600;">From:</span> ${escapeHtml(inv.business_name)}${isGstRegistered(inv.business_gstin) ? ` · GSTIN: ${escapeHtml(inv.business_gstin)}` : ""}
+          ${inv.business_address ? ` · ${escapeHtml(inv.business_address)}` : ""}
+          ${settings.phone ? ` · Tel: ${escapeHtml(settings.phone)}` : ""}
+          ${settings.email ? ` · Email: ${escapeHtml(settings.email)}` : ""}
+          ${settings.pan ? ` · PAN: ${escapeHtml(settings.pan)}` : ""}
         </div>
         <div style="flex:1;">
           <span style="font-weight:600;">To:</span> ${inv.customer_name || "—"}
@@ -337,7 +452,7 @@ function compactTemplate(inv: InvoiceData, settings: InvoiceSettings, currency: 
 
 export function renderInvoiceHtml(
   invoice: InvoiceData,
-  settings: InvoiceSettings,
+  settings: EffectiveInvoiceSettings,
   currency: FormatCurrency,
 ): string {
   switch (settings.template) {

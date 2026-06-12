@@ -13,6 +13,7 @@ import { usePerCityFyToggle } from "@/hooks/useRevenue";
 import { INDIAN_STATES, validateGSTIN } from "@/lib/gst-utils";
 import { AdminFinancialYearsCard } from "@/components/admin/AdminFinancialYearsCard";
 import { InvoiceSettingsCard } from "@/components/admin/InvoiceSettingsCard";
+import { InvoiceProfileCard } from "@/components/admin/InvoiceProfileCard";
 import { CityPaymentsSection } from "@/components/admin/CityPaymentsSection";
 import { AdvanceAccountsReport } from "@/components/admin/AdvanceAccountsReport";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -173,7 +174,7 @@ function GstSettingsSection({ city }: { city: string }) {
 
 // ─── Main Tab ───────────────────────────────────────────
 export function AdminFinanceTab() {
-  const [tab, setTab] = useState("settings");
+  const [tab, setTab] = useState("invoice_profile");
   const { isAdmin, isSiteAdmin } = useAdmin();
   const { data: perCityFyEnabled } = usePerCityFyToggle();
   const { data: cities, isLoading: loadingCities } = useAvailableCities();
@@ -220,16 +221,20 @@ export function AdminFinanceTab() {
 
       <Tabs value={tab} onValueChange={setTab} className="space-y-4">
         <TabsList className="flex-wrap">
-          <TabsTrigger value="settings">GST Settings</TabsTrigger>
-          <TabsTrigger value="invoice_settings">Invoice Template</TabsTrigger>
+          <TabsTrigger value="invoice_profile">Invoice Profile</TabsTrigger>
+          <TabsTrigger value="legacy_settings">Legacy GST</TabsTrigger>
+          <TabsTrigger value="legacy_template">Legacy Template</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
           <TabsTrigger value="advance_accounts">Advance Accounts</TabsTrigger>
           {showCityFY && <TabsTrigger value="financial_year">Financial Year</TabsTrigger>}
         </TabsList>
-        <TabsContent value="settings">
+        <TabsContent value="invoice_profile">
+          {selectedCity ? <InvoiceProfileCard city={selectedCity} /> : <p className="text-sm text-muted-foreground">Pick a city above to edit its invoice profile.</p>}
+        </TabsContent>
+        <TabsContent value="legacy_settings">
           {selectedCity && <GstSettingsSection city={selectedCity} />}
         </TabsContent>
-        <TabsContent value="invoice_settings">
+        <TabsContent value="legacy_template">
           {selectedCity && <InvoiceSettingsCard city={selectedCity} />}
         </TabsContent>
         <TabsContent value="payments">

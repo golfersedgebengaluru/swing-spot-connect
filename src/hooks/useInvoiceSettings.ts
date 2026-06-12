@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useCityInvoiceProfile, type CityInvoiceProfile } from "@/hooks/useCityInvoiceProfile";
 
 export type InvoiceTemplate = "classic" | "modern" | "compact";
 
@@ -57,14 +58,25 @@ export function useCityInvoiceSettings(city?: string) {
 export function useEffectiveInvoiceSettings(city?: string) {
   const { data: global, isLoading: gl } = useGlobalInvoiceSettings();
   const { data: citySettings, isLoading: cl } = useCityInvoiceSettings(city);
+  const { data: profile, isLoading: pl } = useCityInvoiceProfile(city);
 
-  const effective: InvoiceSettings = citySettings ?? global ?? { ...DEFAULTS, city: null };
+  const base: InvoiceSettings = citySettings ?? global ?? { ...DEFAULTS, city: null };
+  // Merge in the city invoice profile extras (contact, bank, signature, etc.)
+  // for rendering. These are always optional — templates degrade gracefully
+  // when absent so legacy invoices remain unchanged.
+  const effective = profile ? { ...base, ...stripUndefined(profile) } : base;
 
   return {
-    data: effective,
-    isLoading: gl || cl,
+    data: effective as InvoiceSettings & Partial<CityInvoiceProfile>,
+    isLoading: gl || cl || pl,
     isOverridden: !!citySettings,
   };
+}
+
+function stripUndefined<T extends Record<string, any>>(o: T): Partial<T> {
+  const out: any = {};
+  for (const k in o) if (o[k] !== undefined && o[k] !== null) out[k] = o[k];
+  return out;
 }
 
 /** Save invoice settings for a specific city or global (city=null) */
