@@ -13,8 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Building2, Plus, Pencil, Trash2, Loader2, Receipt, Users, Calendar, CheckCircle2, AlertCircle,
-  Search, X, UserPlus,
+  Search, X, UserPlus, FileSpreadsheet,
 } from "lucide-react";
+import { exportCorporateUsageExcel } from "@/lib/corporate-usage-export";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import {
