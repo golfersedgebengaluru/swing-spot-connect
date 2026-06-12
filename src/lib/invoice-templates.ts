@@ -391,8 +391,11 @@ function compactTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, c
       </div>
       <div style="display:flex;gap:24px;margin-bottom:12px;font-size:11px;">
         <div style="flex:1;">
-          <span style="font-weight:600;">From:</span> ${inv.business_name}${isGstRegistered(inv.business_gstin) ? ` · GSTIN: ${inv.business_gstin}` : ""}
-          ${inv.business_address ? ` · ${inv.business_address}` : ""}
+          <span style="font-weight:600;">From:</span> ${escapeHtml(inv.business_name)}${isGstRegistered(inv.business_gstin) ? ` · GSTIN: ${escapeHtml(inv.business_gstin)}` : ""}
+          ${inv.business_address ? ` · ${escapeHtml(inv.business_address)}` : ""}
+          ${settings.phone ? ` · Tel: ${escapeHtml(settings.phone)}` : ""}
+          ${settings.email ? ` · Email: ${escapeHtml(settings.email)}` : ""}
+          ${settings.pan ? ` · PAN: ${escapeHtml(settings.pan)}` : ""}
         </div>
         <div style="flex:1;">
           <span style="font-weight:600;">To:</span> ${inv.customer_name || "—"}
