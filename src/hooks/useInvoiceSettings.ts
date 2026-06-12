@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useCityInvoiceProfile, type CityInvoiceProfile } from "@/hooks/useCityInvoiceProfile";
 
 export type InvoiceTemplate = "classic" | "modern" | "compact";
 
