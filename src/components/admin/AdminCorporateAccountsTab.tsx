@@ -544,9 +544,20 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
     [corporateProducts, billingProductId]
   );
 
-  // Determine quantity: each non-cancelled session counts as one unit; cancelled rows are shown but excluded
-  const billableItems = useMemo(() => (items ?? []).filter((i) => !i.cancelled), [items]);
-  const cancelledItems = useMemo(() => (items ?? []).filter((i) => i.cancelled), [items]);
+  // Only rows still 'deferred' AND not cancelled are eligible for the next invoice.
+  // 'invoiced' rows remain visible for history but are excluded from the billable count.
+  const billableItems = useMemo(
+    () => (items ?? []).filter((i) => !i.cancelled && i.billing_status === "deferred"),
+    [items]
+  );
+  const cancelledItems = useMemo(
+    () => (items ?? []).filter((i) => i.cancelled && i.billing_status === "deferred"),
+    [items]
+  );
+  const invoicedItems = useMemo(
+    () => (items ?? []).filter((i) => i.billing_status === "invoiced"),
+    [items]
+  );
   const sessionCount = billableItems.length;
 
   // City is whichever city the admin has selected — invoice is issued by that franchisee.
@@ -558,8 +569,8 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
   }, [billingProduct, sessionCount]);
 
   const generate = async () => {
-    if (!items || items.length === 0) {
-      toast({ title: "Nothing to invoice", description: "No deferred sessions in this range." });
+    if (billableItems.length === 0) {
+      toast({ title: "Nothing to invoice", description: "No pending (deferred) sessions in this range." });
       return;
     }
     if (!billingProduct) {
@@ -695,7 +706,7 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
       ) : !items || items.length === 0 ? (
         <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
           <CheckCircle2 className="h-6 w-6 mx-auto mb-2 text-muted-foreground/60" />
-          No deferred sessions in this date range.
+          No sessions in this date range.
         </div>
       ) : (
         <>
@@ -707,40 +718,57 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
                   <th className="text-left p-2">User</th>
                   <th className="text-left p-2 hidden sm:table-cell">Type</th>
                   <th className="text-left p-2 hidden md:table-cell">Bay / City</th>
+                  <th className="text-left p-2">Status</th>
                   <th className="text-right p-2">Duration</th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((row) => (
-                  <tr
-                    key={`${row.kind}-${row.id}`}
-                    className={`border-t ${row.cancelled ? "bg-destructive/5 text-muted-foreground" : ""}`}
-                  >
-                    <td className={`p-2 text-xs ${row.cancelled ? "line-through" : ""}`}>{format(new Date(row.start_time), "dd MMM yy HH:mm")}</td>
-                    <td className={`p-2 text-xs ${row.cancelled ? "line-through" : ""}`}>{row.user_name || "—"}</td>
-                    <td className="p-2 hidden sm:table-cell text-xs capitalize">
-                      {row.kind}
-                      {row.cancelled && (
-                        <Badge variant="destructive" className="ml-2 text-[10px] uppercase">Cancelled</Badge>
-                      )}
-                    </td>
-                    <td className={`p-2 hidden md:table-cell text-xs ${row.cancelled ? "line-through" : ""}`}>{row.bay_name || row.city || "—"}</td>
-                    <td className={`p-2 text-right text-xs ${row.cancelled ? "line-through" : ""}`}>
-                      {row.duration_minutes ? `${row.duration_minutes} min` : "—"}
-                    </td>
-                  </tr>
-                ))}
+                {items.map((row) => {
+                  const isInvoiced = row.billing_status === "invoiced";
+                  return (
+                    <tr
+                      key={`${row.kind}-${row.id}`}
+                      className={`border-t ${row.cancelled ? "bg-destructive/5 text-muted-foreground" : isInvoiced ? "bg-muted/20" : ""}`}
+                    >
+                      <td className={`p-2 text-xs ${row.cancelled ? "line-through" : ""}`}>{format(new Date(row.start_time), "dd MMM yy HH:mm")}</td>
+                      <td className={`p-2 text-xs ${row.cancelled ? "line-through" : ""}`}>{row.user_name || "—"}</td>
+                      <td className="p-2 hidden sm:table-cell text-xs capitalize">{row.kind}</td>
+                      <td className={`p-2 hidden md:table-cell text-xs ${row.cancelled ? "line-through" : ""}`}>{row.bay_name || row.city || "—"}</td>
+                      <td className="p-2 text-xs">
+                        {row.cancelled ? (
+                          <Badge variant="destructive" className="text-[10px] uppercase">Cancelled</Badge>
+                        ) : isInvoiced ? (
+                          <Badge variant="secondary" className="text-[10px] uppercase" title={row.invoice_number ?? undefined}>
+                            Invoiced{row.invoice_number ? ` · ${row.invoice_number}` : ""}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] uppercase">Pending</Badge>
+                        )}
+                      </td>
+                      <td className={`p-2 text-right text-xs ${row.cancelled ? "line-through" : ""}`}>
+                        {row.duration_minutes ? `${row.duration_minutes} min` : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot className="bg-muted/30 font-medium">
+                {invoicedItems.length > 0 && (
+                  <tr className="text-xs text-muted-foreground">
+                    <td colSpan={4} className="p-2 text-right">Already invoiced (history)</td>
+                    <td className="p-2 text-right">{invoicedItems.length}</td>
+                    <td className="p-2 text-right">—</td>
+                  </tr>
+                )}
                 {cancelledItems.length > 0 && (
                   <tr className="text-xs text-muted-foreground">
-                    <td colSpan={3} className="p-2 text-right">Cancelled (excluded)</td>
+                    <td colSpan={4} className="p-2 text-right">Cancelled (excluded)</td>
                     <td className="p-2 text-right">{cancelledItems.length}</td>
                     <td className="p-2 text-right">—</td>
                   </tr>
                 )}
                 <tr>
-                  <td colSpan={3} className="p-2 text-right text-xs">Billable sessions</td>
+                  <td colSpan={4} className="p-2 text-right text-xs">Billable (pending) sessions</td>
                   <td className="p-2 text-right text-xs">{sessionCount} × {billingProduct ? `₹${Number(billingProduct.price).toLocaleString()}` : "—"}</td>
                   <td className="p-2 text-right">{billingProduct ? `₹${grossTotal.toLocaleString()}` : "—"}</td>
                 </tr>
