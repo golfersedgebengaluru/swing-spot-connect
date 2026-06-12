@@ -13,6 +13,7 @@ import { usePerCityFyToggle } from "@/hooks/useRevenue";
 import { INDIAN_STATES, validateGSTIN } from "@/lib/gst-utils";
 import { AdminFinancialYearsCard } from "@/components/admin/AdminFinancialYearsCard";
 import { InvoiceSettingsCard } from "@/components/admin/InvoiceSettingsCard";
+import { InvoiceProfileCard } from "@/components/admin/InvoiceProfileCard";
 import { CityPaymentsSection } from "@/components/admin/CityPaymentsSection";
 import { AdvanceAccountsReport } from "@/components/admin/AdvanceAccountsReport";
 import { useAdmin } from "@/hooks/useAdmin";
