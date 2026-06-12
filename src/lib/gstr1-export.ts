@@ -37,8 +37,23 @@ interface LineItem {
   sgst_amount: number;
   igst_amount: number;
   line_total: number;
+  product_id: string | null;
 }
 
+/**
+ * GSTR-1 export.
+ *
+ * Invariant: in this system, `unit_price` and `line_total` on
+ * `invoice_line_items` are GST-INCLUSIVE (gross). The taxable
+ * (exclusive) value is reverse-computed per line as
+ *   taxable = line_total - (cgst + sgst + igst)
+ *
+ * Every per-line GST rate is honoured (we never assume a single
+ * rate per invoice). Both B2B/CDNR (per-invoice) and B2CS/CDNUR
+ * (aggregated) sheets are split by GST rate, and the HSN summary
+ * is keyed by (HSN/SAC, rate) so mixed-rate lines under the same
+ * HSN do not collapse.
+ */
 export async function generateGSTR1Excel(city: string, year: number, month: number) {
   const monthStart = format(startOfMonth(new Date(year, month - 1)), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(new Date(year, month - 1)), "yyyy-MM-dd");
@@ -62,11 +77,10 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
   if (invErr) throw invErr;
   const allInvoices: Invoice[] = (invoices ?? []) as unknown as Invoice[];
 
-  // Fetch all line items for these invoices
+  // Fetch line items
   const invoiceIds = allInvoices.map((i) => i.id);
   let allLineItems: LineItem[] = [];
   if (invoiceIds.length > 0) {
-    // Batch in chunks of 50
     for (let i = 0; i < invoiceIds.length; i += 50) {
       const chunk = invoiceIds.slice(i, i + 50);
       const { data: items } = await supabase.from("invoice_line_items" as any)
@@ -76,6 +90,20 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
     }
   }
 
+  // Fetch UQC (unit_of_measure) for all referenced products in one shot
+  const productIds = Array.from(
+    new Set(allLineItems.map((li) => li.product_id).filter(Boolean) as string[])
+  );
+  const uqcByProduct = new Map<string, string>();
+  if (productIds.length > 0) {
+    const { data: prods } = await supabase.from("products_public" as any)
+      .select("id, unit_of_measure")
+      .in("id", productIds);
+    (prods ?? []).forEach((p: any) => {
+      if (p?.id) uqcByProduct.set(p.id, normalizeUqc(p.unit_of_measure));
+    });
+  }
+
   const lineItemsByInvoice = new Map<string, LineItem[]>();
   allLineItems.forEach((li) => {
     const arr = lineItemsByInvoice.get(li.invoice_id) || [];
@@ -83,100 +111,136 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
     lineItemsByInvoice.set(li.invoice_id, arr);
   });
 
-  // Separate invoices and credit notes
   const regularInvoices = allInvoices.filter((i) => i.invoice_type === "invoice");
   const creditNotes = allInvoices.filter((i) => i.invoice_type === "credit_note");
 
-  // B2B: invoices where customer_gstin is present
   const b2bInvoices = regularInvoices.filter((i) => i.customer_gstin);
-  // B2CS: invoices where customer_gstin is NOT present (URP)
   const b2csInvoices = regularInvoices.filter((i) => !i.customer_gstin);
-  // CDNR: credit notes where original invoice had GSTIN
   const cdnrNotes = creditNotes.filter((cn) => cn.customer_gstin);
-  // CDNUR: credit notes where original invoice did NOT have GSTIN
   const cdnurNotes = creditNotes.filter((cn) => !cn.customer_gstin);
 
   const placeOfSupply = `${gst.state_code}-${gst.state}`;
 
-  // ── B2B Sheet ──
-  const b2bRows = b2bInvoices.map((inv) => ({
-    "GSTIN/UIN of Recipient": inv.customer_gstin,
-    "Receiver Name": inv.customer_name || "",
-    "Invoice Number": inv.invoice_number,
-    "Invoice Date": inv.invoice_date,
-    "Invoice Value": inv.total,
-    "Place Of Supply": placeOfSupply,
-    "Reverse Charge": "N",
-    "Invoice Type": "Regular",
-    "Rate": getMaxRate(lineItemsByInvoice.get(inv.id) || []),
-    "Taxable Value": inv.subtotal,
-    "CGST Amount": inv.cgst_total,
-    "SGST Amount": inv.sgst_total,
-    "IGST Amount": inv.igst_total,
-    "Cess Amount": 0,
-  }));
-
-  // ── B2CS Sheet (aggregated by rate) ──
-  const b2csMap = new Map<number, { taxable: number; cgst: number; sgst: number }>();
-  b2csInvoices.forEach((inv) => {
-    const rate = getMaxRate(lineItemsByInvoice.get(inv.id) || []);
-    const existing = b2csMap.get(rate) || { taxable: 0, cgst: 0, sgst: 0 };
-    existing.taxable += inv.subtotal;
-    existing.cgst += inv.cgst_total;
-    existing.sgst += inv.sgst_total;
-    b2csMap.set(rate, existing);
+  // ── B2B Sheet (one row per invoice × GST rate) ──
+  const b2bRows: any[] = [];
+  b2bInvoices.forEach((inv) => {
+    const lines = lineItemsByInvoice.get(inv.id) || [];
+    const byRate = groupLinesByRate(lines);
+    byRate.forEach((vals, rate) => {
+      b2bRows.push({
+        "GSTIN/UIN of Recipient": inv.customer_gstin,
+        "Receiver Name": inv.customer_name || "",
+        "Invoice Number": inv.invoice_number,
+        "Invoice Date": inv.invoice_date,
+        "Invoice Value": round2(inv.total),
+        "Place Of Supply": placeOfSupply,
+        "Reverse Charge": "N",
+        "Invoice Type": "Regular",
+        "Rate": rate,
+        "Taxable Value": round2(vals.taxable),
+        "CGST Amount": round2(vals.cgst),
+        "SGST Amount": round2(vals.sgst),
+        "IGST Amount": round2(vals.igst),
+        "Cess Amount": 0,
+      });
+    });
   });
-  const b2csRows = Array.from(b2csMap.entries()).map(([rate, vals]) => ({
-    "Type": "OE",
-    "Place Of Supply": placeOfSupply,
-    "Rate": rate,
-    "Taxable Value": round2(vals.taxable),
-    "CGST Amount": round2(vals.cgst),
-    "SGST/UTGST Amount": round2(vals.sgst),
-    "Cess Amount": 0,
-  }));
 
-  // ── CDNR Sheet ──
-  const cdnrRows = cdnrNotes.map((cn) => ({
-    "GSTIN/UIN of Recipient": cn.customer_gstin,
-    "Receiver Name": cn.customer_name || "",
-    "Note Number": cn.invoice_number,
-    "Note Date": cn.invoice_date,
-    "Note Type": "C",
-    "Place Of Supply": placeOfSupply,
-    "Reverse Charge": "N",
-    "Note Supply Type": "Regular",
-    "Note Value": cn.total,
-    "Rate": getMaxRate(lineItemsByInvoice.get(cn.id) || []),
-    "Taxable Value": cn.subtotal,
-    "CGST Amount": cn.cgst_total,
-    "SGST Amount": cn.sgst_total,
-    "IGST Amount": cn.igst_total,
-    "Cess Amount": 0,
-  }));
+  // ── B2CS Sheet (aggregated by rate across invoices) ──
+  const b2csMap = new Map<number, { taxable: number; cgst: number; sgst: number; igst: number }>();
+  b2csInvoices.forEach((inv) => {
+    const lines = lineItemsByInvoice.get(inv.id) || [];
+    const byRate = groupLinesByRate(lines);
+    byRate.forEach((vals, rate) => {
+      const e = b2csMap.get(rate) || { taxable: 0, cgst: 0, sgst: 0, igst: 0 };
+      e.taxable += vals.taxable;
+      e.cgst += vals.cgst;
+      e.sgst += vals.sgst;
+      e.igst += vals.igst;
+      b2csMap.set(rate, e);
+    });
+  });
+  const b2csRows = Array.from(b2csMap.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([rate, vals]) => ({
+      "Type": "OE",
+      "Place Of Supply": placeOfSupply,
+      "Rate": rate,
+      "Taxable Value": round2(vals.taxable),
+      "CGST Amount": round2(vals.cgst),
+      "SGST/UTGST Amount": round2(vals.sgst),
+      "Cess Amount": 0,
+    }));
 
-  // ── CDNUR Sheet ──
-  const cdnurRows = cdnurNotes.map((cn) => ({
-    "Note Number": cn.invoice_number,
-    "Note Date": cn.invoice_date,
-    "Note Type": "C",
-    "Place Of Supply": placeOfSupply,
-    "Note Value": cn.total,
-    "Rate": getMaxRate(lineItemsByInvoice.get(cn.id) || []),
-    "Taxable Value": cn.subtotal,
-    "CGST Amount": cn.cgst_total,
-    "SGST/UTGST Amount": cn.sgst_total,
-    "Cess Amount": 0,
-  }));
+  // ── CDNR Sheet (one row per note × rate) ──
+  const cdnrRows: any[] = [];
+  cdnrNotes.forEach((cn) => {
+    const lines = lineItemsByInvoice.get(cn.id) || [];
+    const byRate = groupLinesByRate(lines);
+    byRate.forEach((vals, rate) => {
+      cdnrRows.push({
+        "GSTIN/UIN of Recipient": cn.customer_gstin,
+        "Receiver Name": cn.customer_name || "",
+        "Note Number": cn.invoice_number,
+        "Note Date": cn.invoice_date,
+        "Note Type": "C",
+        "Place Of Supply": placeOfSupply,
+        "Reverse Charge": "N",
+        "Note Supply Type": "Regular",
+        "Note Value": round2(cn.total),
+        "Rate": rate,
+        "Taxable Value": round2(vals.taxable),
+        "CGST Amount": round2(vals.cgst),
+        "SGST Amount": round2(vals.sgst),
+        "IGST Amount": round2(vals.igst),
+        "Cess Amount": 0,
+      });
+    });
+  });
 
-  // ── HSN Summary ──
-  // NOTE: unit_price is GST-INCLUSIVE (all prices in the system are inclusive of GST).
-  // line_total is also GST-inclusive and equals the gross value.
-  // Taxable = line_total - (cgst + sgst + igst).
-  const hsnMap = new Map<string, { desc: string; qty: number; taxable: number; cgst: number; sgst: number; igst: number; gross: number; rate: number }>();
+  // ── CDNUR Sheet (one row per note × rate) ──
+  const cdnurRows: any[] = [];
+  cdnurNotes.forEach((cn) => {
+    const lines = lineItemsByInvoice.get(cn.id) || [];
+    const byRate = groupLinesByRate(lines);
+    byRate.forEach((vals, rate) => {
+      cdnurRows.push({
+        "Note Number": cn.invoice_number,
+        "Note Date": cn.invoice_date,
+        "Note Type": "C",
+        "Place Of Supply": placeOfSupply,
+        "Note Value": round2(cn.total),
+        "Rate": rate,
+        "Taxable Value": round2(vals.taxable),
+        "CGST Amount": round2(vals.cgst),
+        "SGST/UTGST Amount": round2(vals.sgst),
+        "Cess Amount": 0,
+      });
+    });
+  });
+
+  // ── HSN Summary (keyed by HSN|rate) ──
+  type HsnAgg = {
+    desc: string;
+    uqc: string;
+    qty: number;
+    taxable: number;
+    cgst: number;
+    sgst: number;
+    igst: number;
+    gross: number;
+    rate: number;
+    code: string;
+  };
+  const hsnMap = new Map<string, HsnAgg>();
   allLineItems.forEach((li) => {
     const code = li.hsn_code || li.sac_code || "N/A";
-    const existing = hsnMap.get(code) || { desc: li.item_name, qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0, gross: 0, rate: li.gst_rate };
+    const rate = Number(li.gst_rate) || 0;
+    const key = `${code}|${rate}`;
+    const uqc = (li.product_id && uqcByProduct.get(li.product_id)) || "NOS";
+    const existing = hsnMap.get(key) || {
+      desc: li.item_name, uqc, qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0, gross: 0, rate, code,
+    };
     const gross = Number(li.line_total) || Number(li.unit_price) * Number(li.quantity);
     const gstAmt = Number(li.cgst_amount) + Number(li.sgst_amount) + Number(li.igst_amount);
     existing.qty += Number(li.quantity);
@@ -185,21 +249,23 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
     existing.cgst += Number(li.cgst_amount);
     existing.sgst += Number(li.sgst_amount);
     existing.igst += Number(li.igst_amount);
-    hsnMap.set(code, existing);
+    hsnMap.set(key, existing);
   });
-  const hsnRows = Array.from(hsnMap.entries()).map(([code, vals]) => ({
-    "HSN": code,
-    "Description": vals.desc,
-    "UQC": "NOS",
-    "Total Quantity": vals.qty,
-    "Total Value": round2(vals.gross),
-    "Taxable Value": round2(vals.taxable),
-    "Rate": vals.rate,
-    "CGST Amount": round2(vals.cgst),
-    "SGST Amount": round2(vals.sgst),
-    "IGST Amount": round2(vals.igst),
-    "Cess Amount": 0,
-  }));
+  const hsnRows = Array.from(hsnMap.values())
+    .sort((a, b) => (a.code === b.code ? a.rate - b.rate : a.code.localeCompare(b.code)))
+    .map((vals) => ({
+      "HSN": vals.code,
+      "Description": vals.desc,
+      "UQC": vals.uqc,
+      "Total Quantity": vals.qty,
+      "Total Value": round2(vals.gross),
+      "Taxable Value": round2(vals.taxable),
+      "Rate": vals.rate,
+      "CGST Amount": round2(vals.cgst),
+      "SGST Amount": round2(vals.sgst),
+      "IGST Amount": round2(vals.igst),
+      "Cess Amount": 0,
+    }));
 
   // ── Document Summary ──
   const invoiceNumbers = regularInvoices.map((i) => i.invoice_number).sort();
@@ -224,7 +290,6 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
     });
   }
 
-  // Build workbook
   const wb = XLSX.utils.book_new();
   appendSheet(wb, b2bRows, "B2B");
   appendSheet(wb, b2csRows, "B2CS");
@@ -240,12 +305,10 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
 
 function appendSheet(wb: XLSX.WorkBook, rows: any[], name: string) {
   if (rows.length === 0) {
-    // Add empty sheet with headers note
     const ws = XLSX.utils.aoa_to_sheet([["No data for this section"]]);
     XLSX.utils.book_append_sheet(wb, ws, name);
   } else {
     const ws = XLSX.utils.json_to_sheet(rows);
-    // Auto-size columns
     const colWidths = Object.keys(rows[0]).map((key) => ({
       wch: Math.max(key.length, ...rows.map((r) => String(r[key] ?? "").length)) + 2,
     }));
@@ -254,11 +317,46 @@ function appendSheet(wb: XLSX.WorkBook, rows: any[], name: string) {
   }
 }
 
-function getMaxRate(items: LineItem[]): number {
-  if (items.length === 0) return 0;
-  return Math.max(...items.map((i) => i.gst_rate));
+/** Reverse-calc taxable per line; aggregate by GST rate. */
+export function groupLinesByRate(
+  items: LineItem[]
+): Map<number, { taxable: number; cgst: number; sgst: number; igst: number; gross: number }> {
+  const map = new Map<number, { taxable: number; cgst: number; sgst: number; igst: number; gross: number }>();
+  items.forEach((li) => {
+    const rate = Number(li.gst_rate) || 0;
+    const gross = Number(li.line_total) || Number(li.unit_price) * Number(li.quantity);
+    const cgst = Number(li.cgst_amount) || 0;
+    const sgst = Number(li.sgst_amount) || 0;
+    const igst = Number(li.igst_amount) || 0;
+    const taxable = gross - cgst - sgst - igst;
+    const e = map.get(rate) || { taxable: 0, cgst: 0, sgst: 0, igst: 0, gross: 0 };
+    e.taxable += taxable;
+    e.cgst += cgst;
+    e.sgst += sgst;
+    e.igst += igst;
+    e.gross += gross;
+    map.set(rate, e);
+  });
+  return map;
 }
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+/** Map product units to GST UQC codes (best-effort; falls back to NOS). */
+function normalizeUqc(unit: string | null | undefined): string {
+  if (!unit) return "NOS";
+  const u = unit.trim().toLowerCase();
+  const map: Record<string, string> = {
+    "each": "NOS", "nos": "NOS", "number": "NOS", "pcs": "PCS", "piece": "PCS",
+    "hour": "HRS", "hours": "HRS", "hr": "HRS", "hrs": "HRS",
+    "kg": "KGS", "kgs": "KGS", "kilogram": "KGS",
+    "gram": "GMS", "g": "GMS", "gms": "GMS",
+    "litre": "LTR", "liter": "LTR", "ltr": "LTR", "l": "LTR",
+    "ml": "MLT",
+    "metre": "MTR", "meter": "MTR", "m": "MTR",
+    "box": "BOX", "pack": "PAC", "set": "SET", "dozen": "DOZ",
+  };
+  return map[u] || "NOS";
 }
