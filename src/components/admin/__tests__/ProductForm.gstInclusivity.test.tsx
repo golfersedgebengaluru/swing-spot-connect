@@ -52,10 +52,7 @@ describe("ProductForm GST inclusivity invariant", () => {
     const gstInput = screen.getByPlaceholderText("18") as HTMLInputElement;
     fireEvent.change(gstInput, { target: { value: "18" } });
 
-    // 3. Flip to Excl. GST (switch is currently "checked = inclusive")
-    const toggle = screen.getByRole("switch", { name: "" }) ||
-      document.querySelector('[role="switch"]') as HTMLElement;
-    // There are multiple switches; pick the one inside Selling Price block.
+    // 3. Flip to Excl. GST — pick the switch inside the Selling Price block.
     const priceBlock = screen.getByText("Selling Price").closest("div.rounded-lg") as HTMLElement;
     const priceToggle = priceBlock.querySelector('[role="switch"]') as HTMLElement;
     fireEvent.click(priceToggle);
