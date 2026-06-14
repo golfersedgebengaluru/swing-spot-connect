@@ -5447,26 +5447,19 @@ export type Database = {
       }
       get_advance_balance: { Args: { p_customer_id: string }; Returns: number }
       get_hours_balance: { Args: { p_user_id: string }; Returns: number }
-      get_next_invoice_number:
-        | {
-            Args: {
-              p_fy_id: string
-              p_gstin: string
-              p_prefix?: string
-              p_start?: number
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_doc_type?: string
-              p_fy_id: string
-              p_gstin: string
-              p_prefix?: string
-              p_start?: number
-            }
-            Returns: string
-          }
+      get_next_invoice_number: {
+        Args: {
+          p_doc_type?: string
+          p_fy_id: string
+          p_gstin: string
+          p_prefix: string
+          p_start: number
+        }
+        Returns: {
+          invoice_number: string
+          sequence_value: number
+        }[]
+      }
       get_product_cost_prices: {
         Args: { p_ids?: string[] }
         Returns: {
