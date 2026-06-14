@@ -241,14 +241,17 @@ export function useCreateInvoice() {
       if (!fy) throw new Error("No active financial year configured.");
 
       // 3. Get next invoice number
-      const { data: invoiceNumber, error: seqErr } = await supabase
+      const { data: seqRows, error: seqErr } = await supabase
         .rpc("get_next_invoice_number", {
           p_gstin: sequenceGstin,
           p_fy_id: fy.id,
           p_prefix: gstProfile.invoice_prefix || "INV",
           p_start: gstProfile.invoice_start_number || 1,
+          p_doc_type: params.invoiceType === "credit_note" ? "CN" : "INV",
         });
       if (seqErr) throw seqErr;
+      const invoiceNumber = Array.isArray(seqRows) ? seqRows[0]?.invoice_number : (seqRows as any)?.invoice_number;
+      if (!invoiceNumber) throw new Error("Failed to generate invoice number");
 
       // 4. Create revenue transaction first (so we can link it)
       const { data: revTxn, error: revErr } = await supabase.from("revenue_transactions")
@@ -658,12 +661,15 @@ export function useCancelInvoice() {
         .maybeSingle();
       if (!fy) throw new Error("No active financial year");
 
-      const { data: cnNumber } = await supabase.rpc("get_next_invoice_number", {
+      const { data: cnRows } = await supabase.rpc("get_next_invoice_number", {
         p_gstin: original.business_gstin,
         p_fy_id: fy.id,
         p_prefix: "CN",
         p_start: 1,
+        p_doc_type: "CN",
       });
+      const cnNumber = Array.isArray(cnRows) ? cnRows[0]?.invoice_number : (cnRows as any)?.invoice_number;
+      if (!cnNumber) throw new Error("Failed to generate credit note number");
 
       const { data: creditNote, error: cnErr } = await supabase.from("invoices")
         .insert({
@@ -862,14 +868,15 @@ export function useReassignInvoiceCity() {
         }
       } else {
         // Use the standard sequencer (also consumes any recycled number first)
-        const { data: nextNumber, error: seqErr } = await supabase.rpc("get_next_invoice_number", {
+        const { data: seqRows2, error: seqErr } = await supabase.rpc("get_next_invoice_number", {
           p_gstin: targetSequenceGstin,
           p_fy_id: invoice.financial_year_id!,
           p_prefix: targetPrefix,
           p_start: targetProfile.invoice_start_number || 1,
+          p_doc_type: invoice.invoice_type === "credit_note" ? "CN" : "INV",
         });
         if (seqErr) throw seqErr;
-        newInvoiceNumber = nextNumber as string;
+        newInvoiceNumber = (Array.isArray(seqRows2) ? seqRows2[0]?.invoice_number : (seqRows2 as any)?.invoice_number) as string;
       }
 
       // 5. Update the invoice with new city, business identity, and number
