@@ -868,14 +868,15 @@ export function useReassignInvoiceCity() {
         }
       } else {
         // Use the standard sequencer (also consumes any recycled number first)
-        const { data: nextNumber, error: seqErr } = await supabase.rpc("get_next_invoice_number", {
+        const { data: seqRows2, error: seqErr } = await supabase.rpc("get_next_invoice_number", {
           p_gstin: targetSequenceGstin,
           p_fy_id: invoice.financial_year_id!,
           p_prefix: targetPrefix,
           p_start: targetProfile.invoice_start_number || 1,
+          p_doc_type: invoice.invoice_type === "credit_note" ? "CN" : "INV",
         });
         if (seqErr) throw seqErr;
-        newInvoiceNumber = nextNumber as string;
+        newInvoiceNumber = (Array.isArray(seqRows2) ? seqRows2[0]?.invoice_number : (seqRows2 as any)?.invoice_number) as string;
       }
 
       // 5. Update the invoice with new city, business identity, and number
