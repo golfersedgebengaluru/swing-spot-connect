@@ -241,14 +241,17 @@ export function useCreateInvoice() {
       if (!fy) throw new Error("No active financial year configured.");
 
       // 3. Get next invoice number
-      const { data: invoiceNumber, error: seqErr } = await supabase
+      const { data: seqRows, error: seqErr } = await supabase
         .rpc("get_next_invoice_number", {
           p_gstin: sequenceGstin,
           p_fy_id: fy.id,
           p_prefix: gstProfile.invoice_prefix || "INV",
           p_start: gstProfile.invoice_start_number || 1,
+          p_doc_type: params.invoiceType === "credit_note" ? "CN" : "INV",
         });
       if (seqErr) throw seqErr;
+      const invoiceNumber = Array.isArray(seqRows) ? seqRows[0]?.invoice_number : (seqRows as any)?.invoice_number;
+      if (!invoiceNumber) throw new Error("Failed to generate invoice number");
 
       // 4. Create revenue transaction first (so we can link it)
       const { data: revTxn, error: revErr } = await supabase.from("revenue_transactions")
