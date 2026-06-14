@@ -661,12 +661,15 @@ export function useCancelInvoice() {
         .maybeSingle();
       if (!fy) throw new Error("No active financial year");
 
-      const { data: cnNumber } = await supabase.rpc("get_next_invoice_number", {
+      const { data: cnRows } = await supabase.rpc("get_next_invoice_number", {
         p_gstin: original.business_gstin,
         p_fy_id: fy.id,
         p_prefix: "CN",
         p_start: 1,
+        p_doc_type: "CN",
       });
+      const cnNumber = Array.isArray(cnRows) ? cnRows[0]?.invoice_number : (cnRows as any)?.invoice_number;
+      if (!cnNumber) throw new Error("Failed to generate credit note number");
 
       const { data: creditNote, error: cnErr } = await supabase.from("invoices")
         .insert({
