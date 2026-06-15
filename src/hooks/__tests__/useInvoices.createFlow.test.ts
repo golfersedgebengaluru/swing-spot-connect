@@ -190,14 +190,18 @@ describe("useCreateInvoice — manual invoice happy path", () => {
     expect(seqCall!.args.p_doc_type).toBe("credit_note"); // post-migration value (was wrongly "CN")
   });
 
-  it("manual booking invoice: uses 'booking' category and routes through the same RPC", async () => {
+  it("manual booking invoice: uses 'booking' category and creates booking row", async () => {
     primeHappyPath();
+    const s: any = supabase;
+    // booking duplicate-guard lookup returns null, then booking insert returns a row
+    s.__queue("bookings", null, { id: "bk-1", status: "confirmed" });
+
     const { result } = renderHook(() => useCreateInvoice(), { wrapper });
 
     await result.current.mutateAsync({
       ...baseParams,
       invoiceCategory: "booking",
-      customerUserId: "user-123", // skip auto-profile creation branch
+      customerUserId: "user-123",
       bookingDate: "2026-06-15",
       bookingStartTime: "15:00",
       bookingEndTime: "16:00",
@@ -206,10 +210,19 @@ describe("useCreateInvoice — manual invoice happy path", () => {
     } as any);
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    const rev = captured.find((c) => c.table === "revenue_transactions")!.payload;
+    const rev = captured.find((c) => c.table === "revenue_transactions" && c.op === "insert")!.payload;
     expect(rev.transaction_type).toBe("booking");
 
     const inv = captured.find((c) => c.table === "invoices")!.payload;
     expect(inv.invoice_category).toBe("booking");
+
+    const bk = captured.find((c) => c.table === "bookings" && c.op === "insert");
+    expect(bk).toBeTruthy();
+    expect(bk!.payload).toMatchObject({
+      user_id: "user-123",
+      bay_id: "bay-1",
+      session_type: "practice",
+      status: "confirmed",
+    });
   });
 });
