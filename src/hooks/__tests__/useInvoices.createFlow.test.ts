@@ -196,6 +196,7 @@ describe("useCreateInvoice — manual invoice happy path", () => {
     await result.current.mutateAsync({
       ...baseParams,
       invoiceCategory: "booking",
+      customerUserId: "user-123", // skip auto-profile creation branch
       bookingDate: "2026-06-15",
       bookingStartTime: "15:00",
       bookingEndTime: "16:00",
