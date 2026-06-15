@@ -207,6 +207,14 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
       toast({ title: "Add at least one line item", variant: "destructive" });
       return;
     }
+    if (lineItems.some((li) => !li.productId)) {
+      toast({
+        title: "Every line item must be linked to a product",
+        description: "Pick each item from the catalogue search — free-text lines are not allowed on GST invoices.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (!paymentMethod) {
       toast({ title: "Select a payment method", variant: "destructive" });
       return;
