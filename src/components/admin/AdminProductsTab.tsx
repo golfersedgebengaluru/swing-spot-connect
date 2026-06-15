@@ -120,7 +120,15 @@ export function AdminProductsTab() {
     // Unlink from bay_pricing first to avoid FK constraint errors
     await supabase.from("bay_pricing").update({ service_product_id: null }).eq("service_product_id", id);
     const { error } = await supabase.from("products").delete().eq("id", id);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    if (error) {
+      // Friendly message when the DB-side guard blocks deletion of an
+      // invoice-referenced product.
+      const msg = /referenced by .* issued invoice/i.test(error.message)
+        ? "This item is on one or more issued invoices and cannot be deleted. Mark it out of stock / not bookable instead so historical invoices stay intact."
+        : error.message;
+      toast({ title: "Cannot delete", description: msg, variant: "destructive" });
+      return;
+    }
     toast({ title: "Deleted successfully" });
     queryClient.invalidateQueries({ queryKey: ["products"] });
   };
