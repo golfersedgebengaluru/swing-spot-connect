@@ -1,0 +1,19 @@
+# EdgeCollective - Golfer's Edge Community
+
+> A community platform for golfers to track progress, compete on leaderboards, book bay sessions, attend events, shop gear, earn rewards, and join leagues.
+
+## Pages
+
+- [/](/): Home — landing page and overview of the community.
+- [/book](/book): Book Bay — reserve golf bay practice slots.
+- [/my-bookings](/my-bookings): My Bookings — view and manage your upcoming and past bookings.
+- [/dashboard](/dashboard): Dashboard — track your practice progress and stats.
+- [/leaderboard](/leaderboard): Leaderboard — compete with other members on performance rankings.
+- [/events](/events): Events — browse and register for upcoming community events.
+- [/community](/community): Community — social feed and member interactions.
+- [/leagues](/leagues): Leagues — join and manage golf leagues and competitions.
+- [/coaching](/coaching): Coaching — browse coaching sessions and manage your training.
+- [/shop](/shop): Shop — purchase golf products and gear.
+- [/rewards](/rewards): Rewards — view points balance, progress, and redeem rewards.
+- [/profile](/profile): Profile — manage your account and preferences.
+- [/grievance](/grievance): Grievance — submit and track support requests.
