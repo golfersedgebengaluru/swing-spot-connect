@@ -5452,13 +5452,10 @@ export type Database = {
           p_doc_type?: string
           p_fy_id: string
           p_gstin: string
-          p_prefix: string
-          p_start: number
+          p_prefix?: string
+          p_start?: number
         }
-        Returns: {
-          invoice_number: string
-          sequence_value: number
-        }[]
+        Returns: string
       }
       get_product_cost_prices: {
         Args: { p_ids?: string[] }

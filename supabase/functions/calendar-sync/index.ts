@@ -449,14 +449,14 @@ async function reverseRevenueAndInvoice(adminClient: any, bookingId: string) {
     }
 
     // 6. Get next credit note number
-    const { data: cnRows } = await adminClient.rpc("get_next_invoice_number", {
+    const { data: cnData } = await adminClient.rpc("get_next_invoice_number", {
       p_gstin: invoice.business_gstin,
       p_fy_id: effectiveFy.id,
       p_prefix: "CN",
       p_start: 1,
-      p_doc_type: "CN",
+      p_doc_type: "credit_note",
     });
-    const cnNumber = Array.isArray(cnRows) ? cnRows[0]?.invoice_number : (cnRows as any)?.invoice_number;
+    const cnNumber = (typeof cnData === "string" ? cnData : (cnData as any)) as string | undefined;
 
     if (!cnNumber) {
       console.error("Failed to generate credit note number");

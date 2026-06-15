@@ -241,16 +241,16 @@ export function useCreateInvoice() {
       if (!fy) throw new Error("No active financial year configured.");
 
       // 3. Get next invoice number
-      const { data: seqRows, error: seqErr } = await supabase
+      const { data: seqData, error: seqErr } = await supabase
         .rpc("get_next_invoice_number", {
           p_gstin: sequenceGstin,
           p_fy_id: fy.id,
           p_prefix: gstProfile.invoice_prefix || "INV",
           p_start: gstProfile.invoice_start_number || 1,
-          p_doc_type: params.invoiceType === "credit_note" ? "CN" : "INV",
+          p_doc_type: params.invoiceType === "credit_note" ? "credit_note" : "tax_invoice",
         });
       if (seqErr) throw seqErr;
-      const invoiceNumber = Array.isArray(seqRows) ? seqRows[0]?.invoice_number : (seqRows as any)?.invoice_number;
+      const invoiceNumber = (typeof seqData === "string" ? seqData : (seqData as any)) as string;
       if (!invoiceNumber) throw new Error("Failed to generate invoice number");
 
       // 4. Create revenue transaction first (so we can link it)
@@ -661,14 +661,14 @@ export function useCancelInvoice() {
         .maybeSingle();
       if (!fy) throw new Error("No active financial year");
 
-      const { data: cnRows } = await supabase.rpc("get_next_invoice_number", {
+      const { data: cnData } = await supabase.rpc("get_next_invoice_number", {
         p_gstin: original.business_gstin,
         p_fy_id: fy.id,
         p_prefix: "CN",
         p_start: 1,
-        p_doc_type: "CN",
+        p_doc_type: "credit_note",
       });
-      const cnNumber = Array.isArray(cnRows) ? cnRows[0]?.invoice_number : (cnRows as any)?.invoice_number;
+      const cnNumber = (typeof cnData === "string" ? cnData : (cnData as any)) as string;
       if (!cnNumber) throw new Error("Failed to generate credit note number");
 
       const { data: creditNote, error: cnErr } = await supabase.from("invoices")
@@ -868,15 +868,15 @@ export function useReassignInvoiceCity() {
         }
       } else {
         // Use the standard sequencer (also consumes any recycled number first)
-        const { data: seqRows2, error: seqErr } = await supabase.rpc("get_next_invoice_number", {
+        const { data: seqData2, error: seqErr } = await supabase.rpc("get_next_invoice_number", {
           p_gstin: targetSequenceGstin,
           p_fy_id: invoice.financial_year_id!,
           p_prefix: targetPrefix,
           p_start: targetProfile.invoice_start_number || 1,
-          p_doc_type: invoice.invoice_type === "credit_note" ? "CN" : "INV",
+          p_doc_type: invoice.invoice_type === "credit_note" ? "credit_note" : "tax_invoice",
         });
         if (seqErr) throw seqErr;
-        newInvoiceNumber = (Array.isArray(seqRows2) ? seqRows2[0]?.invoice_number : (seqRows2 as any)?.invoice_number) as string;
+        newInvoiceNumber = (typeof seqData2 === "string" ? seqData2 : (seqData2 as any)) as string;
       }
 
       // 5. Update the invoice with new city, business identity, and number
