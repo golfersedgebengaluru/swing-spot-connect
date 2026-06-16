@@ -1,67 +1,46 @@
-# City-Scoped Corporate Billing (SaaS-lite)
+# Manual Booking — Past-Slot UX (Option B)
 
-## Goal
-Each city admin (franchisee) sees only the corporate customers and sessions booked **in their own city**, and generates an invoice using **their city's GST profile** — even though the end customer (e.g. Aspirational Delight) is the same across cities.
+Make past-today slots in the admin Manual Booking dialog clearly retroactive — both visually in the slot grid and in how the server handles them (no Google Calendar event, no email).
 
-## Audit — what exists today
+## What changes
 
-- `AdminCityContext.selectedCity` already scopes most admin views; the Corporate Accounts tab currently ignores it.
-- `corporate_accounts` table is **global** (no city column). One row per customer, shared across all cities — this is correct, we keep it.
-- `profiles.corporate_account_id` links members to a corporate. Members are not city-bound either — correct (a member can play in any city).
-- `useCorporateAccounts()` returns **every** active corporate, regardless of city.
-- `useDeferredItemsForCorporate()` pulls deferred bookings/coaching for *all* members across *all* cities for the date range.
-- `BillingPanel` picks the **majority city** from those sessions and uses that single city's `gst_profiles` row to build **one consolidated invoice**. This is wrong for multi-city corporates — wrong CGST/SGST vs IGST, wrong place-of-supply, and a Chennai franchisee can see Bengaluru sessions.
-- `gst_profiles` is already keyed by `city` — good, we can reuse it directly per city.
-- Invoices already carry a `city` column — already city-stamped.
+### 1. Slot grid: mark past slots as "Past · Backdated"
+In `src/components/admin/ManualBookingDialog.tsx` (slot button block around lines 752–776):
 
-## Proposed Plan
+- For each slot, compute `isPast = new Date(slot.time).getTime() < Date.now()`.
+- Render past slots with:
+  - amber border + muted amber background (same palette as the existing "Backdated entry" notice at line 695),
+  - the label `HH:MM` plus a small `· past` suffix,
+  - still clickable (so admin can select it),
+  - `title` tooltip: "Backdated walk-in — no calendar sync, no email".
+- Future and currently-busy slots keep their existing styles unchanged.
 
-### 1. City-scope the Corporate Accounts list
-- Read `selectedCity` from `AdminCityContext` in `AdminCorporateAccountsTab`.
-- When a city is selected, show only corporate accounts that have **at least one deferred booking/coaching session in that city** (any time) — or, simpler and faster, accounts that have **at least one member who has ever booked in that city**. Computed via a single RPC or a `select distinct corporate_account_id` query joining `bookings.city = selectedCity` → `profiles` → `corporate_accounts`.
-- "All Cities" (only available to global admins) keeps current behaviour.
-- Result: a Chennai admin only sees "Aspirational Delight" if Aspirational Delight has Chennai activity. Bengaluru admin sees it too if they have Bengaluru activity. Same row, two cities, independently visible.
+### 2. Inline notice when a past slot is selected
+Just under the slot grid (or merged with the existing backdated-date amber notice at lines 694–698), show:
 
-### 2. City-scope the Billing panel
-- `useDeferredItemsForCorporate(accountId, start, end, city)` — add a `city` parameter and pass `selectedCity` into the `.eq("city", city)` filter on both `bookings` and `coaching_sessions`.
-- Drop the "majority city" heuristic entirely.
-- The deferred-items table now only shows sessions for **this city**.
+> Backdated walk-in — accounting only. No calendar event, no confirmation email.
 
-### 3. Use the city's GST profile for the invoice
-- Lookup `gst_profiles` by `selectedCity` (not by the heuristic).
-- `getGstType(cityGstProfile.state_code, account.gstin)` decides IGST vs CGST+SGST correctly per franchisee state.
-- `createInvoice({ ..., city: selectedCity })` so the invoice is stamped with the franchisee's city, surfaces in their Invoices tab and their GSTR-1 export only.
-- Invoice number prefix already follows city — naturally separates Chennai and Bengaluru invoices.
-- Notes line updated to read: `Consolidated invoice for <N> session(s) booked in <City> from <start> to <end>.`
+Shown whenever the chosen start time is strictly before "now", regardless of whether the date is today or earlier.
 
-### 4. Mark sessions invoiced (unchanged)
-- After invoice creation, mark only the city-scoped `bookings.id` / `coaching_sessions.id` as `billing_status = invoiced` with the new `invoice_id`. The other city's sessions stay deferred and remain available for that city's own end-of-month run.
+### 3. Server: treat same-day past times as backdated
+In `supabase/functions/calendar-sync/index.ts`, `guest_booking` action (around line 818):
 
-### 5. Guardrails
-- If "All Cities" is selected, hide/disable the Generate button and show: "Pick a city to generate its invoice."
-- If the selected city has no deferred sessions for the account in range, show the existing empty state (unchanged).
-- If `gst_profiles` for the selected city is missing, block with a clear error pointing to City Settings.
+- Today, `isBackdated` is true only when the **date** is before today.
+- Change it to `isBackdated = new Date(start_time).getTime() < Date.now()` so a same-day past time also counts.
+- Downstream behaviour already inherits correctly: Google Calendar event creation and the `guest_booking_confirmed` email are already gated on `!isBackdated`, and the booking is inserted with `status: "completed"` for backdated rows, which is the right state for a walk-in that already happened.
 
-### 6. Members panel
-- Keep members list **global** (a member can be served by any city). Show a subtle "Active in: Chennai, Bengaluru" chip per member computed from their historical booking cities — read-only, no behaviour change.
+### 4. No changes to
+- The `admin_mode` flag on `list_slots` (already shipped — keeps past-today slots in the grid).
+- Email/phone guest dedup (already shipped).
+- The date picker, dropdown hour selector, or duration logic.
+- Public booking flow — `admin_mode` is only sent from the admin dialog, so members still see future-only slots.
 
-### 7. Permissions
-- Existing role gating (`admin` sees all cities, `site_admin` is auto-scoped to assigned cities via `AdminCityContext`) already enforces who can switch cities. No new RLS needed because `bookings`/`coaching_sessions`/`invoices` are already RLS-protected and `selectedCity` only narrows the query.
+## Files touched
+- `src/components/admin/ManualBookingDialog.tsx` — slot button styling + inline notice.
+- `supabase/functions/calendar-sync/index.ts` — one-line `isBackdated` tweak in `guest_booking`.
 
-## Technical Details
-
-**Files to touch (no schema changes):**
-- `src/hooks/useCorporateAccounts.ts`
-  - `useCorporateAccounts(includeInactive, cityFilter?)` — when `cityFilter` is set, restrict via a 2-step query: distinct `user_id` from `bookings` where `city = cityFilter` → distinct `corporate_account_id` from `profiles` → filter accounts.
-  - `useDeferredItemsForCorporate(accountId, start, end, city?)` — add `.eq("city", city)` on both bookings + coaching when `city` is set.
-- `src/components/admin/AdminCorporateAccountsTab.tsx`
-  - Wire `useAdminCity().selectedCity` into both hooks.
-  - `BillingPanel`: drop majority-city useMemo; use `selectedCity` directly; gate Generate behind a selected city; update notes and toast copy; pass `city: selectedCity` to `createInvoice`.
-
-**No DB migration required** — `bookings.city`, `coaching_sessions.city`, `invoices.city`, and `gst_profiles.city` already exist.
-
-**Backwards compatibility** — old "All Cities" generation path is removed (it was the buggy one). Existing already-generated invoices are unaffected.
-
-## Out of Scope (call out for later if needed)
-- Cross-city consolidated invoice (a single PDF spanning cities). Not requested and conflicts with per-city GST and per-franchisee P&L.
-- Automated end-of-month cron — still manual per city, same as today.
+## Verification
+- Open Manual Booking at 17:15 on today's date → 06:00–17:00 slots render in amber with "past" suffix; 17:30+ render normally.
+- Click 16:00 → start time fills, amber backdated notice appears below the grid.
+- Submit → booking row has `status: "completed"`, no Google Calendar event created, no guest email sent, revenue transaction still recorded.
+- Submit a future slot (e.g. 19:00) → unchanged: confirmed status, calendar event created, email sent.
