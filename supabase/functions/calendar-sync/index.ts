@@ -1097,7 +1097,7 @@ Deno.serve(async (req) => {
     // list_slots is a read-only action that does NOT require authentication
     // so that public/guest users can see real-time availability
     if (action === "list_slots") {
-      const { date, open_time, close_time, bay_id, city } = params;
+      const { date, open_time, close_time, bay_id, city, admin_mode } = params;
       let { calendar_email } = params;
       if (!calendar_email) {
         const adminClient = createAdminClient();
