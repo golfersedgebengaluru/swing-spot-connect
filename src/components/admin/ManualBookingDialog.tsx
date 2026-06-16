@@ -754,22 +754,29 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
                     {availableSlots.map((slot) => {
                       const slotD = new Date(slot.time);
                       const isSelected = String(slotD.getHours()).padStart(2, "0") === startHour && String(slotD.getMinutes()).padStart(2, "0") === startMinute;
+                      const isPast = slotD.getTime() < Date.now();
                       return (
                         <button
                           key={slot.time}
                           type="button"
                           onClick={() => slot.available && handleSlotClick(slot.time)}
+                          title={isPast ? "Backdated walk-in — no calendar sync, no email" : undefined}
                           className={cn(
                             "px-2 py-1 rounded-md text-xs font-medium border transition-colors",
-                            slot.available
-                              ? isSelected
-                                ? "bg-primary text-primary-foreground border-primary"
-                                : "bg-background text-foreground border-border hover:bg-accent hover:text-accent-foreground"
-                              : "bg-muted text-muted-foreground border-transparent cursor-not-allowed line-through opacity-60"
+                            !slot.available
+                              ? "bg-muted text-muted-foreground border-transparent cursor-not-allowed line-through opacity-60"
+                              : isSelected
+                                ? isPast
+                                  ? "bg-amber-500 text-white border-amber-600"
+                                  : "bg-primary text-primary-foreground border-primary"
+                                : isPast
+                                  ? "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800/60"
+                                  : "bg-background text-foreground border-border hover:bg-accent hover:text-accent-foreground"
                           )}
                           disabled={!slot.available}
                         >
-                          {(() => { const sd = new Date(slot.time); return `${String(sd.getHours()).padStart(2, "0")}:${String(sd.getMinutes()).padStart(2, "0")}`; })()}
+                          {`${String(slotD.getHours()).padStart(2, "0")}:${String(slotD.getMinutes()).padStart(2, "0")}`}
+                          {isPast && slot.available ? <span className="ml-1 opacity-70">· past</span> : null}
                         </button>
                       );
                     })}
@@ -780,6 +787,23 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
                 <p className="text-[10px] text-muted-foreground mt-1">Tap an available slot to auto-fill start time, or enter manually above.</p>
               </div>
             )}
+
+            {/* Backdated walk-in notice (selected start time is in the past) */}
+            {selectedDate && startHour && startMinute && (() => {
+              const sel = new Date(selectedDate);
+              sel.setHours(parseInt(startHour), parseInt(startMinute), 0, 0);
+              const isPastSelection = sel.getTime() < Date.now();
+              // Suppress when the date picker's own past-date notice is already showing.
+              const dateAlreadyPast = selectedDate < today;
+              return isPastSelection && !dateAlreadyPast ? (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800/60 p-2.5 text-xs">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <span className="text-amber-900 dark:text-amber-200">
+                    Backdated walk-in — accounting only. No calendar event, no confirmation email.
+                  </span>
+                </div>
+              ) : null;
+            })()}
 
             {/* Conflict Warning */}
             {hasConflict && (
