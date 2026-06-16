@@ -1147,7 +1147,8 @@ Deno.serve(async (req) => {
       for (let t = dayStart; t <= lastStart; t += 30 * 60 * 1000) {
         const slotEnd = t + 30 * 60 * 1000;
         const isBusy = busy.some((b) => t < b.end && slotEnd > b.start);
-        const isPast = t < earliest;
+        // admin_mode allows booking past-today slots (walk-ins entered after the fact).
+        const isPast = !admin_mode && t < earliest;
         slots.push({
           time: new Date(t).toISOString(),
           available: !isBusy && !isPast,
