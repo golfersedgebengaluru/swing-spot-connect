@@ -42,11 +42,11 @@ export function useAvailableSlots(
   date: string | undefined,
   openTime: string | undefined,
   closeTime: string | undefined,
-  options: { refetchInterval?: number; includeExtended?: boolean } = {}
+  options: { refetchInterval?: number; includeExtended?: boolean; adminMode?: boolean } = {}
 ) {
-  const { includeExtended, ...queryOptions } = options;
+  const { includeExtended, adminMode, ...queryOptions } = options;
   return useQuery({
-    queryKey: ["available_slots", bayId, date, openTime, closeTime, !!includeExtended],
+    queryKey: ["available_slots", bayId, date, openTime, closeTime, !!includeExtended, !!adminMode],
     enabled: !!bayId && !!date && !!openTime && !!closeTime,
     queryFn: async () => {
       // calendar_email is resolved server-side from bay_id (private column,
@@ -58,6 +58,7 @@ export function useAvailableSlots(
           date,
           open_time: openTime,
           close_time: closeTime,
+          admin_mode: !!adminMode,
         },
       });
 

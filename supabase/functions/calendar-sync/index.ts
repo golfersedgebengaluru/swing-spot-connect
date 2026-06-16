@@ -892,26 +892,51 @@ Deno.serve(async (req) => {
         }
       }
 
-
       // If user_id_override is provided (admin booking for existing member), use it directly
       let guestUserId = "00000000-0000-0000-0000-000000000000";
       if (user_id_override) {
         guestUserId = user_id_override;
-      } else if (guest_email) {
-        const { data: existingProfile } = await adminClient
-          .from("profiles")
-          .select("id, user_id")
-          .eq("email", guest_email)
-          .maybeSingle();
+      } else if (guest_email || guest_phone) {
+        // Dedup priority: email first, then phone. When both are present we
+        // cross-patch the missing identifier so we don't fragment the Guest list
+        // when the same person is entered with email-only one day and phone-only
+        // the next.
+        const normEmail = guest_email ? String(guest_email).trim().toLowerCase() : null;
+        // Strip everything except digits, then keep last 10 digits as the canonical
+        // lookup key. Stored values vary: "9611666786", "+91 9611666786", "+919611666786".
+        const phoneDigits = guest_phone ? String(guest_phone).replace(/\D/g, "") : "";
+        const normPhoneLast10 = phoneDigits.length >= 10 ? phoneDigits.slice(-10) : phoneDigits;
 
-      if (existingProfile) {
+        let existingProfile: any = null;
+        if (normEmail) {
+          const { data } = await adminClient
+            .from("profiles")
+            .select("id, user_id, display_name, email, phone, preferred_city")
+            .ilike("email", normEmail)
+            .maybeSingle();
+          existingProfile = data;
+        }
+        if (!existingProfile && normPhoneLast10) {
+          // Match any stored phone whose digits end with the same last-10.
+          const { data } = await adminClient
+            .from("profiles")
+            .select("id, user_id, display_name, email, phone, preferred_city")
+            .ilike("phone", `%${normPhoneLast10}`)
+            .limit(1)
+            .maybeSingle();
+          existingProfile = data;
+        }
+
+        if (existingProfile) {
           const ep: any = existingProfile;
           guestUserId = ep.user_id || ep.id;
-          // Update phone and preferred_city if missing
+          // Cross-patch: fill in whichever identifier is currently missing on the
+          // profile, and keep display_name / preferred_city populated.
           await adminClient
             .from("profiles")
             .update({
-              phone: guest_phone || ep.phone || null,
+              email: ep.email || normEmail || null,
+              phone: ep.phone || guest_phone || null,
               preferred_city: ep.preferred_city || city || null,
               display_name: ep.display_name || guest_name,
             })
@@ -921,14 +946,17 @@ Deno.serve(async (req) => {
             .from("profiles")
             .insert({
               display_name: guest_name,
-              email: guest_email,
+              email: normEmail,
               phone: guest_phone || null,
               user_type: "guest",
               preferred_city: city || null,
             })
-            .select("id")
+            .select("id, user_id")
             .single();
-          if (newProfile) guestUserId = newProfile.id;
+          if (newProfile) {
+            const np: any = newProfile;
+            guestUserId = np.user_id || np.id;
+          }
         }
       }
 
@@ -1097,7 +1125,7 @@ Deno.serve(async (req) => {
     // list_slots is a read-only action that does NOT require authentication
     // so that public/guest users can see real-time availability
     if (action === "list_slots") {
-      const { date, open_time, close_time, bay_id, city } = params;
+      const { date, open_time, close_time, bay_id, city, admin_mode } = params;
       let { calendar_email } = params;
       if (!calendar_email) {
         const adminClient = createAdminClient();
@@ -1147,7 +1175,8 @@ Deno.serve(async (req) => {
       for (let t = dayStart; t <= lastStart; t += 30 * 60 * 1000) {
         const slotEnd = t + 30 * 60 * 1000;
         const isBusy = busy.some((b) => t < b.end && slotEnd > b.start);
-        const isPast = t < earliest;
+        // admin_mode allows booking past-today slots (walk-ins entered after the fact).
+        const isPast = !admin_mode && t < earliest;
         slots.push({
           time: new Date(t).toISOString(),
           available: !isBusy && !isPast,
