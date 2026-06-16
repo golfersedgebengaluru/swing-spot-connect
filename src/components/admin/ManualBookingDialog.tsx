@@ -135,7 +135,7 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
     slotDate,
     bookableWindow?.openTime,
     bookableWindow?.closeTime,
-    { refetchInterval: 0, includeExtended: effectiveShowExtended }
+    { refetchInterval: 0, includeExtended: effectiveShowExtended, adminMode: true }
   );
 
   // Detect conflict: check if the selected manual time overlaps any busy slot
