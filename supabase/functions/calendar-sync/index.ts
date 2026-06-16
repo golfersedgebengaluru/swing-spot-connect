@@ -820,7 +820,10 @@ Deno.serve(async (req) => {
       } = params;
       let { calendar_email } = params;
       const isDeferred = billing_status === "deferred";
-      const isBackdated = backdated === true;
+      // Treat any start_time strictly before "now" as backdated — covers both
+      // prior-date entries and same-day past-slot walk-ins. Skips Google Calendar
+      // event creation, admin notifications and the guest confirmation email.
+      const isBackdated = backdated === true || new Date(start_time).getTime() < Date.now();
       const isParticipant = !!parent_booking_id;
 
 
