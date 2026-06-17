@@ -173,23 +173,19 @@ export default function Dashboard() {
           notes: { type: "hour_package", user_id: user.id, hours: String(pkg.hours), city },
           handler: async (response: any) => {
             try {
-              // Server-side atomic completion via RPC
-              const { error: rpcErr } = await supabase.functions.invoke("confirm-hour-purchase", {
-                body: {
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                },
-              });
-              if (rpcErr) throw new Error(rpcErr.message || "Failed to confirm purchase");
-
+              // Webhook (authoritative) finalizes via pending_purchases →
+              // complete_hour_purchase RPC. Browser just polls.
+              const result = await waitForPaymentFinalization(
+                "pending_purchases",
+                response.razorpay_order_id,
+              );
+              if (result.status === "failed") throw new Error(result.error_message || "Purchase failed");
               queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
               queryClient.invalidateQueries({ queryKey: ["member_hours"] });
               finish(() => resolve());
             } catch (err) {
-              // Even if client-side confirm fails, the webhook will reconcile
-              console.error("Client-side confirm failed, webhook will reconcile:", err);
-              finish(() => resolve()); // Don't reject — payment succeeded
+              console.error("Finalization wait failed, cron will reconcile:", err);
+              finish(() => resolve()); // Payment succeeded; webhook/cron will finish it.
             }
           },
           theme: { color: "#16a34a" },
