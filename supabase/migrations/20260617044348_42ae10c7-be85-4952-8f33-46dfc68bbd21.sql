@@ -1,0 +1,1 @@
+UPDATE public.pending_guest_bookings SET status='completed', finalized_at=now() WHERE id='0cd881e6-b977-49dc-9c70-1cd89b7c43ad';
