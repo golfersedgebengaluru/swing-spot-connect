@@ -15,6 +15,7 @@ import { useHourPackages } from "@/hooks/usePricing";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
+import { waitForPaymentFinalization } from "@/hooks/usePaymentFinalization";
 import { EmailPreferencesCard } from "@/components/EmailPreferencesCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
