@@ -29,6 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CouponInput } from "@/components/shop/CouponInput";
 import { ValidateCouponResult, calculateDiscount, useRedeemCoupon } from "@/hooks/useCoupons";
 import { BookingTerms } from "@/components/BookingTerms";
+import { waitForPaymentFinalization } from "@/hooks/usePaymentFinalization";
 
 type Step = "select" | "payment" | "confirm";
 
