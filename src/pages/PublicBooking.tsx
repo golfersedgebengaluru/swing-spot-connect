@@ -29,6 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CouponInput } from "@/components/shop/CouponInput";
 import { ValidateCouponResult, calculateDiscount, useRedeemCoupon } from "@/hooks/useCoupons";
 import { BookingTerms } from "@/components/BookingTerms";
+import { waitForPaymentFinalization } from "@/hooks/usePaymentFinalization";
 
 type Step = "select" | "payment" | "confirm";
 
@@ -291,37 +292,16 @@ export default function PublicBooking() {
                     console.error("Failed to create revenue transaction:", e);
                   }
                 } else {
-                  const res = await supabase.functions.invoke("calendar-sync", {
-                    body: {
-                      action: "guest_booking",
-                      start_time: selectedSlot,
-                      end_time: endTime,
-                      duration_minutes: duration,
-                      city: selectedCity,
-                      bay_id: currentBay.id,
-                      bay_name: currentBay.name,
-                      session_type: sessionType,
-                      guest_name: guestName,
-                      guest_email: guestEmail,
-                      guest_phone: guestPhone,
-                      num_players: numPlayers,
-                      
-                      payment_id: response.razorpay_payment_id,
-                      order_id: response.razorpay_order_id,
-                      amount: amountToCharge,
-                      currency: currentPrice?.currency || "INR",
-                      gateway_name: "razorpay",
-                      coupon_code: appliedCoupon?.code || null,
-                      discount_amount: couponDiscount || 0,
-                      original_amount: totalCost,
-                    },
-                  });
-
-                   if (res.error) {
-                     let errorMsg = "Booking failed";
-                     try { const body = await (res.error as any).context?.json?.(); errorMsg = body?.error || res.error.message || errorMsg; } catch { errorMsg = res.error.message || errorMsg; }
-                     throw new Error(errorMsg);
-                   }
+                  // Webhook (authoritative) finalizes via pending_guest_bookings.
+                  // Browser only polls — never calls calendar-sync directly.
+                  const result = await waitForPaymentFinalization(
+                    "pending_guest_bookings",
+                    response.razorpay_order_id,
+                  );
+                  if (result.status === "failed") {
+                    throw new Error(result.error_message || "Booking failed");
+                  }
+                  // 'timeout' is OK: webhook/cron will finalize within a few minutes.
                 }
 
                 finishResolve();

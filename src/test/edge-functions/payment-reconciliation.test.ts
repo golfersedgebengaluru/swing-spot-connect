@@ -120,3 +120,56 @@ describe("AdminPaymentsTab webhook_secret field", () => {
     expect(adminTabSrc).toMatch(/payment\.failed/);
   });
 });
+
+describe("browser is no longer load-bearing for payment finalization", () => {
+  const publicBookingSrc = readFileSync(
+    resolve(__dirname, "../../pages/PublicBooking.tsx"),
+    "utf-8",
+  );
+  const dashboardSrc = readFileSync(
+    resolve(__dirname, "../../pages/Dashboard.tsx"),
+    "utf-8",
+  );
+  const pollerSrc = readFileSync(
+    resolve(__dirname, "../../hooks/usePaymentFinalization.ts"),
+    "utf-8",
+  );
+
+  it("guest checkout no longer calls calendar-sync from the Razorpay handler", () => {
+    // The browser handler must not invoke calendar-sync; the webhook owns finalization.
+    expect(publicBookingSrc).not.toMatch(/invoke\("calendar-sync",\s*\{\s*body:\s*\{\s*action:\s*"guest_booking"/);
+    expect(publicBookingSrc).toMatch(/waitForPaymentFinalization\(\s*"pending_guest_bookings"/);
+  });
+
+  it("hour purchase no longer calls confirm-hour-purchase from the Razorpay handler", () => {
+    expect(dashboardSrc).not.toMatch(/invoke\("confirm-hour-purchase"/);
+    expect(dashboardSrc).toMatch(/waitForPaymentFinalization\(\s*"pending_purchases"/);
+  });
+
+  it("poller resolves on status='completed', surfaces 'failed', returns 'timeout' otherwise", () => {
+    expect(pollerSrc).toMatch(/status === "completed"/);
+    expect(pollerSrc).toMatch(/status === "failed"/);
+    expect(pollerSrc).toMatch(/return \{ status: "timeout" \}/);
+  });
+
+  it("poller queries one of the three pending_* tables by razorpay_order_id", () => {
+    expect(pollerSrc).toMatch(/pending_guest_bookings/);
+    expect(pollerSrc).toMatch(/pending_purchases/);
+    expect(pollerSrc).toMatch(/pending_legacy_league_team_registrations/);
+    expect(pollerSrc).toMatch(/eq\("razorpay_order_id"/);
+  });
+});
+
+describe("webhook idempotency across browser/webhook/cron race", () => {
+  it("webhook only finalizes pending_* rows still in status='pending'", () => {
+    // Prevents a second finalize if the cron or browser already completed it.
+    expect(webhookSrc).toMatch(/pending_guest_bookings[\s\S]{0,300}status",\s*"pending"/);
+    expect(webhookSrc).toMatch(/pending_purchases[\s\S]{0,300}status",\s*"pending"/);
+    expect(webhookSrc).toMatch(/pending_legacy_league_team_registrations[\s\S]{0,300}status",\s*"pending"/);
+  });
+
+  it("cron reconciler also filters by status='pending' (matches webhook gate)", () => {
+    expect(reconcilerSrc).toMatch(/\.eq\("status",\s*"pending"\)/);
+  });
+});
+
