@@ -15,6 +15,23 @@ const adminTabSrc = readFileSync(
   "utf-8",
 );
 
+describe("razorpay-webhook always returns 200 (prevents Razorpay auto-disable)", () => {
+  it("does NOT return 4xx/5xx on missing signature", () => {
+    // Razorpay auto-disables webhooks after repeated non-2xx responses.
+    // Misconfig errors must be surfaced in logs, not via HTTP status.
+    expect(webhookSrc).toMatch(/Missing signature[\s\S]{0,200}status:\s*200/);
+  });
+  it("does NOT return 4xx/5xx on invalid signature", () => {
+    expect(webhookSrc).toMatch(/Invalid signature[\s\S]{0,200}status:\s*200/);
+  });
+  it("does NOT return 4xx/5xx when webhook secret is missing", () => {
+    expect(webhookSrc).toMatch(/Webhook secret not configured[\s\S]{0,200}status:\s*200/);
+  });
+  it("logs secret_source for traceability", () => {
+    expect(webhookSrc).toMatch(/secret_source=/);
+  });
+});
+
 describe("razorpay-webhook signature & reconciliation wiring", () => {
   it("rejects requests without x-razorpay-signature", () => {
     expect(webhookSrc).toMatch(/x-razorpay-signature/);
