@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createHmac } from "node:crypto";
 import { z } from "https://esm.sh/zod@3";
+import { resolveQcGateway } from "../_shared/qc-gateway.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,15 +42,10 @@ serve(async (req) => {
       .eq("id", competition_id).maybeSingle();
     if (!comp) return ok({ success: false, error: "Competition not found" });
 
-    const { data: tenant } = await supabase
-      .from("tenants").select("city").eq("id", comp.tenant_id).maybeSingle();
-    const city = tenant?.city;
-    const { data: gateway } = await supabase
-      .from("payment_gateways")
-      .select("api_secret, city_slug")
-      .eq("city", city!).eq("name", "razorpay").eq("is_active", true).single();
-    const citySlug = (gateway?.city_slug || (city || "").toLowerCase().replace(/[^a-z0-9]/g, "_")).toUpperCase();
-    const apiSecret = (Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) || gateway?.api_secret || "").trim();
+    const { gateway, city } = await resolveQcGateway(supabase, comp);
+    if (!gateway) return ok({ success: false, error: "Verification unavailable" });
+    const citySlug = (gateway.city_slug || (city || "tenant").toLowerCase().replace(/[^a-z0-9]/g, "_")).toUpperCase();
+    const apiSecret = (Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) || gateway.api_secret || "").trim();
     if (!apiSecret) return ok({ success: false, error: "Verification unavailable" });
 
     const expected = createHmac("sha256", apiSecret)

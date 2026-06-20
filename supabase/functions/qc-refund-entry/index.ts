@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://esm.sh/zod@3";
+import { resolveQcGateway } from "../_shared/qc-gateway.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -57,15 +58,13 @@ serve(async (req) => {
     });
     if (!isAdmin) return ok({ success: false, error: "Forbidden" });
 
-    const { data: tenant } = await supabase
-      .from("tenants").select("city").eq("id", comp.tenant_id).maybeSingle();
-    const { data: gateway } = await supabase
-      .from("payment_gateways")
-      .select("api_key, api_secret, city_slug")
-      .eq("city", tenant!.city).eq("name", "razorpay").eq("is_active", true).single();
-    const apiKey = (gateway?.api_key || "").trim();
-    const citySlug = (gateway?.city_slug || tenant!.city.toLowerCase().replace(/[^a-z0-9]/g, "_")).toUpperCase();
-    const apiSecret = (Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) || gateway?.api_secret || "").trim();
+    const { gateway, city } = await resolveQcGateway(supabase, comp);
+    if (!gateway) return ok({ success: false, error: "Payments not configured" });
+    if (gateway.name !== "razorpay")
+      return ok({ success: false, error: `Provider ${gateway.name} not yet supported` });
+    const apiKey = (gateway.api_key || "").trim();
+    const citySlug = (gateway.city_slug || (city || "tenant").toLowerCase().replace(/[^a-z0-9]/g, "_")).toUpperCase();
+    const apiSecret = (Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) || gateway.api_secret || "").trim();
     if (!apiKey || !apiSecret) return ok({ success: false, error: "Razorpay credentials missing" });
 
     const rzpRes = await fetch(`https://api.razorpay.com/v1/payments/${entry.razorpay_payment_id}/refund`, {

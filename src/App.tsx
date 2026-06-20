@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AdminRoute } from "@/components/AdminRoute";
+import { QcAdminRoute } from "@/components/QcAdminRoute";
 import { CitySelectionModal } from "@/components/CitySelectionModal";
 import { PageLoader } from "@/components/PageLoader";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -32,6 +33,7 @@ const Coaching = lazy(() => import("./pages/Coaching"));
 const CoachingSessionDetail = lazy(() => import("./pages/CoachingSessionDetail"));
 const QuickCompetitionPublic = lazy(() => import("./pages/QuickCompetitionPublic"));
 const QuickCompetitionJoin = lazy(() => import("./pages/QuickCompetitionJoin"));
+const QcAdmin = lazy(() => import("./pages/QcAdmin"));
 const ChangePassword = lazy(() => import("./pages/ChangePassword"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -83,6 +85,7 @@ const App = () => (
               <Route path="/admin/setup" element={<ErrorBoundary><AdminSetup /></ErrorBoundary>} />
               <Route path="/admin" element={<ErrorBoundary><AdminRoute><Admin /></AdminRoute></ErrorBoundary>} />
               <Route path="/qc/:id" element={<ErrorBoundary><QuickCompetitionPublic /></ErrorBoundary>} />
+              <Route path="/qc-admin" element={<ErrorBoundary><QcAdminRoute><QcAdmin /></QcAdminRoute></ErrorBoundary>} />
               <Route path="/qc/:id/join" element={<ErrorBoundary><QuickCompetitionJoin /></ErrorBoundary>} />
               <Route path="/change-password" element={<ErrorBoundary><ChangePassword /></ErrorBoundary>} />
               <Route path="/forgot-password" element={<ErrorBoundary><ForgotPassword /></ErrorBoundary>} />

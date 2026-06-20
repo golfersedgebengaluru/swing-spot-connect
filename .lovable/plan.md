@@ -1,82 +1,50 @@
+# Quick Competition as a SaaS — multi-gateway, tenant-scoped
 
-# Bulletproof payment finalization
+External customers sign up as a "QC-only tenant", log in to a scoped admin workspace, run Quick Competitions, and collect entry fees through **their own payment gateway** (Razorpay today; Stripe / PayPal / Square pluggable via the same row shape).
 
-Goal: payments are finalized by exactly one authoritative path (the Razorpay webhook), with a cron backstop catching anything the webhook missed. The browser stops being load-bearing.
-
-## Architecture (target)
+## Architecture
 
 ```text
-                       ┌──────────────────────────┐
-   Razorpay  ───────►  │  razorpay-webhook        │  ── authoritative
-   (payment.captured)  │  • verify signature      │      finalizer
-                       │  • idempotency log       │
-                       │  • → calendar-sync /     │
-                       │    complete_hour_purchase│
-                       │    / legacy team insert  │
-                       └────────────┬─────────────┘
-                                    │
-                                    ▼
-                            bookings / revenue /
-                            calendar / email
-                                    ▲
-                                    │ same finalizers
-   Browser (handler) ──►  Optional ping (best-effort, ignore failures)
-   Cron every 5 min  ──►  reconcile-pending-payments  (backstop)
+auth.users ──┐
+             ├── qc_only_admins(user_id, tenant_id, role)
+             │
+tenants (kind='qc_only') ──┬── quick_competitions
+                           ├── payment_gateways(tenant_id, provider, ...)
+                           └── qc_entries (via competition)
 ```
 
-Three independent paths can finalize, but all converge through the same idempotent server code. Webhook is primary; cron is the safety net; browser is no longer required.
+Gateway resolution in QC functions, in order:
+1. `payment_gateways where tenant_id = comp.tenant_id and is_active` (BYO)
+2. `payment_gateways where city = tenant.city and is_active` (legacy)
+3. Error: "Payments not configured"
+
+`payment_gateways.name` already stores the provider (`razorpay`, `stripe`, …). Order-create / verify dispatch on it. Razorpay is implemented now; Stripe/PayPal/Square slot in as new branches without schema change.
 
 ## Changes
 
-### 1. Browser handlers become no-ops (presentation-level only)
-Files: `src/components/admin/ManualBookingDialog.tsx`, the guest checkout handler, hour-purchase handler, legacy-league checkout handler.
+### 1. Migration (one)
+- `tenants`: add `kind text not null default 'full'` (`'full' | 'qc_only'`), `display_name text`.
+- `payment_gateways`: add `tenant_id uuid null → tenants`, partial unique `(tenant_id, name) where tenant_id is not null`. `city` becomes nullable when `tenant_id` is set (enforced by trigger: exactly one of `city` / `tenant_id`).
+- New table `qc_only_admins (user_id, tenant_id, role default 'owner')` + grants + RLS.
+- Helper `public.is_qc_tenant_admin(uuid, uuid)` SECURITY DEFINER.
+- RLS on `quick_competitions`, `qc_entries`, `quick_competition_players`, `quick_competition_categories`, `quick_competition_attempts`, `quick_competition_audit`: add `is_qc_tenant_admin(auth.uid(), tenant_id)` alongside existing admin policies.
+- RLS on `payment_gateways`: tenant admins can manage rows where `tenant_id` matches.
 
-- On Razorpay success callback: stop calling `calendar-sync` / `confirm-hour-purchase` from the client.
-- Show "Payment received — finalizing your booking…" toast.
-- Poll the relevant `pending_*` row by `razorpay_order_id` (every 2s, up to 30s) until `status='completed'`, then route the user to the success screen.
-- If still pending after 30s, show "We received your payment. Your booking will appear in a few minutes — confirmation email on the way." (Webhook or cron will finalize.)
+### 2. Edge functions (minimal diff)
+- `qc-create-entry-order`, `qc-verify-entry-payment`, `qc-refund-entry`: replace the `payment_gateways` lookup with a small `resolveGateway(supabase, comp)` helper that tries `tenant_id` then `city`. Dispatch on `gateway.name`. Razorpay branch unchanged.
+- `razorpay-webhook`: when `notes.tenant_id` present, look up secret by `tenant_id` first, fall back to `city`. Two added lines.
 
-Net code delta: small. We delete the client-side finalize calls and add a tiny `useFinalizationPoller(orderId)` hook reused by all three flows.
+### 3. Frontend
+- `useQcAdmin()` hook — returns `{ tenants, loading }` from `qc_only_admins`.
+- `QcAdminRoute` guard.
+- `/qc-admin` page, three tabs: **Competitions**, **Entries**, **Payments** (form to save provider + key/secret into `payment_gateways` for the active tenant; provider dropdown: Razorpay today, others disabled with "Coming soon" so the UI is honest).
+- Login redirect: if user is in `qc_only_admins` and not a platform admin, send to `/qc-admin`.
+- Super-admin: new "QC SaaS" section under Admin to create tenants and assign owners by email.
 
-### 2. Webhook stays authoritative (already deployed and tested)
-No structural changes. Confirm it handles all three payload kinds via `notes.kind` (`guest_booking | hour_purchase | legacy_team`) and dispatches to the existing idempotent finalizers. Add the small bits that are missing:
+### 4. Tests
+- Gateway resolution: tenant_id wins over city; falls back to city; errors when neither set.
+- RLS isolation: tenant-A QC admin cannot read tenant-B competitions/entries.
+- `QcAdminRoute`: redirects unauth → `/auth`, non-qc-non-admin → `/dashboard`.
 
-- `payment.captured` → look up the matching `pending_*` row by `razorpay_order_id`; if `status='pending'`, invoke the same finalizer the cron uses. Idempotency is enforced by both `payment_events.razorpay_event_id` and `pending_*.status`.
-- `payment.failed` → mark `pending_*.status='failed'` with the failure reason.
-
-### 3. Cron backstop (every 5 minutes)
-`reconcile-pending-payments` already exists and works. We just need to schedule it.
-
-- Use `pg_cron` + `pg_net` to invoke it every 5 minutes (via `supabase--insert` since it embeds the project URL + anon key).
-- Keep `RECONCILE_AGE_MIN = 3` (don't race the webhook) and `MAX_AGE_HOURS = 24` (stop trying after a day).
-
-### 4. Order creation contract (small hardening)
-`create-razorpay-order` already accepts a `notes` object. Make sure every caller (guest booking, hour purchase, legacy team) puts:
-- `notes.kind` — one of the three types
-- `notes.city` — used by the webhook to find the per-city secret
-- `notes.pending_id` — primary key of the `pending_*` row, so the webhook can finalize with one lookup instead of guessing the table
-
-This is the only change that touches multiple call sites and it's a 2-line addition each.
-
-### 5. Tests (Vitest + existing edge-function harness)
-Add to `src/test/edge-functions/payment-reconciliation.test.ts`:
-
-- Webhook routes by `notes.kind` to the correct finalizer for each of the three payload types.
-- Webhook is idempotent: replaying the same `razorpay_event_id` does not create duplicate bookings/transactions.
-- Cron skips rows younger than `RECONCILE_AGE_MIN`, finalizes paid orders, marks unpaid >30 min as `failed`, ignores rows older than `MAX_AGE_HOURS`.
-- Race test: webhook + cron firing for the same order produces exactly one booking (idempotency via `pending_*.status`).
-- Browser-no-op test (lightweight): the Razorpay success handler does NOT call `calendar-sync` / `confirm-hour-purchase`; it only polls.
-
-Target: all existing 22 tests stay green, ~6 new tests added.
-
-## Out of scope (intentionally)
-- No DB schema changes.
-- No UI redesign — only the post-payment toast/poll behavior changes.
-- Chennai webhook secret — already documented; user will paste it when ready.
-
-## Rollout
-1. Ship cron schedule + webhook `notes.kind` dispatch + browser no-op together.
-2. Watch `payment_events` and `reconcile-pending-payments` logs for 24h.
-3. Once green, the browser-side finalize code paths can be deleted entirely (already inert by then).
-
-Approve and I'll implement exactly this — minimal, no extras.
+## Out of scope (next)
+- Self-serve tenant signup, teammate invites, platform fees, Stripe/PayPal/Square implementations (schema ready; one edge-function branch each when needed).
