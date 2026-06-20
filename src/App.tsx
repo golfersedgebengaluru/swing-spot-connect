@@ -85,6 +85,7 @@ const App = () => (
               <Route path="/admin/setup" element={<ErrorBoundary><AdminSetup /></ErrorBoundary>} />
               <Route path="/admin" element={<ErrorBoundary><AdminRoute><Admin /></AdminRoute></ErrorBoundary>} />
               <Route path="/qc/:id" element={<ErrorBoundary><QuickCompetitionPublic /></ErrorBoundary>} />
+              <Route path="/qc-admin" element={<ErrorBoundary><QcAdminRoute><QcAdmin /></QcAdminRoute></ErrorBoundary>} />
               <Route path="/qc/:id/join" element={<ErrorBoundary><QuickCompetitionJoin /></ErrorBoundary>} />
               <Route path="/change-password" element={<ErrorBoundary><ChangePassword /></ErrorBoundary>} />
               <Route path="/forgot-password" element={<ErrorBoundary><ForgotPassword /></ErrorBoundary>} />
