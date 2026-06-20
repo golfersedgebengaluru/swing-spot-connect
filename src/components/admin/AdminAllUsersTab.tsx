@@ -715,6 +715,14 @@ export function AdminAllUsersTab() {
         />
       )}
 
+      {selectedUser && dialogOpen === "access" && (
+        <UserAccessDialog
+          user={selectedUser}
+          open
+          onClose={() => { setDialogOpen(null); setSelectedUser(null); }}
+        />
+      )}
+
       <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
