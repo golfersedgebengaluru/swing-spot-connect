@@ -17,15 +17,28 @@ function useTenantOwners(tenantId: string | null) {
     queryKey: ["qc-saas-owners", tenantId],
     enabled: !!tenantId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: admins, error } = await supabase
         .from("qc_only_admins")
-        .select("user_id, role, profiles:user_id ( email, full_name )")
+        .select("user_id, role")
         .eq("tenant_id", tenantId!);
       if (error) throw error;
-      return data ?? [];
+      const userIds = (admins ?? []).map((a: any) => a.user_id);
+      if (userIds.length === 0) return [];
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("user_id, email, display_name")
+        .in("user_id", userIds);
+      const pMap = new Map((profs ?? []).map((p: any) => [p.user_id, p]));
+      return (admins ?? []).map((a: any) => ({
+        user_id: a.user_id,
+        role: a.role,
+        email: pMap.get(a.user_id)?.email ?? null,
+        display_name: pMap.get(a.user_id)?.display_name ?? null,
+      }));
     },
   });
 }
+
 
 export function AdminQcSaasTab() {
   const { tenants, createTenant, assignOwnerByEmail } = useQcSaasProvisioning();
@@ -144,8 +157,8 @@ export function AdminQcSaasTab() {
                   {owners.data.map((o: any) => (
                     <li key={o.user_id} className="flex items-center justify-between p-3 text-sm">
                       <div>
-                        <div className="font-medium">{o.profiles?.full_name || o.profiles?.email || o.user_id}</div>
-                        <div className="text-xs text-muted-foreground">{o.profiles?.email}</div>
+                        <div className="font-medium">{o.display_name || o.email || o.user_id}</div>
+                        <div className="text-xs text-muted-foreground">{o.email}</div>
                       </div>
                       <span className="text-xs text-muted-foreground uppercase">{o.role}</span>
                     </li>
