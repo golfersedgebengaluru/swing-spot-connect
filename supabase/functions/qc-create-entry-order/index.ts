@@ -44,11 +44,6 @@ serve(async (req) => {
     if (comp.entry_type !== "paid" || !comp.entry_fee || Number(comp.entry_fee) <= 0)
       return ok({ success: false, error: "This competition is not a paid entry" });
 
-    const { data: tenant } = await supabase
-      .from("tenants").select("city").eq("id", comp.tenant_id).maybeSingle();
-    const city = tenant?.city;
-    if (!city) return ok({ success: false, error: "Tenant city not configured" });
-
     // Check if entry already exists
     const { data: existing } = await supabase
       .from("qc_entries")
@@ -59,15 +54,14 @@ serve(async (req) => {
     if (existing?.status === "paid")
       return ok({ success: false, error: "This phone number has already entered" });
 
-    // Razorpay credentials for this city
-    const { data: gateway } = await supabase
-      .from("payment_gateways")
-      .select("api_key, api_secret, city_slug")
-      .eq("city", city).eq("name", "razorpay").eq("is_active", true).single();
-    if (!gateway) return ok({ success: false, error: "Payments not configured for this city" });
+    // Resolve gateway: tenant-scoped wins, then legacy city.
+    const { gateway, city, scope } = await resolveQcGateway(supabase, comp);
+    if (!gateway) return ok({ success: false, error: "Payments not configured" });
+    if (gateway.name !== "razorpay")
+      return ok({ success: false, error: `Provider ${gateway.name} not yet supported` });
 
     const apiKey = (gateway.api_key || "").trim();
-    const citySlug = (gateway.city_slug || city.toLowerCase().replace(/[^a-z0-9]/g, "_")).toUpperCase();
+    const citySlug = (gateway.city_slug || (city || "tenant").toLowerCase().replace(/[^a-z0-9]/g, "_")).toUpperCase();
     const apiSecret = (Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) || gateway.api_secret || "").trim();
     if (!apiKey || !apiSecret) return ok({ success: false, error: "Razorpay credentials missing" });
 
@@ -82,7 +76,13 @@ serve(async (req) => {
         amount: amountPaise,
         currency: comp.entry_currency || "INR",
         receipt: `qc_${competition_id.slice(0, 8)}_${Date.now().toString().slice(-6)}`,
-        notes: { competition_id, player_name, phone },
+        notes: {
+          kind: "qc_entry",
+          competition_id,
+          player_name,
+          phone,
+          ...(scope === "tenant" ? { tenant_id: comp.tenant_id } : { city }),
+        },
       }),
     });
     if (!rzpRes.ok) {
