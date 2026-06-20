@@ -89,10 +89,7 @@ export default function QcAdmin() {
 
 function CompetitionsTab({ tenantId }: { tenantId: string }) {
   const { data: comps, isLoading } = useQuickCompetitions(tenantId);
-  const create = useCreateQuickCompetition();
-  const [dialog, setDialog] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
-  const { toast } = useToast();
 
   if (openId) {
     return <QuickCompetitionConsole competitionId={openId} onClose={() => setOpenId(null)} />;
@@ -102,7 +99,7 @@ function CompetitionsTab({ tenantId }: { tenantId: string }) {
     <>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-medium">Your competitions</h2>
-        <Button onClick={() => setDialog(true)}>+ New competition</Button>
+        <QuickCompetitionDialog tenantId={tenantId} onCreated={(id) => setOpenId(id)} />
       </div>
       {isLoading ? (
         <Loader2 className="h-5 w-5 animate-spin" />
@@ -123,20 +120,6 @@ function CompetitionsTab({ tenantId }: { tenantId: string }) {
           ))}
         </div>
       )}
-      <QuickCompetitionDialog
-        tenantId={tenantId}
-        open={dialog}
-        onOpenChange={setDialog}
-        onCreate={async (values) => {
-          try {
-            await create.mutateAsync(values);
-            setDialog(false);
-            toast({ title: "Competition created" });
-          } catch (e) {
-            toast({ title: "Failed", description: (e as Error).message, variant: "destructive" });
-          }
-        }}
-      />
     </>
   );
 }
