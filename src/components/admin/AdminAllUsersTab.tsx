@@ -873,6 +873,9 @@ export function AdminAllUsersTab() {
                                 <Wallet className="mr-2 h-4 w-4" />Finance
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("access"); }}>
+                                <ShieldCheck className="mr-2 h-4 w-4" />Manage Access
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleToggleExtendedHours(u.id, !u.extended_hours_access)}>
                                 <Clock className="mr-2 h-4 w-4" />
                                 {u.extended_hours_access ? "Disable" : "Enable"} Extended Hours
