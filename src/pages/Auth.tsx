@@ -66,9 +66,26 @@ export default function Auth() {
 
       if (isAdmin === true || isSiteAdmin === true) {
         navigate("/admin");
-      } else {
-        navigate("/dashboard");
+        return;
       }
+
+      // QC-only owners (no other elevated role) → go straight to /qc-admin
+      const { data: isCoach } = await supabase.rpc("has_role", { _user_id: user.id, _role: "coach" as any });
+      if (isCoach !== true) {
+        const { data: qcRows } = await supabase
+          .from("qc_only_admins")
+          .select("tenant_id")
+          .eq("user_id", user.id)
+          .eq("disabled", false)
+          .limit(1);
+        if (qcRows && qcRows.length > 0) {
+          navigate("/qc-admin");
+          return;
+        }
+      }
+
+      navigate("/dashboard");
+
     };
 
     checkAdminAndRedirect();

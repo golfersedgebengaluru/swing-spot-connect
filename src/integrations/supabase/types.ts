@@ -4549,18 +4549,21 @@ export type Database = {
       qc_only_admins: {
         Row: {
           created_at: string
+          disabled: boolean
           role: string
           tenant_id: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          disabled?: boolean
           role?: string
           tenant_id: string
           user_id: string
         }
         Update: {
           created_at?: string
+          disabled?: boolean
           role?: string
           tenant_id?: string
           user_id?: string
