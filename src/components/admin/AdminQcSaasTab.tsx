@@ -157,8 +157,8 @@ export function AdminQcSaasTab() {
                   {owners.data.map((o: any) => (
                     <li key={o.user_id} className="flex items-center justify-between p-3 text-sm">
                       <div>
-                        <div className="font-medium">{o.profiles?.full_name || o.profiles?.email || o.user_id}</div>
-                        <div className="text-xs text-muted-foreground">{o.profiles?.email}</div>
+                        <div className="font-medium">{o.display_name || o.email || o.user_id}</div>
+                        <div className="text-xs text-muted-foreground">{o.email}</div>
                       </div>
                       <span className="text-xs text-muted-foreground uppercase">{o.role}</span>
                     </li>
