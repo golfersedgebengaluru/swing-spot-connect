@@ -213,6 +213,7 @@ export function AdminRolesManager() {
                     <SelectContent>
                       <SelectItem value="admin">Admin — Full access</SelectItem>
                       <SelectItem value="site_admin">Site-Admin — Instance-scoped access</SelectItem>
+                      <SelectItem value="coach">Coach — Manage students & sessions</SelectItem>
                       <SelectItem value="user">User — Standard access</SelectItem>
                     </SelectContent>
                   </Select>
