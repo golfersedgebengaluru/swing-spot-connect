@@ -3878,7 +3878,7 @@ export type Database = {
         Row: {
           api_key: string | null
           api_secret: string | null
-          city: string
+          city: string | null
           config: Json
           created_at: string
           display_name: string
@@ -3887,13 +3887,14 @@ export type Database = {
           is_test_mode: boolean
           name: string
           sort_order: number
+          tenant_id: string | null
           updated_at: string
           webhook_secret: string | null
         }
         Insert: {
           api_key?: string | null
           api_secret?: string | null
-          city: string
+          city?: string | null
           config?: Json
           created_at?: string
           display_name: string
@@ -3902,13 +3903,14 @@ export type Database = {
           is_test_mode?: boolean
           name: string
           sort_order?: number
+          tenant_id?: string | null
           updated_at?: string
           webhook_secret?: string | null
         }
         Update: {
           api_key?: string | null
           api_secret?: string | null
-          city?: string
+          city?: string | null
           config?: Json
           created_at?: string
           display_name?: string
@@ -3917,10 +3919,19 @@ export type Database = {
           is_test_mode?: boolean
           name?: string
           sort_order?: number
+          tenant_id?: string | null
           updated_at?: string
           webhook_secret?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payment_gateways_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pending_guest_bookings: {
         Row: {
@@ -4535,6 +4546,35 @@ export type Database = {
           },
         ]
       }
+      qc_only_admins: {
+        Row: {
+          created_at: string
+          role: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          role?: string
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          role?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qc_only_admins_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quick_competition_attempts: {
         Row: {
           competition_id: string
@@ -5048,7 +5088,9 @@ export type Database = {
           config: Json
           created_at: string
           default_logo_url: string | null
+          display_name: string | null
           id: string
+          kind: string
           name: string
           sponsorship_enabled: boolean
           updated_at: string
@@ -5058,7 +5100,9 @@ export type Database = {
           config?: Json
           created_at?: string
           default_logo_url?: string | null
+          display_name?: string | null
           id?: string
+          kind?: string
           name: string
           sponsorship_enabled?: boolean
           updated_at?: string
@@ -5068,7 +5112,9 @@ export type Database = {
           config?: Json
           created_at?: string
           default_logo_url?: string | null
+          display_name?: string | null
           id?: string
+          kind?: string
           name?: string
           sponsorship_enabled?: boolean
           updated_at?: string
@@ -5511,6 +5557,10 @@ export type Database = {
         Returns: boolean
       }
       is_minor: { Args: { _user_id: string }; Returns: boolean }
+      is_qc_tenant_admin: {
+        Args: { _tenant_id: string; _user_id: string }
+        Returns: boolean
+      }
       lookup_parental_consent_token: {
         Args: { _token: string }
         Returns: {
