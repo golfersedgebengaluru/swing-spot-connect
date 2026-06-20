@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQcAdmin } from "@/hooks/useQcAdmin";
-import { useQuickCompetitions, useCreateQuickCompetition } from "@/hooks/useQuickCompetitions";
+import { useQuickCompetitions } from "@/hooks/useQuickCompetitions";
 import { QuickCompetitionDialog } from "@/components/admin/QuickCompetitionDialog";
 import { QuickCompetitionConsole } from "@/components/admin/QuickCompetitionConsole";
 import { Button } from "@/components/ui/button";
