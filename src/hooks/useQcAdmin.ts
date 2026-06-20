@@ -19,8 +19,9 @@ export function useQcAdmin() {
     queryFn: async (): Promise<QcTenant[]> => {
       const { data, error } = await supabase
         .from("qc_only_admins")
-        .select("role, tenant_id, tenants:tenant_id ( id, name, display_name, city, kind )")
-        .eq("user_id", user!.id);
+        .select("role, tenant_id, disabled, tenants:tenant_id ( id, name, display_name, city, kind )")
+        .eq("user_id", user!.id)
+        .eq("disabled", false);
       if (error) throw error;
       return (data ?? [])
         // deno-lint-ignore no-explicit-any
@@ -49,6 +50,7 @@ export function useQcAdmin() {
     activeTenant: q.data?.find((t) => t.id === activeTenantId) ?? null,
   };
 }
+
 
 // Super-admin: provision QC SaaS tenants and assign owners by email.
 export function useQcSaasProvisioning() {
