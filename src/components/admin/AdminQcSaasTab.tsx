@@ -17,15 +17,28 @@ function useTenantOwners(tenantId: string | null) {
     queryKey: ["qc-saas-owners", tenantId],
     enabled: !!tenantId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: admins, error } = await supabase
         .from("qc_only_admins")
-        .select("user_id, role, profiles:user_id ( email, full_name )")
+        .select("user_id, role")
         .eq("tenant_id", tenantId!);
       if (error) throw error;
-      return data ?? [];
+      const userIds = (admins ?? []).map((a: any) => a.user_id);
+      if (userIds.length === 0) return [];
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("user_id, email, display_name")
+        .in("user_id", userIds);
+      const pMap = new Map((profs ?? []).map((p: any) => [p.user_id, p]));
+      return (admins ?? []).map((a: any) => ({
+        user_id: a.user_id,
+        role: a.role,
+        email: pMap.get(a.user_id)?.email ?? null,
+        display_name: pMap.get(a.user_id)?.display_name ?? null,
+      }));
     },
   });
 }
+
 
 export function AdminQcSaasTab() {
   const { tenants, createTenant, assignOwnerByEmail } = useQcSaasProvisioning();
