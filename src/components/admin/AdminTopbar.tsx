@@ -53,6 +53,7 @@ const tabTitles: Record<string, string> = {
   grievances: "Grievances",
   retention: "Data Retention",
   settings: "General Settings",
+  qcsaas: "QC SaaS",
 };
 
 export function getTabTitle(tab: string) {

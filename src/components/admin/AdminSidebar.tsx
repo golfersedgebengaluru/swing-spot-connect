@@ -90,6 +90,10 @@ const dataPrivacyItems = [
   { id: "retention", label: "Data Retention", icon: ShieldCheck, adminOrSiteAdminOnly: true },
 ];
 
+const platformItems = [
+  { id: "qcsaas", label: "QC SaaS", icon: Trophy, adminOnly: true },
+];
+
 function NavItem({
   item,
   active,
@@ -289,6 +293,9 @@ export function AdminSidebar({
               <AccordionGroup label="Reports" items={visibleReportsItems} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
             )}
             <AccordionGroup label="Data Privacy" items={filterItems(dataPrivacyItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
+            {isAdmin && (
+              <AccordionGroup label="Platform" items={filterItems(platformItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={collapsed} />
+            )}
           </>
         )}
       </div>
@@ -390,6 +397,9 @@ export function AdminSidebar({
                       <AccordionGroup label="Reports" items={visibleReportsItems} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
                     )}
                     <AccordionGroup label="Data Privacy" items={filterItems(dataPrivacyItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
+                    {isAdmin && (
+                      <AccordionGroup label="Platform" items={filterItems(platformItems)} activeTab={activeTab} onTabChange={handleNavClick} collapsed={false} />
+                    )}
                   </>
                 )}
               </div>

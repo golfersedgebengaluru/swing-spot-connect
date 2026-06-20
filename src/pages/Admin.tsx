@@ -31,6 +31,7 @@ import { AdminGrievancesTab } from "@/components/admin/AdminGrievancesTab";
 import { AdminRetentionTab } from "@/components/admin/AdminRetentionTab";
 import { AdminCoachingTab } from "@/components/admin/AdminCoachingTab";
 import { AdminCorporateAccountsTab } from "@/components/admin/AdminCorporateAccountsTab";
+import { AdminQcSaasTab } from "@/components/admin/AdminQcSaasTab";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminTopbar, getTabTitle } from "@/components/admin/AdminTopbar";
 import { AdminCityProvider, useAdminCity } from "@/contexts/AdminCityContext";
@@ -102,6 +103,7 @@ const tabComponents: Record<string, React.ComponentType<any>> = {
   grievances: AdminGrievancesTab,
   retention: AdminRetentionTab,
   settings: AdminSettingsTab,
+  qcsaas: AdminQcSaasTab,
 };
 
 export default function Admin() {
