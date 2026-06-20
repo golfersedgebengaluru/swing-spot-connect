@@ -82,12 +82,19 @@ export function useQcSaasProvisioning() {
   const assignOwnerByEmail = useMutation({
     mutationFn: async (vars: { tenant_id: string; email: string }) => {
       const email = vars.email.trim().toLowerCase();
-      const { data: prof } = await supabase
-        .from("profiles").select("user_id").ilike("email", email).maybeSingle();
-      if (!prof?.user_id) throw new Error("No user with that email. Ask them to sign up first.");
+      // Use limit(1) instead of maybeSingle to tolerate duplicate profile rows for the same email.
+      const { data: profs, error: pErr } = await supabase
+        .from("profiles")
+        .select("user_id, created_at")
+        .ilike("email", email)
+        .order("created_at", { ascending: true })
+        .limit(1);
+      if (pErr) throw pErr;
+      const userId = profs?.[0]?.user_id;
+      if (!userId) throw new Error("No user with that email. Ask them to sign up first.");
       const { error } = await supabase
         .from("qc_only_admins")
-        .insert({ user_id: prof.user_id, tenant_id: vars.tenant_id, role: "owner" });
+        .insert({ user_id: userId, tenant_id: vars.tenant_id, role: "owner" });
       if (error && !`${error.message}`.includes("duplicate")) throw error;
       return true;
     },
