@@ -5585,6 +5585,10 @@ export type Database = {
         }
         Returns: string
       }
+      site_admin_has_city: {
+        Args: { _city: string; _user_id: string }
+        Returns: boolean
+      }
       upsert_member_hours: {
         Args: { p_hours: number; p_user_id: string }
         Returns: undefined
