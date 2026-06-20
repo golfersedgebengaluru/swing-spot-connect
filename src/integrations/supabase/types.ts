@@ -5084,7 +5084,7 @@ export type Database = {
       }
       tenants: {
         Row: {
-          city: string
+          city: string | null
           config: Json
           created_at: string
           default_logo_url: string | null
@@ -5096,7 +5096,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          city: string
+          city?: string | null
           config?: Json
           created_at?: string
           default_logo_url?: string | null
@@ -5108,7 +5108,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          city?: string
+          city?: string | null
           config?: Json
           created_at?: string
           default_logo_url?: string | null
