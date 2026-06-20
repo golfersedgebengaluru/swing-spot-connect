@@ -50,13 +50,24 @@ Deno.serve(async (req) => {
     ? `${payload.account_id}_${payload.created_at}`
     : `${eventType}_${razorpayPaymentId}_${Date.now()}`;
 
-  // Determine which webhook secret to use.
+  // Determine which webhook secret to use. Tenant-scoped (QC SaaS) wins, then city.
   const notesCity = notes?.city as string | undefined;
+  const notesTenantId = notes?.tenant_id as string | undefined;
 
   let webhookSecret: string | null = null;
   let secretSource = "none";
 
-  if (notesCity) {
+  if (notesTenantId) {
+    const { data: gw } = await adminClient
+      .from("payment_gateways")
+      .select("webhook_secret")
+      .eq("tenant_id", notesTenantId).eq("name", "razorpay").eq("is_active", true)
+      .maybeSingle();
+    webhookSecret = gw?.webhook_secret ?? null;
+    if (webhookSecret) secretSource = `payment_gateways:tenant:${notesTenantId}`;
+  }
+
+  if (!webhookSecret && notesCity) {
     const { data: gateway } = await adminClient
       .from("payment_gateways")
       .select("webhook_secret")
