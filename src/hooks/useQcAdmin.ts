@@ -82,9 +82,8 @@ export function useQcSaasProvisioning() {
   });
 
   const assignOwnerByEmail = useMutation({
-    mutationFn: async (vars: { tenant_id: string; email: string }) => {
+    mutationFn: async (vars: { tenant_id: string; email: string; full_access?: boolean }) => {
       const email = vars.email.trim().toLowerCase();
-      // Use limit(1) instead of maybeSingle to tolerate duplicate profile rows for the same email.
       const { data: profs, error: pErr } = await supabase
         .from("profiles")
         .select("user_id, created_at")
@@ -98,9 +97,42 @@ export function useQcSaasProvisioning() {
         .from("qc_only_admins")
         .insert({ user_id: userId, tenant_id: vars.tenant_id, role: "owner" });
       if (error && !`${error.message}`.includes("duplicate")) throw error;
+
+      if (vars.full_access) {
+        // grant coach role (user role already exists by default)
+        const { error: rErr } = await supabase.functions.invoke("manage-roles", {
+          body: { action: "grant", user_id: userId, role: "coach" },
+        });
+        if (rErr) throw rErr;
+      }
       return true;
     },
   });
 
-  return { tenants, createTenant, assignOwnerByEmail };
+  const setOwnerDisabled = useMutation({
+    mutationFn: async (vars: { tenant_id: string; user_id: string; disabled: boolean }) => {
+      const { error } = await supabase
+        .from("qc_only_admins")
+        .update({ disabled: vars.disabled } as any)
+        .eq("tenant_id", vars.tenant_id)
+        .eq("user_id", vars.user_id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["qc-saas-owners", v.tenant_id] }),
+  });
+
+  const removeOwner = useMutation({
+    mutationFn: async (vars: { tenant_id: string; user_id: string }) => {
+      const { error } = await supabase
+        .from("qc_only_admins")
+        .delete()
+        .eq("tenant_id", vars.tenant_id)
+        .eq("user_id", vars.user_id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ["qc-saas-owners", v.tenant_id] }),
+  });
+
+  return { tenants, createTenant, assignOwnerByEmail, setOwnerDisabled, removeOwner };
 }
+
