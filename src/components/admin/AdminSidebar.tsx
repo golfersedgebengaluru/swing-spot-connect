@@ -90,6 +90,10 @@ const dataPrivacyItems = [
   { id: "retention", label: "Data Retention", icon: ShieldCheck, adminOrSiteAdminOnly: true },
 ];
 
+const platformItems = [
+  { id: "qcsaas", label: "QC SaaS", icon: Trophy, adminOnly: true },
+];
+
 function NavItem({
   item,
   active,
