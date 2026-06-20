@@ -33,6 +33,7 @@ const Coaching = lazy(() => import("./pages/Coaching"));
 const CoachingSessionDetail = lazy(() => import("./pages/CoachingSessionDetail"));
 const QuickCompetitionPublic = lazy(() => import("./pages/QuickCompetitionPublic"));
 const QuickCompetitionJoin = lazy(() => import("./pages/QuickCompetitionJoin"));
+const QcAdmin = lazy(() => import("./pages/QcAdmin"));
 const ChangePassword = lazy(() => import("./pages/ChangePassword"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
