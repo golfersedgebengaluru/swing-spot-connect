@@ -10,9 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Loader2, MinusCircle, PlusCircle, Star, Award, UserCheck, ChevronLeft, ChevronRight, Clock, MoreHorizontal, Pencil, History, Trash2, Search, Wallet, Eye } from "lucide-react";
+import { Plus, Loader2, MinusCircle, PlusCircle, Star, Award, UserCheck, ChevronLeft, ChevronRight, Clock, MoreHorizontal, Pencil, History, Trash2, Search, Wallet, Eye, ShieldCheck } from "lucide-react";
 import { CustomerFinanceDialog } from "@/components/admin/CustomerFinanceDialog";
 import { ViewUserProfileDialog } from "@/components/admin/ViewUserProfileDialog";
+import { UserAccessDialog } from "@/components/admin/UserAccessDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useRewards } from "@/hooks/useRewards";
 import { useAllocatePoints, useRedeemPoints, usePointsTransactions } from "@/hooks/usePoints";
@@ -714,6 +715,14 @@ export function AdminAllUsersTab() {
         />
       )}
 
+      {selectedUser && dialogOpen === "access" && (
+        <UserAccessDialog
+          user={selectedUser}
+          open
+          onClose={() => { setDialogOpen(null); setSelectedUser(null); }}
+        />
+      )}
+
       <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -872,6 +881,9 @@ export function AdminAllUsersTab() {
                                 <Wallet className="mr-2 h-4 w-4" />Finance
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("access"); }}>
+                                <ShieldCheck className="mr-2 h-4 w-4" />Manage Access
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleToggleExtendedHours(u.id, !u.extended_hours_access)}>
                                 <Clock className="mr-2 h-4 w-4" />
                                 {u.extended_hours_access ? "Disable" : "Enable"} Extended Hours

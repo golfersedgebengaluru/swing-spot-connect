@@ -13,25 +13,28 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Shield, ShieldCheck, UserPlus, Trash2, Users, MapPin } from "lucide-react";
+import { Loader2, Shield, ShieldCheck, UserPlus, Trash2, Users, MapPin, GraduationCap } from "lucide-react";
 
 type RoleEntry = { user_id: string; role: string };
 
 const ROLE_COLORS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   admin: "destructive",
   site_admin: "default",
+  coach: "outline",
   user: "secondary",
 };
 
 const ROLE_ICONS: Record<string, typeof Shield> = {
   admin: ShieldCheck,
   site_admin: Shield,
+  coach: GraduationCap,
   user: Users,
 };
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Admin — Full access across all instances",
   site_admin: "Site-Admin — Full access to assigned instances",
+  coach: "Coach — Manage assigned students & sessions",
   user: "User — Standard access",
 };
 
@@ -210,6 +213,7 @@ export function AdminRolesManager() {
                     <SelectContent>
                       <SelectItem value="admin">Admin — Full access</SelectItem>
                       <SelectItem value="site_admin">Site-Admin — Instance-scoped access</SelectItem>
+                      <SelectItem value="coach">Coach — Manage students & sessions</SelectItem>
                       <SelectItem value="user">User — Standard access</SelectItem>
                     </SelectContent>
                   </Select>
