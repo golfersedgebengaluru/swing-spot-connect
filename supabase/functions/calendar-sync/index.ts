@@ -135,37 +135,46 @@ async function updateEvent(
 }
 
 /**
- * Cancels a Google Calendar event by PATCHing its status to "cancelled".
+ * Removes a Google Calendar event so the slot is freed.
  *
- * We deliberately use PATCH (not DELETE) because:
- *  - PATCH only requires "Make changes to events" (Writer) on the calendar.
- *  - DELETE requires the higher "Make changes and manage sharing" role,
- *    which Google has tightened over time and which silently breaks deletes
- *    if anyone downgrades sharing later.
+ * We use DELETE because PATCH-ing `status: "cancelled"` on a non-recurring
+ * event returns 200 OK but does NOT remove the event from the calendar grid
+ * (the slot stays blocked and the event remains visible). DELETE is the
+ * documented way to remove an event.
  *
- * From the user's perspective the result is identical: the event disappears
- * from the calendar grid and the slot is freed for new bookings.
- *
- * 404 (already gone) and 410 (resource gone) are treated as success — the
- * event is no longer there, which is exactly what we wanted.
+ * If the service account only has Writer (not "Make changes and manage
+ * sharing") and DELETE is rejected with 403, fall back to PATCH so older
+ * deployments keep working. 404/410 mean the event is already gone — benign.
  */
 async function deleteEvent(accessToken: string, calendarId: string, eventId: string) {
-  const res = await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
-    {
+  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`;
+  const delRes = await fetch(url, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (delRes.ok || delRes.status === 204) return;
+  if (delRes.status === 404 || delRes.status === 410) return; // already gone — benign
+
+  if (delRes.status === 403) {
+    // Fallback for calendars where the service account only has Writer access.
+    const patchRes = await fetch(url, {
       method: "PATCH",
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ status: "cancelled" }),
-    }
-  );
-  if (res.ok) return;
-  if (res.status === 404 || res.status === 410) return; // already gone — benign
-  const data = await res.text();
-  throw new Error(`Calendar cancel error [${res.status}]: ${data}`);
+    });
+    if (patchRes.ok) return;
+    if (patchRes.status === 404 || patchRes.status === 410) return;
+    const pData = await patchRes.text();
+    throw new Error(`Calendar cancel error [${patchRes.status}] (patch fallback): ${pData}`);
+  }
+
+  const data = await delRes.text();
+  throw new Error(`Calendar delete error [${delRes.status}]: ${data}`);
 }
+
 
 function createAdminClient() {
   return createClient(
