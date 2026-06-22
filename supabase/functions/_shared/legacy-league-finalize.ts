@@ -32,6 +32,117 @@ export interface LegacyTeamFinalizeInput {
   joinToken: string | null;
 }
 
+export interface PendingLegacyRow {
+  id: string;
+  league_id: string;
+  league_city_id: string | null;
+  league_location_id: string | null;
+  captain_user_id: string;
+  team_name: string;
+  team_size: number;
+  amount: number;
+  original_amount?: number | null;
+  discount_amount?: number | null;
+  coupon_id?: string | null;
+  coupon_code?: string | null;
+  currency: string;
+  invite_emails?: string[] | null;
+  razorpay_order_id: string;
+  status: string;
+  registration_id?: string | null;
+}
+
+export interface ResolvedRegistration {
+  reg: any | null;
+  created: boolean;
+  error?: string;
+}
+
+/**
+ * Race-safe lookup-or-insert for legacy_league_team_registrations.
+ *
+ * Multiple finalizers (browser verify-team-payment, razorpay-webhook,
+ * reconcile-pending-payments cron) may attempt to finalize the SAME order
+ * concurrently. They collide on either:
+ *   - razorpay_order_id uniqueness, OR
+ *   - legacy_league_team_unique_captain (league_id, captain_user_id).
+ *
+ * This helper:
+ *   1. Returns any pre-existing row (by order_id) immediately.
+ *   2. Attempts insert. If it succeeds → created=true.
+ *   3. On 23505, re-SELECTs by order_id then (league_id, captain_user_id),
+ *      backfilling order/payment id on the winner if missing.
+ * Callers MUST run finalizeLegacyTeamRegistration afterwards regardless of
+ * created — finalize is fully idempotent (members/invites ignore 23505).
+ */
+export async function resolveOrCreateLegacyRegistration(
+  admin: AnyClient,
+  pending: PendingLegacyRow,
+  razorpayOrderId: string,
+  razorpayPaymentId: string | null,
+): Promise<ResolvedRegistration> {
+  const { data: existing } = await admin
+    .from("legacy_league_team_registrations")
+    .select("*")
+    .eq("razorpay_order_id", razorpayOrderId)
+    .maybeSingle();
+  if (existing) return { reg: existing, created: false };
+
+  const { data: inserted, error: insErr } = await admin
+    .from("legacy_league_team_registrations")
+    .insert({
+      league_id: pending.league_id,
+      league_city_id: pending.league_city_id,
+      league_location_id: pending.league_location_id,
+      captain_user_id: pending.captain_user_id,
+      team_name: pending.team_name,
+      team_size: pending.team_size,
+      total_amount: pending.amount,
+      original_amount: pending.original_amount ?? pending.amount,
+      discount_amount: pending.discount_amount ?? 0,
+      coupon_id: pending.coupon_id ?? null,
+      coupon_code: pending.coupon_code ?? null,
+      currency: pending.currency,
+      payment_status: "paid",
+      razorpay_order_id: razorpayOrderId,
+      razorpay_payment_id: razorpayPaymentId,
+    })
+    .select()
+    .single();
+  if (!insErr && inserted) return { reg: inserted, created: true };
+
+  if (insErr && (insErr as any).code === "23505") {
+    const { data: byOrder } = await admin
+      .from("legacy_league_team_registrations")
+      .select("*")
+      .eq("razorpay_order_id", razorpayOrderId)
+      .maybeSingle();
+    if (byOrder) return { reg: byOrder, created: false };
+
+    const { data: byCaptain } = await admin
+      .from("legacy_league_team_registrations")
+      .select("*")
+      .eq("league_id", pending.league_id)
+      .eq("captain_user_id", pending.captain_user_id)
+      .maybeSingle();
+    if (byCaptain) {
+      if (!byCaptain.razorpay_order_id || !byCaptain.razorpay_payment_id) {
+        await admin
+          .from("legacy_league_team_registrations")
+          .update({
+            razorpay_order_id: byCaptain.razorpay_order_id ?? razorpayOrderId,
+            razorpay_payment_id: byCaptain.razorpay_payment_id ?? razorpayPaymentId,
+            payment_status: "paid",
+          })
+          .eq("id", byCaptain.id);
+      }
+      return { reg: byCaptain, created: false };
+    }
+  }
+
+  return { reg: null, created: false, error: insErr?.message ?? "unknown insert failure" };
+}
+
 export async function finalizeLegacyTeamRegistration(input: LegacyTeamFinalizeInput) {
   const { admin } = input;
 

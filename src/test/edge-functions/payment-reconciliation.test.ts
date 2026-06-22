@@ -97,8 +97,10 @@ describe("reconcile-pending-payments cron job", () => {
     expect(reconcilerSrc).toMatch(/complete_hour_purchase/);
   });
 
-  it("inserts legacy team registration on captured payment", () => {
-    expect(reconcilerSrc).toMatch(/legacy_league_team_registrations[\s\S]+insert/);
+  it("finalizes legacy team registration on captured payment (via shared resolver)", () => {
+    // The naked insert was moved into resolveOrCreateLegacyRegistration so all
+    // three finalizers (browser/webhook/cron) share the same race-safe path.
+    expect(reconcilerSrc).toMatch(/resolveOrCreateLegacyRegistration\(/);
   });
 
   it("marks long-pending rows whose Razorpay status is not paid as failed", () => {
@@ -172,10 +174,12 @@ describe("webhook idempotency across browser/webhook/cron race", () => {
   it("webhook finalizes any pending_* row not already completed (recovers from prior failed/webhook_error)", () => {
     // Uses RECOVERABLE_STATUSES (= pending/failed/webhook_error/error/signature_failed)
     // so a successful retry on the same order_id still gets finalized.
+    // Guest/hour-purchase paths still gate on RECOVERABLE_STATUSES; the legacy
+    // team path is gated by the shared resolver (lookup-by-order-id) instead.
     expect(webhookSrc).toMatch(/RECOVERABLE_STATUSES\s*=\s*\[[^\]]*"pending"[^\]]*"failed"[^\]]*"webhook_error"/);
     expect(webhookSrc).toMatch(/pending_guest_bookings[\s\S]{0,300}\.in\("status",\s*RECOVERABLE_STATUSES\)/);
     expect(webhookSrc).toMatch(/pending_purchases[\s\S]{0,300}\.in\("status",\s*RECOVERABLE_STATUSES\)/);
-    expect(webhookSrc).toMatch(/pending_legacy_league_team_registrations[\s\S]{0,300}\.in\("status",\s*RECOVERABLE_STATUSES\)/);
+    expect(webhookSrc).toMatch(/pending_legacy_league_team_registrations[\s\S]{0,400}resolveOrCreateLegacyRegistration/);
   });
 
   it("cron reconciler also uses RECOVERABLE_STATUSES (matches webhook gate)", () => {
@@ -184,3 +188,64 @@ describe("webhook idempotency across browser/webhook/cron race", () => {
   });
 });
 
+
+// ── Race-safe legacy team finalization (added 2026-06-22) ──────────
+import { readFileSync as _rf } from "node:fs";
+import { resolve as _rs } from "node:path";
+const finalizeSrc = _rf(
+  _rs(__dirname, "../../../supabase/functions/_shared/legacy-league-finalize.ts"),
+  "utf-8",
+);
+const leagueServiceSrc = _rf(
+  _rs(__dirname, "../../../supabase/functions/league-service/index.ts"),
+  "utf-8",
+);
+
+describe("legacy team finalize is race-safe across browser/webhook/cron", () => {
+  it("exports resolveOrCreateLegacyRegistration helper", () => {
+    expect(finalizeSrc).toMatch(/export async function resolveOrCreateLegacyRegistration/);
+  });
+  it("looks up by razorpay_order_id BEFORE inserting (skip-if-exists)", () => {
+    expect(finalizeSrc).toMatch(/eq\("razorpay_order_id", razorpayOrderId\)[\s\S]{0,200}maybeSingle/);
+  });
+  it("on 23505 falls back to lookup by (league_id, captain_user_id)", () => {
+    expect(finalizeSrc).toMatch(/23505[\s\S]{0,1500}eq\("league_id"[\s\S]{0,200}eq\("captain_user_id"/);
+  });
+  it("backfills order_id/payment_id onto the winner row when missing", () => {
+    expect(finalizeSrc).toMatch(/byCaptain\.razorpay_order_id \?\? razorpayOrderId/);
+  });
+
+  it("razorpay-webhook uses resolveOrCreateLegacyRegistration (no naked insert)", () => {
+    expect(webhookSrc).toMatch(/resolveOrCreateLegacyRegistration\(/);
+    // The old naked insert into legacy_league_team_registrations must be gone
+    // from the webhook (kept only in the shared resolver).
+    expect(webhookSrc).not.toMatch(/\.from\("legacy_league_team_registrations"\)\s*\.insert/);
+  });
+  it("razorpay-webhook ALWAYS marks pending → completed (even when another finalizer beat it)", () => {
+    expect(webhookSrc).toMatch(/status: "completed"[\s\S]{0,200}registration_id: resolved\.reg\.id/);
+  });
+  it("razorpay-webhook always calls finalizeLegacyTeamRegistration after resolve", () => {
+    expect(webhookSrc).toMatch(/resolveOrCreateLegacyRegistration[\s\S]{0,2000}finalizeLegacyTeamRegistration/);
+  });
+  it("razorpay-webhook wraps payment_events processed=true in try/catch (always-mark)", () => {
+    expect(webhookSrc).toMatch(/try\s*{[\s\S]{0,200}payment_events[\s\S]{0,200}processed: true[\s\S]{0,200}}\s*catch/);
+  });
+
+  it("reconcile-pending-payments uses resolveOrCreateLegacyRegistration", () => {
+    expect(reconcilerSrc).toMatch(/resolveOrCreateLegacyRegistration\(/);
+    expect(reconcilerSrc).not.toMatch(/\.from\("legacy_league_team_registrations"\)\s*\.insert/);
+  });
+
+  it("league-service verify-team-payment uses resolveOrCreateLegacyRegistration", () => {
+    expect(leagueServiceSrc).toMatch(/resolveOrCreateLegacyRegistration\(/);
+  });
+  it("league-service uses shared finalizeLegacyTeamRegistration (no duplicate inline path)", () => {
+    expect(leagueServiceSrc).toMatch(/finalizeLegacyTeamRegistration\(/);
+  });
+  it("league-service ALWAYS marks pending → completed with resolved registration id", () => {
+    expect(leagueServiceSrc).toMatch(/status: 'completed', registration_id: reg\.id/);
+  });
+  it("league-service only records coupon redemption when it was the inserter", () => {
+    expect(leagueServiceSrc).toMatch(/resolved\.created &&[\s\S]{0,400}coupon_redemptions/);
+  });
+});
