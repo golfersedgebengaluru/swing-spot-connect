@@ -16,7 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown, ChevronRight, Edit, ListOrdered, Settings2, Shuffle, Lock, Unlock, BarChart3, Upload, MapPin } from "lucide-react";
+import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown, ChevronRight, Edit, ListOrdered, Settings2, Shuffle, Lock, Unlock, BarChart3, Upload, MapPin, ExternalLink } from "lucide-react";
 import { BaySchedulingPanel } from "@/components/admin/league/BaySchedulingPanel";
 
 import { SeasonWrapUpPanel } from "@/components/admin/league/SeasonWrapUpPanel";
@@ -724,6 +724,16 @@ function LegacyLeagueRow({
         <span className="font-medium text-sm truncate">{league.name}</span>
         <div className="flex items-center gap-1">
           <StatusBadge status={league.status} />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={(e) => { e.stopPropagation(); window.open(`/leagues/${league.id}`, "_blank"); }}
+            aria-label="Open league public page"
+            title="Open league public page"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
