@@ -320,77 +320,77 @@ Deno.serve(async (req) => {
       }
     }
 
-    // --- Reconcile legacy league team registrations ---
+    // --- Reconcile legacy league team registrations (race-safe) ---
     const { data: pendingLeg } = await adminClient
       .from("pending_legacy_league_team_registrations")
       .select("*")
       .eq("razorpay_order_id", razorpayOrderId)
-      .in("status", RECOVERABLE_STATUSES)
       .maybeSingle();
 
     if (pendingLeg) {
       console.log(`Webhook reconciling legacy league team for order ${razorpayOrderId} (prev status=${pendingLeg.status})`);
       try {
-        const { data: reg, error: regErr } = await adminClient
-          .from("legacy_league_team_registrations")
-          .insert({
-            league_id: pendingLeg.league_id,
-            league_city_id: pendingLeg.league_city_id,
-            league_location_id: pendingLeg.league_location_id,
-            captain_user_id: pendingLeg.captain_user_id,
-            team_name: pendingLeg.team_name,
-            team_size: pendingLeg.team_size,
-            total_amount: pendingLeg.amount,
-            currency: pendingLeg.currency,
-            payment_status: "paid",
-            razorpay_order_id: razorpayOrderId,
-            razorpay_payment_id: razorpayPaymentId,
-          })
-          .select()
-          .single();
+        const resolved = await resolveOrCreateLegacyRegistration(
+          adminClient,
+          pendingLeg,
+          razorpayOrderId,
+          razorpayPaymentId ?? null,
+        );
 
-        if (regErr) {
-          console.error("Webhook legacy team insert failed:", regErr.message);
+        if (!resolved.reg) {
+          console.error("Webhook legacy team resolve failed:", resolved.error);
           await adminClient.from("pending_legacy_league_team_registrations").update({
-            status: regErr.code === "23505" ? "duplicate" : "webhook_error",
-            error_message: regErr.message,
+            status: "webhook_error",
+            error_message: resolved.error ?? "resolve failed",
           }).eq("id", pendingLeg.id);
         } else {
+          // Always mark pending → completed with the resolved registration id,
+          // even if another finalizer inserted the row first. This stops the
+          // browser/cron from looping on a "duplicate" pending row.
           await adminClient.from("pending_legacy_league_team_registrations").update({
             status: "completed",
-            registration_id: reg.id,
+            registration_id: resolved.reg.id,
+            error_message: null,
           }).eq("id", pendingLeg.id);
 
-          // Captain roster + invites + promote + emails (mirrors verify-team-payment path)
+          // Finalize is fully idempotent — safe to run from every finalizer.
           await finalizeLegacyTeamRegistration({
             admin: adminClient,
             supabaseUrl,
             serviceKey,
             origin: req.headers.get("origin") || req.headers.get("referer") || undefined,
-            registrationId: reg.id,
+            registrationId: resolved.reg.id,
             leagueId: pendingLeg.league_id,
             captainUserId: pendingLeg.captain_user_id,
             teamName: pendingLeg.team_name,
             teamSize: pendingLeg.team_size,
             locationId: pendingLeg.league_location_id ?? null,
             inviteEmails: Array.isArray(pendingLeg.invite_emails) ? pendingLeg.invite_emails : [],
-            joinToken: (reg as any).join_token ?? null,
+            joinToken: (resolved.reg as any).join_token ?? null,
           });
 
-          await adminClient.from("notifications").insert({
-            user_id: pendingLeg.captain_user_id,
-            title: "✅ Team Registered",
-            message: `Your team "${pendingLeg.team_name}" has been registered for the league.`,
-            type: "league",
-          });
+          if (resolved.created) {
+            await adminClient.from("notifications").insert({
+              user_id: pendingLeg.captain_user_id,
+              title: "✅ Team Registered",
+              message: `Your team "${pendingLeg.team_name}" has been registered for the league.`,
+              type: "league",
+            });
+          }
         }
       } catch (recErr) {
         console.error("Webhook legacy team reconciliation error:", (recErr as Error).message);
       }
     }
 
-    // Mark event as processed
-    await adminClient.from("payment_events").update({ processed: true }).eq("razorpay_event_id", eventId);
+    // Mark event as processed — ALWAYS, even if a sub-step above threw.
+    // Wrapping in try/catch ensures one failed reconcile branch can't leave
+    // payment_events.processed=false (which would block future replays).
+    try {
+      await adminClient.from("payment_events").update({ processed: true }).eq("razorpay_event_id", eventId);
+    } catch (e) {
+      console.error("[razorpay-webhook] failed to mark processed:", (e as Error).message);
+    }
   }
 
   // ── FAILURE events ─────────────────────────────────────────────
