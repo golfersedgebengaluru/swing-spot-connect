@@ -3475,36 +3475,27 @@ Deno.serve(async (req) => {
         return json({ success: true, registration: reg, join_token: reg?.join_token })
       }
 
-      const { data: reg, error: regErr } = await supabase
-        .from('legacy_league_team_registrations')
-        .insert({
-          league_id: pending.league_id,
-          league_city_id: pending.league_city_id,
-          league_location_id: pending.league_location_id,
-          captain_user_id: pending.captain_user_id,
-          team_name: pending.team_name,
-          team_size: pending.team_size,
-          total_amount: pending.amount,
-          original_amount: pending.original_amount ?? pending.amount,
-          discount_amount: pending.discount_amount ?? 0,
-          coupon_id: pending.coupon_id ?? null,
-          coupon_code: pending.coupon_code ?? null,
-          currency: pending.currency,
-          payment_status: 'paid',
-          razorpay_order_id,
-          razorpay_payment_id,
-        })
-        .select()
-        .single()
-      if (regErr) {
+      // Race-safe: lookup existing reg by order_id, else insert; on
+      // (league_id, captain_user_id) unique violation, return the winner.
+      // Either the browser, the webhook, or the reconciler may win — all
+      // three converge on the same idempotent finalize path below.
+      const resolved = await resolveOrCreateLegacyRegistration(
+        supabase,
+        pending as any,
+        razorpay_order_id,
+        razorpay_payment_id,
+      )
+      if (!resolved.reg) {
         await supabase.from('pending_legacy_league_team_registrations')
-          .update({ status: 'duplicate', error_message: regErr.message })
+          .update({ status: 'error', error_message: resolved.error ?? 'resolve failed' })
           .eq('id', pending.id)
-        return err(regErr.message, 500)
+        return err(resolved.error ?? 'Could not finalize registration', 500)
       }
+      const reg = resolved.reg
 
-      // Record coupon redemption (best-effort)
-      if (pending.coupon_id && Number(pending.discount_amount) > 0) {
+      // Record coupon redemption — ONLY when we are the inserter, so we don't
+      // double-count a coupon the webhook already booked.
+      if (resolved.created && pending.coupon_id && Number(pending.discount_amount) > 0) {
         await supabase.from('coupon_redemptions').insert({
           coupon_id: pending.coupon_id,
           user_id: pending.captain_user_id,
@@ -3516,63 +3507,35 @@ Deno.serve(async (req) => {
         if (cpn) await supabase.from('coupons').update({ total_used: (cpn.total_used || 0) + 1 }).eq('id', pending.coupon_id)
       }
 
-      // Captain into roster + invites from pending
-      await supabase.from('legacy_league_team_members').insert({
-        team_registration_id: reg.id,
-        league_id: pending.league_id,
-        user_id: pending.captain_user_id,
-        role: 'captain',
-        joined_via: 'captain',
-      })
-      const pendingEmails: string[] = Array.isArray(pending.invite_emails) ? pending.invite_emails : []
-      if (pendingEmails.length > 0) {
-        await supabase.from('legacy_league_team_invites').insert(
-          pendingEmails.map((email: string) => ({
-            team_registration_id: reg.id,
-            league_id: pending.league_id,
-            email,
-            invited_by: pending.captain_user_id,
-            status: 'pending',
-          }))
-        )
-      }
-
+      // Always mark pending → completed with the resolved registration id,
+      // even when another finalizer beat us to the insert. This stops the
+      // captain's browser from re-rendering the Create Team screen.
       await supabase.from('pending_legacy_league_team_registrations')
-        .update({ status: 'completed', registration_id: reg.id })
+        .update({ status: 'completed', registration_id: reg.id, error_message: null })
         .eq('id', pending.id)
 
-      // Bridge into new league_teams / league_players / league_team_members / league_roles
-      // so the team appears in admin Teams tab and the captain sees the league in /leagues.
-      const { error: promErr } = await supabase.rpc('promote_legacy_team_member', {
-        _registration_id: reg.id,
-        _user_id: pending.captain_user_id,
-      })
-      if (promErr) console.error('promote_legacy_team_member (paid path) failed:', promErr)
-
-      // Best-effort email notifications — never block team creation
+      // Finalize roster + invites + promote + emails. Fully idempotent —
+      // duplicate inserts on (team_registration_id, user_id) and
+      // (team_registration_id, email) are swallowed inside the helper.
+      const pendingEmails: string[] = Array.isArray(pending.invite_emails) ? pending.invite_emails : []
+      const origin = req.headers.get('origin') || req.headers.get('referer') || 'https://golfersedge.golf-collective.com'
       try {
-        const [{ data: captainProfile }, { data: lg }, { data: loc }] = await Promise.all([
-          supabase.from('profiles').select('email, display_name').eq('user_id', pending.captain_user_id).maybeSingle(),
-          supabase.from('leagues').select('name').eq('id', pending.league_id).maybeSingle(),
-          supabase.from('league_locations').select('name').eq('id', pending.league_location_id).maybeSingle(),
-        ])
-        const origin = req.headers.get('origin') || req.headers.get('referer') || 'https://golfersedge.golf-collective.com'
-        await sendTeamCreationEmails({
+        await finalizeLegacyTeamRegistration({
+          admin: supabase,
           supabaseUrl: Deno.env.get('SUPABASE_URL')!,
           serviceKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
           origin: origin.replace(/(https?:\/\/[^/]+).*/, '$1'),
+          registrationId: reg.id,
+          leagueId: pending.league_id,
           captainUserId: pending.captain_user_id,
-          captainEmail: captainProfile?.email || null,
-          captainName: captainProfile?.display_name || null,
-          leagueName: lg?.name || 'League',
           teamName: pending.team_name,
           teamSize: pending.team_size,
-          locationName: loc?.name || null,
-          joinToken: reg.join_token,
+          locationId: pending.league_location_id ?? null,
           inviteEmails: pendingEmails,
+          joinToken: reg.join_token,
         })
       } catch (e) {
-        console.error('[league email] finalize (paid) failed:', e)
+        console.error('[league] finalizeLegacyTeamRegistration failed:', (e as Error).message)
       }
 
       return json({ success: true, registration: reg, join_token: reg.join_token })
