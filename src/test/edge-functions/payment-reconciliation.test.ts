@@ -169,15 +169,18 @@ describe("browser is no longer load-bearing for payment finalization", () => {
 });
 
 describe("webhook idempotency across browser/webhook/cron race", () => {
-  it("webhook only finalizes pending_* rows still in status='pending'", () => {
-    // Prevents a second finalize if the cron or browser already completed it.
-    expect(webhookSrc).toMatch(/pending_guest_bookings[\s\S]{0,300}status",\s*"pending"/);
-    expect(webhookSrc).toMatch(/pending_purchases[\s\S]{0,300}status",\s*"pending"/);
-    expect(webhookSrc).toMatch(/pending_legacy_league_team_registrations[\s\S]{0,300}status",\s*"pending"/);
+  it("webhook finalizes any pending_* row not already completed (recovers from prior failed/webhook_error)", () => {
+    // Uses RECOVERABLE_STATUSES (= pending/failed/webhook_error/error/signature_failed)
+    // so a successful retry on the same order_id still gets finalized.
+    expect(webhookSrc).toMatch(/RECOVERABLE_STATUSES\s*=\s*\[[^\]]*"pending"[^\]]*"failed"[^\]]*"webhook_error"/);
+    expect(webhookSrc).toMatch(/pending_guest_bookings[\s\S]{0,300}\.in\("status",\s*RECOVERABLE_STATUSES\)/);
+    expect(webhookSrc).toMatch(/pending_purchases[\s\S]{0,300}\.in\("status",\s*RECOVERABLE_STATUSES\)/);
+    expect(webhookSrc).toMatch(/pending_legacy_league_team_registrations[\s\S]{0,300}\.in\("status",\s*RECOVERABLE_STATUSES\)/);
   });
 
-  it("cron reconciler also filters by status='pending' (matches webhook gate)", () => {
-    expect(reconcilerSrc).toMatch(/\.eq\("status",\s*"pending"\)/);
+  it("cron reconciler also uses RECOVERABLE_STATUSES (matches webhook gate)", () => {
+    expect(reconcilerSrc).toMatch(/RECOVERABLE_STATUSES/);
+    expect(reconcilerSrc).toMatch(/\.in\("status",\s*RECOVERABLE_STATUSES\)/);
   });
 });
 
