@@ -299,6 +299,55 @@ Deno.serve(async (req) => {
     }
   }
 
+  // ── 4. Quick Competition entry payments ────────────────────────
+  // qc_entries doubles as its own pending store. Pick up any entry whose
+  // razorpay_order_id is set but status is not yet 'paid' AND the order is
+  // actually paid on Razorpay's side. Resolve city via the competition row.
+  const { data: qcRows } = await admin
+    .from("qc_entries")
+    .select("id, razorpay_order_id, competition_id, status, created_at, competition:quick_competitions!inner(tenant_id, city)")
+    .neq("status", "paid")
+    .not("razorpay_order_id", "is", null)
+    .lt("created_at", sinceIso)
+    .gt("created_at", cutoffIso)
+    .limit(50);
+
+  for (const row of qcRows ?? []) {
+    summary.qc_entries.checked++;
+    try {
+      const cityName = (row as any).competition?.city as string | undefined;
+      if (!cityName) {
+        summary.qc_entries.errors.push(`${row.razorpay_order_id}: no city on competition`);
+        continue;
+      }
+      const creds = await getGateway(cityName);
+      if (!creds) continue;
+      const { order, payment } = await fetchRazorpayOrder(
+        row.razorpay_order_id,
+        creds.key_id,
+        creds.key_secret,
+      );
+      if (!order || order.status !== "paid") {
+        summary.qc_entries.still_pending++;
+        continue;
+      }
+      const result = await finalizeQcEntry(admin, row.razorpay_order_id, payment?.id ?? "cron_reconciled");
+      if (!result) {
+        summary.qc_entries.errors.push(`${row.razorpay_order_id}: entry vanished`);
+      } else if (result.error) {
+        summary.qc_entries.errors.push(`${row.razorpay_order_id}: ${result.error}`);
+      } else if (result.finalized) {
+        summary.qc_entries.finalized++;
+      } else if (result.alreadyPaid) {
+        summary.qc_entries.already_paid++;
+      }
+    } catch (e) {
+      summary.qc_entries.errors.push(`${row.razorpay_order_id}: ${(e as Error).message}`);
+    }
+  }
+
+
+
   return new Response(JSON.stringify({ ok: true, summary }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
