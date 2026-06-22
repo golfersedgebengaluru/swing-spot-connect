@@ -174,10 +174,12 @@ describe("webhook idempotency across browser/webhook/cron race", () => {
   it("webhook finalizes any pending_* row not already completed (recovers from prior failed/webhook_error)", () => {
     // Uses RECOVERABLE_STATUSES (= pending/failed/webhook_error/error/signature_failed)
     // so a successful retry on the same order_id still gets finalized.
+    // Guest/hour-purchase paths still gate on RECOVERABLE_STATUSES; the legacy
+    // team path is gated by the shared resolver (lookup-by-order-id) instead.
     expect(webhookSrc).toMatch(/RECOVERABLE_STATUSES\s*=\s*\[[^\]]*"pending"[^\]]*"failed"[^\]]*"webhook_error"/);
     expect(webhookSrc).toMatch(/pending_guest_bookings[\s\S]{0,300}\.in\("status",\s*RECOVERABLE_STATUSES\)/);
     expect(webhookSrc).toMatch(/pending_purchases[\s\S]{0,300}\.in\("status",\s*RECOVERABLE_STATUSES\)/);
-    expect(webhookSrc).toMatch(/pending_legacy_league_team_registrations[\s\S]{0,300}\.in\("status",\s*RECOVERABLE_STATUSES\)/);
+    expect(webhookSrc).toMatch(/pending_legacy_league_team_registrations[\s\S]{0,400}resolveOrCreateLegacyRegistration/);
   });
 
   it("cron reconciler also uses RECOVERABLE_STATUSES (matches webhook gate)", () => {
