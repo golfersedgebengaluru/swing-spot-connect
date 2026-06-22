@@ -6,6 +6,7 @@
 // failures AND missing/late Razorpay webhooks.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { finalizeLegacyTeamRegistration } from "../_shared/legacy-league-finalize.ts";
 
 const RECONCILE_AGE_MIN = 3; // ignore very-fresh rows (browser may still be finalizing)
 const MAX_AGE_HOURS = 24;    // stop trying after a day
@@ -279,6 +280,21 @@ Deno.serve(async (req) => {
           status: "completed",
           registration_id: reg.id,
         }).eq("id", row.id);
+
+        await finalizeLegacyTeamRegistration({
+          admin,
+          supabaseUrl: Deno.env.get("SUPABASE_URL")!,
+          serviceKey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+          registrationId: reg.id,
+          leagueId: row.league_id,
+          captainUserId: row.captain_user_id,
+          teamName: row.team_name,
+          teamSize: row.team_size,
+          locationId: row.league_location_id ?? null,
+          inviteEmails: Array.isArray(row.invite_emails) ? row.invite_emails : [],
+          joinToken: (reg as any).join_token ?? null,
+        });
+
         summary.legacy_teams.finalized++;
       }
     } catch (e) {
