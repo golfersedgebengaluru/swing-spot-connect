@@ -97,8 +97,10 @@ describe("reconcile-pending-payments cron job", () => {
     expect(reconcilerSrc).toMatch(/complete_hour_purchase/);
   });
 
-  it("inserts legacy team registration on captured payment", () => {
-    expect(reconcilerSrc).toMatch(/legacy_league_team_registrations[\s\S]+insert/);
+  it("finalizes legacy team registration on captured payment (via shared resolver)", () => {
+    // The naked insert was moved into resolveOrCreateLegacyRegistration so all
+    // three finalizers (browser/webhook/cron) share the same race-safe path.
+    expect(reconcilerSrc).toMatch(/resolveOrCreateLegacyRegistration\(/);
   });
 
   it("marks long-pending rows whose Razorpay status is not paid as failed", () => {
