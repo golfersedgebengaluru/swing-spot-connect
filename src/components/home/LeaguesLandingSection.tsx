@@ -1,22 +1,22 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Trophy, Users } from "lucide-react";
 import { useLandingLeagues, type LandingLeague } from "@/hooks/useLeagues";
 import { useMyLegacyTeam } from "@/hooks/useMyLegacyTeam";
-import { CreateLegacyTeamDialog } from "@/components/league/CreateLegacyTeamDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 
-function LeagueCard({ league, onCreate }: { league: LandingLeague; onCreate: () => void }) {
+function LeagueCard({ league }: { league: LandingLeague }) {
   const { user } = useAuth();
   const { data: my } = useMyLegacyTeam(user ? league.id : null);
   const hasTeam = !!my?.team;
 
   return (
-    <Card>
+    <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-6 space-y-3">
-        <h3 className="font-semibold text-lg">{league.name}</h3>
+        <Link to={`/leagues/${league.id}`} className="block">
+          <h3 className="font-semibold text-lg hover:underline">{league.name}</h3>
+        </Link>
         <div className="text-sm text-muted-foreground">
           {league.allowed_team_sizes.length > 0
             ? `Team sizes: ${league.allowed_team_sizes.join(", ")} · `
@@ -35,8 +35,8 @@ function LeagueCard({ league, onCreate }: { league: LandingLeague; onCreate: () 
             </Button>
           </div>
         ) : (
-          <Button className="w-full" size="lg" onClick={user ? onCreate : undefined} asChild={!user}>
-            {user ? <span>Create Team</span> : <Link to="/auth?redirect=/leagues">Sign in to create team</Link>}
+          <Button asChild className="w-full" size="lg">
+            <Link to={`/leagues/${league.id}`}>View & Create Team</Link>
           </Button>
         )}
       </CardContent>
@@ -46,7 +46,6 @@ function LeagueCard({ league, onCreate }: { league: LandingLeague; onCreate: () 
 
 export function LeaguesLandingSection() {
   const { data: legacyLeagues } = useLandingLeagues();
-  const [target, setTarget] = useState<LandingLeague | null>(null);
 
   if (!legacyLeagues || legacyLeagues.length === 0) return null;
 
@@ -60,16 +59,9 @@ export function LeaguesLandingSection() {
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {legacyLeagues.map((l) => (
-          <LeagueCard key={`legacy-${l.id}`} league={l} onCreate={() => setTarget(l)} />
+          <LeagueCard key={`legacy-${l.id}`} league={l} />
         ))}
       </div>
-      {target && (
-        <CreateLegacyTeamDialog
-          league={target}
-          open={!!target}
-          onOpenChange={(o) => { if (!o) setTarget(null); }}
-        />
-      )}
     </section>
   );
 }
