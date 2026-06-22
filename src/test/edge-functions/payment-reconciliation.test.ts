@@ -62,8 +62,16 @@ describe("razorpay-webhook signature & reconciliation wiring", () => {
     expect(webhookSrc).toMatch(/calendar-sync[\s\S]{0,400}guest_booking/);
   });
 
-  it("marks pending rows as failed on payment.failed", () => {
-    expect(webhookSrc).toMatch(/payment\.failed[\s\S]+pending_guest_bookings[\s\S]+failed/);
+  it("handles order.paid identically to payment.captured (Razorpay sends this on retry success)", () => {
+    expect(webhookSrc).toMatch(/order\.paid/);
+    expect(webhookSrc).toMatch(/isSuccess[\s\S]{0,200}payment\.captured[\s\S]{0,200}order\.paid|payment\.captured[\s\S]{0,200}order\.paid[\s\S]{0,200}isSuccess/);
+  });
+
+  it("does NOT mark pending_* rows failed on payment.failed (retries on same order must still finalize)", () => {
+    // The cron reconciler is the only thing that may flip pending_* → failed, and
+    // only after re-checking the live Razorpay order status.
+    expect(webhookSrc).not.toMatch(/payment\.failed[\s\S]{0,2000}pending_guest_bookings[\s\S]{0,200}status:\s*"failed"/);
+    expect(webhookSrc).toMatch(/payment\.failed[\s\S]+leaving pending_\* rows untouched/);
   });
 });
 
