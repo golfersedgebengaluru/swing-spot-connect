@@ -7,6 +7,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { finalizeLegacyTeamRegistration, resolveOrCreateLegacyRegistration } from "../_shared/legacy-league-finalize.ts";
+import { finalizeQcEntry } from "../_shared/qc-finalize.ts";
 
 const RECONCILE_AGE_MIN = 3; // ignore very-fresh rows (browser may still be finalizing)
 const MAX_AGE_HOURS = 24;    // stop trying after a day
