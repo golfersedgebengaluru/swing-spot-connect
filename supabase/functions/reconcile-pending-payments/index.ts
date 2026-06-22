@@ -9,6 +9,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const RECONCILE_AGE_MIN = 3; // ignore very-fresh rows (browser may still be finalizing)
 const MAX_AGE_HOURS = 24;    // stop trying after a day
+// Recoverable = anything not yet finalized. Includes 'failed' so that a row
+// previously marked failed by a payment.failed webhook can still be finalized
+// if a later attempt on the same order succeeded.
+const RECOVERABLE_STATUSES = ["pending", "failed", "webhook_error", "error", "signature_failed"];
 
 interface RazorpayOrder {
   id: string;
