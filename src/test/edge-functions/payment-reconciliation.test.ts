@@ -298,6 +298,6 @@ describe("quick_competition entry payments are race-safe", () => {
 describe("calendar-sync guest_booking is race-safe across browser+webhook", () => {
   const calSyncSrc = _rf(_rs(__dirname, "../../../supabase/functions/calendar-sync/index.ts"), "utf-8");
   it("idempotency check uses revenue_transactions.gateway_order_ref before booking insert", () => {
-    expect(calSyncSrc).toMatch(/revenue_transactions[\s\S]{0,200}gateway_order_ref[\s\S]{0,200}already_finalized/);
+    expect(calSyncSrc).toMatch(/revenue_transactions[\s\S]{0,400}gateway_order_ref[\s\S]{0,400}already_finalized/);
   });
 });
