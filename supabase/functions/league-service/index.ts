@@ -1,5 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { createHmac } from 'node:crypto'
+import {
+  finalizeLegacyTeamRegistration,
+  resolveOrCreateLegacyRegistration,
+} from '../_shared/legacy-league-finalize.ts'
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
