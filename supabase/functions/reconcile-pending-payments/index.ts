@@ -280,6 +280,21 @@ Deno.serve(async (req) => {
           status: "completed",
           registration_id: reg.id,
         }).eq("id", row.id);
+
+        await finalizeLegacyTeamRegistration({
+          admin,
+          supabaseUrl: Deno.env.get("SUPABASE_URL")!,
+          serviceKey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+          registrationId: reg.id,
+          leagueId: row.league_id,
+          captainUserId: row.captain_user_id,
+          teamName: row.team_name,
+          teamSize: row.team_size,
+          locationId: row.league_location_id ?? null,
+          inviteEmails: Array.isArray(row.invite_emails) ? row.invite_emails : [],
+          joinToken: (reg as any).join_token ?? null,
+        });
+
         summary.legacy_teams.finalized++;
       }
     } catch (e) {
