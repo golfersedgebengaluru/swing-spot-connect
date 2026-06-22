@@ -9,6 +9,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const RECONCILE_AGE_MIN = 3; // ignore very-fresh rows (browser may still be finalizing)
 const MAX_AGE_HOURS = 24;    // stop trying after a day
+// Recoverable = anything not yet finalized. Includes 'failed' so that a row
+// previously marked failed by a payment.failed webhook can still be finalized
+// if a later attempt on the same order succeeded.
+const RECOVERABLE_STATUSES = ["pending", "failed", "webhook_error", "error", "signature_failed"];
 
 interface RazorpayOrder {
   id: string;
@@ -89,7 +93,7 @@ Deno.serve(async (req) => {
   const { data: guestRows } = await admin
     .from("pending_guest_bookings")
     .select("*")
-    .eq("status", "pending")
+    .in("status", RECOVERABLE_STATUSES)
     .lt("created_at", sinceIso)
     .gt("created_at", cutoffIso)
     .limit(50);
@@ -157,7 +161,7 @@ Deno.serve(async (req) => {
   const { data: maybeFailed } = await admin
     .from("pending_guest_bookings")
     .select("id, razorpay_order_id, city")
-    .eq("status", "pending")
+    .in("status", RECOVERABLE_STATUSES)
     .lt("created_at", failCutoff)
     .gt("created_at", cutoffIso)
     .limit(50);
@@ -178,7 +182,7 @@ Deno.serve(async (req) => {
   const { data: hpRows } = await admin
     .from("pending_purchases")
     .select("*")
-    .eq("status", "pending")
+    .in("status", RECOVERABLE_STATUSES)
     .lt("created_at", sinceIso)
     .gt("created_at", cutoffIso)
     .limit(50);
@@ -221,7 +225,7 @@ Deno.serve(async (req) => {
   const { data: legRows } = await admin
     .from("pending_legacy_league_team_registrations")
     .select("*")
-    .eq("status", "pending")
+    .in("status", RECOVERABLE_STATUSES)
     .lt("created_at", sinceIso)
     .gt("created_at", cutoffIso)
     .limit(50);

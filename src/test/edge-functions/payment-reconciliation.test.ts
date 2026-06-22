@@ -62,8 +62,16 @@ describe("razorpay-webhook signature & reconciliation wiring", () => {
     expect(webhookSrc).toMatch(/calendar-sync[\s\S]{0,400}guest_booking/);
   });
 
-  it("marks pending rows as failed on payment.failed", () => {
-    expect(webhookSrc).toMatch(/payment\.failed[\s\S]+pending_guest_bookings[\s\S]+failed/);
+  it("handles order.paid identically to payment.captured (Razorpay sends this on retry success)", () => {
+    expect(webhookSrc).toMatch(/order\.paid/);
+    expect(webhookSrc).toMatch(/isSuccess[\s\S]{0,200}payment\.captured[\s\S]{0,200}order\.paid|payment\.captured[\s\S]{0,200}order\.paid[\s\S]{0,200}isSuccess/);
+  });
+
+  it("does NOT mark pending_* rows failed on payment.failed (retries on same order must still finalize)", () => {
+    // The cron reconciler is the only thing that may flip pending_* → failed, and
+    // only after re-checking the live Razorpay order status.
+    expect(webhookSrc).not.toMatch(/payment\.failed[\s\S]{0,2000}pending_guest_bookings[\s\S]{0,200}status:\s*"failed"/);
+    expect(webhookSrc).toMatch(/payment\.failed[\s\S]+leaving pending_\* rows untouched/);
   });
 });
 
@@ -161,15 +169,18 @@ describe("browser is no longer load-bearing for payment finalization", () => {
 });
 
 describe("webhook idempotency across browser/webhook/cron race", () => {
-  it("webhook only finalizes pending_* rows still in status='pending'", () => {
-    // Prevents a second finalize if the cron or browser already completed it.
-    expect(webhookSrc).toMatch(/pending_guest_bookings[\s\S]{0,300}status",\s*"pending"/);
-    expect(webhookSrc).toMatch(/pending_purchases[\s\S]{0,300}status",\s*"pending"/);
-    expect(webhookSrc).toMatch(/pending_legacy_league_team_registrations[\s\S]{0,300}status",\s*"pending"/);
+  it("webhook finalizes any pending_* row not already completed (recovers from prior failed/webhook_error)", () => {
+    // Uses RECOVERABLE_STATUSES (= pending/failed/webhook_error/error/signature_failed)
+    // so a successful retry on the same order_id still gets finalized.
+    expect(webhookSrc).toMatch(/RECOVERABLE_STATUSES\s*=\s*\[[^\]]*"pending"[^\]]*"failed"[^\]]*"webhook_error"/);
+    expect(webhookSrc).toMatch(/pending_guest_bookings[\s\S]{0,300}\.in\("status",\s*RECOVERABLE_STATUSES\)/);
+    expect(webhookSrc).toMatch(/pending_purchases[\s\S]{0,300}\.in\("status",\s*RECOVERABLE_STATUSES\)/);
+    expect(webhookSrc).toMatch(/pending_legacy_league_team_registrations[\s\S]{0,300}\.in\("status",\s*RECOVERABLE_STATUSES\)/);
   });
 
-  it("cron reconciler also filters by status='pending' (matches webhook gate)", () => {
-    expect(reconcilerSrc).toMatch(/\.eq\("status",\s*"pending"\)/);
+  it("cron reconciler also uses RECOVERABLE_STATUSES (matches webhook gate)", () => {
+    expect(reconcilerSrc).toMatch(/RECOVERABLE_STATUSES/);
+    expect(reconcilerSrc).toMatch(/\.in\("status",\s*RECOVERABLE_STATUSES\)/);
   });
 });
 
