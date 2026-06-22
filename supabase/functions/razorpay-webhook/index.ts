@@ -3,6 +3,7 @@ import {
   finalizeLegacyTeamRegistration,
   resolveOrCreateLegacyRegistration,
 } from "../_shared/legacy-league-finalize.ts";
+import { finalizeQcEntry } from "../_shared/qc-finalize.ts";
 
 // Razorpay webhook handler.
 // Verifies the HMAC-SHA256 signature using the webhook secret stored per-city
