@@ -39,6 +39,7 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const LeagueTeamJoin = lazy(() => import("./pages/LeagueTeamJoin"));
 const LeagueScreen = lazy(() => import("./pages/LeagueScreen"));
+const LeagueLanding = lazy(() => import("./pages/LeagueLanding"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Grievance = lazy(() => import("./pages/Grievance"));
 const ParentalConsent = lazy(() => import("./pages/ParentalConsent"));
@@ -78,6 +79,7 @@ const App = () => (
               <Route path="/my-bookings" element={<ErrorBoundary><MyBookings /></ErrorBoundary>} />
               <Route path="/profile" element={<ErrorBoundary><Profile /></ErrorBoundary>} />
               <Route path="/leagues" element={<ErrorBoundary><Leagues /></ErrorBoundary>} />
+              <Route path="/leagues/:id" element={<ErrorBoundary><LeagueLanding /></ErrorBoundary>} />
               <Route path="/league-team-join/:token" element={<ErrorBoundary><LeagueTeamJoin /></ErrorBoundary>} />
               <Route path="/leagues/:id/screen" element={<ErrorBoundary><LeagueScreen /></ErrorBoundary>} />
               <Route path="/coaching" element={<ErrorBoundary><Coaching /></ErrorBoundary>} />

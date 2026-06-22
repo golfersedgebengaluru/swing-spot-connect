@@ -173,6 +173,26 @@ export function useLandingLeagues() {
   });
 }
 
+export function useLandingLeague(leagueId: string | null) {
+  return useQuery<LandingLeague | null>({
+    queryKey: ["leagues-landing", leagueId],
+    queryFn: async () => {
+      if (!leagueId) return null;
+      const { data, error } = await supabase
+        .from("leagues")
+        .select("id, name, venue_id, status, allowed_team_sizes, show_on_landing, price_per_person, currency")
+        .eq("id", leagueId)
+        .eq("show_on_landing", true)
+        .eq("status", "active")
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return (data ?? null) as unknown as LandingLeague | null;
+    },
+    enabled: !!leagueId,
+    staleTime: 60_000,
+  });
+}
+
 // ── Join Codes ───────────────────────────────────────────────
 export function useJoinCodes(leagueId: string | null) {
   return useQuery<LeagueJoinCode[]>({
