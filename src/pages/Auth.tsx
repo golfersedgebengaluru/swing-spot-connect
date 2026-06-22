@@ -122,7 +122,9 @@ export default function Auth() {
           password: formData.password,
           options: {
             data: { full_name: formData.name },
-            emailRedirectTo: window.location.origin,
+            // Preserve any post-auth redirect (e.g. /league-team-join/<token>) so
+            // email confirmation lands the user back on the target route, not "/".
+            emailRedirectTo: `${window.location.origin}${redirectTo.startsWith("/") ? redirectTo : "/"}`,
           },
         });
         if (error) throw error;
