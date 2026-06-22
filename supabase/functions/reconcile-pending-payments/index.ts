@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
   const { data: guestRows } = await admin
     .from("pending_guest_bookings")
     .select("*")
-    .eq("status", "pending")
+    .in("status", RECOVERABLE_STATUSES)
     .lt("created_at", sinceIso)
     .gt("created_at", cutoffIso)
     .limit(50);
@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
   const { data: maybeFailed } = await admin
     .from("pending_guest_bookings")
     .select("id, razorpay_order_id, city")
-    .eq("status", "pending")
+    .in("status", RECOVERABLE_STATUSES)
     .lt("created_at", failCutoff)
     .gt("created_at", cutoffIso)
     .limit(50);
@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
   const { data: hpRows } = await admin
     .from("pending_purchases")
     .select("*")
-    .eq("status", "pending")
+    .in("status", RECOVERABLE_STATUSES)
     .lt("created_at", sinceIso)
     .gt("created_at", cutoffIso)
     .limit(50);
@@ -225,7 +225,7 @@ Deno.serve(async (req) => {
   const { data: legRows } = await admin
     .from("pending_legacy_league_team_registrations")
     .select("*")
-    .eq("status", "pending")
+    .in("status", RECOVERABLE_STATUSES)
     .lt("created_at", sinceIso)
     .gt("created_at", cutoffIso)
     .limit(50);
