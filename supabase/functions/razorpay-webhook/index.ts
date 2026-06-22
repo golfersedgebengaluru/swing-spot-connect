@@ -358,6 +358,22 @@ Deno.serve(async (req) => {
             registration_id: reg.id,
           }).eq("id", pendingLeg.id);
 
+          // Captain roster + invites + promote + emails (mirrors verify-team-payment path)
+          await finalizeLegacyTeamRegistration({
+            admin: adminClient,
+            supabaseUrl,
+            serviceKey,
+            origin: req.headers.get("origin") || req.headers.get("referer") || undefined,
+            registrationId: reg.id,
+            leagueId: pendingLeg.league_id,
+            captainUserId: pendingLeg.captain_user_id,
+            teamName: pendingLeg.team_name,
+            teamSize: pendingLeg.team_size,
+            locationId: pendingLeg.league_location_id ?? null,
+            inviteEmails: Array.isArray(pendingLeg.invite_emails) ? pendingLeg.invite_emails : [],
+            joinToken: (reg as any).join_token ?? null,
+          });
+
           await adminClient.from("notifications").insert({
             user_id: pendingLeg.captain_user_id,
             title: "✅ Team Registered",
