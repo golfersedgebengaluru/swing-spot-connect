@@ -17,9 +17,9 @@ export default function LeagueTeamJoin() {
   useEffect(() => {
     if (loading || !token) return;
     if (!user) {
-      // Stash and bounce to /auth, then come back
-      sessionStorage.setItem("post_auth_redirect", `/league-team-join/${token}`);
-      navigate("/auth");
+      // Bounce to /auth with explicit redirect param (Auth.tsx honors ?redirect=)
+      const back = encodeURIComponent(`/league-team-join/${token}`);
+      navigate(`/auth?redirect=${back}`, { replace: true });
       return;
     }
     if (state !== "idle") return;
