@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createHmac } from "node:crypto";
 import { z } from "https://esm.sh/zod@3";
 import { resolveQcGateway } from "../_shared/qc-gateway.ts";
+import { finalizeQcEntry } from "../_shared/qc-finalize.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -54,44 +55,10 @@ serve(async (req) => {
     if (expected !== razorpay_signature)
       return ok({ success: false, error: "Payment signature invalid" });
 
-    const { data: entry } = await supabase
-      .from("qc_entries")
-      .select("*")
-      .eq("competition_id", competition_id)
-      .eq("razorpay_order_id", razorpay_order_id)
-      .maybeSingle();
-    if (!entry) return ok({ success: false, error: "Entry not found" });
-
-    if (entry.status === "paid") {
-      return ok({ success: true, entry_id: entry.id, player_id: entry.player_id });
-    }
-
-    // Create the qc player row, then mark entry paid
-    const { data: player, error: pErr } = await supabase
-      .from("quick_competition_players")
-      .insert({ competition_id, name: entry.player_name })
-      .select().single();
-    if (pErr) {
-      console.error("player insert failed", pErr);
-      return ok({ success: false, error: "Could not create player" });
-    }
-
-    await supabase
-      .from("qc_entries")
-      .update({
-        status: "paid",
-        razorpay_payment_id,
-        player_id: player.id,
-      })
-      .eq("id", entry.id);
-
-    await supabase.from("quick_competition_audit").insert({
-      competition_id,
-      action: "paid_entry",
-      details: { entry_id: entry.id, player_id: player.id, amount: Number(entry.amount) },
-    });
-
-    return ok({ success: true, entry_id: entry.id, player_id: player.id });
+    const result = await finalizeQcEntry(supabase, razorpay_order_id, razorpay_payment_id);
+    if (!result) return ok({ success: false, error: "Entry not found" });
+    if (result.error) return ok({ success: false, error: result.error });
+    return ok({ success: true, entry_id: result.entryId, player_id: result.playerId, already_paid: result.alreadyPaid });
   } catch (err) {
     console.error("qc-verify-entry-payment error", (err as Error).message);
     return ok({ success: false, error: "Internal error" });

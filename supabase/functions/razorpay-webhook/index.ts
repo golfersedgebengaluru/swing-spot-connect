@@ -3,6 +3,7 @@ import {
   finalizeLegacyTeamRegistration,
   resolveOrCreateLegacyRegistration,
 } from "../_shared/legacy-league-finalize.ts";
+import { finalizeQcEntry } from "../_shared/qc-finalize.ts";
 
 // Razorpay webhook handler.
 // Verifies the HMAC-SHA256 signature using the webhook secret stored per-city
@@ -382,6 +383,24 @@ Deno.serve(async (req) => {
         console.error("Webhook legacy team reconciliation error:", (recErr as Error).message);
       }
     }
+
+
+
+    // --- Reconcile quick_competition entry payments ---
+    // qc_entries is its own pending store (no separate pending_* table). The
+    // shared finalizer does an atomic CAS so the browser, this webhook, and
+    // the cron reconciler can race safely on the same order without creating
+    // duplicate player rows.
+    try {
+      const qcResult = await finalizeQcEntry(adminClient, razorpayOrderId, razorpayPaymentId ?? null);
+      if (qcResult) {
+        console.log(`Webhook QC entry order=${razorpayOrderId} finalized=${qcResult.finalized} already_paid=${qcResult.alreadyPaid}`);
+        if (qcResult.error) console.error("[razorpay-webhook] QC finalize error:", qcResult.error);
+      }
+    } catch (qcErr) {
+      console.error("[razorpay-webhook] QC reconciliation error:", (qcErr as Error).message);
+    }
+
 
     // Mark event as processed — ALWAYS, even if a sub-step above threw.
     // Wrapping in try/catch ensures one failed reconcile branch can't leave

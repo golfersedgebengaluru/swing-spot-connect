@@ -249,3 +249,55 @@ describe("legacy team finalize is race-safe across browser/webhook/cron", () => 
     expect(leagueServiceSrc).toMatch(/resolved\.created &&[\s\S]{0,400}coupon_redemptions/);
   });
 });
+
+// ── Race-safety: hour purchase RPC (added 2026-06-22) ──────────────
+describe("complete_hour_purchase RPC is idempotent", () => {
+  // The RPC migration applied on 2026-06-22 wraps the body in an idempotency
+  // guard so concurrent webhook+cron+browser callers cannot double-credit
+  // hours even when Razorpay fires the same payment twice.
+  it("confirm-hour-purchase still uses the RPC (browser path)", () => {
+    const src = _rf(_rs(__dirname, "../../../supabase/functions/confirm-hour-purchase/index.ts"), "utf-8");
+    expect(src).toMatch(/complete_hour_purchase/);
+  });
+  it("razorpay-webhook still uses the RPC (webhook path)", () => {
+    expect(webhookSrc).toMatch(/complete_hour_purchase/);
+  });
+  it("reconciler still uses the RPC (cron path)", () => {
+    expect(reconcilerSrc).toMatch(/complete_hour_purchase/);
+  });
+});
+
+// ── Race-safety: QC entry payments (added 2026-06-22) ──────────────
+describe("quick_competition entry payments are race-safe", () => {
+  const qcVerifySrc = _rf(_rs(__dirname, "../../../supabase/functions/qc-verify-entry-payment/index.ts"), "utf-8");
+  const qcFinalizeSrc = _rf(_rs(__dirname, "../../../supabase/functions/_shared/qc-finalize.ts"), "utf-8");
+
+  it("qc-finalize uses atomic CAS (.neq('status','paid')) to prevent duplicate players", () => {
+    expect(qcFinalizeSrc).toMatch(/\.update\(\{[\s\S]{0,200}status: "paid"[\s\S]{0,200}\}\)[\s\S]{0,200}\.neq\("status",\s*"paid"\)/);
+  });
+  it("qc-finalize rolls back the claim if player insert fails (so cron can retry)", () => {
+    expect(qcFinalizeSrc).toMatch(/Roll back so a retry\/cron can finish/);
+    expect(qcFinalizeSrc).toMatch(/\.update\(\{ status: entry\.status/);
+  });
+  it("qc-verify-entry-payment delegates to the shared finalizer (no duplicate logic)", () => {
+    expect(qcVerifySrc).toMatch(/finalizeQcEntry\(/);
+    // The old inline player insert must be gone from qc-verify.
+    expect(qcVerifySrc).not.toMatch(/quick_competition_players[\s\S]{0,200}\.insert/);
+  });
+  it("razorpay-webhook backstops QC entries (no browser dependency)", () => {
+    expect(webhookSrc).toMatch(/finalizeQcEntry\(/);
+  });
+  it("reconcile-pending-payments cron picks up unpaid QC entries", () => {
+    expect(reconcilerSrc).toMatch(/qc_entries/);
+    expect(reconcilerSrc).toMatch(/finalizeQcEntry\(/);
+    expect(reconcilerSrc).toMatch(/qc_entries: \{ checked: 0/);
+  });
+});
+
+// ── Guest booking is already race-safe via revenue_transactions ────
+describe("calendar-sync guest_booking is race-safe across browser+webhook", () => {
+  const calSyncSrc = _rf(_rs(__dirname, "../../../supabase/functions/calendar-sync/index.ts"), "utf-8");
+  it("idempotency check uses revenue_transactions.gateway_order_ref before booking insert", () => {
+    expect(calSyncSrc).toMatch(/revenue_transactions[\s\S]{0,400}gateway_order_ref[\s\S]{0,400}already_finalized/);
+  });
+});
