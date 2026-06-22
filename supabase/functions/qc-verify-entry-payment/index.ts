@@ -62,27 +62,56 @@ serve(async (req) => {
       .maybeSingle();
     if (!entry) return ok({ success: false, error: "Entry not found" });
 
-    if (entry.status === "paid") {
-      return ok({ success: true, entry_id: entry.id, player_id: entry.player_id });
+    // Idempotency #1: already paid in a prior call.
+    if (entry.status === "paid" && entry.player_id) {
+      return ok({ success: true, entry_id: entry.id, player_id: entry.player_id, already_paid: true });
     }
 
-    // Create the qc player row, then mark entry paid
+    // ── Race-safe claim ──
+    // Browser + razorpay-webhook + cron reconciler can race on the same order.
+    // Atomically flip status from non-paid → paid; only the winner proceeds to
+    // create the player row. Losers re-read the winner's row and return it.
+    const { data: claimed, error: claimErr } = await supabase
+      .from("qc_entries")
+      .update({ status: "paid", razorpay_payment_id })
+      .eq("id", entry.id)
+      .neq("status", "paid")
+      .select()
+      .maybeSingle();
+
+    if (claimErr) {
+      console.error("qc_entries claim failed", claimErr);
+      return ok({ success: false, error: "Could not finalize entry" });
+    }
+
+    if (!claimed) {
+      // Another finalizer beat us — return their result.
+      const { data: winner } = await supabase
+        .from("qc_entries")
+        .select("id, player_id")
+        .eq("id", entry.id)
+        .maybeSingle();
+      return ok({ success: true, entry_id: winner?.id ?? entry.id, player_id: winner?.player_id ?? null, already_paid: true });
+    }
+
+    // We are the winner — create the player row.
     const { data: player, error: pErr } = await supabase
       .from("quick_competition_players")
       .insert({ competition_id, name: entry.player_name })
       .select().single();
     if (pErr) {
       console.error("player insert failed", pErr);
+      // Roll back our claim so a retry/cron can finish it.
+      await supabase
+        .from("qc_entries")
+        .update({ status: entry.status, razorpay_payment_id: entry.razorpay_payment_id })
+        .eq("id", entry.id);
       return ok({ success: false, error: "Could not create player" });
     }
 
     await supabase
       .from("qc_entries")
-      .update({
-        status: "paid",
-        razorpay_payment_id,
-        player_id: player.id,
-      })
+      .update({ player_id: player.id })
       .eq("id", entry.id);
 
     await supabase.from("quick_competition_audit").insert({
