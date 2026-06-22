@@ -1,5 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { finalizeLegacyTeamRegistration } from "../_shared/legacy-league-finalize.ts";
+import {
+  finalizeLegacyTeamRegistration,
+  resolveOrCreateLegacyRegistration,
+} from "../_shared/legacy-league-finalize.ts";
 
 // Razorpay webhook handler.
 // Verifies the HMAC-SHA256 signature using the webhook secret stored per-city
