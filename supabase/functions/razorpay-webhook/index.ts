@@ -381,7 +381,10 @@ Deno.serve(async (req) => {
         }
       } catch (recErr) {
         console.error("Webhook legacy team reconciliation error:", (recErr as Error).message);
+      }
     }
+
+
 
     // --- Reconcile quick_competition entry payments ---
     // qc_entries is its own pending store (no separate pending_* table). The
