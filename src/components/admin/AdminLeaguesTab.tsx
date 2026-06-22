@@ -728,6 +728,16 @@ function LegacyLeagueRow({
             variant="ghost"
             size="icon"
             className="h-7 w-7"
+            onClick={(e) => { e.stopPropagation(); window.open(`/leagues/${league.id}`, "_blank"); }}
+            aria-label="Open league public page"
+            title="Open league public page"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
             onClick={(e) => { e.stopPropagation(); setEditOpen(true); }}
             aria-label="Edit league"
           >
