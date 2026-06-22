@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createHmac } from "node:crypto";
 import { z } from "https://esm.sh/zod@3";
 import { resolveQcGateway } from "../_shared/qc-gateway.ts";
+import { finalizeQcEntry } from "../_shared/qc-finalize.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
