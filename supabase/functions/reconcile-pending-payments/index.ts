@@ -256,43 +256,37 @@ Deno.serve(async (req) => {
         summary.legacy_teams.still_pending++;
         continue;
       }
-      const { data: reg, error: regErr } = await admin
-        .from("legacy_league_team_registrations")
-        .insert({
-          league_id: row.league_id,
-          league_city_id: row.league_city_id,
-          league_location_id: row.league_location_id,
-          captain_user_id: row.captain_user_id,
-          team_name: row.team_name,
-          team_size: row.team_size,
-          total_amount: row.amount,
-          currency: row.currency,
-          payment_status: "paid",
-          razorpay_order_id: row.razorpay_order_id,
-          razorpay_payment_id: payment?.id ?? "cron_reconciled",
-        })
-        .select()
-        .single();
-      if (regErr) {
-        summary.legacy_teams.errors.push(`${row.razorpay_order_id}: ${regErr.message}`);
+      const resolved = await resolveOrCreateLegacyRegistration(
+        admin,
+        row as any,
+        row.razorpay_order_id,
+        payment?.id ?? "cron_reconciled",
+      );
+      if (!resolved.reg) {
+        summary.legacy_teams.errors.push(`${row.razorpay_order_id}: ${resolved.error ?? "resolve failed"}`);
+        await admin.from("pending_legacy_league_team_registrations").update({
+          status: "error",
+          error_message: resolved.error ?? "resolve failed",
+        }).eq("id", row.id);
       } else {
         await admin.from("pending_legacy_league_team_registrations").update({
           status: "completed",
-          registration_id: reg.id,
+          registration_id: resolved.reg.id,
+          error_message: null,
         }).eq("id", row.id);
 
         await finalizeLegacyTeamRegistration({
           admin,
           supabaseUrl: Deno.env.get("SUPABASE_URL")!,
           serviceKey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-          registrationId: reg.id,
+          registrationId: resolved.reg.id,
           leagueId: row.league_id,
           captainUserId: row.captain_user_id,
           teamName: row.team_name,
           teamSize: row.team_size,
           locationId: row.league_location_id ?? null,
           inviteEmails: Array.isArray(row.invite_emails) ? row.invite_emails : [],
-          joinToken: (reg as any).join_token ?? null,
+          joinToken: (resolved.reg as any).join_token ?? null,
         });
 
         summary.legacy_teams.finalized++;
