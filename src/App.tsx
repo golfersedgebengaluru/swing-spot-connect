@@ -80,6 +80,7 @@ const App = () => (
               <Route path="/profile" element={<ErrorBoundary><Profile /></ErrorBoundary>} />
               <Route path="/leagues" element={<ErrorBoundary><Leagues /></ErrorBoundary>} />
               <Route path="/leagues/:id" element={<ErrorBoundary><LeagueLanding /></ErrorBoundary>} />
+              <Route path="/league-team-join/i/:inviteToken" element={<ErrorBoundary><LeagueTeamJoin /></ErrorBoundary>} />
               <Route path="/league-team-join/:token" element={<ErrorBoundary><LeagueTeamJoin /></ErrorBoundary>} />
               <Route path="/leagues/:id/screen" element={<ErrorBoundary><LeagueScreen /></ErrorBoundary>} />
               <Route path="/coaching" element={<ErrorBoundary><Coaching /></ErrorBoundary>} />
