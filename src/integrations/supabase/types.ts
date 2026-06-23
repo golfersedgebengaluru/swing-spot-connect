@@ -5505,6 +5505,40 @@ export type Database = {
         Args: { _token: string; _user_id: string }
         Returns: Json
       }
+      claim_pending_guest_booking: {
+        Args: { _order_id: string }
+        Returns: {
+          amount: number
+          bay_id: string | null
+          bay_name: string | null
+          calendar_email: string | null
+          city: string
+          coupon_code: string | null
+          created_at: string
+          currency: string
+          discount_amount: number
+          duration_minutes: number
+          end_time: string
+          error_message: string | null
+          finalized_at: string | null
+          guest_email: string
+          guest_name: string
+          guest_phone: string | null
+          id: string
+          original_amount: number | null
+          razorpay_order_id: string
+          session_type: string | null
+          start_time: string
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pending_guest_bookings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       complete_hour_purchase: {
         Args: {
           p_amount: number
@@ -5619,6 +5653,10 @@ export type Database = {
           _user_agent?: string
         }
         Returns: string
+      }
+      release_pending_guest_booking: {
+        Args: { _error?: string; _order_id: string }
+        Returns: undefined
       }
       site_admin_has_city: {
         Args: { _city: string; _user_id: string }
