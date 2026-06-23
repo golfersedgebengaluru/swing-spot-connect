@@ -843,18 +843,38 @@ Deno.serve(async (req) => {
         calendar_email = await resolveCalendarEmail(adminClient, { bay_id, city });
       }
 
-      // Idempotency: if a revenue_transaction already exists for this Razorpay order,
-      // the booking has already been finalized (by the browser flow OR webhook). Skip.
+      // Atomic de-duplication: the browser handler AND the razorpay webhook can
+      // both invoke this endpoint concurrently for the same payment. A read-then-
+      // write guard (SELECT revenue_transactions → INSERT booking) is racy — both
+      // callers can pass the read and create duplicate bookings + calendar events.
+      //
+      // Instead, atomically claim the pending_guest_bookings row by transitioning
+      // status into 'processing' via SECURITY DEFINER RPC. Only ONE caller wins
+      // the CAS; the loser sees a non-recoverable status and bails out, returning
+      // the booking already created by the winner.
       if (order_id) {
-        const { data: existingTx } = await adminClient
-          .from("revenue_transactions")
-          .select("id, booking_id")
-          .eq("gateway_order_ref", order_id)
-          .maybeSingle();
-        if (existingTx) {
-          console.log(`guest_booking already finalized for order ${order_id} — skipping`);
+        const { data: claimed, error: claimErr } = await adminClient
+          .rpc("claim_pending_guest_booking", { _order_id: order_id });
+        if (claimErr) {
+          console.error("claim_pending_guest_booking failed:", claimErr.message);
+        }
+        const claimedRow: any = Array.isArray(claimed) ? claimed[0] : claimed;
+        // If the row was already finalized OR another caller is mid-flight (we
+        // didn't transition it ourselves), bail out. We detect "we won" by the
+        // row's updated_at being within the last few seconds AND status=processing.
+        const recoverable = new Set(["pending","awaiting_payment","webhook_error","signature_failed","processing_failed"]);
+        const weWon = claimedRow && claimedRow.status === "processing"
+          && claimedRow.updated_at
+          && (Date.now() - new Date(claimedRow.updated_at).getTime()) < 5000;
+        if (!claimedRow || (!weWon && !recoverable.has(claimedRow.status))) {
+          const { data: existingTx } = await adminClient
+            .from("revenue_transactions")
+            .select("id, booking_id")
+            .eq("gateway_order_ref", order_id)
+            .maybeSingle();
+          console.log(`guest_booking already finalized for order ${order_id} (claim lost, status=${claimedRow?.status}) — skipping`);
           return new Response(
-            JSON.stringify({ status: "already_finalized", booking_id: existingTx.booking_id }),
+            JSON.stringify({ status: "already_finalized", booking_id: existingTx?.booking_id ?? null }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
@@ -996,7 +1016,16 @@ Deno.serve(async (req) => {
         .single();
 
 
-      if (bookingError) throw bookingError;
+      if (bookingError) {
+        // Release the claim so the webhook/cron can retry.
+        if (order_id) {
+          await adminClient.rpc("release_pending_guest_booking", {
+            _order_id: order_id,
+            _error: `booking insert failed: ${bookingError.message}`,
+          });
+        }
+        throw bookingError;
+      }
 
       // Create revenue transaction for guest booking — SKIP for deferred (corporate) bookings
       if (!isDeferred) {
