@@ -160,3 +160,24 @@ Deno.test("league-service: DELETE reaction without auth returns 401", async () =
   const { status } = await fetchAPI("/leagues/fake-id/feed/fake-item/reactions?emoji=👏", "DELETE");
   assertEquals(status, 401);
 });
+
+// ── Legacy team invite auth gate tests ──────────────────────
+Deno.test("league-service: POST claim-by-invite without auth returns 401", async () => {
+  const { status } = await fetchAPI("/leagues/legacy/claim-by-invite", "POST", { invite_token: "00000000-0000-0000-0000-000000000000" });
+  assertEquals(status, 401);
+});
+
+Deno.test("league-service: GET legacy-invites without auth returns 401", async () => {
+  const { status } = await fetchAPI("/leagues/fake-id/legacy-invites", "GET");
+  assertEquals(status, 401);
+});
+
+Deno.test("league-service: POST legacy-invite revoke without auth returns 401", async () => {
+  const { status } = await fetchAPI("/leagues/fake-id/legacy-invites/fake-invite/revoke", "POST", {});
+  assertEquals(status, 401);
+});
+
+Deno.test("league-service: POST legacy-invite rotate without auth returns 401", async () => {
+  const { status } = await fetchAPI("/leagues/fake-id/legacy-invites/fake-invite/rotate", "POST", {});
+  assertEquals(status, 401);
+});
