@@ -339,6 +339,16 @@ function parseRoute(url: URL): Route {
     if (leagueId === 'legacy' && subResource === 'claim-by-token') {
       return { action: 'legacy-claim-by-token' }
     }
+    if (leagueId === 'legacy' && subResource === 'claim-by-invite') {
+      return { action: 'legacy-claim-by-invite' }
+    }
+    if (subResource === 'legacy-invites' && segments[4] && segments[5]) {
+      // /leagues/:id/legacy-invites/:inviteId/(revoke|rotate)
+      return { action: 'legacy-invite-action', leagueId, subResource, subId: segments[4], bookingId: segments[5] }
+    }
+    if (subResource === 'legacy-invites') {
+      return { action: 'legacy-invites-list', leagueId, subResource }
+    }
     if (subResource === 'register-team-intent') {
       return { action: 'legacy-register-team-intent', leagueId, subResource }
     }
