@@ -1016,7 +1016,16 @@ Deno.serve(async (req) => {
         .single();
 
 
-      if (bookingError) throw bookingError;
+      if (bookingError) {
+        // Release the claim so the webhook/cron can retry.
+        if (order_id) {
+          await adminClient.rpc("release_pending_guest_booking", {
+            _order_id: order_id,
+            _error: `booking insert failed: ${bookingError.message}`,
+          });
+        }
+        throw bookingError;
+      }
 
       // Create revenue transaction for guest booking — SKIP for deferred (corporate) bookings
       if (!isDeferred) {
