@@ -3229,7 +3229,9 @@ export type Database = {
           claimed_user_id: string | null
           created_at: string
           email: string
+          expires_at: string
           id: string
+          invite_token: string
           invited_by: string
           league_id: string
           status: string
@@ -3240,7 +3242,9 @@ export type Database = {
           claimed_user_id?: string | null
           created_at?: string
           email: string
+          expires_at?: string
           id?: string
+          invite_token?: string
           invited_by: string
           league_id: string
           status?: string
@@ -3251,7 +3255,9 @@ export type Database = {
           claimed_user_id?: string | null
           created_at?: string
           email?: string
+          expires_at?: string
           id?: string
+          invite_token?: string
           invited_by?: string
           league_id?: string
           status?: string
@@ -5441,6 +5447,28 @@ export type Database = {
           city: string
         }[]
       }
+      admin_list_legacy_team_invites: {
+        Args: { _caller: string; _league_id: string }
+        Returns: {
+          claimed_at: string
+          email: string
+          expires_at: string
+          id: string
+          invite_token: string
+          invited_at: string
+          status: string
+          team_name: string
+          team_registration_id: string
+        }[]
+      }
+      admin_revoke_legacy_invite: {
+        Args: { _caller: string; _invite_id: string }
+        Returns: Json
+      }
+      admin_rotate_legacy_invite: {
+        Args: { _caller: string; _invite_id: string }
+        Returns: Json
+      }
       admin_set_product_cost_price: {
         Args: { p_cost: number; p_id: string }
         Returns: undefined
@@ -5464,6 +5492,10 @@ export type Database = {
       check_email_rate_limit: {
         Args: { p_max_per_hour?: number; p_user_id: string }
         Returns: boolean
+      }
+      claim_legacy_league_invite_by_token: {
+        Args: { _invite_token: string; _user_id: string }
+        Returns: Json
       }
       claim_legacy_league_invites: {
         Args: { _email: string; _user_id: string }

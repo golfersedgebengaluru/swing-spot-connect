@@ -120,3 +120,41 @@ export function useRegisteredLegacyTeams(leagueId: string | null) {
     queryFn: () => leagueServiceInvoke(`/leagues/${leagueId}/registered-teams`, "GET"),
   });
 }
+
+export interface LegacyInvite {
+  id: string;
+  team_registration_id: string;
+  email: string;
+  status: "pending" | "joined" | "revoked";
+  invited_at: string;
+  claimed_at: string | null;
+  expires_at: string;
+  invite_token: string;
+  team_name: string;
+}
+
+export function useLegacyTeamInvites(leagueId: string | null) {
+  return useQuery<LegacyInvite[]>({
+    queryKey: ["legacy-team-invites", leagueId],
+    enabled: !!leagueId,
+    queryFn: () => leagueServiceInvoke(`/leagues/${leagueId}/legacy-invites`, "GET"),
+  });
+}
+
+export function useRevokeLegacyInvite(leagueId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (inviteId: string) =>
+      leagueServiceInvoke(`/leagues/${leagueId}/legacy-invites/${inviteId}/revoke`, "POST", {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["legacy-team-invites", leagueId] }),
+  });
+}
+
+export function useRotateLegacyInvite(leagueId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (inviteId: string) =>
+      leagueServiceInvoke(`/leagues/${leagueId}/legacy-invites/${inviteId}/rotate`, "POST", {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["legacy-team-invites", leagueId] }),
+  });
+}

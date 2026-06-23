@@ -158,19 +158,19 @@ export async function finalizeLegacyTeamRegistration(input: LegacyTeamFinalizeIn
     console.error("[legacy-finalize] captain insert failed:", capErr.message);
   }
 
-  // 2) Invites
+  // 2) Invites (upsert by team+email so retries don't dupe; ensures invite_token exists)
   if (input.inviteEmails.length > 0) {
-    const { error: invErr } = await admin.from("legacy_league_team_invites").insert(
-      input.inviteEmails.map((email) => ({
+    for (const email of input.inviteEmails) {
+      const { error: invErr } = await admin.from("legacy_league_team_invites").insert({
         team_registration_id: input.registrationId,
         league_id: input.leagueId,
         email,
         invited_by: input.captainUserId,
         status: "pending",
-      })),
-    );
-    if (invErr && invErr.code !== "23505") {
-      console.error("[legacy-finalize] invites insert failed:", invErr.message);
+      });
+      if (invErr && invErr.code !== "23505") {
+        console.error("[legacy-finalize] invite insert failed:", email, invErr.message);
+      }
     }
   }
 
@@ -231,7 +231,20 @@ export async function finalizeLegacyTeamRegistration(input: LegacyTeamFinalizeIn
         }),
       );
     }
+    // Per-invite token URLs — bulletproof: each invitee gets a unique, email-bound link
+    const { data: inviteRows } = await admin
+      .from("legacy_league_team_invites")
+      .select("email, invite_token")
+      .eq("team_registration_id", input.registrationId);
+    const tokenByEmail = new Map<string, string>();
+    for (const row of (inviteRows || []) as Array<{ email: string; invite_token: string }>) {
+      tokenByEmail.set(row.email.toLowerCase(), row.invite_token);
+    }
     for (const email of input.inviteEmails) {
+      const inviteToken = tokenByEmail.get(email.toLowerCase());
+      const inviteUrl = inviteToken
+        ? `${origin.replace(/\/$/, "")}/league-team-join/i/${inviteToken}`
+        : joinUrl;
       tasks.push(
         post({
           user_id: null,
@@ -243,7 +256,7 @@ export async function finalizeLegacyTeamRegistration(input: LegacyTeamFinalizeIn
             league_name: leagueName,
             team_name: input.teamName,
             location: locationName,
-            join_url: joinUrl,
+            join_url: inviteUrl,
           },
         }),
       );

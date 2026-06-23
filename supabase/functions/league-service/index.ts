@@ -339,6 +339,16 @@ function parseRoute(url: URL): Route {
     if (leagueId === 'legacy' && subResource === 'claim-by-token') {
       return { action: 'legacy-claim-by-token' }
     }
+    if (leagueId === 'legacy' && subResource === 'claim-by-invite') {
+      return { action: 'legacy-claim-by-invite' }
+    }
+    if (subResource === 'legacy-invites' && segments[4] && segments[5]) {
+      // /leagues/:id/legacy-invites/:inviteId/(revoke|rotate)
+      return { action: 'legacy-invite-action', leagueId, subResource, subId: segments[4], bookingId: segments[5] }
+    }
+    if (subResource === 'legacy-invites') {
+      return { action: 'legacy-invites-list', leagueId, subResource }
+    }
     if (subResource === 'register-team-intent') {
       return { action: 'legacy-register-team-intent', leagueId, subResource }
     }
@@ -3561,6 +3571,48 @@ Deno.serve(async (req) => {
       })
       if (error) return err(error.message, 500)
       return json({ success: true, result: data })
+    }
+
+    // ── Claim by per-invite token (bulletproof: email-matched) ──────
+    if (route.action === 'legacy-claim-by-invite' && method === 'POST') {
+      const body = await req.json().catch(() => ({}))
+      const inviteToken = String(body?.invite_token || '').trim()
+      if (!inviteToken) return err('invite_token required')
+      const { data, error } = await supabase.rpc('claim_legacy_league_invite_by_token', {
+        _user_id: user.id, _invite_token: inviteToken,
+      })
+      if (error) return err(error.message, 500)
+      return json({ success: true, result: data })
+    }
+
+    // ── Admin: list legacy invites for a league ─────────────────────
+    if (route.action === 'legacy-invites-list' && route.leagueId && method === 'GET') {
+      const { data, error } = await supabase.rpc('admin_list_legacy_team_invites', {
+        _caller: user.id, _league_id: route.leagueId,
+      })
+      if (error) return err(error.message, 403)
+      return json(data || [])
+    }
+
+    // ── Admin/captain: revoke or rotate a legacy invite ─────────────
+    if (route.action === 'legacy-invite-action' && method === 'POST') {
+      const inviteId = route.subId!
+      const op = route.bookingId
+      if (op === 'revoke') {
+        const { data, error } = await supabase.rpc('admin_revoke_legacy_invite', {
+          _caller: user.id, _invite_id: inviteId,
+        })
+        if (error) return err(error.message, 403)
+        return json({ success: true, result: data })
+      }
+      if (op === 'rotate') {
+        const { data, error } = await supabase.rpc('admin_rotate_legacy_invite', {
+          _caller: user.id, _invite_id: inviteId,
+        })
+        if (error) return err(error.message, 403)
+        return json({ success: true, result: data })
+      }
+      return err('Unknown invite action', 400)
     }
 
     // ── My team for a league ────────────────────────────────────────

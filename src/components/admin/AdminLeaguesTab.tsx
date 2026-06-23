@@ -74,7 +74,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam, LeaderboardEntry } from "@/types/league";
 import type { LeaguePlayerWithProfile } from "@/hooks/useLeagues";
-import { useRegisteredLegacyTeams } from "@/hooks/useLegacyLeagueRegistration";
+import { useRegisteredLegacyTeams, useLegacyTeamInvites, useRevokeLegacyInvite, useRotateLegacyInvite } from "@/hooks/useLegacyLeagueRegistration";
 
 // Parse a comma-separated string of team sizes (e.g. "2, 4") into a unique sorted int[].
 function parseTeamSizes(input: string): number[] {
@@ -1456,47 +1456,128 @@ function RoundsPanel({ league }: { league: League }) {
 // ── Teams Panel ──────────────────────────────────────────────
 function RegistrationsPanel({ league }: { league: League }) {
   const { data, isLoading } = useRegisteredLegacyTeams(league.id);
+  const { data: invites, isLoading: invitesLoading } = useLegacyTeamInvites(league.id);
+  const revoke = useRevokeLegacyInvite(league.id);
+  const rotate = useRotateLegacyInvite(league.id);
+  const { toast } = useToast();
   const rows = (data as any[]) || [];
+
+  const inviteOrigin = typeof window !== "undefined" ? window.location.origin : "";
+  const handleRevoke = (id: string) => {
+    if (!confirm("Revoke this pending invite? The invitee's link will stop working.")) return;
+    revoke.mutate(id, {
+      onSuccess: () => toast({ title: "Invite revoked" }),
+      onError: (e: any) => toast({ title: "Could not revoke", description: e?.message, variant: "destructive" }),
+    });
+  };
+  const handleResend = async (inv: any) => {
+    try {
+      const res: any = await rotate.mutateAsync(inv.id);
+      const newToken = res?.result?.invite_token || inv.invite_token;
+      const url = `${inviteOrigin}/league-team-join/i/${newToken}`;
+      await navigator.clipboard?.writeText(url).catch(() => {});
+      toast({ title: "Fresh invite link copied", description: url });
+    } catch (e: any) {
+      toast({ title: "Could not refresh invite", description: e?.message, variant: "destructive" });
+    }
+  };
+
+  const invitesByTeam = new Map<string, any[]>();
+  for (const inv of (invites || [])) {
+    const arr = invitesByTeam.get(inv.team_registration_id) || [];
+    arr.push(inv);
+    invitesByTeam.set(inv.team_registration_id, arr);
+  }
+
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin" />;
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground py-4">No paid team registrations yet.</p>;
   }
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Team</TableHead>
-          <TableHead>Captain</TableHead>
-          <TableHead>City / Location</TableHead>
-          <TableHead>Size</TableHead>
-          <TableHead>Amount</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Registered</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((r) => (
-          <TableRow key={r.id}>
-            <TableCell className="font-medium">{r.team_name}</TableCell>
-            <TableCell className="text-sm">
-              <div>{r.captain_name || "—"}</div>
-              <div className="text-xs text-muted-foreground">{r.captain_email || "—"}</div>
-            </TableCell>
-            <TableCell className="text-sm">
-              {(r.city_name || "—")}{r.location_name ? ` / ${r.location_name}` : ""}
-            </TableCell>
-            <TableCell>{r.team_size}</TableCell>
-            <TableCell>{r.total_amount} {r.currency}</TableCell>
-            <TableCell>
-              <Badge variant={r.payment_status === "paid" ? "secondary" : "outline"}>{r.payment_status}</Badge>
-            </TableCell>
-            <TableCell className="text-xs text-muted-foreground">{format(new Date(r.created_at), "PP")}</TableCell>
+    <div className="space-y-6">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Team</TableHead>
+            <TableHead>Captain</TableHead>
+            <TableHead>City / Location</TableHead>
+            <TableHead>Size</TableHead>
+            <TableHead>Amount</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Registered</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {rows.map((r) => {
+            const teamInvites = invitesByTeam.get(r.id) || [];
+            const joinedCount = teamInvites.filter((i) => i.status === "joined").length + 1; // +captain
+            return (
+              <>
+                <TableRow key={r.id}>
+                  <TableCell className="font-medium">
+                    {r.team_name}
+                    <div className="text-xs text-muted-foreground">{joinedCount} / {r.team_size} joined</div>
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    <div>{r.captain_name || "—"}</div>
+                    <div className="text-xs text-muted-foreground">{r.captain_email || "—"}</div>
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {(r.city_name || "—")}{r.location_name ? ` / ${r.location_name}` : ""}
+                  </TableCell>
+                  <TableCell>{r.team_size}</TableCell>
+                  <TableCell>{r.total_amount} {r.currency}</TableCell>
+                  <TableCell>
+                    <Badge variant={r.payment_status === "paid" ? "secondary" : "outline"}>{r.payment_status}</Badge>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{format(new Date(r.created_at), "PP")}</TableCell>
+                </TableRow>
+                {teamInvites.length > 0 && (
+                  <TableRow key={`${r.id}-invites`} className="bg-muted/30">
+                    <TableCell colSpan={7} className="py-2">
+                      <div className="text-xs font-semibold text-muted-foreground mb-1">Invites</div>
+                      <div className="space-y-1">
+                        {teamInvites.map((inv: any) => (
+                          <div key={inv.id} className="flex items-center justify-between gap-2 text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono">{inv.email}</span>
+                              <Badge
+                                variant={inv.status === "joined" ? "secondary" : inv.status === "revoked" ? "destructive" : "outline"}
+                                className="text-[10px] py-0 px-1.5"
+                              >
+                                {inv.status}
+                              </Badge>
+                              <span className="text-muted-foreground">
+                                sent {format(new Date(inv.invited_at), "PP")}
+                              </span>
+                            </div>
+                            {inv.status !== "joined" && (
+                              <div className="flex gap-1">
+                                <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => handleResend(inv)}>
+                                  Refresh link
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-destructive" onClick={() => handleRevoke(inv.id)}>
+                                  Revoke
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </>
+            );
+          })}
+        </TableBody>
+      </Table>
+      {invitesLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+    </div>
   );
 }
+
 
 function TeamsPanel({ league }: { league: League }) {
   const { data: teams, isLoading } = useLeagueTeams(league.id);
