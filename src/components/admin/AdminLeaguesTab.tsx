@@ -921,7 +921,7 @@ function LeagueDialogControlled({
     const price = pricePerPerson === "" ? 0 : Number(pricePerPerson);
     setPersisting(true);
     try {
-      await updateLeague.mutateAsync({
+      const payload = {
         name: name.trim(),
         format,
         venue_id: venueId || undefined,
@@ -933,7 +933,9 @@ function LeagueDialogControlled({
         gst_mode: gstMode,
         gst_rate: gstRate === "" ? 0 : Number(gstRate) || 0,
         sac_code: sacCode.trim() || "9996",
-      });
+      };
+      console.log("[EditLeague submit]", { leagueId: league.id, gstMode, gstRate, sacCode, payload });
+      await updateLeague.mutateAsync(payload);
       try {
         await persistCitiesLocations(league.id, draftCities, originalCities);
         qc.invalidateQueries({ queryKey: ["league-cities", league.id] });
