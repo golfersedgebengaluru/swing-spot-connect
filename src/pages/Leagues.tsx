@@ -337,6 +337,24 @@ function Leaderboard({ leagueId, league }: { leagueId: string; league: League })
                     <TableRow key={`${entry.id}-detail`}>
                       <TableCell colSpan={colSpanForDetail} className="bg-muted/20 p-4">
                         <div className="space-y-3">
+                          {(() => {
+                            const closedInBreakdown = entry.breakdown
+                              .map((b) => ({ round: b.round, hidden: revealedByRound.get(b.round) }))
+                              .filter((x) => x.hidden && x.hidden.length > 0);
+                            if (closedInBreakdown.length === 0) return null;
+                            return (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground mb-1">Revealed Hidden Holes</p>
+                                <div className="flex gap-2 flex-wrap">
+                                  {closedInBreakdown.map((c) => (
+                                    <Badge key={c.round} variant="secondary" className="text-[10px]">
+                                      R{c.round}: {(c.hidden || []).join(", ")}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
                           {entry.breakdown.length > 0 && (
                             <div>
                               <p className="text-xs font-medium text-muted-foreground mb-1">Round Breakdown</p>
