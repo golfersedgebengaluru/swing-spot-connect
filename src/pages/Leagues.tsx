@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LeagueFeed } from "@/components/league/LeagueFeed";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/layout/Navbar";
@@ -11,10 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Trophy, Plus, Camera, Upload } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Trophy, Plus, Camera, Upload, ChevronRight } from "lucide-react";
 import { LeaguesLandingSection } from "@/components/home/LeaguesLandingSection";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import {
   useLeagues,
   useTenants,
@@ -22,9 +24,11 @@ import {
   useSubmitScore,
   useConfirmScore,
   useLeague,
+  useLeaderboard,
+  useLeagueRounds,
 } from "@/hooks/useLeagues";
 import { supabase } from "@/integrations/supabase/client";
-import type { League, LeagueScore } from "@/types/league";
+import type { League, LeagueScore, LeaderboardEntry } from "@/types/league";
 import { useToast } from "@/hooks/use-toast";
 
 // ── Score Entry Dialog ───────────────────────────────────────
