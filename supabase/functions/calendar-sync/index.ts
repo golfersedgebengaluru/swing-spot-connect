@@ -1013,36 +1013,77 @@ Deno.serve(async (req) => {
         throw bookingError;
       }
 
-      // Create revenue transaction for guest booking — SKIP for deferred (corporate) bookings
+      // Create revenue transaction for guest booking — SKIP for deferred (corporate) bookings.
+      // A duplicate gateway_order_ref means another finalizer already wrote revenue for
+      // this order (the unique partial index on revenue_transactions enforces this).
+      // That is a hard signal we lost the race AFTER claiming, so we must roll back
+      // the booking we just inserted to avoid leaving a duplicate booking row.
       if (!isDeferred) {
-        try {
-          // Always attach the resolved profile/auth id so the customer's Finance tab
-          // can reconcile this revenue. guestUserId resolves to auth.user_id when
-          // available, otherwise profiles.id (dual-key mapping). Skip the placeholder
-          // zero-uuid used when no email was provided.
-          const revUserId = guestUserId && guestUserId !== "00000000-0000-0000-0000-000000000000"
-            ? guestUserId
-            : null;
-          await adminClient.from("revenue_transactions").insert({
-            transaction_type: "guest_booking",
-            amount: params.amount || 0,
-            currency: params.currency || "INR",
-            user_id: revUserId,
-            guest_name,
-            guest_email,
-            guest_phone,
-            gateway_name: params.gateway_name || "razorpay",
-            gateway_order_ref: order_id || null,
-            gateway_payment_ref: payment_id || null,
-            booking_id: booking.id,
-            description: `Guest booking - ${bay_name || city} - ${guest_name}`,
-            status: "confirmed",
-            city: city || null,
-          });
-        } catch (e) {
-          console.error("Failed to create revenue transaction for guest:", (e as Error).message);
+        const revUserId = guestUserId && guestUserId !== "00000000-0000-0000-0000-000000000000"
+          ? guestUserId
+          : null;
+        const { error: revErr } = await adminClient.from("revenue_transactions").insert({
+          transaction_type: "guest_booking",
+          amount: params.amount || 0,
+          currency: params.currency || "INR",
+          user_id: revUserId,
+          guest_name,
+          guest_email,
+          guest_phone,
+          gateway_name: params.gateway_name || "razorpay",
+          gateway_order_ref: order_id || null,
+          gateway_payment_ref: payment_id || null,
+          booking_id: booking.id,
+          description: `Guest booking - ${bay_name || city} - ${guest_name}`,
+          status: "confirmed",
+          city: city || null,
+        });
+        if (revErr) {
+          const isDup = (revErr as any).code === "23505";
+          console.error(`Revenue insert failed (dup=${isDup}): ${revErr.message}`);
+          // Roll back the duplicate booking we just created.
+          await adminClient.from("bookings").delete().eq("id", booking.id);
+          if (isDup && order_id) {
+            const { data: existingTx } = await adminClient
+              .from("revenue_transactions")
+              .select("booking_id")
+              .eq("gateway_order_ref", order_id)
+              .eq("transaction_type", "guest_booking")
+              .maybeSingle();
+            return new Response(
+              JSON.stringify({ status: "already_finalized", booking_id: existingTx?.booking_id ?? null }),
+              { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          if (order_id) {
+            await adminClient.rpc("release_pending_guest_booking", {
+              _order_id: order_id,
+              _error: `revenue insert failed: ${revErr.message}`,
+            });
+          }
+          throw revErr;
         }
       }
+
+      // Create Google Calendar event AFTER booking + revenue are committed.
+      // Skip for backdated entries and participant add-ons (parent already has the event).
+      if (!isBackdated && !isParticipant && serviceAccountKeyStr && calendar_email) {
+        try {
+          const serviceAccountKey = JSON.parse(serviceAccountKeyStr);
+          const accessToken = await getAccessToken(serviceAccountKey);
+          const calTz = await getCalendarTimezone(accessToken, calendar_email);
+          const summary = `${bay_name || city} - ${guest_name} (${bracketTag})`;
+          const amtPaid = params.amount != null ? `${params.currency || "INR"} ${Number(params.amount).toFixed(2)}` : "N/A";
+          const desc = `Guest booking by ${guest_name}\nEmail: ${guest_email}\nPhone: ${guest_phone}\nNumber of persons: ${num_players ?? 1}\nAmount paid: ${amtPaid}`;
+          const calEvent = await createEvent(accessToken, calendar_email, summary, start_time, end_time, calTz, desc);
+          calendarEventId = calEvent.id;
+          await adminClient.from("bookings").update({ calendar_event_id: calendarEventId }).eq("id", booking.id);
+          (booking as any).calendar_event_id = calendarEventId;
+        } catch (e) {
+          console.error("Calendar event creation failed (non-fatal for guest):", e);
+        }
+      }
+
 
       // Get timezone once for notifications (reuse cached access token if available)
       let calTzNotify = "UTC";
