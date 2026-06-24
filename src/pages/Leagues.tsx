@@ -476,21 +476,13 @@ function LeagueCard({ league }: { league: League }) {
           <Tabs defaultValue="leaderboard">
             <TabsList>
               <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
-              <TabsTrigger value="closed-rounds">Closed Rounds</TabsTrigger>
               <TabsTrigger value="my-scores">My Scores</TabsTrigger>
-              <TabsTrigger value="feed">Activity</TabsTrigger>
             </TabsList>
             <TabsContent value="leaderboard">
               <Leaderboard leagueId={league.id} league={league} />
             </TabsContent>
-            <TabsContent value="closed-rounds">
-              <ClosedRoundsReveal leagueId={league.id} />
-            </TabsContent>
             <TabsContent value="my-scores">
               <MyScores leagueId={league.id} />
-            </TabsContent>
-            <TabsContent value="feed">
-              <LeagueFeed leagueId={league.id} />
             </TabsContent>
           </Tabs>
           {league.status === "active" && <ScoreEntryDialog leagueId={league.id} />}
