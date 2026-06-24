@@ -61,6 +61,10 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
   };
 
   const handleSubmit = () => {
+    if (!roundNumber) {
+      toast({ title: "Pick a round", description: "Select which round you're submitting for.", variant: "destructive" });
+      return;
+    }
     const activeScores = scores.slice(0, holeCount);
     submitScore.mutate(
       { round_number: roundNumber, hole_scores: activeScores, method: ocrUsed ? "photo_ocr" : "manual" },
