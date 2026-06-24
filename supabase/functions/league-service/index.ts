@@ -3244,7 +3244,7 @@ Deno.serve(async (req) => {
       // League validation
       const { data: league } = await supabase
         .from('leagues')
-        .select('id, tenant_id, name, status, show_on_landing, allowed_team_sizes, price_per_person, currency, payment_city')
+        .select('id, tenant_id, name, status, show_on_landing, allowed_team_sizes, price_per_person, currency, payment_city, gst_mode, gst_rate, sac_code')
         .eq('id', route.leagueId)
         .single()
       if (!league) return err('League not found', 404)
@@ -3268,7 +3268,25 @@ Deno.serve(async (req) => {
         .maybeSingle()
       if (existing) return err('You have already registered a team for this league', 409)
 
-      const originalAmount = Number(league.price_per_person) * size
+      const pricePerPerson = Number(league.price_per_person) || 0
+      const lineAmount = pricePerPerson * size
+      const gstMode = (league as any).gst_mode || 'none'
+      const gstRate = Number((league as any).gst_rate) || 0
+      const sacCode = (league as any).sac_code || '9996'
+
+      // Compute originalAmount (gross, what user pays) and the GST breakup
+      let originalAmount = lineAmount
+      let taxableAmount = lineAmount
+      let gstAmount = 0
+      if (gstMode === 'exclusive' && gstRate > 0) {
+        gstAmount = Math.round(lineAmount * gstRate) / 100
+        originalAmount = Math.round((lineAmount + gstAmount) * 100) / 100
+        taxableAmount = lineAmount
+      } else if (gstMode === 'inclusive' && gstRate > 0) {
+        taxableAmount = Math.round((lineAmount / (1 + gstRate / 100)) * 100) / 100
+        gstAmount = Math.round((lineAmount - taxableAmount) * 100) / 100
+        originalAmount = lineAmount
+      }
       const currency = league.currency || 'INR'
 
       // Optional coupon
