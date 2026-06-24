@@ -503,6 +503,9 @@ function LeagueDialog({
   );
   const [currency, setCurrency] = useState<string>(league?.currency ?? "INR");
   const [paymentCity, setPaymentCity] = useState<string>(league?.payment_city ?? "");
+  const [gstMode, setGstMode] = useState<'none' | 'inclusive' | 'exclusive'>((league?.gst_mode as any) ?? 'none');
+  const [gstRate, setGstRate] = useState<string>(league?.gst_rate != null ? String(league.gst_rate) : "");
+  const [sacCode, setSacCode] = useState<string>(league?.sac_code ?? "9996");
   const [draftCities, setDraftCities] = useState<DraftCity[]>([]);
   const [originalCities, setOriginalCities] = useState<DraftCity[]>([]);
   const [persisting, setPersisting] = useState(false);
