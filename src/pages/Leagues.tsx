@@ -220,6 +220,11 @@ function Leaderboard({ leagueId, league }: { leagueId: string; league: League })
   const [filter, setFilter] = useState<'all' | 'individuals' | 'teams'>('all');
   const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
   const { data: leaderboard, isLoading } = useLeaderboard(leagueId, selectedRound, filter);
+  const { data: hiddenRows } = useHiddenHoles(leagueId);
+  const revealedByRound = new Map<number, number[]>();
+  for (const r of (hiddenRows || []) as Array<{ round_number: number; hidden_holes: number[] }>) {
+    revealedByRound.set(r.round_number, r.hidden_holes || []);
+  }
 
   if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>;
 
