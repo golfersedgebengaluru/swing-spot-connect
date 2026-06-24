@@ -58,7 +58,20 @@ export function JoinLegacyLeagueDialog({ league, open, onOpenChange }: Props) {
     }
   }, [open]);
 
-  const totalAmount = teamSize ? Number(teamSize) * Number(league.price_per_person) : 0;
+  const lineAmount = teamSize ? Number(teamSize) * Number(league.price_per_person) : 0;
+  const gstMode = (league.gst_mode as 'none' | 'inclusive' | 'exclusive') || 'none';
+  const gstRate = Number(league.gst_rate) || 0;
+  const sacCode = league.sac_code || '9996';
+  let gstAmount = 0;
+  let taxableAmount = lineAmount;
+  let totalAmount = lineAmount;
+  if (gstMode === 'exclusive' && gstRate > 0) {
+    gstAmount = Math.round(lineAmount * gstRate) / 100;
+    totalAmount = Math.round((lineAmount + gstAmount) * 100) / 100;
+  } else if (gstMode === 'inclusive' && gstRate > 0) {
+    taxableAmount = Math.round((lineAmount / (1 + gstRate / 100)) * 100) / 100;
+    gstAmount = Math.round((lineAmount - taxableAmount) * 100) / 100;
+  }
 
   if (!user) {
     return (
