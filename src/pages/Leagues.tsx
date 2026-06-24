@@ -36,11 +36,23 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
   const [open, setOpen] = useState(false);
   const [holeCount, setHoleCount] = useState(18);
   const [scores, setScores] = useState<number[]>(Array(18).fill(0));
-  const [roundNumber, setRoundNumber] = useState(1);
+  const [roundNumber, setRoundNumber] = useState<number | null>(null);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrUsed, setOcrUsed] = useState(false);
   const submitScore = useSubmitScore(leagueId);
+  const { data: rounds } = useLeagueRounds(leagueId);
   const { toast } = useToast();
+
+  // Auto-select the currently active round (today between start/end), else the
+  // latest round by number. Prevents the dialog from defaulting to R1 when a
+  // later round is in play.
+  useEffect(() => {
+    if (roundNumber != null || !rounds || rounds.length === 0) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const active = rounds.find((r) => r.start_date <= today && r.end_date >= today);
+    const sorted = [...rounds].sort((a, b) => b.round_number - a.round_number);
+    setRoundNumber((active ?? sorted[0]).round_number);
+  }, [rounds, roundNumber]);
 
   const updateScore = (idx: number, val: string) => {
     const updated = [...scores];
