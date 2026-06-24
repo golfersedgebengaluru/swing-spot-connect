@@ -3133,12 +3133,15 @@ export type Database = {
           currency: string
           fairness_factor_pct: number
           format: Database["public"]["Enums"]["league_format"]
+          gst_mode: string
+          gst_rate: number
           id: string
           leaderboard_visibility: string
           name: string
           payment_city: string | null
           peoria_multiplier: number
           price_per_person: number
+          sac_code: string
           score_entry_method: Database["public"]["Enums"]["score_entry_method"]
           scoring_holes: number
           season_end: string | null
@@ -3157,12 +3160,15 @@ export type Database = {
           currency?: string
           fairness_factor_pct?: number
           format?: Database["public"]["Enums"]["league_format"]
+          gst_mode?: string
+          gst_rate?: number
           id?: string
           leaderboard_visibility?: string
           name: string
           payment_city?: string | null
           peoria_multiplier?: number
           price_per_person?: number
+          sac_code?: string
           score_entry_method?: Database["public"]["Enums"]["score_entry_method"]
           scoring_holes?: number
           season_end?: string | null
@@ -3181,12 +3187,15 @@ export type Database = {
           currency?: string
           fairness_factor_pct?: number
           format?: Database["public"]["Enums"]["league_format"]
+          gst_mode?: string
+          gst_rate?: number
           id?: string
           leaderboard_visibility?: string
           name?: string
           payment_city?: string | null
           peoria_multiplier?: number
           price_per_person?: number
+          sac_code?: string
           score_entry_method?: Database["public"]["Enums"]["score_entry_method"]
           scoring_holes?: number
           season_end?: string | null
@@ -3333,6 +3342,9 @@ export type Database = {
           created_at: string
           currency: string
           discount_amount: number
+          gst_amount: number | null
+          gst_mode: string | null
+          gst_rate: number | null
           id: string
           join_token: string
           league_city_id: string
@@ -3343,6 +3355,8 @@ export type Database = {
           payment_status: string
           razorpay_order_id: string | null
           razorpay_payment_id: string | null
+          sac_code: string | null
+          taxable_amount: number | null
           team_name: string
           team_size: number
           total_amount: number
@@ -3355,6 +3369,9 @@ export type Database = {
           created_at?: string
           currency?: string
           discount_amount?: number
+          gst_amount?: number | null
+          gst_mode?: string | null
+          gst_rate?: number | null
           id?: string
           join_token?: string
           league_city_id: string
@@ -3365,6 +3382,8 @@ export type Database = {
           payment_status?: string
           razorpay_order_id?: string | null
           razorpay_payment_id?: string | null
+          sac_code?: string | null
+          taxable_amount?: number | null
           team_name: string
           team_size: number
           total_amount: number
@@ -3377,6 +3396,9 @@ export type Database = {
           created_at?: string
           currency?: string
           discount_amount?: number
+          gst_amount?: number | null
+          gst_mode?: string | null
+          gst_rate?: number | null
           id?: string
           join_token?: string
           league_city_id?: string
@@ -3387,6 +3409,8 @@ export type Database = {
           payment_status?: string
           razorpay_order_id?: string | null
           razorpay_payment_id?: string | null
+          sac_code?: string | null
+          taxable_amount?: number | null
           team_name?: string
           team_size?: number
           total_amount?: number
@@ -4028,6 +4052,9 @@ export type Database = {
           currency: string
           discount_amount: number
           error_message: string | null
+          gst_amount: number | null
+          gst_mode: string | null
+          gst_rate: number | null
           id: string
           invite_emails: string[]
           league_city_id: string
@@ -4036,7 +4063,9 @@ export type Database = {
           original_amount: number | null
           razorpay_order_id: string
           registration_id: string | null
+          sac_code: string | null
           status: string
+          taxable_amount: number | null
           team_name: string
           team_size: number
           updated_at: string
@@ -4051,6 +4080,9 @@ export type Database = {
           currency?: string
           discount_amount?: number
           error_message?: string | null
+          gst_amount?: number | null
+          gst_mode?: string | null
+          gst_rate?: number | null
           id?: string
           invite_emails?: string[]
           league_city_id: string
@@ -4059,7 +4091,9 @@ export type Database = {
           original_amount?: number | null
           razorpay_order_id: string
           registration_id?: string | null
+          sac_code?: string | null
           status?: string
+          taxable_amount?: number | null
           team_name: string
           team_size: number
           updated_at?: string
@@ -4074,6 +4108,9 @@ export type Database = {
           currency?: string
           discount_amount?: number
           error_message?: string | null
+          gst_amount?: number | null
+          gst_mode?: string | null
+          gst_rate?: number | null
           id?: string
           invite_emails?: string[]
           league_city_id?: string
@@ -4082,7 +4119,9 @@ export type Database = {
           original_amount?: number | null
           razorpay_order_id?: string
           registration_id?: string | null
+          sac_code?: string | null
           status?: string
+          taxable_amount?: number | null
           team_name?: string
           team_size?: number
           updated_at?: string
