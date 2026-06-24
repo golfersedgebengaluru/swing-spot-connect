@@ -608,7 +608,7 @@ async function computeLeaderboard(
         const par = ms.reduce((s, p) => s + (roundParMap[p.round_number] || 0), 0)
         return {
           player_id: uid,
-          name: profileMap[uid] || uid.slice(0, 8),
+          name: nameFor(uid),
           net_score: net,
           gross_score: gross,
           total_par: par,
