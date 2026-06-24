@@ -1404,7 +1404,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Create calendar event — skip for participant add-ons (parent already has the event)
+      // Defer Calendar event creation until AFTER the booking row is committed
+      // so a slot collision (caught by bookings_no_overlap_per_bay) never leaks
+      // an orphan Google Calendar event.
       const bayLabel = bay_name || city;
       const calSummary = needsApproval
         ? `⏳ Pending Coaching Approval - ${display_name || "Member"}`
@@ -1413,13 +1415,7 @@ Deno.serve(async (req) => {
         ? `Pending coaching approval for ${display_name || "Member"} via Golfer's Edge`
         : `Booked by ${display_name || "Member"} via Golfer's Edge${isCoaching ? " - Coaching Session" : ""}`;
 
-      let calEventId: string | null = null;
-      if (!isParticipant) {
-        const calEvent = await createEvent(accessToken, calendar_email, calSummary, start_time, end_time, calTz, calDesc);
-        calEventId = calEvent.id;
-      }
-
-      // Create booking record
+      // Create booking record FIRST (calendar_event_id added after).
       const bookingStatus = needsApproval ? "pending" : "confirmed";
       const noteSuffix = isParticipant ? "[Participant add-on]" : null;
       const bookingInsert: any = {
@@ -1429,7 +1425,7 @@ Deno.serve(async (req) => {
         end_time,
         duration_minutes,
         status: bookingStatus,
-        calendar_event_id: calEventId,
+        calendar_event_id: null,
         session_type: session_type || "practice",
         parent_booking_id: parent_booking_id || null,
         note: noteSuffix,
@@ -1438,7 +1434,29 @@ Deno.serve(async (req) => {
 
 
       const { data: booking, error: bookingError } = await adminClient.from("bookings").insert(bookingInsert).select().single();
-      if (bookingError) throw bookingError;
+      if (bookingError) {
+        if ((bookingError as any).code === "23P01") {
+          console.warn(`[calendar-sync v3] create_booking db_overlap_blocked user=${bookingUserId} bay=${bay_id} start=${start_time}`);
+          return new Response(
+            JSON.stringify({ error: "This slot is no longer available. Please refresh and try again." }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        throw bookingError;
+      }
+
+      // Create Google Calendar event AFTER booking is committed, then patch the id.
+      let calEventId: string | null = null;
+      if (!isParticipant) {
+        try {
+          const calEvent = await createEvent(accessToken, calendar_email, calSummary, start_time, end_time, calTz, calDesc);
+          calEventId = calEvent.id;
+          await adminClient.from("bookings").update({ calendar_event_id: calEventId }).eq("id", booking.id);
+        } catch (calErr) {
+          console.error(`[calendar-sync v3] create_booking calendar event failed booking=${booking.id}: ${(calErr as Error).message}`);
+        }
+      }
+
 
       // Deduct hours only for instant bookings that were NOT paid via gateway
       if (!needsApproval && !paidViaGateway) {
