@@ -48,9 +48,11 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
   // later round is in play.
   useEffect(() => {
     if (roundNumber != null || !rounds || rounds.length === 0) return;
+    const open = rounds.filter((r) => !r.closed_at);
+    if (open.length === 0) return;
     const today = new Date().toISOString().slice(0, 10);
-    const active = rounds.find((r) => r.start_date <= today && r.end_date >= today);
-    const sorted = [...rounds].sort((a, b) => b.round_number - a.round_number);
+    const active = open.find((r) => r.start_date <= today && r.end_date >= today);
+    const sorted = [...open].sort((a, b) => b.round_number - a.round_number);
     setRoundNumber((active ?? sorted[0]).round_number);
   }, [rounds, roundNumber]);
 
