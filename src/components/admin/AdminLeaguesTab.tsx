@@ -67,6 +67,7 @@ import {
   useUpdateTenant,
   useLeagueCities,
   useLeagueLocations,
+  useLeagueLocationCount,
   useAssignPlayerLocation,
   useAssignTeamLocation,
   leagueServiceInvoke,
