@@ -856,18 +856,15 @@ Deno.serve(async (req) => {
         const { data: claimRows, error: claimErr } = await adminClient
           .rpc("try_claim_pending_guest_booking", { _order_id: order_id });
         if (claimErr) {
-          console.error("try_claim_pending_guest_booking failed:", claimErr.message);
+          console.error(`[calendar-sync v3] try_claim_pending_guest_booking failed order=${order_id}: ${claimErr.message}`);
           return new Response(
             JSON.stringify({ error: "claim failed", detail: claimErr.message }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
         const claimRow: any = Array.isArray(claimRows) ? claimRows[0] : claimRows;
-        // ONLY the caller that actually performed the atomic UPDATE gets claimed=true.
-        // Every other concurrent invocation (browser/webhook/cron) is a loser and bails
-        // out with the booking_id the winner created. No timestamp heuristics.
         if (!claimRow || claimRow.claimed !== true) {
-          console.log(`guest_booking claim lost for order ${order_id} (status=${claimRow?.current_status}) — returning existing booking`);
+          console.log(`[calendar-sync v3] claim_lost order=${order_id} status=${claimRow?.current_status} existing_booking=${claimRow?.existing_booking_id}`);
           return new Response(
             JSON.stringify({
               status: "already_finalized",
@@ -876,7 +873,9 @@ Deno.serve(async (req) => {
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
+        console.log(`[calendar-sync v3] claim_won order=${order_id}`);
       }
+
 
 
       // Check for overlapping bookings (skip for backdated accounting entries
