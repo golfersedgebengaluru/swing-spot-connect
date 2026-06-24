@@ -145,7 +145,30 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
           <div className="flex gap-4">
             <div className="flex-1">
               <Label>Round</Label>
-              <Input type="number" value={roundNumber} onChange={(e) => setRoundNumber(parseInt(e.target.value) || 1)} min={1} />
+              {rounds && rounds.length > 0 ? (
+                <Select
+                  value={roundNumber ? String(roundNumber) : ""}
+                  onValueChange={(v) => setRoundNumber(Number(v))}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select round" /></SelectTrigger>
+                  <SelectContent>
+                    {[...rounds]
+                      .sort((a, b) => a.round_number - b.round_number)
+                      .map((r) => (
+                        <SelectItem key={r.id} value={String(r.round_number)}>
+                          R{r.round_number}: {r.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  type="number"
+                  value={roundNumber ?? ""}
+                  onChange={(e) => setRoundNumber(parseInt(e.target.value) || 1)}
+                  min={1}
+                />
+              )}
             </div>
             <div className="flex-1">
               <Label>Holes</Label>
