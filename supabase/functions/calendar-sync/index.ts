@@ -853,32 +853,31 @@ Deno.serve(async (req) => {
       // the CAS; the loser sees a non-recoverable status and bails out, returning
       // the booking already created by the winner.
       if (order_id) {
-        const { data: claimed, error: claimErr } = await adminClient
-          .rpc("claim_pending_guest_booking", { _order_id: order_id });
+        const { data: claimRows, error: claimErr } = await adminClient
+          .rpc("try_claim_pending_guest_booking", { _order_id: order_id });
         if (claimErr) {
-          console.error("claim_pending_guest_booking failed:", claimErr.message);
-        }
-        const claimedRow: any = Array.isArray(claimed) ? claimed[0] : claimed;
-        // If the row was already finalized OR another caller is mid-flight (we
-        // didn't transition it ourselves), bail out. We detect "we won" by the
-        // row's updated_at being within the last few seconds AND status=processing.
-        const recoverable = new Set(["pending","awaiting_payment","webhook_error","signature_failed","processing_failed"]);
-        const weWon = claimedRow && claimedRow.status === "processing"
-          && claimedRow.updated_at
-          && (Date.now() - new Date(claimedRow.updated_at).getTime()) < 5000;
-        if (!claimedRow || (!weWon && !recoverable.has(claimedRow.status))) {
-          const { data: existingTx } = await adminClient
-            .from("revenue_transactions")
-            .select("id, booking_id")
-            .eq("gateway_order_ref", order_id)
-            .maybeSingle();
-          console.log(`guest_booking already finalized for order ${order_id} (claim lost, status=${claimedRow?.status}) — skipping`);
+          console.error("try_claim_pending_guest_booking failed:", claimErr.message);
           return new Response(
-            JSON.stringify({ status: "already_finalized", booking_id: existingTx?.booking_id ?? null }),
+            JSON.stringify({ error: "claim failed", detail: claimErr.message }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        const claimRow: any = Array.isArray(claimRows) ? claimRows[0] : claimRows;
+        // ONLY the caller that actually performed the atomic UPDATE gets claimed=true.
+        // Every other concurrent invocation (browser/webhook/cron) is a loser and bails
+        // out with the booking_id the winner created. No timestamp heuristics.
+        if (!claimRow || claimRow.claimed !== true) {
+          console.log(`guest_booking claim lost for order ${order_id} (status=${claimRow?.current_status}) — returning existing booking`);
+          return new Response(
+            JSON.stringify({
+              status: "already_finalized",
+              booking_id: claimRow?.existing_booking_id ?? null,
+            }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
       }
+
 
       // Check for overlapping bookings (skip for backdated accounting entries
       // and for participant add-ons that ride on an existing booking's slot).
