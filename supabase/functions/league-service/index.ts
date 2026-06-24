@@ -479,12 +479,35 @@ async function computeLeaderboard(
     }
   }
 
+  // Include team member uids too — a rostered teammate may have no scores yet
+  // but still needs a presentable name in the team-expansion breakdown.
+  const teamMemberUids = (playerRows || []).map((p: any) => p.user_id).filter(Boolean)
+  const allNeededIds = [...new Set([
+    ...playerScores.map((ps) => ps.player_id),
+    ...teamMemberUids,
+  ])]
   const allPlayerIds = [...new Set(playerScores.map((ps) => ps.player_id))]
   let profileMap: Record<string, string> = {}
-  if (allPlayerIds.length > 0) {
-    const { data: profiles } = await supabase.from('profiles').select('user_id, display_name').in('user_id', allPlayerIds)
-    if (profiles) profileMap = Object.fromEntries(profiles.map((p: any) => [p.user_id, p.display_name || '']))
+  if (allNeededIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, display_name, email')
+      .in('user_id', allNeededIds)
+    if (profiles) {
+      profileMap = Object.fromEntries(profiles.map((p: any) => {
+        const dn = (p.display_name || '').trim()
+        if (dn) return [p.user_id, dn]
+        const em = (p.email || '').trim()
+        if (em && !em.includes('privaterelay.appleid.com')) {
+          // Use email local part as a readable fallback (e.g. "john.doe")
+          return [p.user_id, em.split('@')[0]]
+        }
+        return [p.user_id, '']
+      }))
+    }
   }
+  const nameFor = (uid: string) => profileMap[uid] || 'Player'
+
 
   const teamMap: Record<string, string> = {}
   for (const t of (teams || [])) teamMap[t.id] = t.name
