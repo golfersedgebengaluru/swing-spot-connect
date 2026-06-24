@@ -496,42 +496,72 @@ function LeagueCard({ league }: { league: League }) {
 function MyScores({ leagueId }: { leagueId: string }) {
   const { user } = useAuth();
   const { data: allScores, isLoading } = useLeagueScores(leagueId);
+  const { data: rounds } = useLeagueRounds(leagueId);
+  const { data: hiddenRows } = useHiddenHoles(leagueId);
+  const { data: myTeam } = useMyLegacyTeam(leagueId);
   const confirmScore = useConfirmScore(leagueId);
 
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin mx-auto" />;
 
-  const myScores = (allScores || []).filter(s => s.player_id === user?.id);
-  if (myScores.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">No scores submitted yet.</p>;
+  const myScores = (allScores || []).filter((s) => s.player_id === user?.id);
+  if (myScores.length === 0 && (!rounds || rounds.length === 0)) {
+    return <p className="text-sm text-muted-foreground text-center py-4">No scores submitted yet.</p>;
+  }
+
+  const teamMemberIds = (myTeam?.members || []).map((m) => m.user_id);
+  // Always include self so a soloist still sees their hole-by-hole
+  const playerIds = Array.from(new Set([user?.id, ...teamMemberIds].filter(Boolean) as string[]));
+
+  const revealedByRound = new Map<number, number[]>();
+  for (const r of (hiddenRows || []) as Array<{ round_number: number; hidden_holes: number[] }>) {
+    revealedByRound.set(r.round_number, r.hidden_holes || []);
+  }
+
+  // Round list: every round the team has any score in, plus rounds the user has
+  const roundNumbers = new Set<number>(myScores.map((s) => s.round_number));
+  for (const s of allScores || []) {
+    if (playerIds.includes(s.player_id)) roundNumbers.add(s.round_number);
+  }
+  const orderedRounds = Array.from(roundNumbers).sort((a, b) => b - a);
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Round</TableHead>
-          <TableHead>Total</TableHead>
-          <TableHead>Method</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead></TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {myScores.map(s => (
-          <TableRow key={s.id}>
-            <TableCell>{s.round_number}</TableCell>
-            <TableCell className="font-semibold">{s.total_score ?? "—"}</TableCell>
-            <TableCell><Badge variant="secondary">{s.method}</Badge></TableCell>
-            <TableCell>{s.confirmed_at ? <Badge>Confirmed</Badge> : <Badge variant="outline">Pending</Badge>}</TableCell>
-            <TableCell>
-              {!s.confirmed_at && (
-                <Button size="sm" variant="outline" onClick={() => confirmScore.mutate({ score_id: s.id })} disabled={confirmScore.isPending}>
-                  Confirm
-                </Button>
+    <div className="space-y-6">
+      {orderedRounds.map((rn) => {
+        const round = (rounds || []).find((r) => r.round_number === rn);
+        const mine = myScores.find((s) => s.round_number === rn);
+        const hidden = revealedByRound.get(rn) || [];
+        const closed = revealedByRound.has(rn);
+        return (
+          <div key={rn} className="space-y-2 border rounded-md p-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="text-sm font-semibold">
+                Round {rn}{round?.name ? `: ${round.name}` : ""}
+                {closed && <Badge variant="secondary" className="ml-2 text-[10px]">Closed</Badge>}
+              </div>
+              {mine && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span>My total: <span className="font-semibold text-base">{mine.total_score ?? "—"}</span></span>
+                  <Badge variant="secondary">{mine.method}</Badge>
+                  {mine.confirmed_at ? <Badge>Confirmed</Badge> : <Badge variant="outline">Pending</Badge>}
+                  {!mine.confirmed_at && (
+                    <Button size="sm" variant="outline" onClick={() => confirmScore.mutate({ score_id: mine.id })} disabled={confirmScore.isPending}>
+                      Confirm
+                    </Button>
+                  )}
+                </div>
               )}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+            </div>
+            <RevealedRoundScores
+              leagueId={leagueId}
+              roundNumber={rn}
+              parPerHole={(round?.par_per_hole as number[]) || []}
+              hiddenHoles={hidden}
+              playerIds={playerIds}
+            />
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
