@@ -910,6 +910,9 @@ function LeagueDialogControlled({
         price_per_person: Number.isFinite(price) ? price : 0,
         currency: currency || "INR",
         payment_city: paymentCity || null,
+        gst_mode: gstMode,
+        gst_rate: gstRate === "" ? 0 : Number(gstRate) || 0,
+        sac_code: sacCode.trim() || "9996",
       });
       try {
         await persistCitiesLocations(league.id, draftCities, originalCities);
