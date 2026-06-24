@@ -154,7 +154,7 @@ export function useDeleteLeague(tenantId: string) {
   });
 }
 
-export type LandingLeague = Pick<League, "id" | "name" | "venue_id" | "status" | "allowed_team_sizes" | "show_on_landing" | "price_per_person" | "currency">;
+export type LandingLeague = Pick<League, "id" | "name" | "venue_id" | "status" | "allowed_team_sizes" | "show_on_landing" | "price_per_person" | "currency" | "gst_mode" | "gst_rate" | "sac_code">;
 
 export function useLandingLeagues() {
   return useQuery<LandingLeague[]>({
