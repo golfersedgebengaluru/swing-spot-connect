@@ -2809,7 +2809,7 @@ Deno.serve(async (req) => {
       const { data: scores } = await supabase.from('league_scores').select('*').eq('league_id', leagueId)
       const { data: allHH } = await supabase.from('league_round_hidden_holes').select('*').eq('league_id', leagueId)
       const { data: rounds } = await supabase.from('league_rounds').select('round_number, par_per_hole').eq('league_id', leagueId)
-      const { data: profiles } = await supabase.from('profiles').select('user_id, display_name')
+      const { data: profiles } = await supabase.from('profiles').select('user_id, display_name, email')
 
       const hiddenMap: Record<number, number[]> = {}
       for (const hh of (allHH || [])) {
@@ -2821,7 +2821,14 @@ Deno.serve(async (req) => {
         parMap[(r as any).round_number] = arr.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
       }
       const nameMap: Record<string, string> = {}
-      for (const p of (profiles || [])) nameMap[(p as any).user_id] = (p as any).display_name || ''
+      for (const p of (profiles || [])) {
+        const dn = ((p as any).display_name || '').trim()
+        const em = ((p as any).email || '').trim()
+        let name = dn
+        if (!name && em && !em.includes('privaterelay.appleid.com')) name = em.split('@')[0]
+        nameMap[(p as any).user_id] = name
+      }
+
 
       const HC_MULT = 3
       type Row = { player_id: string; round_number: number; gross: number; net: number; hidden_sum: number; handicap: number; par: number; hole_scores: number[] }
