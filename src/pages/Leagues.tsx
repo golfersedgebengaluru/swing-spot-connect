@@ -33,49 +33,6 @@ import type { League, LeagueScore, LeaderboardEntry } from "@/types/league";
 import { useToast } from "@/hooks/use-toast";
 import { RevealedRoundScores } from "@/components/league/RevealedRoundScores";
 
-// ── Closed Rounds (Peoria reveal) for players ────────────────
-function ClosedRoundsReveal({ leagueId }: { leagueId: string }) {
-  const { data: rounds, isLoading: roundsLoading } = useLeagueRounds(leagueId);
-  const { data: hiddenRows, isLoading: hhLoading } = useHiddenHoles(leagueId);
-
-  if (roundsLoading || hhLoading) {
-    return <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin" /></div>;
-  }
-
-  // useHiddenHoles only returns rows after revealed_at is set, so this is the
-  // server-of-truth list of "truly closed" rounds available to players.
-  const revealedByRound = new Map<number, number[]>();
-  for (const r of (hiddenRows || []) as Array<{ round_number: number; hidden_holes: number[] }>) {
-    revealedByRound.set(r.round_number, r.hidden_holes || []);
-  }
-  const closed = (rounds || [])
-    .filter((r) => revealedByRound.has(r.round_number))
-    .sort((a, b) => b.round_number - a.round_number);
-
-  if (closed.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground py-6 text-center">
-        No rounds have been closed yet. Once a round is closed, hidden holes, player scores, and Peoria handicaps will appear here.
-      </p>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {closed.map((r) => (
-        <div key={r.id} className="space-y-1">
-          <div className="text-sm font-semibold">R{r.round_number}: {r.name}</div>
-          <RevealedRoundScores
-            leagueId={leagueId}
-            roundNumber={r.round_number}
-            parPerHole={(r.par_per_hole as number[]) || []}
-            hiddenHoles={revealedByRound.get(r.round_number) || []}
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
 
 // ── Score Entry Dialog ───────────────────────────────────────
 function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
