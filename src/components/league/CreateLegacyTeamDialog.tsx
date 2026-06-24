@@ -82,7 +82,22 @@ export function CreateLegacyTeamDialog({ league, open, onOpenChange }: Props) {
     });
   }, [teamSize]);
 
-  const subtotal = teamSize ? Number(teamSize) * Number(league.price_per_person) : 0;
+  const lineAmount = teamSize ? Number(teamSize) * Number(league.price_per_person) : 0;
+  const gstMode = (league.gst_mode as 'none' | 'inclusive' | 'exclusive') || 'none';
+  const gstRate = Number(league.gst_rate) || 0;
+  const sacCode = league.sac_code || '9996';
+  // Pre-coupon: gross vs taxable vs gst
+  let preCouponGross = lineAmount;
+  let preCouponTaxable = lineAmount;
+  let preCouponGst = 0;
+  if (gstMode === 'exclusive' && gstRate > 0) {
+    preCouponGst = Math.round(lineAmount * gstRate) / 100;
+    preCouponGross = Math.round((lineAmount + preCouponGst) * 100) / 100;
+  } else if (gstMode === 'inclusive' && gstRate > 0) {
+    preCouponTaxable = Math.round((lineAmount / (1 + gstRate / 100)) * 100) / 100;
+    preCouponGst = Math.round((lineAmount - preCouponTaxable) * 100) / 100;
+  }
+  const subtotal = preCouponGross;
   const discount = appliedCoupon ? calculateDiscount(appliedCoupon, subtotal) : 0;
   const totalAmount = Math.max(0, subtotal - discount);
 
