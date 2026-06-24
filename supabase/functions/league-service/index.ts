@@ -896,7 +896,6 @@ Deno.serve(async (req) => {
         if (!role || role === 'player') return err('Insufficient permissions', 403)
 
         const body = await req.json()
-        console.log('[league PATCH]', route.leagueId, 'gst_mode=', JSON.stringify(body.gst_mode), 'gst_rate=', JSON.stringify(body.gst_rate), 'sac_code=', JSON.stringify(body.sac_code), 'keys=', Object.keys(body).join(','))
         const before = { ...league }
         delete before.league_branding
 
