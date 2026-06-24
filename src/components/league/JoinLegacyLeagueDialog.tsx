@@ -215,7 +215,16 @@ export function JoinLegacyLeagueDialog({ league, open, onOpenChange }: Props) {
                 <div className="rounded-lg border p-4 space-y-2 text-sm">
                   <div className="flex justify-between"><span className="text-muted-foreground">Team</span><span className="font-medium">{teamName}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Size</span><span>{teamSize} players</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Price/person</span><span>{league.currency} {league.price_per_person}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Price/person {gstMode === 'inclusive' && gstRate > 0 ? '(incl. GST)' : ''}</span><span>{league.currency} {Number(league.price_per_person).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">{teamSize} × {league.currency} {Number(league.price_per_person).toFixed(2)}</span><span>{league.currency} {lineAmount.toFixed(2)}</span></div>
+                  {gstMode !== 'none' && gstRate > 0 && (
+                    <>
+                      {gstMode === 'inclusive' && (
+                        <div className="flex justify-between text-xs text-muted-foreground"><span>Taxable value</span><span>{league.currency} {taxableAmount.toFixed(2)}</span></div>
+                      )}
+                      <div className="flex justify-between"><span className="text-muted-foreground">GST @ {gstRate}% (SAC {sacCode})</span><span>{league.currency} {gstAmount.toFixed(2)}</span></div>
+                    </>
+                  )}
                   <div className="flex justify-between text-base font-semibold pt-2 border-t"><span>Total</span><span>{league.currency} {totalAmount.toFixed(2)}</span></div>
                 </div>
                 <div className="flex gap-2">
