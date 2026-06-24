@@ -479,12 +479,35 @@ async function computeLeaderboard(
     }
   }
 
+  // Include team member uids too — a rostered teammate may have no scores yet
+  // but still needs a presentable name in the team-expansion breakdown.
+  const teamMemberUids = (playerRows || []).map((p: any) => p.user_id).filter(Boolean)
+  const allNeededIds = [...new Set([
+    ...playerScores.map((ps) => ps.player_id),
+    ...teamMemberUids,
+  ])]
   const allPlayerIds = [...new Set(playerScores.map((ps) => ps.player_id))]
   let profileMap: Record<string, string> = {}
-  if (allPlayerIds.length > 0) {
-    const { data: profiles } = await supabase.from('profiles').select('user_id, display_name').in('user_id', allPlayerIds)
-    if (profiles) profileMap = Object.fromEntries(profiles.map((p: any) => [p.user_id, p.display_name || '']))
+  if (allNeededIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, display_name, email')
+      .in('user_id', allNeededIds)
+    if (profiles) {
+      profileMap = Object.fromEntries(profiles.map((p: any) => {
+        const dn = (p.display_name || '').trim()
+        if (dn) return [p.user_id, dn]
+        const em = (p.email || '').trim()
+        if (em && !em.includes('privaterelay.appleid.com')) {
+          // Use email local part as a readable fallback (e.g. "john.doe")
+          return [p.user_id, em.split('@')[0]]
+        }
+        return [p.user_id, '']
+      }))
+    }
   }
+  const nameFor = (uid: string) => profileMap[uid] || 'Player'
+
 
   const teamMap: Record<string, string> = {}
   for (const t of (teams || [])) teamMap[t.id] = t.name
@@ -521,7 +544,7 @@ async function computeLeaderboard(
       entries.push({
         type: 'individual',
         id: playerId,
-        name: profileMap[playerId] || playerId.slice(0, 8),
+        name: nameFor(playerId),
         team_name: teamId ? teamMap[teamId] : undefined,
         total_gross: totalGross,
         total_net: totalNet,
@@ -585,7 +608,7 @@ async function computeLeaderboard(
         const par = ms.reduce((s, p) => s + (roundParMap[p.round_number] || 0), 0)
         return {
           player_id: uid,
-          name: profileMap[uid] || uid.slice(0, 8),
+          name: nameFor(uid),
           net_score: net,
           gross_score: gross,
           total_par: par,
@@ -2786,7 +2809,7 @@ Deno.serve(async (req) => {
       const { data: scores } = await supabase.from('league_scores').select('*').eq('league_id', leagueId)
       const { data: allHH } = await supabase.from('league_round_hidden_holes').select('*').eq('league_id', leagueId)
       const { data: rounds } = await supabase.from('league_rounds').select('round_number, par_per_hole').eq('league_id', leagueId)
-      const { data: profiles } = await supabase.from('profiles').select('user_id, display_name')
+      const { data: profiles } = await supabase.from('profiles').select('user_id, display_name, email')
 
       const hiddenMap: Record<number, number[]> = {}
       for (const hh of (allHH || [])) {
@@ -2798,7 +2821,14 @@ Deno.serve(async (req) => {
         parMap[(r as any).round_number] = arr.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
       }
       const nameMap: Record<string, string> = {}
-      for (const p of (profiles || [])) nameMap[(p as any).user_id] = (p as any).display_name || ''
+      for (const p of (profiles || [])) {
+        const dn = ((p as any).display_name || '').trim()
+        const em = ((p as any).email || '').trim()
+        let name = dn
+        if (!name && em && !em.includes('privaterelay.appleid.com')) name = em.split('@')[0]
+        nameMap[(p as any).user_id] = name
+      }
+
 
       const HC_MULT = 3
       type Row = { player_id: string; round_number: number; gross: number; net: number; hidden_sum: number; handicap: number; par: number; hole_scores: number[] }
@@ -2833,7 +2863,7 @@ Deno.serve(async (req) => {
         const totalPar = list.reduce((s, r) => s + r.par, 0)
         const base = {
           player_id: pid,
-          name: nameMap[pid] || pid.slice(0, 8),
+          name: nameMap[pid] || 'Player',
           total_gross: totalGross,
           total_net: totalNet,
           total_par: totalPar,
