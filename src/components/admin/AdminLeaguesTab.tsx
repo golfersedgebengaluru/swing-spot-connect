@@ -682,6 +682,27 @@ function LeagueDialog({
               <Input value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} maxLength={3} />
             </div>
           </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <Label>GST</Label>
+              <Select value={gstMode} onValueChange={(v) => setGstMode(v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No GST</SelectItem>
+                  <SelectItem value="exclusive">Exclusive (add on top)</SelectItem>
+                  <SelectItem value="inclusive">Inclusive of price</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>GST %</Label>
+              <Input type="number" inputMode="decimal" value={gstRate} onChange={(e) => setGstRate(e.target.value)} placeholder="18" disabled={gstMode === 'none'} />
+            </div>
+            <div>
+              <Label>SAC code</Label>
+              <Input value={sacCode} onChange={(e) => setSacCode(e.target.value)} maxLength={10} placeholder="9996" />
+            </div>
+          </div>
           <PaymentCityField value={paymentCity} onChange={setPaymentCity} />
           <div className="flex items-center justify-between rounded-md border p-3">
             <div>
