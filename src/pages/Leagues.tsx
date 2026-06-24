@@ -36,11 +36,23 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
   const [open, setOpen] = useState(false);
   const [holeCount, setHoleCount] = useState(18);
   const [scores, setScores] = useState<number[]>(Array(18).fill(0));
-  const [roundNumber, setRoundNumber] = useState(1);
+  const [roundNumber, setRoundNumber] = useState<number | null>(null);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrUsed, setOcrUsed] = useState(false);
   const submitScore = useSubmitScore(leagueId);
+  const { data: rounds } = useLeagueRounds(leagueId);
   const { toast } = useToast();
+
+  // Auto-select the currently active round (today between start/end), else the
+  // latest round by number. Prevents the dialog from defaulting to R1 when a
+  // later round is in play.
+  useEffect(() => {
+    if (roundNumber != null || !rounds || rounds.length === 0) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const active = rounds.find((r) => r.start_date <= today && r.end_date >= today);
+    const sorted = [...rounds].sort((a, b) => b.round_number - a.round_number);
+    setRoundNumber((active ?? sorted[0]).round_number);
+  }, [rounds, roundNumber]);
 
   const updateScore = (idx: number, val: string) => {
     const updated = [...scores];
@@ -49,6 +61,10 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
   };
 
   const handleSubmit = () => {
+    if (!roundNumber) {
+      toast({ title: "Pick a round", description: "Select which round you're submitting for.", variant: "destructive" });
+      return;
+    }
     const activeScores = scores.slice(0, holeCount);
     submitScore.mutate(
       { round_number: roundNumber, hole_scores: activeScores, method: ocrUsed ? "photo_ocr" : "manual" },
@@ -129,7 +145,30 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
           <div className="flex gap-4">
             <div className="flex-1">
               <Label>Round</Label>
-              <Input type="number" value={roundNumber} onChange={(e) => setRoundNumber(parseInt(e.target.value) || 1)} min={1} />
+              {rounds && rounds.length > 0 ? (
+                <Select
+                  value={roundNumber ? String(roundNumber) : ""}
+                  onValueChange={(v) => setRoundNumber(Number(v))}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select round" /></SelectTrigger>
+                  <SelectContent>
+                    {[...rounds]
+                      .sort((a, b) => a.round_number - b.round_number)
+                      .map((r) => (
+                        <SelectItem key={r.id} value={String(r.round_number)}>
+                          R{r.round_number}: {r.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  type="number"
+                  value={roundNumber ?? ""}
+                  onChange={(e) => setRoundNumber(parseInt(e.target.value) || 1)}
+                  min={1}
+                />
+              )}
             </div>
             <div className="flex-1">
               <Label>Holes</Label>
