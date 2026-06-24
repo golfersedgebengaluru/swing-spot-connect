@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { LeagueFeed } from "@/components/league/LeagueFeed";
+import { useMyLegacyTeam } from "@/hooks/useMyLegacyTeam";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -33,49 +33,6 @@ import type { League, LeagueScore, LeaderboardEntry } from "@/types/league";
 import { useToast } from "@/hooks/use-toast";
 import { RevealedRoundScores } from "@/components/league/RevealedRoundScores";
 
-// ── Closed Rounds (Peoria reveal) for players ────────────────
-function ClosedRoundsReveal({ leagueId }: { leagueId: string }) {
-  const { data: rounds, isLoading: roundsLoading } = useLeagueRounds(leagueId);
-  const { data: hiddenRows, isLoading: hhLoading } = useHiddenHoles(leagueId);
-
-  if (roundsLoading || hhLoading) {
-    return <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin" /></div>;
-  }
-
-  // useHiddenHoles only returns rows after revealed_at is set, so this is the
-  // server-of-truth list of "truly closed" rounds available to players.
-  const revealedByRound = new Map<number, number[]>();
-  for (const r of (hiddenRows || []) as Array<{ round_number: number; hidden_holes: number[] }>) {
-    revealedByRound.set(r.round_number, r.hidden_holes || []);
-  }
-  const closed = (rounds || [])
-    .filter((r) => revealedByRound.has(r.round_number))
-    .sort((a, b) => b.round_number - a.round_number);
-
-  if (closed.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground py-6 text-center">
-        No rounds have been closed yet. Once a round is closed, hidden holes, player scores, and Peoria handicaps will appear here.
-      </p>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {closed.map((r) => (
-        <div key={r.id} className="space-y-1">
-          <div className="text-sm font-semibold">R{r.round_number}: {r.name}</div>
-          <RevealedRoundScores
-            leagueId={leagueId}
-            roundNumber={r.round_number}
-            parPerHole={(r.par_per_hole as number[]) || []}
-            hiddenHoles={revealedByRound.get(r.round_number) || []}
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
 
 // ── Score Entry Dialog ───────────────────────────────────────
 function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
@@ -263,6 +220,11 @@ function Leaderboard({ leagueId, league }: { leagueId: string; league: League })
   const [filter, setFilter] = useState<'all' | 'individuals' | 'teams'>('all');
   const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
   const { data: leaderboard, isLoading } = useLeaderboard(leagueId, selectedRound, filter);
+  const { data: hiddenRows } = useHiddenHoles(leagueId);
+  const revealedByRound = new Map<number, number[]>();
+  for (const r of (hiddenRows || []) as Array<{ round_number: number; hidden_holes: number[] }>) {
+    revealedByRound.set(r.round_number, r.hidden_holes || []);
+  }
 
   if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>;
 
@@ -375,6 +337,24 @@ function Leaderboard({ leagueId, league }: { leagueId: string; league: League })
                     <TableRow key={`${entry.id}-detail`}>
                       <TableCell colSpan={colSpanForDetail} className="bg-muted/20 p-4">
                         <div className="space-y-3">
+                          {(() => {
+                            const closedInBreakdown = entry.breakdown
+                              .map((b) => ({ round: b.round, hidden: revealedByRound.get(b.round) }))
+                              .filter((x) => x.hidden && x.hidden.length > 0);
+                            if (closedInBreakdown.length === 0) return null;
+                            return (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground mb-1">Revealed Hidden Holes</p>
+                                <div className="flex gap-2 flex-wrap">
+                                  {closedInBreakdown.map((c) => (
+                                    <Badge key={c.round} variant="secondary" className="text-[10px]">
+                                      R{c.round}: {(c.hidden || []).join(", ")}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
                           {entry.breakdown.length > 0 && (
                             <div>
                               <p className="text-xs font-medium text-muted-foreground mb-1">Round Breakdown</p>
@@ -476,21 +456,13 @@ function LeagueCard({ league }: { league: League }) {
           <Tabs defaultValue="leaderboard">
             <TabsList>
               <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
-              <TabsTrigger value="closed-rounds">Closed Rounds</TabsTrigger>
               <TabsTrigger value="my-scores">My Scores</TabsTrigger>
-              <TabsTrigger value="feed">Activity</TabsTrigger>
             </TabsList>
             <TabsContent value="leaderboard">
               <Leaderboard leagueId={league.id} league={league} />
             </TabsContent>
-            <TabsContent value="closed-rounds">
-              <ClosedRoundsReveal leagueId={league.id} />
-            </TabsContent>
             <TabsContent value="my-scores">
               <MyScores leagueId={league.id} />
-            </TabsContent>
-            <TabsContent value="feed">
-              <LeagueFeed leagueId={league.id} />
             </TabsContent>
           </Tabs>
           {league.status === "active" && <ScoreEntryDialog leagueId={league.id} />}
@@ -504,42 +476,72 @@ function LeagueCard({ league }: { league: League }) {
 function MyScores({ leagueId }: { leagueId: string }) {
   const { user } = useAuth();
   const { data: allScores, isLoading } = useLeagueScores(leagueId);
+  const { data: rounds } = useLeagueRounds(leagueId);
+  const { data: hiddenRows } = useHiddenHoles(leagueId);
+  const { data: myTeam } = useMyLegacyTeam(leagueId);
   const confirmScore = useConfirmScore(leagueId);
 
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin mx-auto" />;
 
-  const myScores = (allScores || []).filter(s => s.player_id === user?.id);
-  if (myScores.length === 0) return <p className="text-sm text-muted-foreground text-center py-4">No scores submitted yet.</p>;
+  const myScores = (allScores || []).filter((s) => s.player_id === user?.id);
+  if (myScores.length === 0 && (!rounds || rounds.length === 0)) {
+    return <p className="text-sm text-muted-foreground text-center py-4">No scores submitted yet.</p>;
+  }
+
+  const teamMemberIds = (myTeam?.members || []).map((m) => m.user_id);
+  // Always include self so a soloist still sees their hole-by-hole
+  const playerIds = Array.from(new Set([user?.id, ...teamMemberIds].filter(Boolean) as string[]));
+
+  const revealedByRound = new Map<number, number[]>();
+  for (const r of (hiddenRows || []) as Array<{ round_number: number; hidden_holes: number[] }>) {
+    revealedByRound.set(r.round_number, r.hidden_holes || []);
+  }
+
+  // Round list: every round the team has any score in, plus rounds the user has
+  const roundNumbers = new Set<number>(myScores.map((s) => s.round_number));
+  for (const s of allScores || []) {
+    if (playerIds.includes(s.player_id)) roundNumbers.add(s.round_number);
+  }
+  const orderedRounds = Array.from(roundNumbers).sort((a, b) => b - a);
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Round</TableHead>
-          <TableHead>Total</TableHead>
-          <TableHead>Method</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead></TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {myScores.map(s => (
-          <TableRow key={s.id}>
-            <TableCell>{s.round_number}</TableCell>
-            <TableCell className="font-semibold">{s.total_score ?? "—"}</TableCell>
-            <TableCell><Badge variant="secondary">{s.method}</Badge></TableCell>
-            <TableCell>{s.confirmed_at ? <Badge>Confirmed</Badge> : <Badge variant="outline">Pending</Badge>}</TableCell>
-            <TableCell>
-              {!s.confirmed_at && (
-                <Button size="sm" variant="outline" onClick={() => confirmScore.mutate({ score_id: s.id })} disabled={confirmScore.isPending}>
-                  Confirm
-                </Button>
+    <div className="space-y-6">
+      {orderedRounds.map((rn) => {
+        const round = (rounds || []).find((r) => r.round_number === rn);
+        const mine = myScores.find((s) => s.round_number === rn);
+        const hidden = revealedByRound.get(rn) || [];
+        const closed = revealedByRound.has(rn);
+        return (
+          <div key={rn} className="space-y-2 border rounded-md p-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="text-sm font-semibold">
+                Round {rn}{round?.name ? `: ${round.name}` : ""}
+                {closed && <Badge variant="secondary" className="ml-2 text-[10px]">Closed</Badge>}
+              </div>
+              {mine && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span>My total: <span className="font-semibold text-base">{mine.total_score ?? "—"}</span></span>
+                  <Badge variant="secondary">{mine.method}</Badge>
+                  {mine.confirmed_at ? <Badge>Confirmed</Badge> : <Badge variant="outline">Pending</Badge>}
+                  {!mine.confirmed_at && (
+                    <Button size="sm" variant="outline" onClick={() => confirmScore.mutate({ score_id: mine.id })} disabled={confirmScore.isPending}>
+                      Confirm
+                    </Button>
+                  )}
+                </div>
               )}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+            </div>
+            <RevealedRoundScores
+              leagueId={leagueId}
+              roundNumber={rn}
+              parPerHole={(round?.par_per_hole as number[]) || []}
+              hiddenHoles={hidden}
+              playerIds={playerIds}
+            />
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
