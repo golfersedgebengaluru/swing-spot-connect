@@ -67,6 +67,7 @@ import {
   useUpdateTenant,
   useLeagueCities,
   useLeagueLocations,
+  useLeagueLocationCount,
   useAssignPlayerLocation,
   useAssignTeamLocation,
   leagueServiceInvoke,
@@ -743,7 +744,23 @@ function LegacyLeagueRow({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const del = useDeleteLeague(tenantId);
   const { data: cities } = useLeagueCities(league.id);
+  const { data: locationCount } = useLeagueLocationCount(league.id);
   const cityCount = cities?.length ?? 0;
+  const locCount = locationCount ?? 0;
+
+  const gstMode = (league.gst_mode as any) ?? 'none';
+  const gstRate = Number(league.gst_rate) || 0;
+  const basePrice = Number(league.price_per_person) || 0;
+  const inclusivePrice =
+    gstMode === 'exclusive' && gstRate > 0
+      ? Math.round(basePrice * (1 + gstRate / 100) * 100) / 100
+      : basePrice;
+  const gstLabel =
+    gstMode === 'exclusive' && gstRate > 0
+      ? ` (incl. ${gstRate}% GST)`
+      : gstMode === 'inclusive' && gstRate > 0
+        ? ` (incl. ${gstRate}% GST)`
+        : '';
 
   return (
     <div
@@ -792,12 +809,15 @@ function LegacyLeagueRow({
         {league.show_on_landing && (
           <Badge variant="outline" className="text-[10px] py-0 px-1.5">On landing</Badge>
         )}
-        {league.price_per_person > 0 && (
-          <Badge variant="outline" className="text-[10px] py-0 px-1.5">{league.currency} {league.price_per_person}/person</Badge>
+        {basePrice > 0 && (
+          <Badge variant="outline" className="text-[10px] py-0 px-1.5">
+            {league.currency} {inclusivePrice}/person{gstLabel}
+          </Badge>
         )}
         {cityCount > 0 && (
           <Badge variant="outline" className="text-[10px] py-0 px-1.5">{cityCount} {cityCount === 1 ? "city" : "cities"}</Badge>
         )}
+        <Badge variant="outline" className="text-[10px] py-0 px-1.5">{locCount} {locCount === 1 ? "location" : "locations"}</Badge>
       </div>
 
       {editOpen && (
