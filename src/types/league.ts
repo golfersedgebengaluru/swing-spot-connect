@@ -36,6 +36,9 @@ export interface League {
   price_per_person: number;
   currency: string;
   payment_city: string | null;
+  gst_mode: 'none' | 'inclusive' | 'exclusive';
+  gst_rate: number;
+  sac_code: string;
   created_by: string;
   created_at: string;
   updated_at: string;
