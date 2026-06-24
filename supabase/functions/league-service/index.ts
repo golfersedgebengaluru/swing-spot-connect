@@ -842,6 +842,9 @@ Deno.serve(async (req) => {
           price_per_person: typeof body.price_per_person === 'number' ? body.price_per_person : 0,
           currency: body.currency || 'INR',
           payment_city: typeof body.payment_city === 'string' && body.payment_city.trim() ? body.payment_city.trim() : null,
+          gst_mode: ['none','inclusive','exclusive'].includes(body.gst_mode) ? body.gst_mode : 'none',
+          gst_rate: typeof body.gst_rate === 'number' ? body.gst_rate : 0,
+          sac_code: typeof body.sac_code === 'string' && body.sac_code.trim() ? body.sac_code.trim() : '9996',
           created_by: user.id,
         }).select().single()
 
