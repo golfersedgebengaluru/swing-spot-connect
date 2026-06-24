@@ -842,6 +842,9 @@ Deno.serve(async (req) => {
           price_per_person: typeof body.price_per_person === 'number' ? body.price_per_person : 0,
           currency: body.currency || 'INR',
           payment_city: typeof body.payment_city === 'string' && body.payment_city.trim() ? body.payment_city.trim() : null,
+          gst_mode: ['none','inclusive','exclusive'].includes(body.gst_mode) ? body.gst_mode : 'none',
+          gst_rate: typeof body.gst_rate === 'number' ? body.gst_rate : 0,
+          sac_code: typeof body.sac_code === 'string' && body.sac_code.trim() ? body.sac_code.trim() : '9996',
           created_by: user.id,
         }).select().single()
 
@@ -913,7 +916,7 @@ Deno.serve(async (req) => {
         }
 
         const updates: Record<string, any> = {}
-        const allowed = ['name', 'format', 'season_start', 'season_end', 'venue_id', 'status', 'score_entry_method', 'scoring_holes', 'fairness_factor_pct', 'team_aggregation_method', 'peoria_multiplier', 'allowed_team_sizes', 'show_on_landing', 'price_per_person', 'currency', 'payment_city']
+        const allowed = ['name', 'format', 'season_start', 'season_end', 'venue_id', 'status', 'score_entry_method', 'scoring_holes', 'fairness_factor_pct', 'team_aggregation_method', 'peoria_multiplier', 'allowed_team_sizes', 'show_on_landing', 'price_per_person', 'currency', 'payment_city', 'gst_mode', 'gst_rate', 'sac_code']
         for (const key of allowed) {
           if (body[key] !== undefined) updates[key] = body[key]
         }
@@ -3241,7 +3244,7 @@ Deno.serve(async (req) => {
       // League validation
       const { data: league } = await supabase
         .from('leagues')
-        .select('id, tenant_id, name, status, show_on_landing, allowed_team_sizes, price_per_person, currency, payment_city')
+        .select('id, tenant_id, name, status, show_on_landing, allowed_team_sizes, price_per_person, currency, payment_city, gst_mode, gst_rate, sac_code')
         .eq('id', route.leagueId)
         .single()
       if (!league) return err('League not found', 404)
@@ -3265,7 +3268,25 @@ Deno.serve(async (req) => {
         .maybeSingle()
       if (existing) return err('You have already registered a team for this league', 409)
 
-      const originalAmount = Number(league.price_per_person) * size
+      const pricePerPerson = Number(league.price_per_person) || 0
+      const lineAmount = pricePerPerson * size
+      const gstMode = (league as any).gst_mode || 'none'
+      const gstRate = Number((league as any).gst_rate) || 0
+      const sacCode = (league as any).sac_code || '9996'
+
+      // Compute originalAmount (gross, what user pays) and the GST breakup
+      let originalAmount = lineAmount
+      let taxableAmount = lineAmount
+      let gstAmount = 0
+      if (gstMode === 'exclusive' && gstRate > 0) {
+        gstAmount = Math.round(lineAmount * gstRate) / 100
+        originalAmount = Math.round((lineAmount + gstAmount) * 100) / 100
+        taxableAmount = lineAmount
+      } else if (gstMode === 'inclusive' && gstRate > 0) {
+        taxableAmount = Math.round((lineAmount / (1 + gstRate / 100)) * 100) / 100
+        gstAmount = Math.round((lineAmount - taxableAmount) * 100) / 100
+        originalAmount = lineAmount
+      }
       const currency = league.currency || 'INR'
 
       // Optional coupon
@@ -3395,6 +3416,11 @@ Deno.serve(async (req) => {
             coupon_id: couponId,
             coupon_code: couponCodeFinal,
             currency,
+            gst_mode: gstMode,
+            gst_rate: gstRate,
+            sac_code: sacCode,
+            taxable_amount: taxableAmount,
+            gst_amount: gstAmount,
             payment_status: 'paid',
           })
           .select()
@@ -3443,6 +3469,11 @@ Deno.serve(async (req) => {
           city: gatewayCity,
           status: 'pending',
           invite_emails: cleanedInviteEmails,
+          gst_mode: gstMode,
+          gst_rate: gstRate,
+          sac_code: sacCode,
+          taxable_amount: taxableAmount,
+          gst_amount: gstAmount,
         })
       if (pErr) {
         console.error('pending insert failed', pErr)
@@ -3459,6 +3490,11 @@ Deno.serve(async (req) => {
         original_amount: originalAmount,
         discount_amount: discountAmount,
         coupon_code: couponCodeFinal,
+        gst_mode: gstMode,
+        gst_rate: gstRate,
+        sac_code: sacCode,
+        taxable_amount: taxableAmount,
+        gst_amount: gstAmount,
       })
     }
 

@@ -154,7 +154,7 @@ export function useDeleteLeague(tenantId: string) {
   });
 }
 
-export type LandingLeague = Pick<League, "id" | "name" | "venue_id" | "status" | "allowed_team_sizes" | "show_on_landing" | "price_per_person" | "currency">;
+export type LandingLeague = Pick<League, "id" | "name" | "venue_id" | "status" | "allowed_team_sizes" | "show_on_landing" | "price_per_person" | "currency" | "gst_mode" | "gst_rate" | "sac_code">;
 
 export function useLandingLeagues() {
   return useQuery<LandingLeague[]>({
@@ -162,7 +162,7 @@ export function useLandingLeagues() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leagues")
-        .select("id, name, venue_id, status, allowed_team_sizes, show_on_landing, price_per_person, currency")
+        .select("id, name, venue_id, status, allowed_team_sizes, show_on_landing, price_per_person, currency, gst_mode, gst_rate, sac_code")
         .eq("show_on_landing", true)
         .eq("status", "active")
         .order("created_at", { ascending: false });
@@ -180,7 +180,7 @@ export function useLandingLeague(leagueId: string | null) {
       if (!leagueId) return null;
       const { data, error } = await supabase
         .from("leagues")
-        .select("id, name, venue_id, status, allowed_team_sizes, show_on_landing, price_per_person, currency")
+        .select("id, name, venue_id, status, allowed_team_sizes, show_on_landing, price_per_person, currency, gst_mode, gst_rate, sac_code")
         .eq("id", leagueId)
         .eq("show_on_landing", true)
         .eq("status", "active")

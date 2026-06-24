@@ -503,6 +503,9 @@ function LeagueDialog({
   );
   const [currency, setCurrency] = useState<string>(league?.currency ?? "INR");
   const [paymentCity, setPaymentCity] = useState<string>(league?.payment_city ?? "");
+  const [gstMode, setGstMode] = useState<'none' | 'inclusive' | 'exclusive'>((league?.gst_mode as any) ?? 'none');
+  const [gstRate, setGstRate] = useState<string>(league?.gst_rate != null ? String(league.gst_rate) : "");
+  const [sacCode, setSacCode] = useState<string>(league?.sac_code ?? "9996");
   const [draftCities, setDraftCities] = useState<DraftCity[]>([]);
   const [originalCities, setOriginalCities] = useState<DraftCity[]>([]);
   const [persisting, setPersisting] = useState(false);
@@ -552,6 +555,9 @@ function LeagueDialog({
       setPricePerPerson("");
       setCurrency("INR");
       setPaymentCity("");
+      setGstMode("none");
+      setGstRate("");
+      setSacCode("9996");
       setDraftCities([]);
       setOriginalCities([]);
     }
@@ -578,6 +584,9 @@ function LeagueDialog({
       price_per_person: Number.isFinite(price) ? price : 0,
       currency: currency || "INR",
       payment_city: paymentCity || null,
+      gst_mode: gstMode,
+      gst_rate: gstRate === "" ? 0 : Number(gstRate) || 0,
+      sac_code: sacCode.trim() || "9996",
     };
     setPersisting(true);
     try {
@@ -671,6 +680,27 @@ function LeagueDialog({
             <div>
               <Label>Currency</Label>
               <Input value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} maxLength={3} />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <Label>GST</Label>
+              <Select value={gstMode} onValueChange={(v) => setGstMode(v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No GST</SelectItem>
+                  <SelectItem value="exclusive">Exclusive (add on top)</SelectItem>
+                  <SelectItem value="inclusive">Inclusive of price</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>GST %</Label>
+              <Input type="number" inputMode="decimal" value={gstRate} onChange={(e) => setGstRate(e.target.value)} placeholder="18" disabled={gstMode === 'none'} />
+            </div>
+            <div>
+              <Label>SAC code</Label>
+              <Input value={sacCode} onChange={(e) => setSacCode(e.target.value)} maxLength={10} placeholder="9996" />
             </div>
           </div>
           <PaymentCityField value={paymentCity} onChange={setPaymentCity} />
@@ -827,6 +857,9 @@ function LeagueDialogControlled({
   );
   const [currency, setCurrency] = useState<string>(league.currency ?? "INR");
   const [paymentCity, setPaymentCity] = useState<string>(league.payment_city ?? "");
+  const [gstMode, setGstMode] = useState<'none' | 'inclusive' | 'exclusive'>((league.gst_mode as any) ?? 'none');
+  const [gstRate, setGstRate] = useState<string>(league.gst_rate != null ? String(league.gst_rate) : "");
+  const [sacCode, setSacCode] = useState<string>(league.sac_code ?? "9996");
   const [draftCities, setDraftCities] = useState<DraftCity[]>([]);
   const [originalCities, setOriginalCities] = useState<DraftCity[]>([]);
   const [persisting, setPersisting] = useState(false);
@@ -877,6 +910,9 @@ function LeagueDialogControlled({
         price_per_person: Number.isFinite(price) ? price : 0,
         currency: currency || "INR",
         payment_city: paymentCity || null,
+        gst_mode: gstMode,
+        gst_rate: gstRate === "" ? 0 : Number(gstRate) || 0,
+        sac_code: sacCode.trim() || "9996",
       });
       try {
         await persistCitiesLocations(league.id, draftCities, originalCities);

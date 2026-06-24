@@ -82,7 +82,22 @@ export function CreateLegacyTeamDialog({ league, open, onOpenChange }: Props) {
     });
   }, [teamSize]);
 
-  const subtotal = teamSize ? Number(teamSize) * Number(league.price_per_person) : 0;
+  const lineAmount = teamSize ? Number(teamSize) * Number(league.price_per_person) : 0;
+  const gstMode = (league.gst_mode as 'none' | 'inclusive' | 'exclusive') || 'none';
+  const gstRate = Number(league.gst_rate) || 0;
+  const sacCode = league.sac_code || '9996';
+  // Pre-coupon: gross vs taxable vs gst
+  let preCouponGross = lineAmount;
+  let preCouponTaxable = lineAmount;
+  let preCouponGst = 0;
+  if (gstMode === 'exclusive' && gstRate > 0) {
+    preCouponGst = Math.round(lineAmount * gstRate) / 100;
+    preCouponGross = Math.round((lineAmount + preCouponGst) * 100) / 100;
+  } else if (gstMode === 'inclusive' && gstRate > 0) {
+    preCouponTaxable = Math.round((lineAmount / (1 + gstRate / 100)) * 100) / 100;
+    preCouponGst = Math.round((lineAmount - preCouponTaxable) * 100) / 100;
+  }
+  const subtotal = preCouponGross;
   const discount = appliedCoupon ? calculateDiscount(appliedCoupon, subtotal) : 0;
   const totalAmount = Math.max(0, subtotal - discount);
 
@@ -331,7 +346,16 @@ export function CreateLegacyTeamDialog({ league, open, onOpenChange }: Props) {
                   <div className="flex justify-between"><span className="text-muted-foreground">Team</span><span className="font-medium">{teamName}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Size</span><span>{teamSize} players</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Invites</span><span>{emails.filter(Boolean).length}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Price/person</span><span>{league.currency} {league.price_per_person}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Price/person {gstMode === 'inclusive' && gstRate > 0 ? '(incl. GST)' : ''}</span><span>{league.currency} {Number(league.price_per_person).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">{teamSize} × {league.currency} {Number(league.price_per_person).toFixed(2)}</span><span>{league.currency} {lineAmount.toFixed(2)}</span></div>
+                  {gstMode !== 'none' && gstRate > 0 && (
+                    <>
+                      {gstMode === 'inclusive' && (
+                        <div className="flex justify-between text-xs text-muted-foreground"><span>Taxable value</span><span>{league.currency} {preCouponTaxable.toFixed(2)}</span></div>
+                      )}
+                      <div className="flex justify-between"><span className="text-muted-foreground">GST @ {gstRate}% (SAC {sacCode})</span><span>{league.currency} {preCouponGst.toFixed(2)}</span></div>
+                    </>
+                  )}
                   <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{league.currency} {subtotal.toFixed(2)}</span></div>
                   {appliedCoupon && discount > 0 && (
                     <div className="flex justify-between text-emerald-600">

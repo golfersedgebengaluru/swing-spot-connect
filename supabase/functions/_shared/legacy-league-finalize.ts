@@ -50,6 +50,11 @@ export interface PendingLegacyRow {
   razorpay_order_id: string;
   status: string;
   registration_id?: string | null;
+  gst_mode?: string | null;
+  gst_rate?: number | null;
+  sac_code?: string | null;
+  taxable_amount?: number | null;
+  gst_amount?: number | null;
 }
 
 export interface ResolvedRegistration {
@@ -106,6 +111,11 @@ export async function resolveOrCreateLegacyRegistration(
       payment_status: "paid",
       razorpay_order_id: razorpayOrderId,
       razorpay_payment_id: razorpayPaymentId,
+      gst_mode: pending.gst_mode ?? null,
+      gst_rate: pending.gst_rate ?? null,
+      sac_code: pending.sac_code ?? null,
+      taxable_amount: pending.taxable_amount ?? null,
+      gst_amount: pending.gst_amount ?? null,
     })
     .select()
     .single();

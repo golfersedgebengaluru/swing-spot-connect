@@ -58,7 +58,20 @@ export function JoinLegacyLeagueDialog({ league, open, onOpenChange }: Props) {
     }
   }, [open]);
 
-  const totalAmount = teamSize ? Number(teamSize) * Number(league.price_per_person) : 0;
+  const lineAmount = teamSize ? Number(teamSize) * Number(league.price_per_person) : 0;
+  const gstMode = (league.gst_mode as 'none' | 'inclusive' | 'exclusive') || 'none';
+  const gstRate = Number(league.gst_rate) || 0;
+  const sacCode = league.sac_code || '9996';
+  let gstAmount = 0;
+  let taxableAmount = lineAmount;
+  let totalAmount = lineAmount;
+  if (gstMode === 'exclusive' && gstRate > 0) {
+    gstAmount = Math.round(lineAmount * gstRate) / 100;
+    totalAmount = Math.round((lineAmount + gstAmount) * 100) / 100;
+  } else if (gstMode === 'inclusive' && gstRate > 0) {
+    taxableAmount = Math.round((lineAmount / (1 + gstRate / 100)) * 100) / 100;
+    gstAmount = Math.round((lineAmount - taxableAmount) * 100) / 100;
+  }
 
   if (!user) {
     return (
@@ -202,7 +215,16 @@ export function JoinLegacyLeagueDialog({ league, open, onOpenChange }: Props) {
                 <div className="rounded-lg border p-4 space-y-2 text-sm">
                   <div className="flex justify-between"><span className="text-muted-foreground">Team</span><span className="font-medium">{teamName}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Size</span><span>{teamSize} players</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Price/person</span><span>{league.currency} {league.price_per_person}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Price/person {gstMode === 'inclusive' && gstRate > 0 ? '(incl. GST)' : ''}</span><span>{league.currency} {Number(league.price_per_person).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">{teamSize} × {league.currency} {Number(league.price_per_person).toFixed(2)}</span><span>{league.currency} {lineAmount.toFixed(2)}</span></div>
+                  {gstMode !== 'none' && gstRate > 0 && (
+                    <>
+                      {gstMode === 'inclusive' && (
+                        <div className="flex justify-between text-xs text-muted-foreground"><span>Taxable value</span><span>{league.currency} {taxableAmount.toFixed(2)}</span></div>
+                      )}
+                      <div className="flex justify-between"><span className="text-muted-foreground">GST @ {gstRate}% (SAC {sacCode})</span><span>{league.currency} {gstAmount.toFixed(2)}</span></div>
+                    </>
+                  )}
                   <div className="flex justify-between text-base font-semibold pt-2 border-t"><span>Total</span><span>{league.currency} {totalAmount.toFixed(2)}</span></div>
                 </div>
                 <div className="flex gap-2">
