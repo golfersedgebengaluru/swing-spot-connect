@@ -3490,6 +3490,11 @@ Deno.serve(async (req) => {
         original_amount: originalAmount,
         discount_amount: discountAmount,
         coupon_code: couponCodeFinal,
+        gst_mode: gstMode,
+        gst_rate: gstRate,
+        sac_code: sacCode,
+        taxable_amount: taxableAmount,
+        gst_amount: gstAmount,
       })
     }
 
