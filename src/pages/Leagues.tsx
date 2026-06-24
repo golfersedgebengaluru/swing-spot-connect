@@ -351,10 +351,21 @@ function Leaderboard({ leagueId, league }: { leagueId: string; league: League })
 
 // ── League Card ──────────────────────────────────────────────
 function LeagueCard({ league }: { league: League }) {
-  const [expanded, setExpanded] = useState(false);
+  const { hash } = useLocation();
+  const targetId = `league-${league.id}`;
+  const hashMatches = hash === `#${targetId}`;
+  const [expanded, setExpanded] = useState(hashMatches);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (hashMatches) {
+      setExpanded(true);
+      ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [hashMatches]);
 
   return (
-    <Card>
+    <Card ref={ref} id={targetId}>
       <CardHeader className="cursor-pointer" onClick={() => setExpanded(!expanded)}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
