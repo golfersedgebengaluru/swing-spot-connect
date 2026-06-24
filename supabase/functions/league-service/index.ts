@@ -3416,6 +3416,11 @@ Deno.serve(async (req) => {
             coupon_id: couponId,
             coupon_code: couponCodeFinal,
             currency,
+            gst_mode: gstMode,
+            gst_rate: gstRate,
+            sac_code: sacCode,
+            taxable_amount: taxableAmount,
+            gst_amount: gstAmount,
             payment_status: 'paid',
           })
           .select()
