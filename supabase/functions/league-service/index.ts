@@ -1129,6 +1129,18 @@ Deno.serve(async (req) => {
         const body = await req.json()
         if (!body.hole_scores && !body.total_score) return err('hole_scores or total_score required')
 
+        // Block score submission for closed rounds (revealed_at = round was closed).
+        const submitRound = body.round_number || 1
+        const { data: hhRow } = await supabase
+          .from('league_round_hidden_holes')
+          .select('revealed_at')
+          .eq('league_id', route.leagueId)
+          .eq('round_number', submitRound)
+          .maybeSingle()
+        if (hhRow?.revealed_at) {
+          return err(`Round ${submitRound} is closed — scores can no longer be submitted`, 403)
+        }
+
         const method_val = body.method || 'manual'
         const validMethods = ['photo_ocr', 'manual', 'api']
         if (!validMethods.includes(method_val)) return err('Invalid score method')
