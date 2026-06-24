@@ -934,7 +934,6 @@ function LeagueDialogControlled({
         gst_rate: gstRate === "" ? 0 : Number(gstRate) || 0,
         sac_code: sacCode.trim() || "9996",
       };
-      console.log("[EditLeague submit]", { leagueId: league.id, gstMode, gstRate, sacCode, payload });
       await updateLeague.mutateAsync(payload);
       try {
         await persistCitiesLocations(league.id, draftCities, originalCities);
