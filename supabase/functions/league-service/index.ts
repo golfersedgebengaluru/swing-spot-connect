@@ -1790,7 +1790,21 @@ Deno.serve(async (req) => {
           .eq('league_id', route.leagueId)
           .order('round_number')
         if (error) return err(error.message, 500)
-        return json(data)
+        // Attach closed_at (from league_round_hidden_holes.revealed_at) so the
+        // UI can disable score submission for closed rounds.
+        const { data: hhRows } = await supabase
+          .from('league_round_hidden_holes')
+          .select('round_number, revealed_at')
+          .eq('league_id', route.leagueId)
+        const closedMap = new Map<number, string | null>()
+        for (const r of (hhRows || []) as Array<{ round_number: number; revealed_at: string | null }>) {
+          closedMap.set(r.round_number, r.revealed_at)
+        }
+        const enriched = (data || []).map((r: any) => ({
+          ...r,
+          closed_at: closedMap.get(r.round_number) ?? null,
+        }))
+        return json(enriched)
       }
 
       if (method === 'POST') {
