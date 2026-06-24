@@ -544,7 +544,7 @@ async function computeLeaderboard(
       entries.push({
         type: 'individual',
         id: playerId,
-        name: profileMap[playerId] || playerId.slice(0, 8),
+        name: nameFor(playerId),
         team_name: teamId ? teamMap[teamId] : undefined,
         total_gross: totalGross,
         total_net: totalNet,
