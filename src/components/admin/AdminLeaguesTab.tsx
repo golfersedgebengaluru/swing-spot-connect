@@ -555,6 +555,9 @@ function LeagueDialog({
       setPricePerPerson("");
       setCurrency("INR");
       setPaymentCity("");
+      setGstMode("none");
+      setGstRate("");
+      setSacCode("9996");
       setDraftCities([]);
       setOriginalCities([]);
     }
