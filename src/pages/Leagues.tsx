@@ -157,8 +157,8 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
                     {[...rounds]
                       .sort((a, b) => a.round_number - b.round_number)
                       .map((r) => (
-                        <SelectItem key={r.id} value={String(r.round_number)}>
-                          R{r.round_number}: {r.name}
+                        <SelectItem key={r.id} value={String(r.round_number)} disabled={!!r.closed_at}>
+                          R{r.round_number}: {r.name}{r.closed_at ? " (closed)" : ""}
                         </SelectItem>
                       ))}
                   </SelectContent>
