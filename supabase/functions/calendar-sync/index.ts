@@ -1002,6 +1002,28 @@ Deno.serve(async (req) => {
 
 
       if (bookingError) {
+        const isOverlap = (bookingError as any).code === "23P01";
+        if (isOverlap) {
+          // DB-level safety net (bookings_no_overlap_per_bay) caught a slot collision —
+          // another concurrent caller created the booking first. Return their booking.
+          console.warn(`[calendar-sync v3] db_overlap_blocked order=${order_id} bay=${bay_id} start=${start_time}`);
+          if (order_id) {
+            const { data: existingTx } = await adminClient
+              .from("revenue_transactions")
+              .select("booking_id")
+              .eq("gateway_order_ref", order_id)
+              .eq("transaction_type", "guest_booking")
+              .maybeSingle();
+            return new Response(
+              JSON.stringify({ status: "already_finalized", booking_id: existingTx?.booking_id ?? null }),
+              { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          return new Response(
+            JSON.stringify({ error: "This slot is no longer available. Please refresh and try again." }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
         // Release the claim so the webhook/cron can retry.
         if (order_id) {
           await adminClient.rpc("release_pending_guest_booking", {
@@ -1011,6 +1033,7 @@ Deno.serve(async (req) => {
         }
         throw bookingError;
       }
+
 
       // Create revenue transaction for guest booking — SKIP for deferred (corporate) bookings.
       // A duplicate gateway_order_ref means another finalizer already wrote revenue for
