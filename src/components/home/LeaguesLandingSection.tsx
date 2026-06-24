@@ -31,7 +31,7 @@ function LeagueCard({ league }: { league: LandingLeague }) {
               <span className="text-muted-foreground">· {my!.my_role}</span>
             </div>
             <Button asChild className="w-full" size="lg" variant="outline">
-              <Link to="/leagues">Open My Leagues</Link>
+              <Link to={`/leagues#league-${league.id}`}>Open My Leagues</Link>
             </Button>
           </div>
         ) : (
