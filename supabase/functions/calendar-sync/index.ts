@@ -901,27 +901,14 @@ Deno.serve(async (req) => {
       }
 
 
-      // Resolve bracket tag: corporate name's first word if profile is corporate-linked, else "Guest"
       const bracketTag = await resolveCorporateTag(adminClient, user_id_override ?? null, "Guest");
 
-      // Try to create Google Calendar event (skip if no service account configured,
-      // if backdated, or if this is a participant add-on — parent already has the event).
+      // Calendar event creation is deferred until AFTER the booking row is
+      // inserted. Creating the event first risks orphan calendar entries if
+      // the booking insert fails or loses a unique-constraint race.
       let calendarEventId: string | null = null;
       const serviceAccountKeyStr = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
-      if (!isBackdated && !isParticipant && serviceAccountKeyStr && calendar_email) {
-        try {
-          const serviceAccountKey = JSON.parse(serviceAccountKeyStr);
-          const accessToken = await getAccessToken(serviceAccountKey);
-          const calTz = await getCalendarTimezone(accessToken, calendar_email);
-          const summary = `${bay_name || city} - ${guest_name} (${bracketTag})`;
-          const amtPaid = params.amount != null ? `${params.currency || "INR"} ${Number(params.amount).toFixed(2)}` : "N/A";
-          const desc = `Guest booking by ${guest_name}\nEmail: ${guest_email}\nPhone: ${guest_phone}\nNumber of persons: ${num_players ?? 1}\nAmount paid: ${amtPaid}`;
-          const calEvent = await createEvent(accessToken, calendar_email, summary, start_time, end_time, calTz, desc);
-          calendarEventId = calEvent.id;
-        } catch (e) {
-          console.error("Calendar event creation failed (non-fatal for guest):", e);
-        }
-      }
+
 
       // If user_id_override is provided (admin booking for existing member), use it directly
       let guestUserId = "00000000-0000-0000-0000-000000000000";
