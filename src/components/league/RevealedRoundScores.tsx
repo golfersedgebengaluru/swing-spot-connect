@@ -16,13 +16,18 @@ export function RevealedRoundScores({
   roundNumber,
   parPerHole,
   hiddenHoles,
+  playerIds,
 }: {
   leagueId: string;
   roundNumber: number;
   parPerHole: number[];
   hiddenHoles: number[];
+  playerIds?: string[];
 }) {
-  const { data: scores, isLoading } = useLeagueScores(leagueId, roundNumber);
+  const { data: allScores, isLoading } = useLeagueScores(leagueId, roundNumber);
+  const scores = playerIds
+    ? (allScores || []).filter((s: any) => playerIds.includes(s.player_id))
+    : allScores;
   const roundPar = parPerHole.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0);
   const HC_MULT = 3;
 
