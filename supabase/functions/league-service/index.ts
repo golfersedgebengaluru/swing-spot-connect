@@ -3469,6 +3469,11 @@ Deno.serve(async (req) => {
           city: gatewayCity,
           status: 'pending',
           invite_emails: cleanedInviteEmails,
+          gst_mode: gstMode,
+          gst_rate: gstRate,
+          sac_code: sacCode,
+          taxable_amount: taxableAmount,
+          gst_amount: gstAmount,
         })
       if (pErr) {
         console.error('pending insert failed', pErr)
