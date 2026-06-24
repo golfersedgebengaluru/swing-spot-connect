@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { LeagueFeed } from "@/components/league/LeagueFeed";
+import { useMyLegacyTeam } from "@/hooks/useMyLegacyTeam";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
