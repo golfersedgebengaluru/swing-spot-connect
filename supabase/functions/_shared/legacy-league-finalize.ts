@@ -50,6 +50,11 @@ export interface PendingLegacyRow {
   razorpay_order_id: string;
   status: string;
   registration_id?: string | null;
+  gst_mode?: string | null;
+  gst_rate?: number | null;
+  sac_code?: string | null;
+  taxable_amount?: number | null;
+  gst_amount?: number | null;
 }
 
 export interface ResolvedRegistration {
