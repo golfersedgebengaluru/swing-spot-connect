@@ -201,6 +201,9 @@ export interface CreateLeagueRequest {
   price_per_person?: number;
   currency?: string;
   payment_city?: string | null;
+  gst_mode?: 'none' | 'inclusive' | 'exclusive';
+  gst_rate?: number;
+  sac_code?: string;
 }
 
 export interface UpdateLeagueRequest {
