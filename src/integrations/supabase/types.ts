@@ -5662,6 +5662,14 @@ export type Database = {
         Args: { _city: string; _user_id: string }
         Returns: boolean
       }
+      try_claim_pending_guest_booking: {
+        Args: { _order_id: string }
+        Returns: {
+          claimed: boolean
+          current_status: string
+          existing_booking_id: string
+        }[]
+      }
       upsert_member_hours: {
         Args: { p_hours: number; p_user_id: string }
         Returns: undefined
