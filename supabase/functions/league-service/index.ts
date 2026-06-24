@@ -2863,7 +2863,7 @@ Deno.serve(async (req) => {
         const totalPar = list.reduce((s, r) => s + r.par, 0)
         const base = {
           player_id: pid,
-          name: nameMap[pid] || pid.slice(0, 8),
+          name: nameMap[pid] || 'Player',
           total_gross: totalGross,
           total_net: totalNet,
           total_par: totalPar,
