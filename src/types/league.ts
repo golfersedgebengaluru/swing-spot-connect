@@ -333,6 +333,8 @@ export interface LeagueRound {
   par_per_hole: number[];
   created_at: string;
   updated_at: string;
+  /** ISO timestamp when the round was closed (revealed_at on hidden holes). Null if still open. */
+  closed_at?: string | null;
 }
 
 export interface CreateRoundRequest {

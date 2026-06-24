@@ -48,9 +48,11 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
   // later round is in play.
   useEffect(() => {
     if (roundNumber != null || !rounds || rounds.length === 0) return;
+    const open = rounds.filter((r) => !r.closed_at);
+    if (open.length === 0) return;
     const today = new Date().toISOString().slice(0, 10);
-    const active = rounds.find((r) => r.start_date <= today && r.end_date >= today);
-    const sorted = [...rounds].sort((a, b) => b.round_number - a.round_number);
+    const active = open.find((r) => r.start_date <= today && r.end_date >= today);
+    const sorted = [...open].sort((a, b) => b.round_number - a.round_number);
     setRoundNumber((active ?? sorted[0]).round_number);
   }, [rounds, roundNumber]);
 
@@ -155,8 +157,8 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
                     {[...rounds]
                       .sort((a, b) => a.round_number - b.round_number)
                       .map((r) => (
-                        <SelectItem key={r.id} value={String(r.round_number)}>
-                          R{r.round_number}: {r.name}
+                        <SelectItem key={r.id} value={String(r.round_number)} disabled={!!r.closed_at}>
+                          R{r.round_number}: {r.name}{r.closed_at ? " (closed)" : ""}
                         </SelectItem>
                       ))}
                   </SelectContent>

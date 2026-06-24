@@ -1129,6 +1129,18 @@ Deno.serve(async (req) => {
         const body = await req.json()
         if (!body.hole_scores && !body.total_score) return err('hole_scores or total_score required')
 
+        // Block score submission for closed rounds (revealed_at = round was closed).
+        const submitRound = body.round_number || 1
+        const { data: hhRow } = await supabase
+          .from('league_round_hidden_holes')
+          .select('revealed_at')
+          .eq('league_id', route.leagueId)
+          .eq('round_number', submitRound)
+          .maybeSingle()
+        if (hhRow?.revealed_at) {
+          return err(`Round ${submitRound} is closed — scores can no longer be submitted`, 403)
+        }
+
         const method_val = body.method || 'manual'
         const validMethods = ['photo_ocr', 'manual', 'api']
         if (!validMethods.includes(method_val)) return err('Invalid score method')
@@ -1778,7 +1790,21 @@ Deno.serve(async (req) => {
           .eq('league_id', route.leagueId)
           .order('round_number')
         if (error) return err(error.message, 500)
-        return json(data)
+        // Attach closed_at (from league_round_hidden_holes.revealed_at) so the
+        // UI can disable score submission for closed rounds.
+        const { data: hhRows } = await supabase
+          .from('league_round_hidden_holes')
+          .select('round_number, revealed_at')
+          .eq('league_id', route.leagueId)
+        const closedMap = new Map<number, string | null>()
+        for (const r of (hhRows || []) as Array<{ round_number: number; revealed_at: string | null }>) {
+          closedMap.set(r.round_number, r.revealed_at)
+        }
+        const enriched = (data || []).map((r: any) => ({
+          ...r,
+          closed_at: closedMap.get(r.round_number) ?? null,
+        }))
+        return json(enriched)
       }
 
       if (method === 'POST') {
