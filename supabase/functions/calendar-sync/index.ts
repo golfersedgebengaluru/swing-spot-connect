@@ -856,18 +856,15 @@ Deno.serve(async (req) => {
         const { data: claimRows, error: claimErr } = await adminClient
           .rpc("try_claim_pending_guest_booking", { _order_id: order_id });
         if (claimErr) {
-          console.error("try_claim_pending_guest_booking failed:", claimErr.message);
+          console.error(`[calendar-sync v3] try_claim_pending_guest_booking failed order=${order_id}: ${claimErr.message}`);
           return new Response(
             JSON.stringify({ error: "claim failed", detail: claimErr.message }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
         const claimRow: any = Array.isArray(claimRows) ? claimRows[0] : claimRows;
-        // ONLY the caller that actually performed the atomic UPDATE gets claimed=true.
-        // Every other concurrent invocation (browser/webhook/cron) is a loser and bails
-        // out with the booking_id the winner created. No timestamp heuristics.
         if (!claimRow || claimRow.claimed !== true) {
-          console.log(`guest_booking claim lost for order ${order_id} (status=${claimRow?.current_status}) — returning existing booking`);
+          console.log(`[calendar-sync v3] claim_lost order=${order_id} status=${claimRow?.current_status} existing_booking=${claimRow?.existing_booking_id}`);
           return new Response(
             JSON.stringify({
               status: "already_finalized",
@@ -876,7 +873,9 @@ Deno.serve(async (req) => {
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
+        console.log(`[calendar-sync v3] claim_won order=${order_id}`);
       }
+
 
 
       // Check for overlapping bookings (skip for backdated accounting entries
@@ -1003,6 +1002,28 @@ Deno.serve(async (req) => {
 
 
       if (bookingError) {
+        const isOverlap = (bookingError as any).code === "23P01";
+        if (isOverlap) {
+          // DB-level safety net (bookings_no_overlap_per_bay) caught a slot collision —
+          // another concurrent caller created the booking first. Return their booking.
+          console.warn(`[calendar-sync v3] db_overlap_blocked order=${order_id} bay=${bay_id} start=${start_time}`);
+          if (order_id) {
+            const { data: existingTx } = await adminClient
+              .from("revenue_transactions")
+              .select("booking_id")
+              .eq("gateway_order_ref", order_id)
+              .eq("transaction_type", "guest_booking")
+              .maybeSingle();
+            return new Response(
+              JSON.stringify({ status: "already_finalized", booking_id: existingTx?.booking_id ?? null }),
+              { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          return new Response(
+            JSON.stringify({ error: "This slot is no longer available. Please refresh and try again." }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
         // Release the claim so the webhook/cron can retry.
         if (order_id) {
           await adminClient.rpc("release_pending_guest_booking", {
@@ -1012,6 +1033,7 @@ Deno.serve(async (req) => {
         }
         throw bookingError;
       }
+
 
       // Create revenue transaction for guest booking — SKIP for deferred (corporate) bookings.
       // A duplicate gateway_order_ref means another finalizer already wrote revenue for
@@ -1382,7 +1404,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Create calendar event — skip for participant add-ons (parent already has the event)
+      // Defer Calendar event creation until AFTER the booking row is committed
+      // so a slot collision (caught by bookings_no_overlap_per_bay) never leaks
+      // an orphan Google Calendar event.
       const bayLabel = bay_name || city;
       const calSummary = needsApproval
         ? `⏳ Pending Coaching Approval - ${display_name || "Member"}`
@@ -1391,13 +1415,7 @@ Deno.serve(async (req) => {
         ? `Pending coaching approval for ${display_name || "Member"} via Golfer's Edge`
         : `Booked by ${display_name || "Member"} via Golfer's Edge${isCoaching ? " - Coaching Session" : ""}`;
 
-      let calEventId: string | null = null;
-      if (!isParticipant) {
-        const calEvent = await createEvent(accessToken, calendar_email, calSummary, start_time, end_time, calTz, calDesc);
-        calEventId = calEvent.id;
-      }
-
-      // Create booking record
+      // Create booking record FIRST (calendar_event_id added after).
       const bookingStatus = needsApproval ? "pending" : "confirmed";
       const noteSuffix = isParticipant ? "[Participant add-on]" : null;
       const bookingInsert: any = {
@@ -1407,7 +1425,7 @@ Deno.serve(async (req) => {
         end_time,
         duration_minutes,
         status: bookingStatus,
-        calendar_event_id: calEventId,
+        calendar_event_id: null,
         session_type: session_type || "practice",
         parent_booking_id: parent_booking_id || null,
         note: noteSuffix,
@@ -1416,7 +1434,29 @@ Deno.serve(async (req) => {
 
 
       const { data: booking, error: bookingError } = await adminClient.from("bookings").insert(bookingInsert).select().single();
-      if (bookingError) throw bookingError;
+      if (bookingError) {
+        if ((bookingError as any).code === "23P01") {
+          console.warn(`[calendar-sync v3] create_booking db_overlap_blocked user=${bookingUserId} bay=${bay_id} start=${start_time}`);
+          return new Response(
+            JSON.stringify({ error: "This slot is no longer available. Please refresh and try again." }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        throw bookingError;
+      }
+
+      // Create Google Calendar event AFTER booking is committed, then patch the id.
+      let calEventId: string | null = null;
+      if (!isParticipant) {
+        try {
+          const calEvent = await createEvent(accessToken, calendar_email, calSummary, start_time, end_time, calTz, calDesc);
+          calEventId = calEvent.id;
+          await adminClient.from("bookings").update({ calendar_event_id: calEventId }).eq("id", booking.id);
+        } catch (calErr) {
+          console.error(`[calendar-sync v3] create_booking calendar event failed booking=${booking.id}: ${(calErr as Error).message}`);
+        }
+      }
+
 
       // Deduct hours only for instant bookings that were NOT paid via gateway
       if (!needsApproval && !paidViaGateway) {
