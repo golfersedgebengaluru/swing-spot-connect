@@ -2378,6 +2378,106 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Cancel coaching session — deletes the coaching_sessions row AND cancels
+    // the linked booking (including its Google Calendar event). Allowed only
+    // for admins/site-admins or the student who owns the linked booking.
+    // Coaches are explicitly NOT permitted to cancel.
+    if (action === "cancel_coaching_session") {
+      const { session_id } = params;
+      if (!session_id || typeof session_id !== "string") {
+        return new Response(JSON.stringify({ error: "session_id required" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const adminClient = createAdminClient();
+
+      const { data: session } = await adminClient
+        .from("coaching_sessions")
+        .select("id, booking_id, student_user_id, coach_user_id")
+        .eq("id", session_id)
+        .maybeSingle();
+      if (!session) {
+        return new Response(JSON.stringify({ error: "Session not found" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: isAdminOrSite } = await supabase.rpc("is_admin_or_site_admin", { _user_id: userId });
+
+      let booking: any = null;
+      if (session.booking_id) {
+        const { data: b } = await adminClient
+          .from("bookings")
+          .select("id, user_id, city, status")
+          .eq("id", session.booking_id)
+          .maybeSingle();
+        booking = b;
+      }
+
+      // Authorize: admin/site_admin OR the student who owns the booking.
+      // Pre-registered students (no auth account) cannot self-cancel — admin only.
+      const isStudent = booking
+        ? booking.user_id === userId
+        : session.student_user_id === userId;
+      if (!isAdminOrSite && !isStudent) {
+        return new Response(JSON.stringify({ error: "Only admins or the student can cancel this session" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Site-admin city scoping when a booking exists
+      if (isAdminOrSite && booking) {
+        const { data: hasCity } = await supabase.rpc("has_city_access", { _user_id: userId, _city: booking.city });
+        if (!hasCity) {
+          return new Response(JSON.stringify({ error: "You do not have access to this city" }), {
+            status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      // Cancel the underlying booking by re-invoking the existing, proven
+      // cancellation handler in this same function. This guarantees the
+      // calendar event is removed, hours are refunded, points clawed back,
+      // and notifications/emails are sent — exactly as today.
+      let bookingResult: any = null;
+      if (booking && booking.status !== "cancelled") {
+        const innerAction = isAdminOrSite ? "admin_cancel_booking" : "cancel_booking";
+        const innerRes = await fetch(req.url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: req.headers.get("Authorization") ?? "",
+            apikey: req.headers.get("apikey") ?? Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+          },
+          body: JSON.stringify({ action: innerAction, booking_id: booking.id }),
+        });
+        bookingResult = await innerRes.json().catch(() => ({}));
+        if (!innerRes.ok) {
+          return new Response(
+            JSON.stringify({ error: bookingResult?.error || "Failed to cancel linked booking" }),
+            { status: innerRes.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+
+      // Finally delete the coaching session row
+      const { error: delErr } = await adminClient
+        .from("coaching_sessions")
+        .delete()
+        .eq("id", session_id);
+      if (delErr) {
+        return new Response(
+          JSON.stringify({ error: `Booking cancelled but failed to delete session: ${delErr.message}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, booking_cancelled: !!bookingResult, booking_result: bookingResult }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(JSON.stringify({ error: "Unknown action" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
