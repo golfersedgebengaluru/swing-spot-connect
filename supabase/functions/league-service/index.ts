@@ -569,6 +569,7 @@ async function computeLeaderboard(
       const totalGross = pScores.reduce((s, p) => s + p.gross_score, 0)
       const totalNet = pScores.reduce((s, p) => s + p.net_score, 0)
       const totalPar = pScores.reduce((s, p) => s + (roundParMap[p.round_number] || 0), 0)
+      const totalStableford = pScores.reduce((s, p) => s + (p.stableford_points || 0), 0)
       const teamId = playerIdToTeamId[playerId]
       entries.push({
         type: 'individual',
@@ -581,14 +582,16 @@ async function computeLeaderboard(
         total_par: totalPar,
         net_vs_par: totalNet - totalPar,
         final_vs_par: totalNet - totalPar,
+        total_stableford: totalStableford,
         rounds_played: pScores.length,
         breakdown: pScores.map((p) => {
           const par = roundParMap[p.round_number] || 0
-          return { round: p.round_number, gross: p.gross_score, net: p.net_score, handicap: p.peoria_handicap, par, net_vs_par: p.net_score - par }
+          return { round: p.round_number, gross: p.gross_score, net: p.net_score, handicap: p.peoria_handicap, par, net_vs_par: p.net_score - par, stableford: p.stableford_points || 0 }
         }),
       })
     }
   }
+
 
   if (filterParam !== 'individuals' && teams && teams.length > 0) {
     for (const team of teams) {
