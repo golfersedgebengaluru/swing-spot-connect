@@ -2,6 +2,8 @@ import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useLeagueScores } from "@/hooks/useLeagues";
+import { holeToStablefordPoints, holeScoresToStableford, formatPoints } from "@/lib/stableford";
+
 
 /**
  * Shared "closed-round / Peoria reveal" table — used by both the admin Rounds
