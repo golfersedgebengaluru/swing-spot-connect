@@ -217,7 +217,7 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
 function Leaderboard({ leagueId, league }: { leagueId: string; league: League }) {
   const { data: rounds } = useLeagueRounds(leagueId);
   const [selectedRound, setSelectedRound] = useState<number | undefined>(undefined);
-  const [filter, setFilter] = useState<'all' | 'individuals' | 'teams'>('all');
+  const [filter, setFilter] = useState<'all' | 'individuals' | 'teams'>('individuals');
   const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
   const { data: leaderboard, isLoading } = useLeaderboard(leagueId, selectedRound, filter);
   const { data: hiddenRows } = useHiddenHoles(leagueId);
@@ -266,7 +266,7 @@ function Leaderboard({ leagueId, league }: { leagueId: string; league: League })
         <div>
           <Label className="text-xs">View</Label>
           <div className="flex gap-1 mt-0.5">
-            {(['all', 'individuals', 'teams'] as const).map((f) => (
+            {(['individuals', 'teams'] as const).map((f) => (
               <Button key={f} size="sm" variant={filter === f ? "default" : "outline"} className="h-8 text-xs capitalize" onClick={() => setFilter(f)}>
                 {f}
               </Button>
