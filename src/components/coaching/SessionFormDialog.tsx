@@ -17,6 +17,7 @@ import {
   type ToolLink,
 } from "@/hooks/useCoaching";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdmin } from "@/hooks/useAdmin";
 import { useAllCities } from "@/hooks/useBookings";
 import { Trash2, Search, Link2, Plus, X } from "lucide-react";
 import { format, parseISO } from "date-fns";
