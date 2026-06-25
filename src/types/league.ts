@@ -306,10 +306,13 @@ export interface LeaderboardEntry {
   net_vs_par?: number;
   /** final_score − total_par (after fairness factor for teams). */
   final_vs_par?: number;
+  /** Modified Stableford points (additive layer; primary ranking signal). */
+  total_stableford?: number;
   rounds_played: number;
-  breakdown: { round: number; gross: number; net: number; handicap: number; par?: number; net_vs_par?: number }[];
-  members?: { player_id: string; name: string; net_score: number; gross_score?: number; total_par?: number; vs_par?: number }[];
+  breakdown: { round: number; gross: number; net: number; handicap: number; par?: number; net_vs_par?: number; stableford?: number }[];
+  members?: { player_id: string; name: string; net_score: number; gross_score?: number; total_par?: number; vs_par?: number; stableford?: number }[];
 }
+
 
 export interface LeaderboardResponse {
   entries: LeaderboardEntry[];
