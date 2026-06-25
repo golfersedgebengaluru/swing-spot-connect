@@ -217,7 +217,7 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
 function Leaderboard({ leagueId, league }: { leagueId: string; league: League }) {
   const { data: rounds } = useLeagueRounds(leagueId);
   const [selectedRound, setSelectedRound] = useState<number | undefined>(undefined);
-  const [filter, setFilter] = useState<'all' | 'individuals' | 'teams'>('all');
+  const [filter, setFilter] = useState<'all' | 'individuals' | 'teams'>('individuals');
   const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
   const { data: leaderboard, isLoading } = useLeaderboard(leagueId, selectedRound, filter);
   const { data: hiddenRows } = useHiddenHoles(leagueId);
