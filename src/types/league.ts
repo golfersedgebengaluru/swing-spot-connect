@@ -139,7 +139,9 @@ export interface LeagueAuditLog {
   before_data: Record<string, unknown> | null;
   after_data: Record<string, unknown> | null;
   created_at: string;
+  actor_name?: string | null;
 }
+
 
 // ── League Role ──────────────────────────────────────────────
 export interface LeagueRole {
