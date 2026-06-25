@@ -1701,6 +1701,7 @@ function ScoringConfigPanel({ league }: { league: League }) {
   const [fairnessPct, setFairnessPct] = useState(league.fairness_factor_pct || 0);
   const [aggregation, setAggregation] = useState(league.team_aggregation_method || 'best_ball');
   const [peoriaMultiplier, setPeoriaMultiplier] = useState(league.peoria_multiplier || 3);
+  const [stablefordEnabled, setStablefordEnabled] = useState(league.stableford_enabled !== false);
 
   const handleSave = () => {
     updateLeague.mutate({
@@ -1708,6 +1709,7 @@ function ScoringConfigPanel({ league }: { league: League }) {
       fairness_factor_pct: fairnessPct,
       team_aggregation_method: aggregation as 'best_ball' | 'average',
       peoria_multiplier: peoriaMultiplier,
+      stableford_enabled: stablefordEnabled,
     });
   };
 
