@@ -422,14 +422,34 @@ async function computeLeaderboard(
     .select('round_number, par_per_hole')
     .eq('league_id', leagueId)
   const roundParMap: Record<number, number> = {}
+  const parPerHoleMap: Record<number, number[]> = {}
   for (const r of (allRounds || [])) {
     const arr = (r.par_per_hole as number[]) || []
     roundParMap[r.round_number] = arr.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
+    parPerHoleMap[r.round_number] = arr.map((p) => Number(p) || 0)
   }
 
   const HC_MULTIPLIER = 3
   const fairnessPct = Number(league.fairness_factor_pct) || 0
   const aggregation = league.team_aggregation_method || 'best_ball'
+
+  // Modified Stableford points layer (additive, does not affect stroke logic).
+  // Tiers: ≤−3 +8, −2 +5, −1 +2, 0 0, +1 −1, ≥+2 −2 (capped).
+  const holeToStableford = (strokes: number, par: number): number => {
+    if (!strokes || strokes <= 0 || !par || par <= 0) return 0
+    const diff = strokes - par
+    if (diff <= -3) return 8
+    if (diff === -2) return 5
+    if (diff === -1) return 2
+    if (diff === 0) return 0
+    if (diff === 1) return -1
+    return -2
+  }
+  const sumStableford = (holes: number[], pars: number[]): number => {
+    let total = 0
+    for (let i = 0; i < holes.length; i++) total += holeToStableford(holes[i], pars[i] ?? 0)
+    return total
+  }
 
   interface PlayerScoreEntry {
     player_id: string
@@ -438,18 +458,21 @@ async function computeLeaderboard(
     net_score: number
     hidden_hole_sum: number
     peoria_handicap: number
+    hole_scores: number[]
+    stableford_points: number
   }
 
   const playerScores: PlayerScoreEntry[] = []
   for (const score of scores) {
-    const holeScores = score.hole_scores as number[]
-    const grossScore = score.total_score || (holeScores ? holeScores.reduce((s: number, v: number) => s + (v || 0), 0) : 0)
+    const holeScores = (score.hole_scores as number[]) || []
+    const grossScore = score.total_score || holeScores.reduce((s: number, v: number) => s + (v || 0), 0)
     const hiddenHoles = hiddenHolesMap[score.round_number]
     const roundPar = roundParMap[score.round_number] || 0
+    const parsForRound = parPerHoleMap[score.round_number] || []
     let netScore = grossScore
     let hiddenSum = 0
     let handicap = 0
-    if (hiddenHoles && holeScores && holeScores.length > 0 && roundPar > 0) {
+    if (hiddenHoles && holeScores.length > 0 && roundPar > 0) {
       hiddenSum = hiddenHoles.reduce((sum, holeNum) => sum + (holeScores[holeNum - 1] || 0), 0)
       handicap = (hiddenSum * HC_MULTIPLIER) - roundPar
       netScore = grossScore - handicap
@@ -461,8 +484,11 @@ async function computeLeaderboard(
       net_score: netScore,
       hidden_hole_sum: hiddenSum,
       peoria_handicap: handicap,
+      hole_scores: holeScores,
+      stableford_points: sumStableford(holeScores, parsForRound),
     })
   }
+
 
   const { data: teams } = await supabase.from('league_teams').select('id, name, max_roster_size').eq('league_id', leagueId)
   const { data: teamMembers } = await supabase.from('league_team_members').select('team_id, player_id').in('team_id', (teams || []).map((t: any) => t.id))
