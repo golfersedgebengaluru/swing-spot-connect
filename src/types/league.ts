@@ -322,6 +322,8 @@ export interface LeaderboardResponse {
   filter: 'all' | 'individuals' | 'teams';
   /** When true the leaderboard is operating in handicap mode — UI should hide gross. */
   handicap_active?: boolean;
+  /** When false, the Modified Stableford points layer is disabled for this league. */
+  stableford_enabled?: boolean;
 }
 
 // ── League Round ─────────────────────────────────────────────
