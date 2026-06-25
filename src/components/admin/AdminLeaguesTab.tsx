@@ -2031,6 +2031,7 @@ function LeaderboardPanel({ league }: { league: League }) {
               <TableHead className="w-12">#</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Type</TableHead>
+              <TableHead className="text-right">Points</TableHead>
               {!leaderboard?.handicap_active && <TableHead className="text-right">Gross</TableHead>}
               <TableHead className="text-right">Net</TableHead>
               <TableHead className="text-right">Par</TableHead>
@@ -2044,7 +2045,10 @@ function LeaderboardPanel({ league }: { league: League }) {
               const vsPar = entry.final_vs_par ?? entry.net_vs_par ?? 0;
               const vsParLabel = vsPar === 0 ? "E" : vsPar > 0 ? `+${vsPar}` : `${vsPar}`;
               const vsParClass = vsPar < 0 ? "text-emerald-600" : vsPar > 0 ? "text-red-600" : "text-muted-foreground";
-              const colSpanForDetail = leaderboard?.handicap_active ? 9 : 10;
+              const pts = entry.total_stableford ?? 0;
+              const ptsLabel = pts === 0 ? "0" : pts > 0 ? `+${pts}` : `${pts}`;
+              const ptsClass = pts > 0 ? "text-emerald-600" : pts < 0 ? "text-red-600" : "text-muted-foreground";
+              const colSpanForDetail = leaderboard?.handicap_active ? 10 : 11;
               const isExpanded = expandedEntry === entry.id;
               const expandable = entry.type === 'team' || entry.breakdown.length > 0;
               return (
@@ -2071,6 +2075,7 @@ function LeaderboardPanel({ league }: { league: League }) {
                       {entry.type === 'team' ? '🏆 Team' : '👤 Individual'}
                     </Badge>
                   </TableCell>
+                  <TableCell className={cn("text-right font-bold", ptsClass)}>{ptsLabel} pts</TableCell>
                   {!leaderboard?.handicap_active && <TableCell className="text-right">{entry.total_gross}</TableCell>}
                   <TableCell className="text-right">{entry.total_net}</TableCell>
                   <TableCell className="text-right text-muted-foreground">{entry.total_par ?? '—'}</TableCell>
@@ -2078,6 +2083,7 @@ function LeaderboardPanel({ league }: { league: League }) {
                   <TableCell className="text-right font-semibold">{entry.final_score}</TableCell>
                   <TableCell className="text-right">{entry.rounds_played}</TableCell>
                 </TableRow>
+
 
                 {expandedEntry === entry.id && (
                   <TableRow key={`${entry.id}-detail`}>
