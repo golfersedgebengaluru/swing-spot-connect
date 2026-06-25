@@ -189,7 +189,7 @@ export function SessionFormDialog({
 
   const handleDelete = async () => {
     if (!session) return;
-    if (!confirm("Delete this session? This cannot be undone.")) return;
+    if (!confirm("Cancel this session? This will remove the booking, free the bay, and delete the calendar event. This cannot be undone.")) return;
     await del.mutateAsync(session.id);
     onOpenChange(false);
   };
