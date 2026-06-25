@@ -26,6 +26,7 @@ export function RevealedRoundScores({
   parPerHole: number[];
   hiddenHoles: number[];
   playerIds?: string[];
+  showTeamTotal?: boolean;
 }) {
   const { data: allScores, isLoading } = useLeagueScores(leagueId, roundNumber);
   const scores = playerIds
