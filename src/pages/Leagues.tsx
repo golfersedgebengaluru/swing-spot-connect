@@ -369,9 +369,15 @@ function Leaderboard({ leagueId, league }: { leagueId: string; league: League })
                                   const rVs = b.net_vs_par ?? 0;
                                   const rLabel = rVs === 0 ? "E" : rVs > 0 ? `+${rVs}` : `${rVs}`;
                                   const rClass = rVs < 0 ? "text-emerald-600" : rVs > 0 ? "text-red-600" : "text-muted-foreground";
+                                  const rPts = b.stableford ?? 0;
+                                  const rPtsLabel = rPts === 0 ? "0" : rPts > 0 ? `+${rPts}` : `${rPts}`;
+                                  const rPtsCls = rPts > 0 ? "text-emerald-600" : rPts < 0 ? "text-red-600" : "text-muted-foreground";
                                   return (
                                     <div key={b.round} className="border rounded px-3 py-1.5 text-xs bg-background">
-                                      <span className="font-medium">R{b.round}</span>: Gross {b.gross}, Net {b.net}
+                                      <span className="font-medium">R{b.round}</span>:{" "}
+                                      <span className={cn("font-bold", rPtsCls)}>{rPtsLabel} pts</span>
+                                      <span className="text-muted-foreground"> · </span>
+                                      Gross {b.gross}, Net {b.net}
                                       {b.par ? <span className="text-muted-foreground"> (Par {b.par})</span> : null}
                                       {b.net_vs_par !== undefined && (
                                         <span className={cn("ml-1 font-semibold", rClass)}>{rLabel}</span>
@@ -380,6 +386,7 @@ function Leaderboard({ leagueId, league }: { leagueId: string; league: League })
                                     </div>
                                   );
                                 })}
+
                               </div>
                             </div>
                           )}
