@@ -31,6 +31,7 @@ export interface League {
   fairness_factor_pct: number;
   team_aggregation_method: 'best_ball' | 'average';
   peoria_multiplier: number;
+  stableford_enabled: boolean;
   allowed_team_sizes: number[];
   show_on_landing: boolean;
   price_per_person: number;
