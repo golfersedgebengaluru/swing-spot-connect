@@ -446,10 +446,10 @@ export function SessionFormDialog({
         </div>
 
         <DialogFooter className="flex-col-reverse sm:flex-row gap-2 items-stretch sm:items-center">
-          {session && (
+          {session && canCancel && (
             <Button type="button" variant="ghost" className="text-destructive sm:mr-auto" onClick={handleDelete}>
               <Trash2 className="mr-1.5 h-4 w-4" />
-              Delete
+              Cancel Session
             </Button>
           )}
           {!canSubmit && missingHint && (
