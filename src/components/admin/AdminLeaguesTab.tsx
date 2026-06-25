@@ -1755,9 +1755,17 @@ function ScoringConfigPanel({ league }: { league: League }) {
           <Label className="text-sm">Modified Stableford Points Layer</Label>
           <p className="text-xs text-muted-foreground">
             Layer Stableford points on top of stroke scores and rank by total points. Turn off to rank by net stroke score only.
+            <span className="ml-1 italic">Saves immediately.</span>
           </p>
         </div>
-        <Switch checked={stablefordEnabled} onCheckedChange={setStablefordEnabled} />
+        <Switch
+          checked={stablefordEnabled}
+          disabled={updateLeague.isPending}
+          onCheckedChange={(checked) => {
+            setStablefordEnabled(checked);
+            updateLeague.mutate({ stableford_enabled: checked });
+          }}
+        />
       </div>
       <Button onClick={handleSave} disabled={updateLeague.isPending} size="sm">
         {updateLeague.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}Save Configuration
