@@ -20,6 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAllCities } from "@/hooks/useBookings";
 import { Trash2, Search, Link2, Plus, X } from "lucide-react";
+import { VoiceTextarea } from "./VoiceTextarea";
 import { format, parseISO } from "date-fns";
 
 interface Props {
@@ -402,18 +403,9 @@ export function SessionFormDialog({
           </div>
 
           {/* Notes / drills / progress */}
-          <div className="space-y-1.5">
-            <Label>Notes</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="What you worked on…" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Drills</Label>
-            <Textarea value={drills} onChange={(e) => setDrills(e.target.value)} rows={3} placeholder="Drills assigned…" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Progress Summary</Label>
-            <Textarea value={progress} onChange={(e) => setProgress(e.target.value)} rows={2} placeholder="Summary visible on the card…" />
-          </div>
+          <VoiceTextarea label="Notes" field="notes" value={notes} onChange={setNotes} rows={3} placeholder="What you worked on… (tap Dictate to speak)" />
+          <VoiceTextarea label="Drills" field="drills" value={drills} onChange={setDrills} rows={3} placeholder="Drills assigned… (tap Dictate to speak)" />
+          <VoiceTextarea label="Progress Summary" field="progress" value={progress} onChange={setProgress} rows={2} placeholder="Summary visible on the card… (tap Dictate to speak)" />
 
           {/* External tools — multi-link */}
           <div className="space-y-4">
