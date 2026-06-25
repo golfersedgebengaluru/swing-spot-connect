@@ -475,8 +475,44 @@ export function useLeagueAuditLog(tenantId: string | null, leagueId?: string) {
       if (leagueId) query = query.eq("league_id", leagueId);
       const { data, error } = await query;
       if (error) throw error;
-      return (data || []) as unknown as LeagueAuditLog[];
+      const rows = (data || []) as any[];
+      const actorIds = Array.from(new Set(rows.map((r) => r.actor_id).filter(Boolean)));
+      const nameMap = new Map<string, string>();
+      if (actorIds.length) {
+        // Try profiles.user_id first
+        const { data: byUser } = await supabase
+          .from("profiles")
+          .select("user_id, display_name")
+          .in("user_id", actorIds);
+        ((byUser ?? []) as any[]).forEach((p) => {
+          if (p.user_id && p.display_name) nameMap.set(p.user_id, p.display_name);
+        });
+        // Fallback: profiles.id for profile-only members
+        const missing = actorIds.filter((id) => !nameMap.has(id));
+        if (missing.length) {
+          const { data: byId } = await supabase
+            .from("profiles")
+            .select("id, display_name")
+            .in("id", missing);
+          ((byId ?? []) as any[]).forEach((p) => {
+            if (p.id && p.display_name) nameMap.set(p.id, p.display_name);
+          });
+        }
+        // Fallback: league_players name (covers players without profile match)
+        const stillMissing = actorIds.filter((id) => !nameMap.has(id));
+        if (stillMissing.length) {
+          const { data: lp } = await supabase
+            .from("league_players" as any)
+            .select("user_id, display_name")
+            .in("user_id", stillMissing);
+          ((lp ?? []) as any[]).forEach((p) => {
+            if (p.user_id && p.display_name && !nameMap.has(p.user_id)) nameMap.set(p.user_id, p.display_name);
+          });
+        }
+      }
+      return rows.map((r) => ({ ...r, actor_name: nameMap.get(r.actor_id) ?? null })) as unknown as LeagueAuditLog[];
     },
+
     enabled: !!tenantId,
     staleTime: LEAGUE_STALE_TIME,
   });

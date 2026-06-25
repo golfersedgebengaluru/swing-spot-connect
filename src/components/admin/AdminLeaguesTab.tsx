@@ -2564,7 +2564,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
                   <div key={log.id} className="flex items-start gap-3 text-sm border-b pb-2">
                     <Badge variant="outline" className="shrink-0">{log.action}</Badge>
                     <div className="min-w-0">
-                      <p className="text-muted-foreground">{log.entity_type} · <span className="font-mono text-xs">{log.actor_id.slice(0, 8)}</span> ({log.actor_role})</p>
+                      <p className="text-muted-foreground">{log.entity_type} · <span className="font-medium text-foreground">{log.actor_name ?? `${log.actor_id.slice(0, 8)}…`}</span> ({log.actor_role})</p>
                       <p className="text-xs text-muted-foreground">{format(new Date(log.created_at), "PP p")}</p>
                     </div>
                   </div>
