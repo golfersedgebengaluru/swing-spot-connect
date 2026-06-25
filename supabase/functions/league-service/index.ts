@@ -387,7 +387,7 @@ async function computeLeaderboard(
 
   const { data: league } = await supabase
     .from('leagues')
-    .select('tenant_id, scoring_holes, fairness_factor_pct, team_aggregation_method, peoria_multiplier')
+    .select('tenant_id, scoring_holes, fairness_factor_pct, team_aggregation_method, peoria_multiplier, stableford_enabled')
     .eq('id', leagueId)
     .single()
   if (!league) throw new Error('League not found')
