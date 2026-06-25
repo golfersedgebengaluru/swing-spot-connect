@@ -143,6 +143,38 @@ export function RevealedRoundScores({
                   </TableCell>
                 </TableRow>
               ))}
+              {showTeamTotal && rows.length > 1 && (() => {
+                const holeCount = parPerHole.length || rows[0].hs.length;
+                const holeTotals = Array.from({ length: holeCount }).map((_, i) =>
+                  rows.reduce((sum, r) => sum + (Number(r.hs[i]) || 0), 0),
+                );
+                const teamGross = rows.reduce((s, r) => s + (r.gross || 0), 0);
+                const teamPoints = rows.reduce((s, r) => s + (r.points || 0), 0);
+                const teamHiddenSum = rows.reduce((s, r) => s + (r.hiddenSum || 0), 0);
+                const teamHc = hiddenHoles.length > 0 && roundPar > 0
+                  ? rows.reduce((s, r) => s + (r.handicap || 0), 0)
+                  : 0;
+                const teamNet = teamGross - teamHc;
+                return (
+                  <TableRow className="bg-primary/5 font-semibold">
+                    <TableCell className="text-xs">Team Total</TableCell>
+                    {holeTotals.map((t, i) => (
+                      <TableCell key={i} className="text-center px-1.5 text-xs">{t || "—"}</TableCell>
+                    ))}
+                    <TableCell className="text-center text-xs">{teamGross || "—"}</TableCell>
+                    <TableCell className="text-center text-xs">{teamHiddenSum || "—"}</TableCell>
+                    <TableCell className="text-center text-xs">
+                      {hiddenHoles.length > 0 && roundPar > 0 ? teamHc : "—"}
+                    </TableCell>
+                    <TableCell className="text-center text-xs text-primary">
+                      {hiddenHoles.length > 0 && roundPar > 0 ? teamNet : "—"}
+                    </TableCell>
+                    <TableCell className="text-center text-xs text-emerald-600">
+                      {formatPoints(teamPoints)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })()}
 
             </TableBody>
           </Table>
