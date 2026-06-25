@@ -331,7 +331,7 @@ function Leaderboard({ leagueId, league }: { leagueId: string; league: League })
                         {entry.type === 'team' ? '🏆 Team' : '👤 Individual'}
                       </Badge>
                     </TableCell>
-                    <TableCell className={cn("text-right font-bold", ptsClass)}>{ptsLabel} pts</TableCell>
+                    {showPts && <TableCell className={cn("text-right font-bold", ptsClass)}>{ptsLabel} pts</TableCell>}
                     {!leaderboard?.handicap_active && <TableCell className="text-right">{entry.total_gross}</TableCell>}
                     <TableCell className="text-right">{entry.total_net}</TableCell>
                     <TableCell className="text-right text-muted-foreground">{entry.total_par ?? '—'}</TableCell>
