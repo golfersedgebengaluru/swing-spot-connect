@@ -285,7 +285,7 @@ function Leaderboard({ leagueId, league }: { leagueId: string; league: League })
               <TableHead className="w-12">#</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead className="text-right">Points</TableHead>
+              {leaderboard?.stableford_enabled !== false && <TableHead className="text-right">Points</TableHead>}
               {!leaderboard?.handicap_active && <TableHead className="text-right">Gross</TableHead>}
               <TableHead className="text-right">Net</TableHead>
               <TableHead className="text-right">Par</TableHead>
@@ -299,10 +299,12 @@ function Leaderboard({ leagueId, league }: { leagueId: string; league: League })
               const vsPar = entry.final_vs_par ?? entry.net_vs_par ?? 0;
               const vsParLabel = vsPar === 0 ? "E" : vsPar > 0 ? `+${vsPar}` : `${vsPar}`;
               const vsParClass = vsPar < 0 ? "text-emerald-600" : vsPar > 0 ? "text-red-600" : "text-muted-foreground";
+              const showPts = leaderboard?.stableford_enabled !== false;
               const pts = entry.total_stableford ?? 0;
               const ptsLabel = pts === 0 ? "0" : pts > 0 ? `+${pts}` : `${pts}`;
               const ptsClass = pts > 0 ? "text-emerald-600" : pts < 0 ? "text-red-600" : "text-muted-foreground";
-              const colSpanForDetail = leaderboard?.handicap_active ? 10 : 11;
+              const baseCols = 9; // chevron + # + name + type + net + par + vs + final + rounds
+              const colSpanForDetail = baseCols + (showPts ? 1 : 0) + (!leaderboard?.handicap_active ? 1 : 0);
               const isExpanded = expandedEntry === entry.id;
               const expandable = entry.type === 'team' || entry.breakdown.length > 0;
               return (
