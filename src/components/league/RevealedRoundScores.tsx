@@ -48,8 +48,10 @@ export function RevealedRoundScores({
     const hiddenSum = hiddenHoles.reduce((sum, h) => sum + (Number(hs[h - 1]) || 0), 0);
     const handicap = roundPar > 0 && hiddenHoles.length > 0 ? hiddenSum * HC_MULT - roundPar : 0;
     const net = gross - handicap;
-    return { id: s.id, name: s.player_name || s.player_id?.slice(0, 8), hs, gross, hiddenSum, handicap, net };
+    const points = holeScoresToStableford(hs, parPerHole);
+    return { id: s.id, name: s.player_name || s.player_id?.slice(0, 8), hs, gross, hiddenSum, handicap, net, points };
   });
+
 
   return (
     <div className="rounded-md border p-3 space-y-2 bg-card">
