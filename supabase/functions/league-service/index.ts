@@ -387,7 +387,7 @@ async function computeLeaderboard(
 
   const { data: league } = await supabase
     .from('leagues')
-    .select('tenant_id, scoring_holes, fairness_factor_pct, team_aggregation_method, peoria_multiplier')
+    .select('tenant_id, scoring_holes, fairness_factor_pct, team_aggregation_method, peoria_multiplier, stableford_enabled')
     .eq('id', leagueId)
     .single()
   if (!league) throw new Error('League not found')
@@ -687,16 +687,19 @@ async function computeLeaderboard(
     }
   }
 
-  // Primary rank: Modified Stableford points (highest first).
-  // Tiebreaker preserves prior behaviour: lower final stroke score wins.
+  // Primary rank: Modified Stableford points (highest first) when enabled.
+  // When disabled, fall back to lower final stroke score wins.
+  const stablefordEnabled = league.stableford_enabled !== false
   entries.sort((a, b) => {
-    const ptsDiff = (b.total_stableford || 0) - (a.total_stableford || 0)
-    if (ptsDiff !== 0) return ptsDiff
+    if (stablefordEnabled) {
+      const ptsDiff = (b.total_stableford || 0) - (a.total_stableford || 0)
+      if (ptsDiff !== 0) return ptsDiff
+    }
     return a.final_score - b.final_score
   })
   const ranked = entries.map((e, i) => ({ ...e, rank: i + 1 }))
   const handicapActive = Object.keys(hiddenHolesMap).length > 0
-  return { entries: ranked, round: roundParam, filter: filterParam, scope: scopeParam, league_city_id: cityIdParam, handicap_active: handicapActive }
+  return { entries: ranked, round: roundParam, filter: filterParam, scope: scopeParam, league_city_id: cityIdParam, handicap_active: handicapActive, stableford_enabled: stablefordEnabled }
 
 }
 
@@ -978,7 +981,7 @@ Deno.serve(async (req) => {
         }
 
         const updates: Record<string, any> = {}
-        const allowed = ['name', 'format', 'season_start', 'season_end', 'venue_id', 'status', 'score_entry_method', 'scoring_holes', 'fairness_factor_pct', 'team_aggregation_method', 'peoria_multiplier', 'allowed_team_sizes', 'show_on_landing', 'price_per_person', 'currency', 'payment_city', 'gst_mode', 'gst_rate', 'sac_code']
+        const allowed = ['name', 'format', 'season_start', 'season_end', 'venue_id', 'status', 'score_entry_method', 'scoring_holes', 'fairness_factor_pct', 'team_aggregation_method', 'peoria_multiplier', 'stableford_enabled', 'allowed_team_sizes', 'show_on_landing', 'price_per_person', 'currency', 'payment_city', 'gst_mode', 'gst_rate', 'sac_code']
         for (const key of allowed) {
           if (body[key] !== undefined) updates[key] = body[key]
         }

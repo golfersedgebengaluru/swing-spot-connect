@@ -1701,6 +1701,7 @@ function ScoringConfigPanel({ league }: { league: League }) {
   const [fairnessPct, setFairnessPct] = useState(league.fairness_factor_pct || 0);
   const [aggregation, setAggregation] = useState(league.team_aggregation_method || 'best_ball');
   const [peoriaMultiplier, setPeoriaMultiplier] = useState(league.peoria_multiplier || 3);
+  const [stablefordEnabled, setStablefordEnabled] = useState(league.stableford_enabled !== false);
 
   const handleSave = () => {
     updateLeague.mutate({
@@ -1708,6 +1709,7 @@ function ScoringConfigPanel({ league }: { league: League }) {
       fairness_factor_pct: fairnessPct,
       team_aggregation_method: aggregation as 'best_ball' | 'average',
       peoria_multiplier: peoriaMultiplier,
+      stableford_enabled: stablefordEnabled,
     });
   };
 
@@ -1747,6 +1749,15 @@ function ScoringConfigPanel({ league }: { league: League }) {
           <Input type="number" value={fairnessPct || ""} onChange={(e) => setFairnessPct(Number(e.target.value))} min={0} max={100} step={1} />
           <p className="text-xs text-muted-foreground mt-1">Team score reduced by this % to compete with individuals</p>
         </div>
+      </div>
+      <div className="flex items-start justify-between gap-4 rounded-md border p-3">
+        <div className="space-y-0.5">
+          <Label className="text-sm">Modified Stableford Points Layer</Label>
+          <p className="text-xs text-muted-foreground">
+            Layer Stableford points on top of stroke scores and rank by total points. Turn off to rank by net stroke score only.
+          </p>
+        </div>
+        <Switch checked={stablefordEnabled} onCheckedChange={setStablefordEnabled} />
       </div>
       <Button onClick={handleSave} disabled={updateLeague.isPending} size="sm">
         {updateLeague.isPending && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}Save Configuration
@@ -2031,7 +2042,7 @@ function LeaderboardPanel({ league }: { league: League }) {
               <TableHead className="w-12">#</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead className="text-right">Points</TableHead>
+              {leaderboard?.stableford_enabled !== false && <TableHead className="text-right">Points</TableHead>}
               {!leaderboard?.handicap_active && <TableHead className="text-right">Gross</TableHead>}
               <TableHead className="text-right">Net</TableHead>
               <TableHead className="text-right">Par</TableHead>
@@ -2045,10 +2056,12 @@ function LeaderboardPanel({ league }: { league: League }) {
               const vsPar = entry.final_vs_par ?? entry.net_vs_par ?? 0;
               const vsParLabel = vsPar === 0 ? "E" : vsPar > 0 ? `+${vsPar}` : `${vsPar}`;
               const vsParClass = vsPar < 0 ? "text-emerald-600" : vsPar > 0 ? "text-red-600" : "text-muted-foreground";
+              const showPts = leaderboard?.stableford_enabled !== false;
               const pts = entry.total_stableford ?? 0;
               const ptsLabel = pts === 0 ? "0" : pts > 0 ? `+${pts}` : `${pts}`;
               const ptsClass = pts > 0 ? "text-emerald-600" : pts < 0 ? "text-red-600" : "text-muted-foreground";
-              const colSpanForDetail = leaderboard?.handicap_active ? 10 : 11;
+              const baseCols = 9;
+              const colSpanForDetail = baseCols + (showPts ? 1 : 0) + (!leaderboard?.handicap_active ? 1 : 0);
               const isExpanded = expandedEntry === entry.id;
               const expandable = entry.type === 'team' || entry.breakdown.length > 0;
               return (
@@ -2075,7 +2088,7 @@ function LeaderboardPanel({ league }: { league: League }) {
                       {entry.type === 'team' ? '🏆 Team' : '👤 Individual'}
                     </Badge>
                   </TableCell>
-                  <TableCell className={cn("text-right font-bold", ptsClass)}>{ptsLabel} pts</TableCell>
+                  {showPts && <TableCell className={cn("text-right font-bold", ptsClass)}>{ptsLabel} pts</TableCell>}
                   {!leaderboard?.handicap_active && <TableCell className="text-right">{entry.total_gross}</TableCell>}
                   <TableCell className="text-right">{entry.total_net}</TableCell>
                   <TableCell className="text-right text-muted-foreground">{entry.total_par ?? '—'}</TableCell>
@@ -2104,8 +2117,10 @@ function LeaderboardPanel({ league }: { league: League }) {
                                 return (
                                   <div key={b.round} className="border rounded px-3 py-1.5 text-xs bg-background">
                                     <span className="font-medium">R{b.round}</span>:{" "}
-                                    <span className={cn("font-bold", rPtsCls)}>{rPtsLabel} pts</span>
-                                    <span className="text-muted-foreground"> · </span>
+                                    {showPts && (<>
+                                      <span className={cn("font-bold", rPtsCls)}>{rPtsLabel} pts</span>
+                                      <span className="text-muted-foreground"> · </span>
+                                    </>)}
                                     Gross {b.gross}, Net {b.net}
                                     {b.par ? <span className="text-muted-foreground"> (Par {b.par})</span> : null}
                                     {b.net_vs_par !== undefined && (
