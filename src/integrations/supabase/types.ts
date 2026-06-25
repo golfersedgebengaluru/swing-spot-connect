@@ -3147,6 +3147,7 @@ export type Database = {
           season_end: string | null
           season_start: string | null
           show_on_landing: boolean
+          stableford_enabled: boolean
           status: Database["public"]["Enums"]["league_status"]
           team_aggregation_method: string
           tenant_id: string
@@ -3174,6 +3175,7 @@ export type Database = {
           season_end?: string | null
           season_start?: string | null
           show_on_landing?: boolean
+          stableford_enabled?: boolean
           status?: Database["public"]["Enums"]["league_status"]
           team_aggregation_method?: string
           tenant_id: string
@@ -3201,6 +3203,7 @@ export type Database = {
           season_end?: string | null
           season_start?: string | null
           show_on_landing?: boolean
+          stableford_enabled?: boolean
           status?: Database["public"]["Enums"]["league_status"]
           team_aggregation_method?: string
           tenant_id?: string

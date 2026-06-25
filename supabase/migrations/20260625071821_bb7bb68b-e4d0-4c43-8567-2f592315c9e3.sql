@@ -1,0 +1,1 @@
+ALTER TABLE public.leagues ADD COLUMN IF NOT EXISTS stableford_enabled boolean NOT NULL DEFAULT true;
