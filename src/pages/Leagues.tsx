@@ -377,8 +377,10 @@ function Leaderboard({ leagueId, league }: { leagueId: string; league: League })
                                   return (
                                     <div key={b.round} className="border rounded px-3 py-1.5 text-xs bg-background">
                                       <span className="font-medium">R{b.round}</span>:{" "}
-                                      <span className={cn("font-bold", rPtsCls)}>{rPtsLabel} pts</span>
-                                      <span className="text-muted-foreground"> · </span>
+                                      {showPts && (<>
+                                        <span className={cn("font-bold", rPtsCls)}>{rPtsLabel} pts</span>
+                                        <span className="text-muted-foreground"> · </span>
+                                      </>)}
                                       Gross {b.gross}, Net {b.net}
                                       {b.par ? <span className="text-muted-foreground"> (Par {b.par})</span> : null}
                                       {b.net_vs_par !== undefined && (
