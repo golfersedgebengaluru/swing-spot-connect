@@ -367,14 +367,22 @@ export function useDeleteSession() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("coaching_sessions").delete().eq("id", id);
+      // Route through calendar-sync so the linked booking + Google Calendar
+      // event are cancelled atomically. Server enforces that only admins
+      // or the booking owner (student) can cancel — coaches are blocked.
+      const { data, error } = await supabase.functions.invoke("calendar-sync", {
+        body: { action: "cancel_coaching_session", session_id: id },
+      });
       if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["coaching"] });
-      toast({ title: "Session deleted" });
+      qc.invalidateQueries({ queryKey: ["bookings"] });
+      toast({ title: "Session cancelled" });
     },
-    onError: (e: any) => toast({ title: "Delete failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Cancellation failed", description: e.message, variant: "destructive" }),
   });
 }
 

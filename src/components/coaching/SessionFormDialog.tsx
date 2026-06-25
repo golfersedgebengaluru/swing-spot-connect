@@ -17,6 +17,7 @@ import {
   type ToolLink,
 } from "@/hooks/useCoaching";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdmin } from "@/hooks/useAdmin";
 import { useAllCities } from "@/hooks/useBookings";
 import { Trash2, Search, Link2, Plus, X } from "lucide-react";
 import { format, parseISO } from "date-fns";
@@ -46,6 +47,11 @@ export function SessionFormDialog({
   defaultCity,
 }: Props) {
   const { user } = useAuth();
+  const { isAdmin, isSiteAdmin } = useAdmin();
+  // Coaches cannot cancel; only admins or the student (booking owner) can.
+  // Within this admin/coach-facing dialog, we surface the Cancel control to
+  // admins/site-admins only. Students cancel from My Bookings.
+  const canCancel = isAdmin || isSiteAdmin;
   const { data: cities } = useAllCities();
   const { data: coachesList } = useCoaches();
   const save = useSaveSession();
@@ -183,7 +189,7 @@ export function SessionFormDialog({
 
   const handleDelete = async () => {
     if (!session) return;
-    if (!confirm("Delete this session? This cannot be undone.")) return;
+    if (!confirm("Cancel this session? This will remove the booking, free the bay, and delete the calendar event. This cannot be undone.")) return;
     await del.mutateAsync(session.id);
     onOpenChange(false);
   };
@@ -440,10 +446,10 @@ export function SessionFormDialog({
         </div>
 
         <DialogFooter className="flex-col-reverse sm:flex-row gap-2 items-stretch sm:items-center">
-          {session && (
+          {session && canCancel && (
             <Button type="button" variant="ghost" className="text-destructive sm:mr-auto" onClick={handleDelete}>
               <Trash2 className="mr-1.5 h-4 w-4" />
-              Delete
+              Cancel Session
             </Button>
           )}
           {!canSubmit && missingHint && (
