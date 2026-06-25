@@ -24,10 +24,11 @@ describe("holeToStablefordPoints", () => {
   });
 
   it("works across different pars", () => {
-    expect(holeToStablefordPoints(2, 5)).toBe(5); // eagle on par 5
+    expect(holeToStablefordPoints(3, 5)).toBe(5); // eagle on par 5
     expect(holeToStablefordPoints(2, 3)).toBe(2); // birdie on par 3
-    expect(holeToStablefordPoints(1, 5)).toBe(8); // albatross on par 5
+    expect(holeToStablefordPoints(2, 5)).toBe(8); // albatross on par 5
   });
+
 
   it("returns 0 when strokes or par missing", () => {
     expect(holeToStablefordPoints(0, 4)).toBe(0);
