@@ -687,16 +687,19 @@ async function computeLeaderboard(
     }
   }
 
-  // Primary rank: Modified Stableford points (highest first).
-  // Tiebreaker preserves prior behaviour: lower final stroke score wins.
+  // Primary rank: Modified Stableford points (highest first) when enabled.
+  // When disabled, fall back to lower final stroke score wins.
+  const stablefordEnabled = league.stableford_enabled !== false
   entries.sort((a, b) => {
-    const ptsDiff = (b.total_stableford || 0) - (a.total_stableford || 0)
-    if (ptsDiff !== 0) return ptsDiff
+    if (stablefordEnabled) {
+      const ptsDiff = (b.total_stableford || 0) - (a.total_stableford || 0)
+      if (ptsDiff !== 0) return ptsDiff
+    }
     return a.final_score - b.final_score
   })
   const ranked = entries.map((e, i) => ({ ...e, rank: i + 1 }))
   const handicapActive = Object.keys(hiddenHolesMap).length > 0
-  return { entries: ranked, round: roundParam, filter: filterParam, scope: scopeParam, league_city_id: cityIdParam, handicap_active: handicapActive }
+  return { entries: ranked, round: roundParam, filter: filterParam, scope: scopeParam, league_city_id: cityIdParam, handicap_active: handicapActive, stableford_enabled: stablefordEnabled }
 
 }
 
