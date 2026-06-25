@@ -47,6 +47,11 @@ export function SessionFormDialog({
   defaultCity,
 }: Props) {
   const { user } = useAuth();
+  const { isAdmin, isSiteAdmin } = useAdmin();
+  // Coaches cannot cancel; only admins or the student (booking owner) can.
+  // Within this admin/coach-facing dialog, we surface the Cancel control to
+  // admins/site-admins only. Students cancel from My Bookings.
+  const canCancel = isAdmin || isSiteAdmin;
   const { data: cities } = useAllCities();
   const { data: coachesList } = useCoaches();
   const save = useSaveSession();
