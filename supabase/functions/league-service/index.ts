@@ -604,7 +604,8 @@ async function computeLeaderboard(
       let teamTotalNet = 0
       let teamTotalGross = 0
       let teamTotalPar = 0
-      const teamBreakdown: { round: number; gross: number; net: number; handicap: number; par: number; net_vs_par: number }[] = []
+      let teamTotalStableford = 0
+      const teamBreakdown: { round: number; gross: number; net: number; handicap: number; par: number; net_vs_par: number; stableford: number }[] = []
       for (const rn of roundNumbers) {
         const memberScoresForRound = playerScores.filter(
           (ps) => memberUserIds.includes(ps.player_id) && ps.round_number === rn
@@ -620,9 +621,27 @@ async function computeLeaderboard(
         const roundHandicap = memberScoresForRound.reduce((s, p) => s + p.peoria_handicap, 0) / memberScoresForRound.length
         const roundNet = roundGross - roundHandicap
         const roundPar = roundParMap[rn] || 0
+        // Stableford layer for the team: apply per-hole best ball, then convert
+        // each hole to Modified Stableford points. For 'average' aggregation we
+        // still use best-ball-per-hole for the Stableford layer (the spec is a
+        // best-ball points layer); the stroke aggregation above is untouched.
+        const parsForRound = parPerHoleMap[rn] || []
+        const teamHoleArrays = memberScoresForRound.map((p) => p.hole_scores || [])
+        const len = Math.max(0, ...teamHoleArrays.map((a) => a.length))
+        const bestBallHoles: number[] = new Array(len).fill(0)
+        for (let i = 0; i < len; i++) {
+          let best = 0
+          for (const arr of teamHoleArrays) {
+            const v = arr[i]
+            if (typeof v === 'number' && v > 0 && (best === 0 || v < best)) best = v
+          }
+          bestBallHoles[i] = best
+        }
+        const roundStableford = sumStableford(bestBallHoles, parsForRound)
         teamTotalNet += roundNet
         teamTotalGross += roundGross
         teamTotalPar += roundPar
+        teamTotalStableford += roundStableford
         teamBreakdown.push({
           round: rn,
           gross: Math.round(roundGross * 100) / 100,
@@ -630,6 +649,7 @@ async function computeLeaderboard(
           handicap: Math.round(roundHandicap * 100) / 100,
           par: roundPar,
           net_vs_par: Math.round((roundNet - roundPar) * 100) / 100,
+          stableford: roundStableford,
         })
       }
       const finalScore = teamTotalNet * (1 - fairnessPct / 100)
@@ -638,6 +658,7 @@ async function computeLeaderboard(
         const net = ms.reduce((s, p) => s + p.net_score, 0)
         const gross = ms.reduce((s, p) => s + p.gross_score, 0)
         const par = ms.reduce((s, p) => s + (roundParMap[p.round_number] || 0), 0)
+        const stableford = ms.reduce((s, p) => s + (p.stableford_points || 0), 0)
         return {
           player_id: uid,
           name: nameFor(uid),
@@ -645,6 +666,7 @@ async function computeLeaderboard(
           gross_score: gross,
           total_par: par,
           vs_par: net - par,
+          stableford,
         }
       })
       entries.push({
@@ -657,6 +679,7 @@ async function computeLeaderboard(
         total_par: teamTotalPar,
         net_vs_par: Math.round((teamTotalNet - teamTotalPar) * 100) / 100,
         final_vs_par: Math.round((finalScore - teamTotalPar) * 100) / 100,
+        total_stableford: teamTotalStableford,
         rounds_played: teamBreakdown.length,
         breakdown: teamBreakdown,
         members: memberDetails,
@@ -664,10 +687,17 @@ async function computeLeaderboard(
     }
   }
 
-  entries.sort((a, b) => a.final_score - b.final_score)
+  // Primary rank: Modified Stableford points (highest first).
+  // Tiebreaker preserves prior behaviour: lower final stroke score wins.
+  entries.sort((a, b) => {
+    const ptsDiff = (b.total_stableford || 0) - (a.total_stableford || 0)
+    if (ptsDiff !== 0) return ptsDiff
+    return a.final_score - b.final_score
+  })
   const ranked = entries.map((e, i) => ({ ...e, rank: i + 1 }))
   const handicapActive = Object.keys(hiddenHolesMap).length > 0
   return { entries: ranked, round: roundParam, filter: filterParam, scope: scopeParam, league_city_id: cityIdParam, handicap_active: handicapActive }
+
 }
 
 // ══════════════════════════════════════════════════════════════
