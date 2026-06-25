@@ -19,6 +19,7 @@ export function RevealedRoundScores({
   parPerHole,
   hiddenHoles,
   playerIds,
+  showTeamTotal = false,
 }: {
   leagueId: string;
   roundNumber: number;
