@@ -2604,11 +2604,15 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
                     const ext = file.name.split(".").pop();
                     const path = `leagues/${league.id}/sponsor.${ext}`;
                     const { error } = await supabase.storage.from("league-assets").upload(path, file, { upsert: true });
-                    if (error) { toast({ title: "Upload failed", description: error.message, variant: "destructive" }); setUploadingLogo(null); return; }
+                    if (error) { toast({ title: "Upload failed", description: error.message, variant: "destructive" }); setUploadingLogo(null); e.target.value = ""; return; }
                     const { data: { publicUrl } } = supabase.storage.from("league-assets").getPublicUrl(path);
-                    setSponsorLogoUrl(publicUrl);
+                    const cacheBustedUrl = `${publicUrl}?t=${Date.now()}`;
+                    setSponsorLogoUrl(cacheBustedUrl);
+                    updateBranding.mutate({ sponsor_logo_url: cacheBustedUrl }, {
+                      onSuccess: () => toast({ title: "Uploaded", description: "Sponsor logo uploaded." }),
+                    });
                     setUploadingLogo(null);
-                    toast({ title: "Uploaded", description: "Sponsor logo uploaded." });
+                    e.target.value = "";
                   }} />
                   <Button variant="outline" size="sm" asChild disabled={uploadingLogo === "sponsor"}>
                     <span>{uploadingLogo === "sponsor" ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Upload className="h-4 w-4 mr-1" />Upload</>}</span>
