@@ -116,16 +116,18 @@ function InvoiceListSection({ city }: { city: string }) {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto_1fr_1fr_1fr] gap-3 items-center">
-        <div className="relative">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input placeholder="Search invoices…" className="pl-8" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} />
         </div>
-        <Input type="date" placeholder="dd-mm-yyyy" value={startDate} onChange={(e) => { setStartDate(e.target.value); setPage(0); }} className="min-w-[130px]" />
-        <span className="text-muted-foreground text-sm self-center">to</span>
-        <Input type="date" placeholder="dd-mm-yyyy" value={endDate} onChange={(e) => { setEndDate(e.target.value); setPage(0); }} className="min-w-[130px]" />
+        <div className="flex items-center gap-2 flex-1 min-w-[260px]">
+          <Input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setPage(0); }} className="flex-1 min-w-[130px]" />
+          <span className="text-muted-foreground text-sm">to</span>
+          <Input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setPage(0); }} className="flex-1 min-w-[130px]" />
+        </div>
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v === "all" ? "" : v); setPage(0); }}>
-          <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectTrigger className="w-[140px] flex-1 min-w-[120px]"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="issued">Issued</SelectItem>
@@ -133,7 +135,7 @@ function InvoiceListSection({ city }: { city: string }) {
           </SelectContent>
         </Select>
         <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v === "all" ? "" : v); setPage(0); }}>
-          <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
+          <SelectTrigger className="w-[140px] flex-1 min-w-[120px]"><SelectValue placeholder="Type" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
             <SelectItem value="invoice">Invoice</SelectItem>
@@ -141,13 +143,14 @@ function InvoiceListSection({ city }: { city: string }) {
           </SelectContent>
         </Select>
         <Select value={paymentFilter} onValueChange={(v) => { setPaymentFilter(v === "all" ? "" : v); setPage(0); }}>
-          <SelectTrigger><SelectValue placeholder="Payment" /></SelectTrigger>
+          <SelectTrigger className="w-[140px] flex-1 min-w-[120px]"><SelectValue placeholder="Payment" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Payments</SelectItem>
             <SelectItem value="paid">Paid</SelectItem>
             <SelectItem value="due">Due</SelectItem>
           </SelectContent>
         </Select>
+
       </div>
 
 
