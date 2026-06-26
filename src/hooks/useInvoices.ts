@@ -70,11 +70,13 @@ export interface InvoiceFilters {
   endDate?: string;
   status?: string;
   invoiceType?: string;
+  paymentStatus?: string;
   search?: string;
   city?: string;
   page?: number;
   pageSize?: number;
 }
+
 
 export function useInvoices(filters?: InvoiceFilters) {
   const page = filters?.page ?? 0;
