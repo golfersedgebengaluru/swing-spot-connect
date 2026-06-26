@@ -58,9 +58,9 @@ export function useAdmin() {
   const assignedCities = data?.assignedCities ?? [];
   const loading = !!user && isLoading;
 
-  // Admins, site-admins, AND coaches can access the admin panel.
-  // Sidebar items themselves are gated below.
-  const hasAdminAccess = isAdmin || isSiteAdmin || isCoach;
+  // Only true admins and site-admins get the admin shell.
+  // Coaches are regular users; their coach UI lives at /coaching.
+  const hasAdminAccess = isAdmin || isSiteAdmin;
 
   return { isAdmin, isSiteAdmin, isCoach, isLeaguesOnly, role, assignedCities, hasAdminAccess, loading };
 }
