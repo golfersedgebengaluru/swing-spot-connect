@@ -53,7 +53,9 @@ function InvoiceListSection({ city }: { city: string }) {
     search: search || undefined,
     status: statusFilter || undefined,
     invoiceType: typeFilter || undefined,
+    paymentStatus: paymentFilter || undefined,
     startDate: startDate || undefined,
+
     endDate: endDate || undefined,
     page,
     pageSize: 25,
