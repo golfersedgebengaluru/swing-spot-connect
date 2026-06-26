@@ -1368,6 +1368,31 @@ function RoundsPanel({ league }: { league: League }) {
                 {expandedRound === r.id && editingRound !== r.id && (
                   <div className="px-3 pb-3 border-t pt-3 space-y-3">
                     {r.description && <p className="text-sm text-muted-foreground">{r.description}</p>}
+                    {/* Quick-reference holes & par table (admin) */}
+                    {parSet && (
+                      <div className="rounded-md border bg-muted/20 overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b">
+                              <th className="text-left px-2 py-1.5 font-medium text-muted-foreground">Hole</th>
+                              {r.par_per_hole.map((_, i) => (
+                                <th key={i} className="px-1.5 py-1.5 text-center font-medium text-muted-foreground">{i + 1}</th>
+                              ))}
+                              <th className="px-2 py-1.5 text-center font-medium text-muted-foreground">Gross</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td className="px-2 py-1.5 font-medium">Par</td>
+                              {r.par_per_hole.map((p, i) => (
+                                <td key={i} className="px-1.5 py-1.5 text-center">{p || "—"}</td>
+                              ))}
+                              <td className="px-2 py-1.5 text-center font-semibold">{r.par_per_hole.reduce((s, v) => s + (v || 0), 0)}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                     {/* Admin-only Peoria hidden-holes preview */}
                     {adminHH && (adminHH.hidden_holes?.length > 0 || (adminHH as any).needs_reroll) && (
                       <div className="rounded-md border border-dashed p-3 bg-muted/30">
