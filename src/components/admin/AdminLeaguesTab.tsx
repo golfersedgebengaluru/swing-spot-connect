@@ -16,7 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown, ChevronRight, Edit, ListOrdered, Settings2, Shuffle, Lock, Unlock, BarChart3, Upload, MapPin, ExternalLink } from "lucide-react";
+import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown, ChevronRight, Edit, ListOrdered, Settings2, Shuffle, Lock, Unlock, BarChart3, Upload, MapPin, ExternalLink, X } from "lucide-react";
 import { BaySchedulingPanel } from "@/components/admin/league/BaySchedulingPanel";
 
 import { SeasonWrapUpPanel } from "@/components/admin/league/SeasonWrapUpPanel";
@@ -2523,7 +2523,27 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
             {/* League Logo */}
             <div className="space-y-2">
               <Label>League Logo</Label>
-              {leagueLogoUrl && <img src={leagueLogoUrl} alt="League logo" className="h-16 w-auto rounded border object-contain" />}
+              {leagueLogoUrl && (
+                <div className="relative inline-block">
+                  <img src={leagueLogoUrl} alt="League logo" className="h-16 w-auto rounded border object-contain" />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                    onClick={() => {
+                      setLeagueLogoUrl("");
+                      updateBranding.mutate({ logo_url: "" }, {
+                        onSuccess: () => toast({ title: "Removed", description: "League logo removed." }),
+                      });
+                    }}
+                    disabled={updateBranding.isPending}
+                    aria-label="Remove league logo"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
               <div className="flex gap-2 items-end">
                 <Input value={leagueLogoUrl} onChange={(e) => setLeagueLogoUrl(e.target.value)} placeholder="URL or upload below" className="flex-1" />
                 <label className="cursor-pointer">
@@ -2549,7 +2569,27 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
             {/* Sponsor Logo */}
             <div className="space-y-2">
               <Label>Sponsor Logo</Label>
-              {sponsorLogoUrl && <img src={sponsorLogoUrl} alt="Sponsor logo" className="h-16 w-auto rounded border object-contain" />}
+              {sponsorLogoUrl && (
+                <div className="relative inline-block">
+                  <img src={sponsorLogoUrl} alt="Sponsor logo" className="h-16 w-auto rounded border object-contain" />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                    onClick={() => {
+                      setSponsorLogoUrl("");
+                      updateBranding.mutate({ sponsor_logo_url: "" }, {
+                        onSuccess: () => toast({ title: "Removed", description: "Sponsor logo removed." }),
+                      });
+                    }}
+                    disabled={updateBranding.isPending}
+                    aria-label="Remove sponsor logo"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
               <div className="flex gap-2 items-end">
                 <Input value={sponsorLogoUrl} onChange={(e) => setSponsorLogoUrl(e.target.value)} placeholder="URL or upload below" className="flex-1" />
                 <label className="cursor-pointer">
