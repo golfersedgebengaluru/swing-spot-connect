@@ -77,7 +77,13 @@ Deno.serve(async (req) => {
     }
 
     const arrayBuffer = await file.arrayBuffer()
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+    const bytes = new Uint8Array(arrayBuffer)
+    let binary = ''
+    const CHUNK = 0x8000
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+    }
+    const base64 = btoa(binary)
     const imageContent = {
       type: 'image_url',
       image_url: { url: `data:${mimeType};base64,${base64}` }
