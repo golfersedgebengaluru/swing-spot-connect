@@ -70,11 +70,13 @@ export interface InvoiceFilters {
   endDate?: string;
   status?: string;
   invoiceType?: string;
+  paymentStatus?: string;
   search?: string;
   city?: string;
   page?: number;
   pageSize?: number;
 }
+
 
 export function useInvoices(filters?: InvoiceFilters) {
   const page = filters?.page ?? 0;
@@ -92,6 +94,10 @@ export function useInvoices(filters?: InvoiceFilters) {
       if (filters?.endDate) query = query.lte("invoice_date", filters.endDate);
       if (filters?.status) query = query.eq("status", filters.status);
       if (filters?.invoiceType) query = query.eq("invoice_type", filters.invoiceType);
+      if (filters?.paymentStatus === "due") query = query.neq("payment_status", "paid");
+      else if (filters?.paymentStatus) query = query.eq("payment_status", filters.paymentStatus);
+
+
       if (filters?.search) {
         query = query.or(
           `invoice_number.ilike.%${filters.search}%,customer_name.ilike.%${filters.search}%,customer_email.ilike.%${filters.search}%,customer_gstin.ilike.%${filters.search}%`

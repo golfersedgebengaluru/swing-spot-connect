@@ -34,8 +34,10 @@ function InvoiceListSection({ city }: { city: string }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
   const [page, setPage] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
   const [viewId, setViewId] = useState<string | null>(null);
@@ -51,7 +53,9 @@ function InvoiceListSection({ city }: { city: string }) {
     search: search || undefined,
     status: statusFilter || undefined,
     invoiceType: typeFilter || undefined,
+    paymentStatus: paymentFilter || undefined,
     startDate: startDate || undefined,
+
     endDate: endDate || undefined,
     page,
     pageSize: 25,
@@ -112,7 +116,7 @@ function InvoiceListSection({ city }: { city: string }) {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto_1fr_1fr] gap-3 items-center">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto_1fr_1fr_1fr] gap-3 items-center">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input placeholder="Search invoices…" className="pl-8" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} />
@@ -136,7 +140,16 @@ function InvoiceListSection({ city }: { city: string }) {
             <SelectItem value="credit_note">Credit Note</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={paymentFilter} onValueChange={(v) => { setPaymentFilter(v === "all" ? "" : v); setPage(0); }}>
+          <SelectTrigger><SelectValue placeholder="Payment" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Payments</SelectItem>
+            <SelectItem value="paid">Paid</SelectItem>
+            <SelectItem value="due">Due</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
+
 
       {isLoading ? (
         <Loader2 className="mx-auto h-8 w-8 animate-spin" />
