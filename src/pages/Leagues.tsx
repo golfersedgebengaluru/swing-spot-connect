@@ -204,10 +204,21 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
             ))}
           </div>
 
+          {alreadySubmitted ? (
+            <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">
+              Score already submitted for this round. Scores can only be submitted once — contact an admin if a correction is needed.
+            </div>
+          ) : (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+              Please double-check your scores before hitting Submit. No changes are allowed after submission.
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Total: <span className="text-lg">{total}</span></span>
-            <Button onClick={handleSubmit} disabled={submitScore.isPending || total === 0}>
-              {submitScore.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Submit
+            <Button onClick={handleSubmit} disabled={submitScore.isPending || total === 0 || alreadySubmitted}>
+              {submitScore.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {alreadySubmitted ? "Submitted" : "Submit"}
             </Button>
           </div>
         </div>
