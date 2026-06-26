@@ -94,7 +94,9 @@ export function useInvoices(filters?: InvoiceFilters) {
       if (filters?.endDate) query = query.lte("invoice_date", filters.endDate);
       if (filters?.status) query = query.eq("status", filters.status);
       if (filters?.invoiceType) query = query.eq("invoice_type", filters.invoiceType);
-      if (filters?.paymentStatus) query = query.eq("payment_status", filters.paymentStatus);
+      if (filters?.paymentStatus === "due") query = query.neq("payment_status", "paid");
+      else if (filters?.paymentStatus) query = query.eq("payment_status", filters.paymentStatus);
+
 
       if (filters?.search) {
         query = query.or(
