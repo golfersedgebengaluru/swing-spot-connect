@@ -44,6 +44,9 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
   const [ocrUsed, setOcrUsed] = useState(false);
   const submitScore = useSubmitScore(leagueId);
   const { data: rounds } = useLeagueRounds(leagueId);
+  const { user } = useAuth();
+  const { data: roundScores } = useLeagueScores(roundNumber ? leagueId : null, roundNumber ?? undefined);
+  const alreadySubmitted = !!user && (roundScores || []).some((s: any) => s.submitted_by === user.id);
   const { toast } = useToast();
 
   // Auto-select the currently active round (today between start/end), else the
