@@ -126,31 +126,38 @@ function InvoiceListSection({ city }: { city: string }) {
           <span className="text-muted-foreground text-sm">to</span>
           <Input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setPage(0); }} className="flex-1 min-w-0" />
         </div>
-        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v === "all" ? "" : v); setPage(0); }}>
-          <SelectTrigger className="w-full"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="issued">Issued</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v === "all" ? "" : v); setPage(0); }}>
-          <SelectTrigger className="w-full"><SelectValue placeholder="Type" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="invoice">Invoice</SelectItem>
-            <SelectItem value="credit_note">Credit Note</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={paymentFilter} onValueChange={(v) => { setPaymentFilter(v === "all" ? "" : v); setPage(0); }}>
-          <SelectTrigger className="w-full sm:col-span-2 lg:col-span-1"><SelectValue placeholder="Payment" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Payments</SelectItem>
-            <SelectItem value="paid">Paid</SelectItem>
-            <SelectItem value="due">Due</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="w-full lg:col-span-1">
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v === "all" ? "" : v); setPage(0); }}>
+            <SelectTrigger className="w-full"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="issued">Issued</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-full lg:col-span-1">
+          <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v === "all" ? "" : v); setPage(0); }}>
+            <SelectTrigger className="w-full"><SelectValue placeholder="Type" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="invoice">Invoice</SelectItem>
+              <SelectItem value="credit_note">Credit Note</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-full sm:col-span-2 lg:col-span-2">
+          <Select value={paymentFilter} onValueChange={(v) => { setPaymentFilter(v === "all" ? "" : v); setPage(0); }}>
+            <SelectTrigger className="w-full"><SelectValue placeholder="Payment" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Payments</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="due">Due</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+
 
 
       {isLoading ? (
