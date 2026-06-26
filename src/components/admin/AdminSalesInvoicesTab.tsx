@@ -34,8 +34,10 @@ function InvoiceListSection({ city }: { city: string }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
   const [page, setPage] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
   const [viewId, setViewId] = useState<string | null>(null);
