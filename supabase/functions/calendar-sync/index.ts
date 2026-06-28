@@ -175,6 +175,51 @@ async function deleteEvent(accessToken: string, calendarId: string, eventId: str
   throw new Error(`Calendar delete error [${delRes.status}]: ${data}`);
 }
 
+async function cancelBookingCalendarEvent(
+  adminClient: ReturnType<typeof createAdminClient>,
+  accessToken: string,
+  booking: any,
+): Promise<string | null> {
+  if (!booking?.calendar_event_id) return null;
+
+  const calendarEmail = await resolveCalendarEmail(adminClient, {
+    bay_id: booking.bay_id ?? null,
+    city: booking.city ?? null,
+  });
+  if (!calendarEmail) {
+    return "No calendar configured for this booking's bay/city";
+  }
+
+  try {
+    await deleteEvent(accessToken, calendarEmail, booking.calendar_event_id);
+    await adminClient.from("bookings").update({ calendar_event_id: null }).eq("id", booking.id);
+    return null;
+  } catch (e) {
+    const message = (e as Error).message;
+    console.error(`Failed to cancel calendar event for booking ${booking.id}:`, message);
+    return message;
+  }
+}
+
+async function repairCancelledBookingCalendarEvent(
+  adminClient: ReturnType<typeof createAdminClient>,
+  accessToken: string,
+  bookingId: string,
+): Promise<{ success: true; calendar_warning: string | null; already_cancelled: true }> {
+  const { data: booking } = await adminClient
+    .from("bookings")
+    .select("*")
+    .eq("id", bookingId)
+    .maybeSingle();
+
+  if (!booking) {
+    throw new Error("Booking not found");
+  }
+
+  const calendarWarning = await cancelBookingCalendarEvent(adminClient, accessToken, booking);
+  return { success: true, calendar_warning: calendarWarning, already_cancelled: true };
+}
+
 
 function createAdminClient() {
   return createClient(
