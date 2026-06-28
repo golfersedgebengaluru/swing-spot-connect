@@ -175,6 +175,51 @@ async function deleteEvent(accessToken: string, calendarId: string, eventId: str
   throw new Error(`Calendar delete error [${delRes.status}]: ${data}`);
 }
 
+async function cancelBookingCalendarEvent(
+  adminClient: ReturnType<typeof createAdminClient>,
+  accessToken: string,
+  booking: any,
+): Promise<string | null> {
+  if (!booking?.calendar_event_id) return null;
+
+  const calendarEmail = await resolveCalendarEmail(adminClient, {
+    bay_id: booking.bay_id ?? null,
+    city: booking.city ?? null,
+  });
+  if (!calendarEmail) {
+    return "No calendar configured for this booking's bay/city";
+  }
+
+  try {
+    await deleteEvent(accessToken, calendarEmail, booking.calendar_event_id);
+    await adminClient.from("bookings").update({ calendar_event_id: null }).eq("id", booking.id);
+    return null;
+  } catch (e) {
+    const message = (e as Error).message;
+    console.error(`Failed to cancel calendar event for booking ${booking.id}:`, message);
+    return message;
+  }
+}
+
+async function repairCancelledBookingCalendarEvent(
+  adminClient: ReturnType<typeof createAdminClient>,
+  accessToken: string,
+  bookingId: string,
+): Promise<{ success: true; calendar_warning: string | null; already_cancelled: true }> {
+  const { data: booking } = await adminClient
+    .from("bookings")
+    .select("*")
+    .eq("id", bookingId)
+    .maybeSingle();
+
+  if (!booking) {
+    throw new Error("Booking not found");
+  }
+
+  const calendarWarning = await cancelBookingCalendarEvent(adminClient, accessToken, booking);
+  return { success: true, calendar_warning: calendarWarning, already_cancelled: true };
+}
+
 
 function createAdminClient() {
   return createClient(
@@ -1996,36 +2041,25 @@ Deno.serve(async (req) => {
           );
         }
       }
-      let calendarEmail: string | null = null;
       let bayName = booking.city;
       let coachingHours = 1;
       let coachingCancellationRefundHours: number | null = null;
       if (booking.bay_id) {
-        const { data: bay } = await supabase.from("bays").select("calendar_email, name, coaching_hours, coaching_cancellation_refund_hours").eq("id", booking.bay_id).single();
+        const { data: bay } = await adminClient.from("bays").select("name, coaching_hours, coaching_cancellation_refund_hours").eq("id", booking.bay_id).single();
         if (bay) {
-          calendarEmail = bay.calendar_email || null;
           bayName = bay.name || booking.city;
           coachingHours = bay.coaching_hours || 1;
           coachingCancellationRefundHours = bay.coaching_cancellation_refund_hours ?? null;
         }
       }
-      if (!calendarEmail) {
-        const { data: bayConfig } = await supabase.from("bay_config").select("calendar_email").eq("city", booking.city).single();
-        calendarEmail = bayConfig?.calendar_email || null;
-      }
+
+      const calendarEmail = await resolveCalendarEmail(adminClient, { bay_id: booking.bay_id, city: booking.city });
 
       // Get the calendar's timezone for consistent formatting
       const calTz = calendarEmail ? await getCalendarTimezone(accessToken, calendarEmail) : "UTC";
 
       // Cancel calendar event
-      if (booking.calendar_event_id && calendarEmail) {
-        try {
-          await deleteEvent(accessToken, calendarEmail, booking.calendar_event_id);
-          await adminClient.from("bookings").update({ calendar_event_id: null }).eq("id", booking_id);
-        } catch (e) {
-          console.error("Failed to cancel calendar event:", (e as Error).message);
-        }
-      }
+      const calendarCancelError = await cancelBookingCalendarEvent(adminClient, accessToken, booking);
 
       // Atomically mark booking cancelled + claw back loyalty points in one DB transaction
       const { data: cancelResult, error: cancelErr } = await adminClient
@@ -2044,8 +2078,9 @@ Deno.serve(async (req) => {
         );
       }
       if ((cancelResult as any)?.already_cancelled) {
-        return new Response(JSON.stringify({ error: "Booking already cancelled" }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        const repairResult = await repairCancelledBookingCalendarEvent(adminClient, accessToken, booking_id);
+        return new Response(JSON.stringify(repairResult), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
@@ -2175,7 +2210,7 @@ Deno.serve(async (req) => {
         console.error("Failed to send cancellation email:", (e as Error).message);
       }
 
-      return new Response(JSON.stringify({ success: true }), {
+      return new Response(JSON.stringify({ success: true, calendar_warning: calendarCancelError }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -2213,38 +2248,31 @@ Deno.serve(async (req) => {
         });
       }
 
-      let calendarEmail: string | null = null;
+      if (booking.status === "cancelled") {
+        const repairResult = await repairCancelledBookingCalendarEvent(adminClient, accessToken, booking_id);
+        return new Response(JSON.stringify(repairResult), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       let bayName = booking.city;
       let coachingHours = 1;
       let coachingCancellationRefundHours: number | null = null;
       if (booking.bay_id) {
-        const { data: bay } = await adminClient.from("bays").select("calendar_email, name, coaching_hours, coaching_cancellation_refund_hours").eq("id", booking.bay_id).single();
+        const { data: bay } = await adminClient.from("bays").select("name, coaching_hours, coaching_cancellation_refund_hours").eq("id", booking.bay_id).single();
         if (bay) {
-          calendarEmail = bay.calendar_email || null;
           bayName = bay.name || booking.city;
           coachingHours = bay.coaching_hours || 1;
           coachingCancellationRefundHours = bay.coaching_cancellation_refund_hours ?? null;
         }
       }
-      if (!calendarEmail) {
-        const { data: bayConfig } = await adminClient.from("bay_config").select("calendar_email").eq("city", booking.city).single();
-        calendarEmail = bayConfig?.calendar_email || null;
-      }
+
+      const calendarEmail = await resolveCalendarEmail(adminClient, { bay_id: booking.bay_id, city: booking.city });
 
       const calTz = calendarEmail ? await getCalendarTimezone(accessToken, calendarEmail) : "UTC";
 
-      // Cancel calendar event (PATCH status=cancelled). Surface failures so admin sees them.
-      let calendarCancelError: string | null = null;
-      if (booking.calendar_event_id && calendarEmail) {
-        try {
-          await deleteEvent(accessToken, calendarEmail, booking.calendar_event_id);
-          // Null out the event id so we don't try to cancel it again and so audits are clean.
-          await adminClient.from("bookings").update({ calendar_event_id: null }).eq("id", booking_id);
-        } catch (e) {
-          calendarCancelError = (e as Error).message;
-          console.error("Failed to cancel calendar event:", calendarCancelError);
-        }
-      }
+      // Cancel calendar event. Keep any warning in the response instead of failing silently.
+      const calendarCancelError = await cancelBookingCalendarEvent(adminClient, accessToken, booking);
 
       // Update booking status
       await adminClient.from("bookings").update({ status: "cancelled", note: booking.note ? `${booking.note} | Admin cancelled` : "Admin cancelled" }).eq("id", booking_id);
@@ -2440,7 +2468,9 @@ Deno.serve(async (req) => {
       // calendar event is removed, hours are refunded, points clawed back,
       // and notifications/emails are sent — exactly as today.
       let bookingResult: any = null;
-      if (booking && booking.status !== "cancelled") {
+      if (booking?.status === "cancelled") {
+        bookingResult = await repairCancelledBookingCalendarEvent(adminClient, accessToken, booking.id);
+      } else if (booking) {
         const innerAction = isAdminOrSite ? "admin_cancel_booking" : "cancel_booking";
         const innerRes = await fetch(req.url, {
           method: "POST",
