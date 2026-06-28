@@ -2248,38 +2248,24 @@ Deno.serve(async (req) => {
         });
       }
 
-      let calendarEmail: string | null = null;
       let bayName = booking.city;
       let coachingHours = 1;
       let coachingCancellationRefundHours: number | null = null;
       if (booking.bay_id) {
-        const { data: bay } = await adminClient.from("bays").select("calendar_email, name, coaching_hours, coaching_cancellation_refund_hours").eq("id", booking.bay_id).single();
+        const { data: bay } = await adminClient.from("bays").select("name, coaching_hours, coaching_cancellation_refund_hours").eq("id", booking.bay_id).single();
         if (bay) {
-          calendarEmail = bay.calendar_email || null;
           bayName = bay.name || booking.city;
           coachingHours = bay.coaching_hours || 1;
           coachingCancellationRefundHours = bay.coaching_cancellation_refund_hours ?? null;
         }
       }
-      if (!calendarEmail) {
-        const { data: bayConfig } = await adminClient.from("bay_config").select("calendar_email").eq("city", booking.city).single();
-        calendarEmail = bayConfig?.calendar_email || null;
-      }
+
+      const calendarEmail = await resolveCalendarEmail(adminClient, { bay_id: booking.bay_id, city: booking.city });
 
       const calTz = calendarEmail ? await getCalendarTimezone(accessToken, calendarEmail) : "UTC";
 
-      // Cancel calendar event (PATCH status=cancelled). Surface failures so admin sees them.
-      let calendarCancelError: string | null = null;
-      if (booking.calendar_event_id && calendarEmail) {
-        try {
-          await deleteEvent(accessToken, calendarEmail, booking.calendar_event_id);
-          // Null out the event id so we don't try to cancel it again and so audits are clean.
-          await adminClient.from("bookings").update({ calendar_event_id: null }).eq("id", booking_id);
-        } catch (e) {
-          calendarCancelError = (e as Error).message;
-          console.error("Failed to cancel calendar event:", calendarCancelError);
-        }
-      }
+      // Cancel calendar event. Keep any warning in the response instead of failing silently.
+      const calendarCancelError = await cancelBookingCalendarEvent(adminClient, accessToken, booking);
 
       // Update booking status
       await adminClient.from("bookings").update({ status: "cancelled", note: booking.note ? `${booking.note} | Admin cancelled` : "Admin cancelled" }).eq("id", booking_id);
