@@ -2240,6 +2240,13 @@ Deno.serve(async (req) => {
         });
       }
 
+      if (booking.status === "cancelled") {
+        const repairResult = await repairCancelledBookingCalendarEvent(adminClient, accessToken, booking_id);
+        return new Response(JSON.stringify(repairResult), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       // For site_admins, verify city access
       const { data: hasCityAccess } = await supabase.rpc("has_city_access", { _user_id: userId, _city: booking.city });
       if (!hasCityAccess) {
@@ -2461,7 +2468,9 @@ Deno.serve(async (req) => {
       // calendar event is removed, hours are refunded, points clawed back,
       // and notifications/emails are sent — exactly as today.
       let bookingResult: any = null;
-      if (booking && booking.status !== "cancelled") {
+      if (booking?.status === "cancelled") {
+        bookingResult = await repairCancelledBookingCalendarEvent(adminClient, accessToken, booking.id);
+      } else if (booking) {
         const innerAction = isAdminOrSite ? "admin_cancel_booking" : "cancel_booking";
         const innerRes = await fetch(req.url, {
           method: "POST",
