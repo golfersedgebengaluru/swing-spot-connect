@@ -2240,18 +2240,18 @@ Deno.serve(async (req) => {
         });
       }
 
-      if (booking.status === "cancelled") {
-        const repairResult = await repairCancelledBookingCalendarEvent(adminClient, accessToken, booking_id);
-        return new Response(JSON.stringify(repairResult), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
       // For site_admins, verify city access
       const { data: hasCityAccess } = await supabase.rpc("has_city_access", { _user_id: userId, _city: booking.city });
       if (!hasCityAccess) {
         return new Response(JSON.stringify({ error: "You do not have access to this city" }), {
           status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (booking.status === "cancelled") {
+        const repairResult = await repairCancelledBookingCalendarEvent(adminClient, accessToken, booking_id);
+        return new Response(JSON.stringify(repairResult), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
