@@ -173,9 +173,11 @@ export function RevealedRoundScores({
                     <TableCell className="text-center text-xs text-primary">
                       {hiddenHoles.length > 0 && roundPar > 0 ? teamNet : "—"}
                     </TableCell>
-                    <TableCell className="text-center text-xs text-emerald-600">
-                      {formatPoints(teamPoints)}
-                    </TableCell>
+                    {showPoints && (
+                      <TableCell className="text-center text-xs text-emerald-600">
+                        {formatPoints(teamPoints)}
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })()}
