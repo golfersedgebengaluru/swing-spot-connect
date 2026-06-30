@@ -124,7 +124,7 @@ export function RevealedRoundScores({
                         }`}
                       >
                         <div>{v ?? "—"}</div>
-                        {p > 0 && v ? (
+                        {showPoints && p > 0 && v ? (
                           <div className="text-[9px] text-muted-foreground font-normal leading-none mt-0.5">
                             {formatPoints(holePts)}
                           </div>
