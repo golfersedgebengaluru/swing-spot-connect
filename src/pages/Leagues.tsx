@@ -569,6 +569,7 @@ function MyScores({ leagueId, league }: { leagueId: string; league: League }) {
               hiddenHoles={hidden}
               playerIds={playerIds}
               showTeamTotal={teamMemberIds.length > 0}
+              showPoints={league.stableford_enabled !== false}
             />
           </div>
         );
