@@ -20,6 +20,7 @@ export function RevealedRoundScores({
   hiddenHoles,
   playerIds,
   showTeamTotal = false,
+  showPoints = true,
 }: {
   leagueId: string;
   roundNumber: number;
@@ -27,6 +28,7 @@ export function RevealedRoundScores({
   hiddenHoles: number[];
   playerIds?: string[];
   showTeamTotal?: boolean;
+  showPoints?: boolean;
 }) {
   const { data: allScores, isLoading } = useLeagueScores(leagueId, roundNumber);
   const scores = playerIds
@@ -89,7 +91,7 @@ export function RevealedRoundScores({
                 <TableHead className="text-center text-xs">Hidden Σ</TableHead>
                 <TableHead className="text-center text-xs">Peoria HC</TableHead>
                 <TableHead className="text-center text-xs">Net</TableHead>
-                <TableHead className="text-center text-xs">Pts</TableHead>
+                {showPoints && <TableHead className="text-center text-xs">Pts</TableHead>}
               </TableRow>
               {parPerHole.length > 0 && (
                 <TableRow>
@@ -100,7 +102,7 @@ export function RevealedRoundScores({
                     </TableHead>
                   ))}
                   <TableHead className="text-center text-[10px] text-muted-foreground font-normal">{roundPar}</TableHead>
-                  <TableHead colSpan={4} />
+                  <TableHead colSpan={showPoints ? 4 : 3} />
                 </TableRow>
               )}
             </TableHeader>
@@ -122,7 +124,7 @@ export function RevealedRoundScores({
                         }`}
                       >
                         <div>{v ?? "—"}</div>
-                        {p > 0 && v ? (
+                        {showPoints && p > 0 && v ? (
                           <div className="text-[9px] text-muted-foreground font-normal leading-none mt-0.5">
                             {formatPoints(holePts)}
                           </div>
@@ -138,9 +140,11 @@ export function RevealedRoundScores({
                   <TableCell className="text-center text-xs font-bold text-primary">
                     {hiddenHoles.length > 0 && roundPar > 0 ? r.net : "—"}
                   </TableCell>
-                  <TableCell className="text-center text-xs font-bold text-emerald-600">
-                    {formatPoints(r.points)}
-                  </TableCell>
+                  {showPoints && (
+                    <TableCell className="text-center text-xs font-bold text-emerald-600">
+                      {formatPoints(r.points)}
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
               {showTeamTotal && rows.length > 1 && (() => {
@@ -169,9 +173,11 @@ export function RevealedRoundScores({
                     <TableCell className="text-center text-xs text-primary">
                       {hiddenHoles.length > 0 && roundPar > 0 ? teamNet : "—"}
                     </TableCell>
-                    <TableCell className="text-center text-xs text-emerald-600">
-                      {formatPoints(teamPoints)}
-                    </TableCell>
+                    {showPoints && (
+                      <TableCell className="text-center text-xs text-emerald-600">
+                        {formatPoints(teamPoints)}
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })()}

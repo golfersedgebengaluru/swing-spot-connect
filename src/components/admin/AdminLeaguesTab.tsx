@@ -1424,6 +1424,7 @@ function RoundsPanel({ league }: { league: League }) {
                         roundNumber={r.round_number}
                         parPerHole={r.par_per_hole || []}
                         hiddenHoles={adminHH.hidden_holes || []}
+                        showPoints={league.stableford_enabled !== false}
                       />
                     )}
                     <CompetitionEditor leagueId={league.id} round={r} />

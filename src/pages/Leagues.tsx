@@ -493,7 +493,7 @@ function LeagueCard({ league }: { league: League }) {
               <Leaderboard leagueId={league.id} league={league} />
             </TabsContent>
             <TabsContent value="my-scores">
-              <MyScores leagueId={league.id} />
+              <MyScores leagueId={league.id} league={league} />
             </TabsContent>
           </Tabs>
           {league.status === "active" && <ScoreEntryDialog leagueId={league.id} />}
@@ -504,7 +504,7 @@ function LeagueCard({ league }: { league: League }) {
 }
 
 // ── My Scores ────────────────────────────────────────────────
-function MyScores({ leagueId }: { leagueId: string }) {
+function MyScores({ leagueId, league }: { leagueId: string; league: League }) {
   const { user } = useAuth();
   const { data: allScores, isLoading } = useLeagueScores(leagueId);
   const { data: rounds } = useLeagueRounds(leagueId);
@@ -569,6 +569,7 @@ function MyScores({ leagueId }: { leagueId: string }) {
               hiddenHoles={hidden}
               playerIds={playerIds}
               showTeamTotal={teamMemberIds.length > 0}
+              showPoints={league.stableford_enabled !== false}
             />
           </div>
         );
