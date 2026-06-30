@@ -504,7 +504,7 @@ function LeagueCard({ league }: { league: League }) {
 }
 
 // ── My Scores ────────────────────────────────────────────────
-function MyScores({ leagueId }: { leagueId: string }) {
+function MyScores({ leagueId, league }: { leagueId: string; league: League }) {
   const { user } = useAuth();
   const { data: allScores, isLoading } = useLeagueScores(leagueId);
   const { data: rounds } = useLeagueRounds(leagueId);
