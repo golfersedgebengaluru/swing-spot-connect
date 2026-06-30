@@ -102,7 +102,7 @@ export function RevealedRoundScores({
                     </TableHead>
                   ))}
                   <TableHead className="text-center text-[10px] text-muted-foreground font-normal">{roundPar}</TableHead>
-                  <TableHead colSpan={4} />
+                  <TableHead colSpan={showPoints ? 4 : 3} />
                 </TableRow>
               )}
             </TableHeader>
