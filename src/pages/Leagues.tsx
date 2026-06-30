@@ -493,7 +493,7 @@ function LeagueCard({ league }: { league: League }) {
               <Leaderboard leagueId={league.id} league={league} />
             </TabsContent>
             <TabsContent value="my-scores">
-              <MyScores leagueId={league.id} />
+              <MyScores leagueId={league.id} league={league} />
             </TabsContent>
           </Tabs>
           {league.status === "active" && <ScoreEntryDialog leagueId={league.id} />}
