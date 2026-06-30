@@ -140,9 +140,11 @@ export function RevealedRoundScores({
                   <TableCell className="text-center text-xs font-bold text-primary">
                     {hiddenHoles.length > 0 && roundPar > 0 ? r.net : "—"}
                   </TableCell>
-                  <TableCell className="text-center text-xs font-bold text-emerald-600">
-                    {formatPoints(r.points)}
-                  </TableCell>
+                  {showPoints && (
+                    <TableCell className="text-center text-xs font-bold text-emerald-600">
+                      {formatPoints(r.points)}
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
               {showTeamTotal && rows.length > 1 && (() => {
