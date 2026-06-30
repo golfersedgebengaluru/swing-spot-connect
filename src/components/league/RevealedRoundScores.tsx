@@ -91,7 +91,7 @@ export function RevealedRoundScores({
                 <TableHead className="text-center text-xs">Hidden Σ</TableHead>
                 <TableHead className="text-center text-xs">Peoria HC</TableHead>
                 <TableHead className="text-center text-xs">Net</TableHead>
-                <TableHead className="text-center text-xs">Pts</TableHead>
+                {showPoints && <TableHead className="text-center text-xs">Pts</TableHead>}
               </TableRow>
               {parPerHole.length > 0 && (
                 <TableRow>
