@@ -426,7 +426,7 @@ export function AdminBookingLogsTab() {
                         />
                       </div>
                     )}
-                    {(b.status === "confirmed" || b.status === "pending") && new Date(b.end_time) >= new Date() && (
+                    {(b.status === "confirmed" || b.status === "pending") && (
                       <Badge
                         onClick={() => setCancelTarget(b)}
                         className="cursor-pointer mt-1 bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20 text-[10px] px-1.5 py-0"
