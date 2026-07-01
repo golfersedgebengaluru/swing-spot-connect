@@ -21,7 +21,8 @@ function LeagueCard({ league }: { league: LandingLeague }) {
           {league.allowed_team_sizes.length > 0
             ? `Team sizes: ${league.allowed_team_sizes.join(", ")} · `
             : ""}
-          {league.currency} {league.price_per_person}/person
+          {league.currency} {league.price_per_person}
+          {league.gst_mode === "exclusive" ? " + GST" : ""}/person
         </div>
         {hasTeam ? (
           <div className="space-y-2">

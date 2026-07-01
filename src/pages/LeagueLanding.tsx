@@ -47,7 +47,10 @@ export default function LeagueLanding() {
                 {league.allowed_team_sizes.length > 0 && (
                   <div>Team sizes: {league.allowed_team_sizes.join(", ")}</div>
                 )}
-                <div>{league.currency} {league.price_per_person} / person</div>
+                <div>
+                  {league.currency} {league.price_per_person}
+                  {league.gst_mode === "exclusive" ? " + GST" : ""} / person
+                </div>
               </div>
 
               {my?.team ? (
