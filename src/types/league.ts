@@ -32,6 +32,7 @@ export interface League {
   team_aggregation_method: 'best_ball' | 'average';
   peoria_multiplier: number;
   stableford_enabled: boolean;
+  landing_note: string | null;
   allowed_team_sizes: number[];
   show_on_landing: boolean;
   price_per_person: number;
@@ -201,6 +202,7 @@ export interface CreateLeagueRequest {
   score_entry_method?: ScoreEntryMethod;
   allowed_team_sizes?: number[];
   show_on_landing?: boolean;
+  landing_note?: string | null;
   price_per_person?: number;
   currency?: string;
   payment_city?: string | null;
@@ -224,6 +226,7 @@ export interface UpdateLeagueRequest {
   stableford_enabled?: boolean;
   allowed_team_sizes?: number[];
   show_on_landing?: boolean;
+  landing_note?: string | null;
   price_per_person?: number;
   currency?: string;
   payment_city?: string | null;

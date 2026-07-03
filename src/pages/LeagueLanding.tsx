@@ -51,6 +51,9 @@ export default function LeagueLanding() {
                   {league.currency} {league.price_per_person}
                   {league.gst_mode === "exclusive" ? " + GST" : ""} / person
                 </div>
+                {league.landing_note && (
+                  <p className="text-sm text-foreground pt-1 whitespace-pre-line">{league.landing_note}</p>
+                )}
               </div>
 
               {my?.team ? (

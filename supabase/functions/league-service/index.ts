@@ -933,6 +933,7 @@ Deno.serve(async (req) => {
           score_entry_method: body.score_entry_method || 'not_set',
           allowed_team_sizes: Array.isArray(body.allowed_team_sizes) ? body.allowed_team_sizes : [],
           show_on_landing: body.show_on_landing === true,
+          landing_note: typeof body.landing_note === 'string' && body.landing_note.trim() ? body.landing_note.trim() : null,
           price_per_person: typeof body.price_per_person === 'number' ? body.price_per_person : 0,
           currency: body.currency || 'INR',
           payment_city: typeof body.payment_city === 'string' && body.payment_city.trim() ? body.payment_city.trim() : null,
@@ -1010,7 +1011,7 @@ Deno.serve(async (req) => {
         }
 
         const updates: Record<string, any> = {}
-        const allowed = ['name', 'format', 'season_start', 'season_end', 'venue_id', 'status', 'score_entry_method', 'scoring_holes', 'fairness_factor_pct', 'team_aggregation_method', 'peoria_multiplier', 'stableford_enabled', 'allowed_team_sizes', 'show_on_landing', 'price_per_person', 'currency', 'payment_city', 'gst_mode', 'gst_rate', 'sac_code']
+        const allowed = ['name', 'format', 'season_start', 'season_end', 'venue_id', 'status', 'score_entry_method', 'scoring_holes', 'fairness_factor_pct', 'team_aggregation_method', 'peoria_multiplier', 'stableford_enabled', 'allowed_team_sizes', 'show_on_landing', 'landing_note', 'price_per_person', 'currency', 'payment_city', 'gst_mode', 'gst_rate', 'sac_code']
         for (const key of allowed) {
           if (body[key] !== undefined) updates[key] = body[key]
         }
