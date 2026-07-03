@@ -887,8 +887,6 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-            </div>
-          </div>
         </>
       )}
     </div>
