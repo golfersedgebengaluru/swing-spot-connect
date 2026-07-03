@@ -200,10 +200,19 @@ export async function finalizeLegacyTeamRegistration(input: LegacyTeamFinalizeIn
         ? admin.from("league_locations").select("name").eq("id", input.locationId).maybeSingle()
         : Promise.resolve({ data: null }),
       admin.from("legacy_league_team_registrations")
-        .select("total_amount, currency, gst_mode, razorpay_payment_id")
+        .select("total_amount, currency, gst_mode, razorpay_payment_id, league_city_id")
         .eq("id", input.registrationId).maybeSingle(),
       admin.from("user_roles").select("user_id").eq("role", "admin"),
     ]);
+
+    // City name (for site-admin routing) — from league_cities via reg row
+    let cityName: string | null = null;
+    const leagueCityId = (regRow as any)?.league_city_id ?? null;
+    if (leagueCityId) {
+      const { data: cityRow } = await admin
+        .from("league_cities").select("name").eq("id", leagueCityId).maybeSingle();
+      cityName = (cityRow as any)?.name ?? null;
+    }
 
     const origin = (input.origin || "https://golfersedge.golf-collective.com").replace(/(https?:\/\/[^/]+).*/, "$1");
     const joinUrl = input.joinToken ? `${origin.replace(/\/$/, "")}/league-team-join/${input.joinToken}` : "";
