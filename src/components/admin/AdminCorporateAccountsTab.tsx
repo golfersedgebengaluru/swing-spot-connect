@@ -565,7 +565,14 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
     () => (items ?? []).filter((i) => i.billing_status === "invoiced"),
     [items]
   );
-  const sessionCount = billableItems.length;
+  const isRegenerate = invoicedItems.length > 0;
+  // On regenerate: previously-invoiced (non-cancelled) sessions are reset and rolled
+  // into the new invoice, together with any new deferred sessions in the range.
+  const targetItems = useMemo(
+    () => (items ?? []).filter((i) => !i.cancelled && (i.billing_status === "deferred" || i.billing_status === "invoiced")),
+    [items]
+  );
+  const sessionCount = targetItems.length;
 
   // City is whichever city the admin has selected — invoice is issued by that franchisee.
   const city = selectedCity || null;
@@ -576,8 +583,8 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
   }, [billingProduct, sessionCount]);
 
   const generate = async () => {
-    if (billableItems.length === 0) {
-      toast({ title: "Nothing to invoice", description: "No pending (deferred) sessions in this range." });
+    if (targetItems.length === 0) {
+      toast({ title: "Nothing to invoice", description: "No billable sessions in this range." });
       return;
     }
     if (!billingProduct) {
