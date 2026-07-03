@@ -350,7 +350,7 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
       <div style="padding:32px 24px">
         <p style="color:#1a2332;font-size:16px;margin:0 0 16px">Hi there,</p>
         <p style="color:#1a2332;font-size:16px;margin:0 0 24px">
-          ${d.captain_name || "Your captain"} has added you to team <strong>${d.team_name}</strong> in the <strong>${d.league_name}</strong> league${d.location ? ` at ${d.location}` : ""}.
+          ${d._custom_body || `${d.captain_name || "Your captain"} has added you to team <strong>${d.team_name}</strong> in the <strong>${d.league_name}</strong> league${d.location ? ` at ${d.location}` : ""}.`}
         </p>
         <div style="background:#f0f3f7;border-radius:8px;padding:20px;margin:0 0 24px">
           <table style="width:100%;border-collapse:collapse">
