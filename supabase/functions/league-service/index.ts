@@ -93,6 +93,35 @@ async function sendTeamCreationEmails(opts: {
       },
     }))
   }
+  // Admin notifications (free path — no payment)
+  try {
+    const adminSupabase = (await import('https://esm.sh/@supabase/supabase-js@2')).createClient(opts.supabaseUrl, opts.serviceKey)
+    const { data: roleRows } = await adminSupabase.from('user_roles').select('user_id').eq('role', 'admin')
+    const adminIds = ((roleRows || []) as Array<{ user_id: string }>).map((r) => r.user_id)
+    if (adminIds.length > 0) {
+      const { data: adminProfiles } = await adminSupabase.from('profiles').select('email').in('user_id', adminIds)
+      const adminEmails = Array.from(new Set(((adminProfiles || []) as Array<{ email: string | null }>).map((p) => p.email).filter((e): e is string => !!e)))
+      for (const adminEmail of adminEmails) {
+        tasks.push(post({
+          user_id: null,
+          recipient_email: adminEmail,
+          template: 'admin_league_registration',
+          subject: `New registration: "${opts.teamName}" — ${opts.leagueName}`,
+          data: {
+            league_name: opts.leagueName,
+            team_name: opts.teamName,
+            captain_name: opts.captainName,
+            captain_email: opts.captainEmail,
+            location: opts.locationName,
+            team_size: opts.teamSize,
+            invites_sent: opts.inviteEmails.length,
+          },
+        }))
+      }
+    }
+  } catch (e) {
+    console.error('[league email] admin notify (free) failed:', e)
+  }
   await Promise.allSettled(tasks)
 }
 

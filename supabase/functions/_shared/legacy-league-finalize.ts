@@ -193,13 +193,18 @@ export async function finalizeLegacyTeamRegistration(input: LegacyTeamFinalizeIn
 
   // 4) Emails — best-effort, never throw
   try {
-    const [{ data: captainProfile }, { data: lg }, { data: loc }] = await Promise.all([
+    const [{ data: captainProfile }, { data: lg }, { data: loc }, { data: regRow }, { data: adminRoles }] = await Promise.all([
       admin.from("profiles").select("email, display_name").eq("user_id", input.captainUserId).maybeSingle(),
       admin.from("leagues").select("name").eq("id", input.leagueId).maybeSingle(),
       input.locationId
         ? admin.from("league_locations").select("name").eq("id", input.locationId).maybeSingle()
         : Promise.resolve({ data: null }),
+      admin.from("legacy_league_team_registrations")
+        .select("total_amount, currency, gst_mode, razorpay_payment_id")
+        .eq("id", input.registrationId).maybeSingle(),
+      admin.from("user_roles").select("user_id").eq("role", "admin"),
     ]);
+
     const origin = (input.origin || "https://golfersedge.golf-collective.com").replace(/(https?:\/\/[^/]+).*/, "$1");
     const joinUrl = input.joinToken ? `${origin.replace(/\/$/, "")}/league-team-join/${input.joinToken}` : "";
     const headers = {
@@ -223,6 +228,10 @@ export async function finalizeLegacyTeamRegistration(input: LegacyTeamFinalizeIn
     const captainName = (captainProfile as any)?.display_name ?? null;
     const leagueName = (lg as any)?.name ?? "League";
     const locationName = (loc as any)?.name ?? null;
+    const amountPaid = (regRow as any)?.total_amount ?? null;
+    const currency = (regRow as any)?.currency ?? "INR";
+    const gstMode = (regRow as any)?.gst_mode ?? null;
+    const paymentRef = (regRow as any)?.razorpay_payment_id ?? null;
 
     if (captainEmail) {
       tasks.push(
@@ -237,11 +246,16 @@ export async function finalizeLegacyTeamRegistration(input: LegacyTeamFinalizeIn
             team_size: input.teamSize,
             invites_sent: input.inviteEmails.length,
             join_url: joinUrl,
+            amount_paid: amountPaid,
+            currency,
+            gst_mode: gstMode,
+            payment_ref: paymentRef,
           },
         }),
       );
     }
-    // Per-invite token URLs — bulletproof: each invitee gets a unique, email-bound link
+
+    // Per-invite token URLs
     const { data: inviteRows } = await admin
       .from("legacy_league_team_invites")
       .select("email, invite_token")
@@ -271,6 +285,46 @@ export async function finalizeLegacyTeamRegistration(input: LegacyTeamFinalizeIn
         }),
       );
     }
+
+    // Admin notifications — one email per admin
+    const adminUserIds = ((adminRoles || []) as Array<{ user_id: string }>).map((r) => r.user_id);
+    if (adminUserIds.length > 0) {
+      const { data: adminProfiles } = await admin
+        .from("profiles")
+        .select("email")
+        .in("user_id", adminUserIds);
+      const adminEmails = Array.from(
+        new Set(
+          ((adminProfiles || []) as Array<{ email: string | null }>)
+            .map((p) => p.email)
+            .filter((e): e is string => !!e),
+        ),
+      );
+      for (const adminEmail of adminEmails) {
+        tasks.push(
+          post({
+            user_id: null,
+            recipient_email: adminEmail,
+            template: "admin_league_registration",
+            subject: `New registration: "${input.teamName}" — ${leagueName}`,
+            data: {
+              league_name: leagueName,
+              team_name: input.teamName,
+              captain_name: captainName,
+              captain_email: captainEmail,
+              location: locationName,
+              team_size: input.teamSize,
+              invites_sent: input.inviteEmails.length,
+              amount_paid: amountPaid,
+              currency,
+              gst_mode: gstMode,
+              payment_ref: paymentRef,
+            },
+          }),
+        );
+      }
+    }
+
     await Promise.allSettled(tasks);
   } catch (e) {
     console.error("[legacy-finalize] email block failed:", (e as Error).message);

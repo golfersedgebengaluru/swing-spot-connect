@@ -58,6 +58,24 @@ const TEMPLATE_CONFIGS: TemplateConfig[] = [
     description: "Body text for the low hours alert email. Use {{hours_remaining}} for the remaining hours.",
     placeholders: "{{hours_remaining}}",
   },
+  {
+    key: "email_tpl_league_team_created_body",
+    label: "League — Team Registered (Captain) Body",
+    description: "Intro paragraph in the captain confirmation email sent after a team registers for a league.",
+    placeholders: "No placeholders needed.",
+  },
+  {
+    key: "email_tpl_league_team_invite_body",
+    label: "League — Team Invite (Invitee) Body",
+    description: "Intro paragraph in the email sent to each teammate invited to join a league team.",
+    placeholders: "No placeholders needed.",
+  },
+  {
+    key: "email_tpl_admin_league_registration_body",
+    label: "League — New Registration (Admin Alert) Body",
+    description: "Body of the notification email sent to site admins when a new team registers for a league.",
+    placeholders: "No placeholders needed.",
+  },
 ];
 
 export function EmailTemplatesEditor() {
