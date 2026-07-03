@@ -527,6 +527,7 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
   const [endDate, setEndDate] = useState(format(defaultEnd, "yyyy-MM-dd"));
   const [generating, setGenerating] = useState(false);
   const [billingProductId, setBillingProductId] = useState<string>("");
+  const [confirmRegen, setConfirmRegen] = useState(false);
 
   const { data: items, isLoading } = useDeferredItemsForCorporate(
     account.id,
@@ -536,6 +537,7 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
   );
   const { data: corporateProducts } = useCorporateProducts(account.id);
   const createInvoice = useCreateInvoice();
+  const deleteInvoice = useDeleteInvoice();
 
   // Auto-pick the billing product if there's only one
   useMemo(() => {
