@@ -602,6 +602,31 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
 
     setGenerating(true);
     try {
+      // Re-generate: void existing invoice(s) for this range and unlink their items
+      // first, so the fresh invoice reflects the current session count.
+      if (isRegenerate) {
+        const oldInvoiceIds = Array.from(
+          new Set(invoicedItems.map((i) => i.invoice_id).filter(Boolean) as string[])
+        );
+        const oldBookingIds = invoicedItems.filter((i) => i.kind === "booking").map((i) => i.id);
+        const oldCoachingIds = invoicedItems.filter((i) => i.kind === "coaching").map((i) => i.id);
+        if (oldBookingIds.length) {
+          await supabase.from("bookings")
+            .update({ billing_status: "deferred", invoice_id: null })
+            .in("id", oldBookingIds);
+        }
+        if (oldCoachingIds.length) {
+          await supabase.from("coaching_sessions")
+            .update({ billing_status: "deferred", invoice_id: null })
+            .in("id", oldCoachingIds);
+        }
+        for (const invId of oldInvoiceIds) {
+          try { await deleteInvoice.mutateAsync(invId); } catch (err) {
+            console.warn("Failed to delete old invoice", invId, err);
+          }
+        }
+      }
+
       // ONE consolidated line item: quantity = number of sessions
       const monthLabel = format(new Date(startDate), "MMM yyyy");
       const lineItem = {
@@ -659,9 +684,9 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
         notes: `Consolidated invoice for ${sessionCount} session(s) booked in ${city} from ${startDate} to ${endDate}.`,
       });
 
-      // Mark items as invoiced
-      const bookingIds = billableItems.filter((i) => i.kind === "booking").map((i) => i.id);
-      const coachingIds = billableItems.filter((i) => i.kind === "coaching").map((i) => i.id);
+      // Mark all target items as invoiced against the new invoice
+      const bookingIds = targetItems.filter((i) => i.kind === "booking").map((i) => i.id);
+      const coachingIds = targetItems.filter((i) => i.kind === "coaching").map((i) => i.id);
       if (bookingIds.length) {
         await supabase.from("bookings")
           .update({ billing_status: "invoiced", invoice_id: invoice.id })
@@ -674,7 +699,7 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
       }
 
       toast({
-        title: "Invoice generated",
+        title: isRegenerate ? "Invoice re-generated" : "Invoice generated",
         description: `${invoice.invoice_number} for ₹${calc.total.toLocaleString()} (${sessionCount} sessions).`,
       });
       qc.invalidateQueries({ queryKey: ["deferred_items_corporate"] });
