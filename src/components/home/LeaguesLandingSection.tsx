@@ -24,6 +24,9 @@ function LeagueCard({ league }: { league: LandingLeague }) {
           {league.currency} {league.price_per_person}
           {league.gst_mode === "exclusive" ? " + GST" : ""}/person
         </div>
+        {league.landing_note && (
+          <p className="text-sm text-foreground whitespace-pre-line">{league.landing_note}</p>
+        )}
         {hasTeam ? (
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm">

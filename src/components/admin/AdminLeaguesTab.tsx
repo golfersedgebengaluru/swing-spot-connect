@@ -508,6 +508,7 @@ function LeagueDialog({
   const [gstMode, setGstMode] = useState<'none' | 'inclusive' | 'exclusive'>((league?.gst_mode as any) ?? 'none');
   const [gstRate, setGstRate] = useState<string>(league?.gst_rate != null ? String(league.gst_rate) : "");
   const [sacCode, setSacCode] = useState<string>(league?.sac_code ?? "9996");
+  const [landingNote, setLandingNote] = useState<string>(league?.landing_note ?? "");
   const [draftCities, setDraftCities] = useState<DraftCity[]>([]);
   const [originalCities, setOriginalCities] = useState<DraftCity[]>([]);
   const [persisting, setPersisting] = useState(false);
@@ -560,6 +561,7 @@ function LeagueDialog({
       setGstMode("none");
       setGstRate("");
       setSacCode("9996");
+      setLandingNote("");
       setDraftCities([]);
       setOriginalCities([]);
     }
@@ -589,6 +591,7 @@ function LeagueDialog({
       gst_mode: gstMode,
       gst_rate: gstRate === "" ? 0 : Number(gstRate) || 0,
       sac_code: sacCode.trim() || "9996",
+      landing_note: landingNote.trim() || null,
     };
     setPersisting(true);
     try {
@@ -712,6 +715,17 @@ function LeagueDialog({
               <p className="text-xs text-muted-foreground">Active leagues only — captains see a Join card.</p>
             </div>
             <Switch checked={showOnLanding} onCheckedChange={setShowOnLanding} />
+          </div>
+          <div>
+            <Label htmlFor="landing-note">Landing page note</Label>
+            <Textarea
+              id="landing-note"
+              value={landingNote}
+              onChange={(e) => setLandingNote(e.target.value)}
+              placeholder="Optional text shown below the price and above the Create Team button"
+              rows={3}
+            />
+            <p className="text-xs text-muted-foreground mt-1">Markdown is not supported. Plain text only.</p>
           </div>
           <CitiesLocationsEditor cities={draftCities} setCities={setDraftCities} />
           <Button onClick={handleSubmit} disabled={pending || !name.trim()} className="w-full">
@@ -881,6 +895,7 @@ function LeagueDialogControlled({
   const [gstMode, setGstMode] = useState<'none' | 'inclusive' | 'exclusive'>((league.gst_mode as any) ?? 'none');
   const [gstRate, setGstRate] = useState<string>(league.gst_rate != null ? String(league.gst_rate) : "");
   const [sacCode, setSacCode] = useState<string>(league.sac_code ?? "9996");
+  const [landingNote, setLandingNote] = useState<string>(league.landing_note ?? "");
   const [draftCities, setDraftCities] = useState<DraftCity[]>([]);
   const [originalCities, setOriginalCities] = useState<DraftCity[]>([]);
   const [persisting, setPersisting] = useState(false);
@@ -934,6 +949,7 @@ function LeagueDialogControlled({
         gst_mode: gstMode,
         gst_rate: gstRate === "" ? 0 : Number(gstRate) || 0,
         sac_code: sacCode.trim() || "9996",
+        landing_note: landingNote.trim() || null,
       };
       await updateLeague.mutateAsync(payload);
       try {
@@ -1033,6 +1049,17 @@ function LeagueDialogControlled({
               <p className="text-xs text-muted-foreground">Active leagues only.</p>
             </div>
             <Switch checked={showOnLanding} onCheckedChange={setShowOnLanding} />
+          </div>
+          <div>
+            <Label htmlFor="landing-note-edit">Landing page note</Label>
+            <Textarea
+              id="landing-note-edit"
+              value={landingNote}
+              onChange={(e) => setLandingNote(e.target.value)}
+              placeholder="Optional text shown below the price and above the Create Team button"
+              rows={3}
+            />
+            <p className="text-xs text-muted-foreground mt-1">Plain text only.</p>
           </div>
           <CitiesLocationsEditor cities={draftCities} setCities={setDraftCities} />
           <Button onClick={handleSubmit} disabled={pending || !name.trim()} className="w-full">

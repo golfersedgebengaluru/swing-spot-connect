@@ -3136,6 +3136,7 @@ export type Database = {
           gst_mode: string
           gst_rate: number
           id: string
+          landing_note: string | null
           leaderboard_visibility: string
           name: string
           payment_city: string | null
@@ -3164,6 +3165,7 @@ export type Database = {
           gst_mode?: string
           gst_rate?: number
           id?: string
+          landing_note?: string | null
           leaderboard_visibility?: string
           name: string
           payment_city?: string | null
@@ -3192,6 +3194,7 @@ export type Database = {
           gst_mode?: string
           gst_rate?: number
           id?: string
+          landing_note?: string | null
           leaderboard_visibility?: string
           name?: string
           payment_city?: string | null
