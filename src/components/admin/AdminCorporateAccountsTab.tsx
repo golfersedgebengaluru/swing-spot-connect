@@ -24,7 +24,12 @@ import {
   useCorporateProducts,
   type CorporateAccount,
 } from "@/hooks/useCorporateAccounts";
-import { useCreateInvoice } from "@/hooks/useInvoices";
+import { useCreateInvoice, useDeleteInvoice } from "@/hooks/useInvoices";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { RefreshCw } from "lucide-react";
 import { calculateLineItems, getGstType, validateGSTIN, INDIAN_STATES } from "@/lib/gst-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -522,6 +527,7 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
   const [endDate, setEndDate] = useState(format(defaultEnd, "yyyy-MM-dd"));
   const [generating, setGenerating] = useState(false);
   const [billingProductId, setBillingProductId] = useState<string>("");
+  const [confirmRegen, setConfirmRegen] = useState(false);
 
   const { data: items, isLoading } = useDeferredItemsForCorporate(
     account.id,
@@ -531,6 +537,7 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
   );
   const { data: corporateProducts } = useCorporateProducts(account.id);
   const createInvoice = useCreateInvoice();
+  const deleteInvoice = useDeleteInvoice();
 
   // Auto-pick the billing product if there's only one
   useMemo(() => {
@@ -558,7 +565,14 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
     () => (items ?? []).filter((i) => i.billing_status === "invoiced"),
     [items]
   );
-  const sessionCount = billableItems.length;
+  const isRegenerate = invoicedItems.length > 0;
+  // On regenerate: previously-invoiced (non-cancelled) sessions are reset and rolled
+  // into the new invoice, together with any new deferred sessions in the range.
+  const targetItems = useMemo(
+    () => (items ?? []).filter((i) => !i.cancelled && (i.billing_status === "deferred" || i.billing_status === "invoiced")),
+    [items]
+  );
+  const sessionCount = targetItems.length;
 
   // City is whichever city the admin has selected — invoice is issued by that franchisee.
   const city = selectedCity || null;
@@ -569,8 +583,8 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
   }, [billingProduct, sessionCount]);
 
   const generate = async () => {
-    if (billableItems.length === 0) {
-      toast({ title: "Nothing to invoice", description: "No pending (deferred) sessions in this range." });
+    if (targetItems.length === 0) {
+      toast({ title: "Nothing to invoice", description: "No billable sessions in this range." });
       return;
     }
     if (!billingProduct) {
@@ -588,6 +602,31 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
 
     setGenerating(true);
     try {
+      // Re-generate: void existing invoice(s) for this range and unlink their items
+      // first, so the fresh invoice reflects the current session count.
+      if (isRegenerate) {
+        const oldInvoiceIds = Array.from(
+          new Set(invoicedItems.map((i) => i.invoice_id).filter(Boolean) as string[])
+        );
+        const oldBookingIds = invoicedItems.filter((i) => i.kind === "booking").map((i) => i.id);
+        const oldCoachingIds = invoicedItems.filter((i) => i.kind === "coaching").map((i) => i.id);
+        if (oldBookingIds.length) {
+          await supabase.from("bookings")
+            .update({ billing_status: "deferred", invoice_id: null })
+            .in("id", oldBookingIds);
+        }
+        if (oldCoachingIds.length) {
+          await supabase.from("coaching_sessions")
+            .update({ billing_status: "deferred", invoice_id: null })
+            .in("id", oldCoachingIds);
+        }
+        for (const invId of oldInvoiceIds) {
+          try { await deleteInvoice.mutateAsync(invId); } catch (err) {
+            console.warn("Failed to delete old invoice", invId, err);
+          }
+        }
+      }
+
       // ONE consolidated line item: quantity = number of sessions
       const monthLabel = format(new Date(startDate), "MMM yyyy");
       const lineItem = {
@@ -645,9 +684,9 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
         notes: `Consolidated invoice for ${sessionCount} session(s) booked in ${city} from ${startDate} to ${endDate}.`,
       });
 
-      // Mark items as invoiced
-      const bookingIds = billableItems.filter((i) => i.kind === "booking").map((i) => i.id);
-      const coachingIds = billableItems.filter((i) => i.kind === "coaching").map((i) => i.id);
+      // Mark all target items as invoiced against the new invoice
+      const bookingIds = targetItems.filter((i) => i.kind === "booking").map((i) => i.id);
+      const coachingIds = targetItems.filter((i) => i.kind === "coaching").map((i) => i.id);
       if (bookingIds.length) {
         await supabase.from("bookings")
           .update({ billing_status: "invoiced", invoice_id: invoice.id })
@@ -660,7 +699,7 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
       }
 
       toast({
-        title: "Invoice generated",
+        title: isRegenerate ? "Invoice re-generated" : "Invoice generated",
         description: `${invoice.invoice_number} for ₹${calc.total.toLocaleString()} (${sessionCount} sessions).`,
       });
       qc.invalidateQueries({ queryKey: ["deferred_items_corporate"] });
@@ -815,12 +854,39 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
               >
                 <FileSpreadsheet className="h-4 w-4 mr-1" /> Usage Report
               </Button>
-              <Button onClick={generate} disabled={generating || !city || !billingProduct}>
-                {generating ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Receipt className="h-4 w-4 mr-1" />}
-                Generate {city ? `${city} ` : ""}Invoice
+              <Button
+                onClick={() => (isRegenerate ? setConfirmRegen(true) : generate())}
+                disabled={generating || !city || !billingProduct}
+                variant={isRegenerate ? "outline" : "default"}
+              >
+                {generating ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : isRegenerate ? (
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                ) : (
+                  <Receipt className="h-4 w-4 mr-1" />
+                )}
+                {isRegenerate ? "Re-generate" : "Generate"} {city ? `${city} ` : ""}Invoice
               </Button>
             </div>
           </div>
+
+          <AlertDialog open={confirmRegen} onOpenChange={setConfirmRegen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Re-generate consolidated invoice?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will <strong>delete {invoicedItems.length > 0 ? Array.from(new Set(invoicedItems.map((i) => i.invoice_id).filter(Boolean))).length : 0} existing invoice(s)</strong> for this period and issue a fresh one covering <strong>{sessionCount} session(s)</strong>. The old invoice number(s) will be recycled. This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => { setConfirmRegen(false); generate(); }}>
+                  Re-generate
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       )}
     </div>
