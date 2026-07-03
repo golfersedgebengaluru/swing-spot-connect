@@ -200,10 +200,19 @@ export async function finalizeLegacyTeamRegistration(input: LegacyTeamFinalizeIn
         ? admin.from("league_locations").select("name").eq("id", input.locationId).maybeSingle()
         : Promise.resolve({ data: null }),
       admin.from("legacy_league_team_registrations")
-        .select("total_amount, currency, gst_mode, razorpay_payment_id")
+        .select("total_amount, currency, gst_mode, razorpay_payment_id, league_city_id")
         .eq("id", input.registrationId).maybeSingle(),
       admin.from("user_roles").select("user_id").eq("role", "admin"),
     ]);
+
+    // City name (for site-admin routing) — from league_cities via reg row
+    let cityName: string | null = null;
+    const leagueCityId = (regRow as any)?.league_city_id ?? null;
+    if (leagueCityId) {
+      const { data: cityRow } = await admin
+        .from("league_cities").select("name").eq("id", leagueCityId).maybeSingle();
+      cityName = (cityRow as any)?.name ?? null;
+    }
 
     const origin = (input.origin || "https://golfersedge.golf-collective.com").replace(/(https?:\/\/[^/]+).*/, "$1");
     const joinUrl = input.joinToken ? `${origin.replace(/\/$/, "")}/league-team-join/${input.joinToken}` : "";
@@ -286,13 +295,31 @@ export async function finalizeLegacyTeamRegistration(input: LegacyTeamFinalizeIn
       );
     }
 
-    // Admin notifications — one email per admin
+    // Admin notifications — global admins + site admins scoped to the league's city
     const adminUserIds = ((adminRoles || []) as Array<{ user_id: string }>).map((r) => r.user_id);
-    if (adminUserIds.length > 0) {
+
+    // Site admins matching this league city (case-insensitive, with Bangalore↔Bengaluru alias)
+    const siteAdminUserIds: string[] = [];
+    if (cityName) {
+      const aliases = new Set<string>([cityName.toLowerCase()]);
+      const lc = cityName.toLowerCase();
+      if (lc === "bangalore") aliases.add("bengaluru");
+      if (lc === "bengaluru") aliases.add("bangalore");
+      const { data: sacRows } = await admin
+        .from("site_admin_cities").select("user_id, city");
+      for (const row of (sacRows || []) as Array<{ user_id: string; city: string }>) {
+        if (row?.city && aliases.has(row.city.toLowerCase())) {
+          siteAdminUserIds.push(row.user_id);
+        }
+      }
+    }
+
+    const allAdminUserIds = Array.from(new Set([...adminUserIds, ...siteAdminUserIds]));
+    if (allAdminUserIds.length > 0) {
       const { data: adminProfiles } = await admin
         .from("profiles")
         .select("email")
-        .in("user_id", adminUserIds);
+        .in("user_id", allAdminUserIds);
       const adminEmails = Array.from(
         new Set(
           ((adminProfiles || []) as Array<{ email: string | null }>)
