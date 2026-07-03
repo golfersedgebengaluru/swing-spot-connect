@@ -854,10 +854,39 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
               >
                 <FileSpreadsheet className="h-4 w-4 mr-1" /> Usage Report
               </Button>
-              <Button onClick={generate} disabled={generating || !city || !billingProduct}>
-                {generating ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Receipt className="h-4 w-4 mr-1" />}
-                Generate {city ? `${city} ` : ""}Invoice
+              <Button
+                onClick={() => (isRegenerate ? setConfirmRegen(true) : generate())}
+                disabled={generating || !city || !billingProduct}
+                variant={isRegenerate ? "outline" : "default"}
+              >
+                {generating ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : isRegenerate ? (
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                ) : (
+                  <Receipt className="h-4 w-4 mr-1" />
+                )}
+                {isRegenerate ? "Re-generate" : "Generate"} {city ? `${city} ` : ""}Invoice
               </Button>
+            </div>
+          </div>
+
+          <AlertDialog open={confirmRegen} onOpenChange={setConfirmRegen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Re-generate consolidated invoice?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will <strong>delete {invoicedItems.length > 0 ? Array.from(new Set(invoicedItems.map((i) => i.invoice_id).filter(Boolean))).length : 0} existing invoice(s)</strong> for this period and issue a fresh one covering <strong>{sessionCount} session(s)</strong>. The old invoice number(s) will be recycled. This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => { setConfirmRegen(false); generate(); }}>
+                  Re-generate
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
             </div>
           </div>
         </>
