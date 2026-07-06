@@ -26,6 +26,32 @@ interface Props {
   leagueId: string;
   tenantId: string;
 }
+function LocationParSetSelect({ leagueId, cityId, locationId, parSetId }: { leagueId: string; cityId: string; locationId: string; parSetId: string | null }) {
+  const { data: parSets } = useLeagueParSets(leagueId);
+  const updateLoc = useUpdateLeagueLocation(leagueId, cityId);
+  const NONE = "__none__";
+  return (
+    <Select
+      value={parSetId || NONE}
+      onValueChange={(v) => updateLoc.mutate({ locationId, par_set_id: v === NONE ? null : v })}
+      disabled={updateLoc.isPending}
+    >
+      <SelectTrigger className="h-6 text-[10px] px-2 w-[170px]">
+        <div className="flex items-center gap-1 truncate">
+          <Flag className="h-2.5 w-2.5 shrink-0" />
+          <SelectValue placeholder="No par set" />
+        </div>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={NONE}>No par set</SelectItem>
+        {(parSets || []).map((ps) => (
+          <SelectItem key={ps.id} value={ps.id}>{ps.name} · {ps.software}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 
 function LocationBays({ leagueId, cityId, locationId, tenantId }: { leagueId: string; cityId: string; locationId: string; tenantId: string }) {
   const { data: mappings } = useLocationBays(leagueId, cityId, locationId);
