@@ -546,8 +546,9 @@ async function computeLeaderboard(
     const holeScores = (score.hole_scores as number[]) || []
     const grossScore = score.total_score || holeScores.reduce((s: number, v: number) => s + (v || 0), 0)
     const hiddenHoles = hiddenHolesMap[score.round_number]
-    const roundPar = roundParMap[score.round_number] || 0
-    const parsForRound = parPerHoleMap[score.round_number] || []
+    // Per-team par: resolved by (round.course_name, player's location software).
+    const parsForRound = resolvePar(score.player_id, score.round_number)
+    const roundPar = parsForRound.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
     let netScore = grossScore
     let hiddenSum = 0
     let handicap = 0
@@ -647,7 +648,7 @@ async function computeLeaderboard(
     for (const [playerId, pScores] of Object.entries(individualScores)) {
       const totalGross = pScores.reduce((s, p) => s + p.gross_score, 0)
       const totalNet = pScores.reduce((s, p) => s + p.net_score, 0)
-      const totalPar = pScores.reduce((s, p) => s + (roundParMap[p.round_number] || 0), 0)
+      const totalPar = pScores.reduce((s, p) => s + resolveTotalPar(playerId, p.round_number), 0)
       const totalStableford = pScores.reduce((s, p) => s + (p.stableford_points || 0), 0)
       const teamId = playerIdToTeamId[playerId]
       entries.push({
@@ -664,7 +665,7 @@ async function computeLeaderboard(
         total_stableford: totalStableford,
         rounds_played: pScores.length,
         breakdown: pScores.map((p) => {
-          const par = roundParMap[p.round_number] || 0
+          const par = resolveTotalPar(playerId, p.round_number)
           return { round: p.round_number, gross: p.gross_score, net: p.net_score, handicap: p.peoria_handicap, par, net_vs_par: p.net_score - par, stableford: p.stableford_points || 0 }
         }),
       })
@@ -736,7 +737,7 @@ async function computeLeaderboard(
         const ms = individualScores[uid] || []
         const net = ms.reduce((s, p) => s + p.net_score, 0)
         const gross = ms.reduce((s, p) => s + p.gross_score, 0)
-        const par = ms.reduce((s, p) => s + (roundParMap[p.round_number] || 0), 0)
+        const par = ms.reduce((s, p) => s + resolveTotalPar(uid, p.round_number), 0)
         const stableford = ms.reduce((s, p) => s + (p.stableford_points || 0), 0)
         return {
           player_id: uid,
