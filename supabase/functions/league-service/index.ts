@@ -2159,18 +2159,70 @@ Deno.serve(async (req) => {
         const { count } = await supabase.from('league_team_members').select('id', { count: 'exact', head: true }).eq('team_id', route.subId)
         if (count && count > 0) return err('Cannot delete a team with members. Remove all members first.')
 
+        // ── Collect every user_id ever associated with this team (new + legacy) ──
+        // We need this list BEFORE deleting the team so we can also purge their
+        // per-user artefacts (scores, feed items) that are keyed by user_id, not
+        // team_id, and would otherwise remain visible in the users' account view
+        // (leaderboards, activity feed, score history) even after team deletion.
+        const userIds = new Set<string>()
+
+        // New-model members via league_players
+        const { data: newMembers } = await supabase
+          .from('league_team_members')
+          .select('player_id, league_players(user_id)')
+          .eq('team_id', route.subId)
+        for (const m of (newMembers || []) as any[]) {
+          const uid = m?.league_players?.user_id
+          if (uid) userIds.add(uid)
+        }
+
+        // Legacy registration (match by captain_user_id when possible, else team_name)
+        const { data: legacyRegs } = await supabase
+          .from('legacy_league_team_registrations')
+          .select('id, captain_user_id')
+          .eq('league_id', route.leagueId)
+          .eq('team_name', (team as any).name)
+        const legacyRegIds = ((legacyRegs || []) as any[]).map((r) => r.id)
+        for (const r of (legacyRegs || []) as any[]) if (r.captain_user_id) userIds.add(r.captain_user_id)
+        if (legacyRegIds.length) {
+          const { data: legacyMembers } = await supabase
+            .from('legacy_league_team_members')
+            .select('user_id')
+            .in('team_registration_id', legacyRegIds)
+          for (const m of (legacyMembers || []) as any[]) if (m.user_id) userIds.add(m.user_id)
+        }
+
+        const userIdList = Array.from(userIds)
+
         const { error } = await supabase.from('league_teams').delete().eq('id', route.subId)
         if (error) return err(error.message, 500)
 
-        // Also delete the mirrored legacy registration (cascades to legacy members/invites)
+        // Delete the mirrored legacy registration (cascades to legacy members/invites)
         // so the captain no longer sees the team on their /leagues page.
-        // Match by (league_id, team_name) since league_team_id linkage is not always populated.
         const { error: legacyErr } = await supabase
           .from('legacy_league_team_registrations')
           .delete()
           .eq('league_id', route.leagueId)
           .eq('team_name', (team as any).name)
         if (legacyErr) console.error('[league-team-detail DELETE] legacy cleanup failed:', legacyErr.message)
+
+        // Purge per-user artefacts for this league so team-mates' account views
+        // (leaderboard, feed, score history) no longer show the deleted team's data.
+        if (userIdList.length > 0) {
+          const { error: scoresErr } = await supabase
+            .from('league_scores')
+            .delete()
+            .eq('league_id', route.leagueId)
+            .in('player_id', userIdList)
+          if (scoresErr) console.error('[league-team-detail DELETE] league_scores cleanup failed:', scoresErr.message)
+
+          const { error: feedErr } = await supabase
+            .from('league_feed_items')
+            .delete()
+            .eq('league_id', route.leagueId)
+            .in('actor_id', userIdList)
+          if (feedErr) console.error('[league-team-detail DELETE] league_feed_items cleanup failed:', feedErr.message)
+        }
 
         await audit(supabase, tenantId, route.leagueId!, user.id, role!, 'TeamDeleted', 'league_team', route.subId, team, null)
         return json({ success: true })
