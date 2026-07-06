@@ -432,7 +432,8 @@ export interface LeagueLocation {
   tenant_id: string;
   name: string;
   display_order: number;
-  par_set_id: string | null;
+  /** Which simulator this location runs. Drives per-team par lookup. */
+  software: 'TGC' | 'GSPro' | 'Other' | string;
   created_at: string;
   updated_at: string;
 }
@@ -444,6 +445,8 @@ export interface LeagueParSetRow {
   tenant_id: string;
   name: string;
   software: string;
+  /** Course name (e.g. "Royal Birkdale"). Unique per (league, course, software). */
+  course_name: string;
   par_per_hole: number[];
   created_at: string;
   updated_at: string;
