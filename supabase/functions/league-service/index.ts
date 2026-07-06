@@ -456,11 +456,53 @@ async function computeLeaderboard(
 
   const { data: allRounds } = await supabase
     .from('league_rounds')
-    .select('round_number, par_per_hole')
+    .select('round_number, par_per_hole, course_name')
     .eq('league_id', leagueId)
+
+  // ── Per-team par resolver ─────────────────────────────────
+  // For each (userId, roundNumber): resolve par via
+  //   round.course_name + player-location.software → league_par_sets match.
+  // Falls back to round.par_per_hole when any piece is missing.
+  const [{ data: parSetsAll }, { data: locsAll }, { data: playersAll }] = await Promise.all([
+    supabase.from('league_par_sets').select('course_name, software, par_per_hole').eq('league_id', leagueId),
+    supabase.from('league_locations').select('id, software').eq('league_id', leagueId),
+    supabase.from('league_players').select('user_id, league_location_id, league_teams!team_id(league_location_id)').eq('league_id', leagueId),
+  ])
+  const parSetMap: Record<string, number[]> = {}
+  for (const ps of ((parSetsAll || []) as any[])) {
+    parSetMap[`${ps.course_name}||${ps.software}`] = (ps.par_per_hole as number[]) || []
+  }
+  const locSoftware: Record<string, string> = {}
+  for (const l of ((locsAll || []) as any[])) locSoftware[l.id] = l.software || 'TGC'
+  const userLocation: Record<string, string | null> = {}
+  for (const p of ((playersAll || []) as any[])) {
+    const teamLoc = Array.isArray(p.league_teams) ? p.league_teams[0]?.league_location_id : p.league_teams?.league_location_id
+    userLocation[p.user_id] = p.league_location_id || teamLoc || null
+  }
+  const roundInfo: Record<number, { par: number[]; course: string | null }> = {}
+  for (const r of ((allRounds || []) as any[])) {
+    roundInfo[r.round_number] = { par: (r.par_per_hole as number[]) || [], course: r.course_name || null }
+  }
+  const resolvePar = (userId: string, roundNumber: number): number[] => {
+    const info = roundInfo[roundNumber]
+    if (!info) return []
+    if (info.course) {
+      const locId = userLocation[userId]
+      const sw = locId ? locSoftware[locId] : null
+      if (sw) {
+        const custom = parSetMap[`${info.course}||${sw}`]
+        if (custom && custom.length > 0) return custom
+      }
+    }
+    return info.par
+  }
+  const resolveTotalPar = (userId: string, roundNumber: number): number =>
+    resolvePar(userId, roundNumber).reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
+
+  // Legacy maps kept for team best-ball loop (see below); they use round.par as team default.
   const roundParMap: Record<number, number> = {}
   const parPerHoleMap: Record<number, number[]> = {}
-  for (const r of (allRounds || [])) {
+  for (const r of ((allRounds || []) as any[])) {
     const arr = (r.par_per_hole as number[]) || []
     roundParMap[r.round_number] = arr.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
     parPerHoleMap[r.round_number] = arr.map((p) => Number(p) || 0)
