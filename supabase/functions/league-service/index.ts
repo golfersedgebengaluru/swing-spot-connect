@@ -700,12 +700,14 @@ async function computeLeaderboard(
         }
         const roundHandicap = memberScoresForRound.reduce((s, p) => s + p.peoria_handicap, 0) / memberScoresForRound.length
         const roundNet = roundGross - roundHandicap
-        const roundPar = roundParMap[rn] || 0
+        // Team par: all members share a location, so use first member's resolved par.
+        const teamParUid = memberScoresForRound[0]?.player_id || memberUserIds[0]
+        const parsForRound = resolvePar(teamParUid, rn)
+        const roundPar = parsForRound.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
         // Stableford layer for the team: apply per-hole best ball, then convert
         // each hole to Modified Stableford points. For 'average' aggregation we
         // still use best-ball-per-hole for the Stableford layer (the spec is a
         // best-ball points layer); the stroke aggregation above is untouched.
-        const parsForRound = parPerHoleMap[rn] || []
         const teamHoleArrays = memberScoresForRound.map((p) => p.hole_scores || [])
         const len = Math.max(0, ...teamHoleArrays.map((a) => a.length))
         const bestBallHoles: number[] = new Array(len).fill(0)
