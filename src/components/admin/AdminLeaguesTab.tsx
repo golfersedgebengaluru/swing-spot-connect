@@ -2860,7 +2860,7 @@ function ScorecardDialog({
   const gross = holeScores.reduce((s, v) => s + (Number(v) || 0), 0);
   const totalPar = par.slice(0, holeCount).reduce((s, v) => s + (Number(v) || 0), 0);
   const hiddenSum = hidden.reduce((s, h) => s + (Number(holeScores[h - 1]) || 0), 0);
-  const peoriaHC = totalPar > 0 && hidden.length > 0 ? hiddenSum * 3 - totalPar : 0;
+  const peoriaHC = totalPar > 0 && hidden.length > 0 ? Math.max(0, hiddenSum * 3 - totalPar) : 0;
   const net = gross - peoriaHC;
 
   return (
