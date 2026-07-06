@@ -2432,7 +2432,11 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
           <RegistrationsPanel league={league} />
         </TabsContent>
 
-        {/* Cities & Locations */}
+        {/* Locations */}
+        <TabsContent value="locations">
+          <CitiesLocationsPanel leagueId={league.id} tenantId={league.tenant_id} />
+        </TabsContent>
+
 
         {/* Pars */}
         <TabsContent value="pars">
