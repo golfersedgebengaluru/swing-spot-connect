@@ -432,9 +432,23 @@ export interface LeagueLocation {
   tenant_id: string;
   name: string;
   display_order: number;
+  par_set_id: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export interface LeaguePar Set {} // placeholder replaced below
+export interface LeagueParSetRow {
+  id: string;
+  league_id: string;
+  tenant_id: string;
+  name: string;
+  software: string;
+  par_per_hole: number[];
+  created_at: string;
+  updated_at: string;
+}
+
 
 export interface LeagueBayMapping {
   id: string;
