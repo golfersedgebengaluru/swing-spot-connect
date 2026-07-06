@@ -2390,6 +2390,11 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
 
         {/* Cities & Locations */}
 
+        {/* Pars */}
+        <TabsContent value="pars">
+          <ParsPanel leagueId={league.id} numHoles={league.scoring_holes || 18} />
+        </TabsContent>
+
         {/* Rounds */}
         <TabsContent value="rounds">
           <RoundsPanel league={league} />
