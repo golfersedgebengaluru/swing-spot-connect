@@ -1138,7 +1138,7 @@ export function useCreateLeagueParSet(leagueId: string) {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: (body: { name: string; software: string; par_per_hole: number[] }) =>
+    mutationFn: (body: { name: string; software: string; course_name: string; par_per_hole: number[] }) =>
       invoke(`/leagues/${leagueId}/par-sets`, "POST", body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["league-par-sets", leagueId] });
@@ -1152,7 +1152,7 @@ export function useUpdateLeagueParSet(leagueId: string) {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: string; name?: string; software?: string; par_per_hole?: number[] }) =>
+    mutationFn: ({ id, ...body }: { id: string; name?: string; software?: string; course_name?: string; par_per_hole?: number[] }) =>
       invoke(`/leagues/${leagueId}/par-sets/${id}`, "PATCH", body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["league-par-sets", leagueId] });
@@ -1180,7 +1180,7 @@ export function useUpdateLeagueLocation(leagueId: string, cityId: string) {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: ({ locationId, ...body }: { locationId: string; name?: string; display_order?: number; par_set_id?: string | null }) =>
+    mutationFn: ({ locationId, ...body }: { locationId: string; name?: string; display_order?: number; software?: string }) =>
       invoke(`/leagues/${leagueId}/cities/${cityId}/locations/${locationId}`, "PATCH", body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["league-locations", leagueId, cityId] });

@@ -343,6 +343,8 @@ export interface LeagueRound {
   end_date: string;
   /** Par per hole. Empty array if not yet configured. Length matches league.scoring_holes when set. */
   par_per_hole: number[];
+  /** Course being played this round; combined with team-location software to resolve par. */
+  course_name: string | null;
   created_at: string;
   updated_at: string;
   /** ISO timestamp when the round was closed (revealed_at on hidden holes). Null if still open. */
@@ -356,6 +358,7 @@ export interface CreateRoundRequest {
   end_date: string;
   round_number?: number;
   par_per_hole?: number[];
+  course_name?: string | null;
 }
 
 export interface UpdateRoundRequest {
@@ -365,6 +368,7 @@ export interface UpdateRoundRequest {
   end_date?: string;
   round_number?: number;
   par_per_hole?: number[];
+  course_name?: string | null;
 }
 
 // ── League Competition ───────────────────────────────────────
