@@ -2161,6 +2161,17 @@ Deno.serve(async (req) => {
 
         const { error } = await supabase.from('league_teams').delete().eq('id', route.subId)
         if (error) return err(error.message, 500)
+
+        // Also delete the mirrored legacy registration (cascades to legacy members/invites)
+        // so the captain no longer sees the team on their /leagues page.
+        // Match by (league_id, team_name) since league_team_id linkage is not always populated.
+        const { error: legacyErr } = await supabase
+          .from('legacy_league_team_registrations')
+          .delete()
+          .eq('league_id', route.leagueId)
+          .eq('team_name', (team as any).name)
+        if (legacyErr) console.error('[league-team-detail DELETE] legacy cleanup failed:', legacyErr.message)
+
         await audit(supabase, tenantId, route.leagueId!, user.id, role!, 'TeamDeleted', 'league_team', route.subId, team, null)
         return json({ success: true })
       }
