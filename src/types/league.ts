@@ -437,7 +437,7 @@ export interface LeagueLocation {
   updated_at: string;
 }
 
-export interface LeaguePar Set {} // placeholder replaced below
+
 export interface LeagueParSetRow {
   id: string;
   league_id: string;
