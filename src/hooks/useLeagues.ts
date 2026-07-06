@@ -1121,3 +1121,71 @@ export function useRecapCard(leagueId: string | null, playerId?: string) {
     staleTime: 5 * 60_000,
   });
 }
+
+// ── League Par Sets ─────────────────────────────────────────
+import type { LeagueParSetRow } from "@/types/league";
+
+export function useLeagueParSets(leagueId: string | null) {
+  return useQuery<LeagueParSetRow[]>({
+    queryKey: ["league-par-sets", leagueId],
+    queryFn: () => invoke(`/leagues/${leagueId}/par-sets`, "GET"),
+    enabled: !!leagueId,
+    staleTime: LEAGUE_STALE_TIME,
+  });
+}
+
+export function useCreateLeagueParSet(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (body: { name: string; software: string; par_per_hole: number[] }) =>
+      invoke(`/leagues/${leagueId}/par-sets`, "POST", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-par-sets", leagueId] });
+      toast({ title: "Par set created" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useUpdateLeagueParSet(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; name?: string; software?: string; par_per_hole?: number[] }) =>
+      invoke(`/leagues/${leagueId}/par-sets/${id}`, "PATCH", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-par-sets", leagueId] });
+      toast({ title: "Par set updated" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useDeleteLeagueParSet(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (id: string) => invoke(`/leagues/${leagueId}/par-sets/${id}`, "DELETE"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-par-sets", leagueId] });
+      qc.invalidateQueries({ queryKey: ["league-locations"] });
+      toast({ title: "Par set deleted" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useUpdateLeagueLocation(leagueId: string, cityId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ locationId, ...body }: { locationId: string; name?: string; display_order?: number; par_set_id?: string | null }) =>
+      invoke(`/leagues/${leagueId}/cities/${cityId}/locations/${locationId}`, "PATCH", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-locations", leagueId, cityId] });
+      toast({ title: "Location updated" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}

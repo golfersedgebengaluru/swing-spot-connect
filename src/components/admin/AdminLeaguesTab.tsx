@@ -16,13 +16,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown, ChevronRight, Edit, ListOrdered, Settings2, Shuffle, Lock, Unlock, BarChart3, Upload, MapPin, ExternalLink, X } from "lucide-react";
+import { Loader2, Plus, Trophy, Users, Copy, Trash2, Eye, Image as ImageIcon, Calendar, UserPlus, UserMinus, Search, ChevronDown, ChevronRight, Edit, ListOrdered, Settings2, Shuffle, Lock, Unlock, BarChart3, Upload, MapPin, ExternalLink, X, Flag } from "lucide-react";
 import { BaySchedulingPanel } from "@/components/admin/league/BaySchedulingPanel";
 
 import { SeasonWrapUpPanel } from "@/components/admin/league/SeasonWrapUpPanel";
 import { LocationAssignCell } from "@/components/admin/league/LocationAssignCell";
 import { AdminScoreEntryDialog } from "@/components/admin/league/AdminScoreEntryDialog";
 import { RevealedRoundScores } from "@/components/league/RevealedRoundScores";
+import { ParsPanel } from "@/components/admin/league/ParsPanel";
 import { QuickCompetitionDialog } from "@/components/admin/QuickCompetitionDialog";
 import { QuickCompetitionConsole } from "@/components/admin/QuickCompetitionConsole";
 import { useQuickCompetitions } from "@/hooks/useQuickCompetitions";
@@ -72,6 +73,7 @@ import {
   useAssignPlayerLocation,
   useAssignTeamLocation,
   leagueServiceInvoke,
+  useLeagueParSets,
 } from "@/hooks/useLeagues";
 import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam, LeaderboardEntry } from "@/types/league";
@@ -1247,6 +1249,7 @@ function CompetitionEditor({ leagueId, round }: { leagueId: string; round: Leagu
 
 function RoundsPanel({ league }: { league: League }) {
   const { data: rounds, isLoading } = useLeagueRounds(league.id);
+  const { data: parSets } = useLeagueParSets(league.id);
   const createRound = useCreateRound(league.id);
   const updateRound = useUpdateRound(league.id);
   const deleteRound = useDeleteRound(league.id);
@@ -1329,6 +1332,26 @@ function RoundsPanel({ league }: { league: League }) {
             <div><Label>Start Date</Label><Input type="date" value={newRound.start_date} onChange={(e) => setNewRound({ ...newRound, start_date: e.target.value })} /></div>
             <div><Label>End Date</Label><Input type="date" value={newRound.end_date} onChange={(e) => setNewRound({ ...newRound, end_date: e.target.value })} /></div>
           </div>
+          {(parSets || []).length > 0 && (
+            <div>
+              <Label className="text-xs">Seed par from par set (optional)</Label>
+              <Select
+                onValueChange={(id) => {
+                  const ps = (parSets || []).find((p) => p.id === id);
+                  if (ps && ps.par_per_hole?.length === numHoles) {
+                    setNewRound({ ...newRound, par_per_hole: [...ps.par_per_hole] });
+                  }
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Choose a par set to copy from…" /></SelectTrigger>
+                <SelectContent>
+                  {(parSets || []).map((ps) => (
+                    <SelectItem key={ps.id} value={ps.id}>{ps.name} · {ps.software}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <ParGrid value={newRound.par_per_hole} onChange={(v) => setNewRound({ ...newRound, par_per_hole: v })} />
           <div className="flex gap-2">
             <Button size="sm" onClick={handleCreate} disabled={createRound.isPending}>
@@ -1384,6 +1407,26 @@ function RoundsPanel({ league }: { league: League }) {
                       <div><Label>Start Date</Label><Input type="date" value={editData.start_date} onChange={(e) => setEditData({ ...editData, start_date: e.target.value })} /></div>
                       <div><Label>End Date</Label><Input type="date" value={editData.end_date} onChange={(e) => setEditData({ ...editData, end_date: e.target.value })} /></div>
                     </div>
+                    {(parSets || []).length > 0 && (
+                      <div>
+                        <Label className="text-xs">Seed par from par set (optional)</Label>
+                        <Select
+                          onValueChange={(id) => {
+                            const ps = (parSets || []).find((p) => p.id === id);
+                            if (ps && ps.par_per_hole?.length === numHoles) {
+                              setEditData({ ...editData, par_per_hole: [...ps.par_per_hole] });
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Choose a par set to copy from…" /></SelectTrigger>
+                          <SelectContent>
+                            {(parSets || []).map((ps) => (
+                              <SelectItem key={ps.id} value={ps.id}>{ps.name} · {ps.software}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                     <ParGrid value={editData.par_per_hole} onChange={(v) => setEditData({ ...editData, par_per_hole: v })} />
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => saveEdit(r.id)} disabled={updateRound.isPending}>Save</Button>
@@ -2309,6 +2352,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
           <TabsTrigger value="players"><Users className="h-3.5 w-3.5 mr-1" />Players ({players?.length || 0})</TabsTrigger>
           <TabsTrigger value="teams"><Users className="h-3.5 w-3.5 mr-1" />Teams</TabsTrigger>
           <TabsTrigger value="registrations"><Users className="h-3.5 w-3.5 mr-1" />Registrations</TabsTrigger>
+          <TabsTrigger value="pars"><Flag className="h-3.5 w-3.5 mr-1" />Pars</TabsTrigger>
           
           <TabsTrigger value="rounds"><ListOrdered className="h-3.5 w-3.5 mr-1" />Rounds</TabsTrigger>
           <TabsTrigger value="codes">Join Codes</TabsTrigger>
@@ -2387,6 +2431,11 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
         </TabsContent>
 
         {/* Cities & Locations */}
+
+        {/* Pars */}
+        <TabsContent value="pars">
+          <ParsPanel leagueId={league.id} numHoles={league.scoring_holes || 18} />
+        </TabsContent>
 
         {/* Rounds */}
         <TabsContent value="rounds">

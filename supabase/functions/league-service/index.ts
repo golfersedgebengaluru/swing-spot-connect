@@ -398,6 +398,14 @@ function parseRoute(url: URL): Route {
     if (subResource === 'screen-leaderboard') {
       return { action: 'league-screen-leaderboard', leagueId, subResource }
     }
+    // /leagues/:id/par-sets/:parSetId
+    if (subResource === 'par-sets' && segments[4]) {
+      return { action: 'league-par-set-detail', leagueId, subResource, subId: segments[4] }
+    }
+    // /leagues/:id/par-sets
+    if (subResource === 'par-sets') {
+      return { action: 'league-par-sets', leagueId, subResource }
+    }
     return { action: `league-${subResource}`, leagueId, subResource }
   }
   return { action: 'unknown' }
@@ -2841,6 +2849,7 @@ Deno.serve(async (req) => {
         const updates: Record<string, unknown> = {}
         if (typeof body.name === 'string') updates.name = body.name.trim()
         if (typeof body.display_order === 'number') updates.display_order = body.display_order
+        if (body.par_set_id === null || typeof body.par_set_id === 'string') updates.par_set_id = body.par_set_id
         if (Object.keys(updates).length === 0) return err('No valid fields')
         const { data, error } = await supabase.from('league_locations').update(updates).eq('id', route.subId).select().single()
         if (error) return err(error.message, 500)
@@ -2852,6 +2861,93 @@ Deno.serve(async (req) => {
         const { error } = await supabase.from('league_locations').delete().eq('id', route.subId)
         if (error) return err(error.message, 500)
         await audit(supabase, tenantId, route.leagueId, user.id, role, 'LeagueLocationDeleted', 'league_location', route.subId, loc, null)
+        return json({ ok: true })
+      }
+
+      return err('Method not allowed', 405)
+    }
+
+    // ── LEAGUE PAR SETS (list/create) ────────────────────────
+    if (route.action === 'league-par-sets' && route.leagueId) {
+      const { data: league } = await supabase.from('leagues').select('tenant_id, scoring_holes').eq('id', route.leagueId).single()
+      if (!league) return err('League not found', 404)
+      const tenantId = league.tenant_id
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (!role) return err('No access', 403)
+
+      if (method === 'GET') {
+        const { data, error } = await supabase
+          .from('league_par_sets')
+          .select('*')
+          .eq('league_id', route.leagueId)
+          .order('name', { ascending: true })
+        if (error) return err(error.message, 500)
+        return json(data)
+      }
+
+      if (method === 'POST') {
+        if (role !== 'franchise_admin' && role !== 'site_admin' && role !== 'league_admin') return err('Forbidden', 403)
+        const body = await req.json().catch(() => ({}))
+        if (!body.name || typeof body.name !== 'string') return err('name is required')
+        const holes = league.scoring_holes || 18
+        let parPerHole: number[] = Array(holes).fill(4)
+        if (Array.isArray(body.par_per_hole) && body.par_per_hole.length > 0) {
+          if (body.par_per_hole.length !== holes) return err(`par_per_hole must have ${holes} entries`)
+          if (body.par_per_hole.some((p: number) => !Number.isInteger(p) || p < 3 || p > 6)) return err('par values must be integers 3-6')
+          parPerHole = body.par_per_hole
+        }
+        const software = typeof body.software === 'string' && body.software.trim() ? body.software.trim() : 'TGC'
+        const { data, error } = await supabase
+          .from('league_par_sets')
+          .insert({
+            league_id: route.leagueId,
+            tenant_id: tenantId,
+            name: body.name.trim(),
+            software,
+            par_per_hole: parPerHole,
+            created_by: user.id,
+          })
+          .select()
+          .single()
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId, user.id, role, 'LeagueParSetCreated', 'league_par_set', data.id, null, data)
+        return json(data, 201)
+      }
+
+      return err('Method not allowed', 405)
+    }
+
+    // ── LEAGUE PAR SET DETAIL (PATCH / DELETE) ───────────────
+    if (route.action === 'league-par-set-detail' && route.leagueId && route.subId) {
+      const { data: ps } = await supabase.from('league_par_sets').select('*').eq('id', route.subId).single()
+      if (!ps || ps.league_id !== route.leagueId) return err('Par set not found', 404)
+      const tenantId = ps.tenant_id
+      const role = await getUserLeagueRole(supabase, user.id, tenantId)
+      if (role !== 'franchise_admin' && role !== 'site_admin' && role !== 'league_admin') return err('Forbidden', 403)
+
+      if (method === 'PATCH') {
+        const body = await req.json().catch(() => ({}))
+        const { data: league } = await supabase.from('leagues').select('scoring_holes').eq('id', route.leagueId).single()
+        const holes = league?.scoring_holes || 18
+        const updates: Record<string, unknown> = {}
+        if (typeof body.name === 'string') updates.name = body.name.trim()
+        if (typeof body.software === 'string') updates.software = body.software.trim()
+        if (Array.isArray(body.par_per_hole)) {
+          if (body.par_per_hole.length !== holes) return err(`par_per_hole must have ${holes} entries`)
+          if (body.par_per_hole.some((p: number) => !Number.isInteger(p) || p < 3 || p > 6)) return err('par values must be integers 3-6')
+          updates.par_per_hole = body.par_per_hole
+        }
+        if (Object.keys(updates).length === 0) return err('No valid fields')
+        const { data, error } = await supabase.from('league_par_sets').update(updates).eq('id', route.subId).select().single()
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId, user.id, role, 'LeagueParSetUpdated', 'league_par_set', route.subId, ps, data)
+        return json(data)
+      }
+
+      if (method === 'DELETE') {
+        const { error } = await supabase.from('league_par_sets').delete().eq('id', route.subId)
+        if (error) return err(error.message, 500)
+        await audit(supabase, tenantId, route.leagueId, user.id, role, 'LeagueParSetDeleted', 'league_par_set', route.subId, ps, null)
         return json({ ok: true })
       }
 

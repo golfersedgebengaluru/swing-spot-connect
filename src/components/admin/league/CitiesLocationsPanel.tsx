@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Plus, Trash2, ChevronDown, ChevronRight, MapPin } from "lucide-react";
+import { Loader2, Plus, Trash2, ChevronDown, ChevronRight, MapPin, Flag } from "lucide-react";
 import {
   useLeagueCities,
   useCreateLeagueCity,
@@ -14,16 +14,44 @@ import {
   useLeagueLocations,
   useCreateLeagueLocation,
   useDeleteLeagueLocation,
+  useUpdateLeagueLocation,
   useLocationBays,
   useImportLocationBays,
   useUnmapLocationBay,
   useTenantBays,
+  useLeagueParSets,
 } from "@/hooks/useLeagues";
 
 interface Props {
   leagueId: string;
   tenantId: string;
 }
+function LocationParSetSelect({ leagueId, cityId, locationId, parSetId }: { leagueId: string; cityId: string; locationId: string; parSetId: string | null }) {
+  const { data: parSets } = useLeagueParSets(leagueId);
+  const updateLoc = useUpdateLeagueLocation(leagueId, cityId);
+  const NONE = "__none__";
+  return (
+    <Select
+      value={parSetId || NONE}
+      onValueChange={(v) => updateLoc.mutate({ locationId, par_set_id: v === NONE ? null : v })}
+      disabled={updateLoc.isPending}
+    >
+      <SelectTrigger className="h-6 text-[10px] px-2 w-[170px]">
+        <div className="flex items-center gap-1 truncate">
+          <Flag className="h-2.5 w-2.5 shrink-0" />
+          <SelectValue placeholder="No par set" />
+        </div>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={NONE}>No par set</SelectItem>
+        {(parSets || []).map((ps) => (
+          <SelectItem key={ps.id} value={ps.id}>{ps.name} · {ps.software}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 
 function LocationBays({ leagueId, cityId, locationId, tenantId }: { leagueId: string; cityId: string; locationId: string; tenantId: string }) {
   const { data: mappings } = useLocationBays(leagueId, cityId, locationId);
@@ -117,7 +145,7 @@ function CityLocations({ leagueId, cityId, tenantId }: { leagueId: string; cityI
         <div className="space-y-1">
           {(locations || []).map((loc) => (
             <div key={loc.id} className="border border-border rounded-md p-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <button
                   className="flex items-center gap-1 text-xs font-medium"
                   onClick={() => setExpandedLoc(expandedLoc === loc.id ? null : loc.id)}
@@ -126,18 +154,21 @@ function CityLocations({ leagueId, cityId, tenantId }: { leagueId: string; cityI
                   <MapPin className="h-3 w-3" />
                   {loc.name}
                 </button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 w-6 p-0"
-                  onClick={() => {
-                    if (confirm(`Delete location "${loc.name}"? Bay mappings will also be removed.`)) {
-                      deleteMut.mutate(loc.id);
-                    }
-                  }}
-                >
-                  <Trash2 className="h-3 w-3 text-destructive" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <LocationParSetSelect leagueId={leagueId} cityId={cityId} locationId={loc.id} parSetId={loc.par_set_id} />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 w-6 p-0"
+                    onClick={() => {
+                      if (confirm(`Delete location "${loc.name}"? Bay mappings will also be removed.`)) {
+                        deleteMut.mutate(loc.id);
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-3 w-3 text-destructive" />
+                  </Button>
+                </div>
               </div>
               {expandedLoc === loc.id && (
                 <LocationBays leagueId={leagueId} cityId={cityId} locationId={loc.id} tenantId={tenantId} />

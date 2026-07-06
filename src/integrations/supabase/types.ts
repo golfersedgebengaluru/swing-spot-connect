@@ -2636,6 +2636,7 @@ export type Database = {
           league_city_id: string
           league_id: string
           name: string
+          par_set_id: string | null
           tenant_id: string
           updated_at: string
         }
@@ -2647,6 +2648,7 @@ export type Database = {
           league_city_id: string
           league_id: string
           name: string
+          par_set_id?: string | null
           tenant_id: string
           updated_at?: string
         }
@@ -2658,6 +2660,7 @@ export type Database = {
           league_city_id?: string
           league_id?: string
           name?: string
+          par_set_id?: string | null
           tenant_id?: string
           updated_at?: string
         }
@@ -2677,7 +2680,65 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "league_locations_par_set_id_fkey"
+            columns: ["par_set_id"]
+            isOneToOne: false
+            referencedRelation: "league_par_sets"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "league_locations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_par_sets: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          league_id: string
+          name: string
+          par_per_hole: number[]
+          software: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          league_id: string
+          name: string
+          par_per_hole?: number[]
+          software?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          league_id?: string
+          name?: string
+          par_per_hole?: number[]
+          software?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_par_sets_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "league_par_sets_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
