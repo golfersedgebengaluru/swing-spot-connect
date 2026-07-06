@@ -1248,6 +1248,7 @@ function CompetitionEditor({ leagueId, round }: { leagueId: string; round: Leagu
 
 function RoundsPanel({ league }: { league: League }) {
   const { data: rounds, isLoading } = useLeagueRounds(league.id);
+  const { data: parSets } = useLeagueParSets(league.id);
   const createRound = useCreateRound(league.id);
   const updateRound = useUpdateRound(league.id);
   const deleteRound = useDeleteRound(league.id);
