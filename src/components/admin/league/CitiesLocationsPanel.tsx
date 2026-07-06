@@ -119,7 +119,7 @@ function CityLocations({ leagueId, cityId, tenantId }: { leagueId: string; cityI
         <div className="space-y-1">
           {(locations || []).map((loc) => (
             <div key={loc.id} className="border border-border rounded-md p-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <button
                   className="flex items-center gap-1 text-xs font-medium"
                   onClick={() => setExpandedLoc(expandedLoc === loc.id ? null : loc.id)}
@@ -128,18 +128,21 @@ function CityLocations({ leagueId, cityId, tenantId }: { leagueId: string; cityI
                   <MapPin className="h-3 w-3" />
                   {loc.name}
                 </button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 w-6 p-0"
-                  onClick={() => {
-                    if (confirm(`Delete location "${loc.name}"? Bay mappings will also be removed.`)) {
-                      deleteMut.mutate(loc.id);
-                    }
-                  }}
-                >
-                  <Trash2 className="h-3 w-3 text-destructive" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <LocationParSetSelect leagueId={leagueId} cityId={cityId} locationId={loc.id} parSetId={loc.par_set_id} />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 w-6 p-0"
+                    onClick={() => {
+                      if (confirm(`Delete location "${loc.name}"? Bay mappings will also be removed.`)) {
+                        deleteMut.mutate(loc.id);
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-3 w-3 text-destructive" />
+                  </Button>
+                </div>
               </div>
               {expandedLoc === loc.id && (
                 <LocationBays leagueId={leagueId} cityId={cityId} locationId={loc.id} tenantId={tenantId} />
