@@ -233,6 +233,9 @@ export function ParsPanel({ leagueId, numHoles }: Props) {
         <p className="text-xs text-muted-foreground">
           One par set per <b>course + software</b> (e.g. "Royal Birkdale — TGC"). Rounds pick a course; each team gets the par set matching their location's software automatically.
         </p>
+        <p className="text-[11px] text-amber-600 dark:text-amber-400">
+          Important: use the <b>same Course name</b> for TGC and GSPro versions of the same course (e.g. both entries → <code>Royal Birkdale</code>). Do not append the software to the course name — the Software column already distinguishes them, and Rounds group by course.
+        </p>
         {showAdd && (
           <div className="border rounded-md p-3 space-y-3 bg-muted/30">
             <div className="grid gap-2 sm:grid-cols-2">
