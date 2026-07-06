@@ -398,6 +398,14 @@ function parseRoute(url: URL): Route {
     if (subResource === 'screen-leaderboard') {
       return { action: 'league-screen-leaderboard', leagueId, subResource }
     }
+    // /leagues/:id/par-sets/:parSetId
+    if (subResource === 'par-sets' && segments[4]) {
+      return { action: 'league-par-set-detail', leagueId, subResource, subId: segments[4] }
+    }
+    // /leagues/:id/par-sets
+    if (subResource === 'par-sets') {
+      return { action: 'league-par-sets', leagueId, subResource }
+    }
     return { action: `league-${subResource}`, leagueId, subResource }
   }
   return { action: 'unknown' }
