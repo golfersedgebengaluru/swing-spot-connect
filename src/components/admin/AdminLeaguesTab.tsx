@@ -2353,6 +2353,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
           <TabsTrigger value="players"><Users className="h-3.5 w-3.5 mr-1" />Players ({players?.length || 0})</TabsTrigger>
           <TabsTrigger value="teams"><Users className="h-3.5 w-3.5 mr-1" />Teams</TabsTrigger>
           <TabsTrigger value="registrations"><Users className="h-3.5 w-3.5 mr-1" />Registrations</TabsTrigger>
+          <TabsTrigger value="locations"><MapPin className="h-3.5 w-3.5 mr-1" />Locations</TabsTrigger>
           <TabsTrigger value="pars"><Flag className="h-3.5 w-3.5 mr-1" />Pars</TabsTrigger>
           
           <TabsTrigger value="rounds"><ListOrdered className="h-3.5 w-3.5 mr-1" />Rounds</TabsTrigger>
