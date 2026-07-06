@@ -503,7 +503,7 @@ async function computeLeaderboard(
     let handicap = 0
     if (hiddenHoles && holeScores.length > 0 && roundPar > 0) {
       hiddenSum = hiddenHoles.reduce((sum, holeNum) => sum + (holeScores[holeNum - 1] || 0), 0)
-      handicap = (hiddenSum * HC_MULTIPLIER) - roundPar
+      handicap = Math.max(0, (hiddenSum * HC_MULTIPLIER) - roundPar)
       netScore = grossScore - handicap
     }
     playerScores.push({
