@@ -156,8 +156,17 @@ export function CreateLegacyTeamDialog({ league, open, onOpenChange }: Props) {
       toast({ title: "Check your details", description: (v as { error: string }).error, variant: "destructive" });
       return;
     }
-    // Validate emails
+    // Validate emails — required for every teammate seat
+    const requiredCount = Math.max(0, Number(teamSize) - 1);
     const cleanedEmails = emails.map((e) => e.trim().toLowerCase()).filter(Boolean);
+    if (cleanedEmails.length < requiredCount) {
+      toast({
+        title: "All teammate emails are required",
+        description: `Please add ${requiredCount} teammate email${requiredCount === 1 ? "" : "s"} before continuing to payment.`,
+        variant: "destructive",
+      });
+      return;
+    }
     const bad = cleanedEmails.find((e) => !EMAIL_RX.test(e));
     if (bad) {
       toast({ title: "Invalid email", description: bad, variant: "destructive" });
