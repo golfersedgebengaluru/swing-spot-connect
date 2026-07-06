@@ -156,8 +156,17 @@ export function CreateLegacyTeamDialog({ league, open, onOpenChange }: Props) {
       toast({ title: "Check your details", description: (v as { error: string }).error, variant: "destructive" });
       return;
     }
-    // Validate emails
+    // Validate emails — required for every teammate seat
+    const requiredCount = Math.max(0, Number(teamSize) - 1);
     const cleanedEmails = emails.map((e) => e.trim().toLowerCase()).filter(Boolean);
+    if (cleanedEmails.length < requiredCount) {
+      toast({
+        title: "All teammate emails are required",
+        description: `Please add ${requiredCount} teammate email${requiredCount === 1 ? "" : "s"} before continuing to payment.`,
+        variant: "destructive",
+      });
+      return;
+    }
     const bad = cleanedEmails.find((e) => !EMAIL_RX.test(e));
     if (bad) {
       toast({ title: "Invalid email", description: bad, variant: "destructive" });
@@ -313,32 +322,37 @@ export function CreateLegacyTeamDialog({ league, open, onOpenChange }: Props) {
               </>
             )}
 
-            {step === 2 && (
-              <>
-                <div className="space-y-2">
-                  <Label>Invite members ({emails.length}/{Math.max(0, Number(teamSize) - 1)})</Label>
-                  <p className="text-xs text-muted-foreground">You're the captain. Add the emails of your {Number(teamSize) - 1} teammate{Number(teamSize) - 1 === 1 ? "" : "s"}. They'll auto-join the next time they sign in.</p>
+            {step === 2 && (() => {
+              const requiredCount = Math.max(0, Number(teamSize) - 1);
+              const filled = emails.map((e) => e.trim()).filter(Boolean);
+              const allValid = filled.length === requiredCount && filled.every((e) => EMAIL_RX.test(e));
+              return (
+                <>
                   <div className="space-y-2">
-                    {emails.map((email, i) => (
-                      <div key={i} className="flex gap-2">
-                        <Input type="email" placeholder="teammate@example.com" value={email} onChange={(e) => updateEmail(i, e.target.value)} />
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeEmail(i)}><X className="h-4 w-4" /></Button>
-                      </div>
-                    ))}
+                    <Label>Invite members ({filled.length}/{requiredCount}) <span className="text-destructive">*</span></Label>
+                    <p className="text-xs text-muted-foreground">You're the captain. Add the emails of your {requiredCount} teammate{requiredCount === 1 ? "" : "s"}. They'll auto-join the next time they sign in.</p>
+                    <div className="space-y-2">
+                      {emails.map((email, i) => (
+                        <div key={i} className="flex gap-2">
+                          <Input type="email" required placeholder="teammate@example.com" value={email} onChange={(e) => updateEmail(i, e.target.value)} />
+                          <Button type="button" variant="ghost" size="icon" onClick={() => removeEmail(i)}><X className="h-4 w-4" /></Button>
+                        </div>
+                      ))}
+                    </div>
+                    {typeof teamSize === "number" && emails.length < teamSize - 1 && (
+                      <Button type="button" variant="outline" size="sm" onClick={addEmail}>
+                        <Plus className="h-4 w-4 mr-1" /> Add email
+                      </Button>
+                    )}
+                    <p className="text-xs text-muted-foreground pt-2">Required — all teammate emails must be added before you can continue to payment.</p>
                   </div>
-                  {typeof teamSize === "number" && emails.length < teamSize - 1 && (
-                    <Button type="button" variant="outline" size="sm" onClick={addEmail}>
-                      <Plus className="h-4 w-4 mr-1" /> Add email
-                    </Button>
-                  )}
-                  <p className="text-xs text-muted-foreground pt-2">Optional — you can also share a join link after payment.</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setStep(1)} className="flex-1">Back</Button>
-                  <Button className="flex-1" onClick={() => setStep(3)}>Next</Button>
-                </div>
-              </>
-            )}
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setStep(1)} className="flex-1">Back</Button>
+                    <Button className="flex-1" onClick={() => setStep(3)} disabled={!allValid}>Next</Button>
+                  </div>
+                </>
+              );
+            })()}
 
             {step === 3 && (
               <>
