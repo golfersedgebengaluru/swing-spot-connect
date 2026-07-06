@@ -1944,6 +1944,7 @@ Deno.serve(async (req) => {
           description: body.description ?? null,
           start_date: body.start_date,
           end_date: body.end_date,
+          course_name: (typeof body.course_name === 'string' && body.course_name.trim()) ? body.course_name.trim() : null,
           ...(parPerHole ? { par_per_hole: parPerHole } : {}),
         }).select().single()
         if (error) return err(error.message, 500)
@@ -1970,8 +1971,10 @@ Deno.serve(async (req) => {
         for (const key of ['name', 'description', 'start_date', 'end_date', 'round_number']) {
           if (body[key] !== undefined) updates[key] = body[key]
         }
+        if (body.course_name !== undefined) {
+          updates.course_name = (typeof body.course_name === 'string' && body.course_name.trim()) ? body.course_name.trim() : null
+        }
         if (Array.isArray(body.par_per_hole)) {
-          // Allow clearing with [] or setting full-length array
           if (body.par_per_hole.length > 0) {
             const { data: lg } = await supabase.from('leagues').select('scoring_holes').eq('id', route.leagueId).single()
             const holes = (lg?.scoring_holes as number) || 18
@@ -2849,7 +2852,9 @@ Deno.serve(async (req) => {
         const updates: Record<string, unknown> = {}
         if (typeof body.name === 'string') updates.name = body.name.trim()
         if (typeof body.display_order === 'number') updates.display_order = body.display_order
-        if (body.par_set_id === null || typeof body.par_set_id === 'string') updates.par_set_id = body.par_set_id
+        if (typeof body.software === 'string' && ['TGC','GSPro','Other'].includes(body.software)) {
+          updates.software = body.software
+        }
         if (Object.keys(updates).length === 0) return err('No valid fields')
         const { data, error } = await supabase.from('league_locations').update(updates).eq('id', route.subId).select().single()
         if (error) return err(error.message, 500)
@@ -2889,6 +2894,7 @@ Deno.serve(async (req) => {
         if (role !== 'franchise_admin' && role !== 'site_admin' && role !== 'league_admin') return err('Forbidden', 403)
         const body = await req.json().catch(() => ({}))
         if (!body.name || typeof body.name !== 'string') return err('name is required')
+        const courseName = (typeof body.course_name === 'string' && body.course_name.trim()) ? body.course_name.trim() : body.name.trim()
         const holes = league.scoring_holes || 18
         let parPerHole: number[] = Array(holes).fill(4)
         if (Array.isArray(body.par_per_hole) && body.par_per_hole.length > 0) {
@@ -2903,6 +2909,7 @@ Deno.serve(async (req) => {
             league_id: route.leagueId,
             tenant_id: tenantId,
             name: body.name.trim(),
+            course_name: courseName,
             software,
             par_per_hole: parPerHole,
             created_by: user.id,
@@ -2932,6 +2939,7 @@ Deno.serve(async (req) => {
         const updates: Record<string, unknown> = {}
         if (typeof body.name === 'string') updates.name = body.name.trim()
         if (typeof body.software === 'string') updates.software = body.software.trim()
+        if (typeof body.course_name === 'string') updates.course_name = body.course_name.trim()
         if (Array.isArray(body.par_per_hole)) {
           if (body.par_per_hole.length !== holes) return err(`par_per_hole must have ${holes} entries`)
           if (body.par_per_hole.some((p: number) => !Number.isInteger(p) || p < 3 || p > 6)) return err('par values must be integers 3-6')
