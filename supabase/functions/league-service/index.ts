@@ -2849,6 +2849,7 @@ Deno.serve(async (req) => {
         const updates: Record<string, unknown> = {}
         if (typeof body.name === 'string') updates.name = body.name.trim()
         if (typeof body.display_order === 'number') updates.display_order = body.display_order
+        if (body.par_set_id === null || typeof body.par_set_id === 'string') updates.par_set_id = body.par_set_id
         if (Object.keys(updates).length === 0) return err('No valid fields')
         const { data, error } = await supabase.from('league_locations').update(updates).eq('id', route.subId).select().single()
         if (error) return err(error.message, 500)
