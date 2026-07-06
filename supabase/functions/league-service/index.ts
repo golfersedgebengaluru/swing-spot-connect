@@ -2966,7 +2966,7 @@ Deno.serve(async (req) => {
         let handicap = 0, hSum = 0, net = gross
         if (hidden && hs.length > 0 && par > 0) {
           hSum = hidden.reduce((a, h) => a + (hs[h - 1] || 0), 0)
-          handicap = (hSum * HC_MULT) - par
+          handicap = Math.max(0, (hSum * HC_MULT) - par)
           net = gross - handicap
         }
         rows.push({ player_id: sc.player_id, round_number: sc.round_number, gross, net, hidden_sum: hSum, handicap, par, hole_scores: hs })
