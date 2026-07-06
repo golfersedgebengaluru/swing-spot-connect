@@ -24,6 +24,7 @@ import { LocationAssignCell } from "@/components/admin/league/LocationAssignCell
 import { AdminScoreEntryDialog } from "@/components/admin/league/AdminScoreEntryDialog";
 import { RevealedRoundScores } from "@/components/league/RevealedRoundScores";
 import { ParsPanel } from "@/components/admin/league/ParsPanel";
+import { CitiesLocationsPanel } from "@/components/admin/league/CitiesLocationsPanel";
 import { QuickCompetitionDialog } from "@/components/admin/QuickCompetitionDialog";
 import { QuickCompetitionConsole } from "@/components/admin/QuickCompetitionConsole";
 import { useQuickCompetitions } from "@/hooks/useQuickCompetitions";

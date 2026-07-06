@@ -344,7 +344,7 @@ export interface LeagueRound {
   /** Par per hole. Empty array if not yet configured. Length matches league.scoring_holes when set. */
   par_per_hole: number[];
   /** Course being played this round; combined with team-location software to resolve par. */
-  course_name: string | null;
+  course_name?: string | null;
   created_at: string;
   updated_at: string;
   /** ISO timestamp when the round was closed (revealed_at on hidden holes). Null if still open. */
