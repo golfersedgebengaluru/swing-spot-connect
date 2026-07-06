@@ -570,6 +570,7 @@ function MyScores({ leagueId, league }: { leagueId: string; league: League }) {
               playerIds={playerIds}
               showTeamTotal={teamMemberIds.length > 0}
               showPoints={league.stableford_enabled !== false}
+              format={league.format}
             />
           </div>
         );
