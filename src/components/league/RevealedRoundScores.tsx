@@ -151,19 +151,41 @@ export function RevealedRoundScores({
               ))}
               {showTeamTotal && rows.length > 1 && (() => {
                 const holeCount = parPerHole.length || rows[0].hs.length;
-                const holeTotals = Array.from({ length: holeCount }).map((_, i) =>
-                  rows.reduce((sum, r) => sum + (Number(r.hs[i]) || 0), 0),
-                );
-                const teamGross = rows.reduce((s, r) => s + (r.gross || 0), 0);
-                const teamPoints = rows.reduce((s, r) => s + (r.points || 0), 0);
-                const teamHiddenSum = rows.reduce((s, r) => s + (r.hiddenSum || 0), 0);
+                const isBestBall = format === "best_ball";
+                // Per-hole team score: best_ball = min of members (>0); else = sum
+                const holeTotals = Array.from({ length: holeCount }).map((_, i) => {
+                  if (isBestBall) {
+                    const vals = rows
+                      .map((r) => Number(r.hs[i]) || 0)
+                      .filter((v) => v > 0);
+                    return vals.length ? Math.min(...vals) : 0;
+                  }
+                  return rows.reduce((sum, r) => sum + (Number(r.hs[i]) || 0), 0);
+                });
+                const teamGross = isBestBall
+                  ? holeTotals.reduce((s, v) => s + (v || 0), 0)
+                  : rows.reduce((s, r) => s + (r.gross || 0), 0);
+                const teamHiddenSum = isBestBall
+                  ? hiddenHoles.reduce((s, h) => s + (Number(holeTotals[h - 1]) || 0), 0)
+                  : rows.reduce((s, r) => s + (r.hiddenSum || 0), 0);
+                // Team handicap: best_ball = average of member handicaps (floored at 0);
+                // else = sum (legacy behaviour for scramble/stroke_play)
                 const teamHc = hiddenHoles.length > 0 && roundPar > 0
-                  ? rows.reduce((s, r) => s + (r.handicap || 0), 0)
+                  ? (isBestBall
+                      ? Math.round(
+                          (rows.reduce((s, r) => s + (r.handicap || 0), 0) / rows.length) * 100,
+                        ) / 100
+                      : rows.reduce((s, r) => s + (r.handicap || 0), 0))
                   : 0;
                 const teamNet = teamGross - teamHc;
+                const teamPoints = isBestBall
+                  ? holeScoresToStableford(holeTotals, parPerHole)
+                  : rows.reduce((s, r) => s + (r.points || 0), 0);
                 return (
                   <TableRow className="bg-primary/5 font-semibold">
-                    <TableCell className="text-xs">Team Total</TableCell>
+                    <TableCell className="text-xs">
+                      Team {isBestBall ? "(Best Ball)" : "Total"}
+                    </TableCell>
                     {holeTotals.map((t, i) => (
                       <TableCell key={i} className="text-center px-1.5 text-xs">{t || "—"}</TableCell>
                     ))}
