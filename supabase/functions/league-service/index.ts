@@ -2467,7 +2467,7 @@ Deno.serve(async (req) => {
             return sum + (holeScores[idx] || 0)
           }, 0)
 
-          const peoriaHandicap = roundPar > 0 ? (hiddenSum * HC_MULTIPLIER) - roundPar : 0
+          const peoriaHandicap = roundPar > 0 ? Math.max(0, (hiddenSum * HC_MULTIPLIER) - roundPar) : 0
           const grossScore = score.total_score || holeScores.reduce((s: number, v: number) => s + (v || 0), 0)
           const netScore = grossScore - peoriaHandicap
 
