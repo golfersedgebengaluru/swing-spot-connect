@@ -1452,6 +1452,7 @@ function RoundsPanel({ league }: { league: League }) {
                         parPerHole={r.par_per_hole || []}
                         hiddenHoles={adminHH.hidden_holes || []}
                         showPoints={league.stableford_enabled !== false}
+                        format={league.format}
                       />
                     )}
                     <CompetitionEditor leagueId={league.id} round={r} />
