@@ -50,7 +50,7 @@ export function RevealedRoundScores({
     const hs: number[] = Array.isArray(s.hole_scores) ? s.hole_scores : [];
     const gross = s.total_score ?? hs.reduce((a, v) => a + (Number(v) || 0), 0);
     const hiddenSum = hiddenHoles.reduce((sum, h) => sum + (Number(hs[h - 1]) || 0), 0);
-    const handicap = roundPar > 0 && hiddenHoles.length > 0 ? hiddenSum * HC_MULT - roundPar : 0;
+    const handicap = roundPar > 0 && hiddenHoles.length > 0 ? Math.max(0, hiddenSum * HC_MULT - roundPar) : 0;
     const net = gross - handicap;
     const points = holeScoresToStableford(hs, parPerHole);
     return { id: s.id, name: s.player_name || s.player_id?.slice(0, 8), hs, gross, hiddenSum, handicap, net, points };
