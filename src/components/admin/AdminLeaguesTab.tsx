@@ -1332,6 +1332,26 @@ function RoundsPanel({ league }: { league: League }) {
             <div><Label>Start Date</Label><Input type="date" value={newRound.start_date} onChange={(e) => setNewRound({ ...newRound, start_date: e.target.value })} /></div>
             <div><Label>End Date</Label><Input type="date" value={newRound.end_date} onChange={(e) => setNewRound({ ...newRound, end_date: e.target.value })} /></div>
           </div>
+          {(parSets || []).length > 0 && (
+            <div>
+              <Label className="text-xs">Seed par from par set (optional)</Label>
+              <Select
+                onValueChange={(id) => {
+                  const ps = (parSets || []).find((p) => p.id === id);
+                  if (ps && ps.par_per_hole?.length === numHoles) {
+                    setNewRound({ ...newRound, par_per_hole: [...ps.par_per_hole] });
+                  }
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Choose a par set to copy from…" /></SelectTrigger>
+                <SelectContent>
+                  {(parSets || []).map((ps) => (
+                    <SelectItem key={ps.id} value={ps.id}>{ps.name} · {ps.software}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <ParGrid value={newRound.par_per_hole} onChange={(v) => setNewRound({ ...newRound, par_per_hole: v })} />
           <div className="flex gap-2">
             <Button size="sm" onClick={handleCreate} disabled={createRound.isPending}>
