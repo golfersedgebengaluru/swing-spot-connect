@@ -1259,18 +1259,21 @@ function RoundsPanel({ league }: { league: League }) {
   const [expandedRound, setExpandedRound] = useState<string | null>(null);
   const numHoles = league.scoring_holes || 18;
   const blankPar = () => Array(numHoles).fill(4);
-  const [newRound, setNewRound] = useState<{ name: string; description: string; start_date: string; end_date: string; par_per_hole: number[] }>(
-    { name: "", description: "", start_date: "", end_date: "", par_per_hole: blankPar() },
+  const [newRound, setNewRound] = useState<{ name: string; description: string; start_date: string; end_date: string; par_per_hole: number[]; course_name: string }>(
+    { name: "", description: "", start_date: "", end_date: "", par_per_hole: blankPar(), course_name: "" },
   );
   const [editingRound, setEditingRound] = useState<string | null>(null);
-  const [editData, setEditData] = useState<{ name: string; description: string; start_date: string; end_date: string; par_per_hole: number[] }>(
-    { name: "", description: "", start_date: "", end_date: "", par_per_hole: blankPar() },
+  const [editData, setEditData] = useState<{ name: string; description: string; start_date: string; end_date: string; par_per_hole: number[]; course_name: string }>(
+    { name: "", description: "", start_date: "", end_date: "", par_per_hole: blankPar(), course_name: "" },
   );
+
+  // Distinct course names from par sets — the source of truth for round courses.
+  const courseOptions = Array.from(new Set((parSets || []).map((ps) => ps.course_name || ps.name).filter(Boolean)));
 
   const handleCreate = () => {
     if (!newRound.name || !newRound.start_date || !newRound.end_date) return;
     createRound.mutate(newRound, {
-      onSuccess: () => { setShowAdd(false); setNewRound({ name: "", description: "", start_date: "", end_date: "", par_per_hole: blankPar() }); },
+      onSuccess: () => { setShowAdd(false); setNewRound({ name: "", description: "", start_date: "", end_date: "", par_per_hole: blankPar(), course_name: "" }); },
     });
   };
 
@@ -1282,6 +1285,7 @@ function RoundsPanel({ league }: { league: League }) {
       start_date: r.start_date,
       end_date: r.end_date,
       par_per_hole: (r.par_per_hole && r.par_per_hole.length === numHoles) ? [...r.par_per_hole] : blankPar(),
+      course_name: r.course_name || "",
     });
   };
 
@@ -1289,9 +1293,16 @@ function RoundsPanel({ league }: { league: League }) {
     updateRound.mutate({ roundId, body: editData }, { onSuccess: () => setEditingRound(null) });
   };
 
+  // When a course is picked, seed par_per_hole from the first matching par set (any software).
+  // Per-team par at scoring time comes from (course + team-location software) automatically.
+  const seedParFromCourse = (course: string): number[] | null => {
+    const match = (parSets || []).find((ps) => (ps.course_name || ps.name) === course && ps.par_per_hole?.length === numHoles);
+    return match ? [...match.par_per_hole] : null;
+  };
+
   const ParGrid = ({ value, onChange }: { value: number[]; onChange: (v: number[]) => void }) => (
     <div>
-      <Label className="text-xs">Par per hole ({numHoles}) — values 3–6</Label>
+      <Label className="text-xs">Par per hole ({numHoles}) — fallback when no par set matches</Label>
       <div className="grid grid-cols-9 gap-1 mt-1">
         {Array.from({ length: numHoles }).map((_, i) => (
           <div key={i} className="space-y-0.5">
@@ -1333,26 +1344,26 @@ function RoundsPanel({ league }: { league: League }) {
             <div><Label>Start Date</Label><Input type="date" value={newRound.start_date} onChange={(e) => setNewRound({ ...newRound, start_date: e.target.value })} /></div>
             <div><Label>End Date</Label><Input type="date" value={newRound.end_date} onChange={(e) => setNewRound({ ...newRound, end_date: e.target.value })} /></div>
           </div>
-          {(parSets || []).length > 0 && (
-            <div>
-              <Label className="text-xs">Seed par from par set (optional)</Label>
-              <Select
-                onValueChange={(id) => {
-                  const ps = (parSets || []).find((p) => p.id === id);
-                  if (ps && ps.par_per_hole?.length === numHoles) {
-                    setNewRound({ ...newRound, par_per_hole: [...ps.par_per_hole] });
-                  }
-                }}
-              >
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Choose a par set to copy from…" /></SelectTrigger>
-                <SelectContent>
-                  {(parSets || []).map((ps) => (
-                    <SelectItem key={ps.id} value={ps.id}>{ps.name} · {ps.software}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div>
+            <Label className="text-xs">Course</Label>
+            <Select
+              value={newRound.course_name || "__none__"}
+              onValueChange={(v) => {
+                const course = v === "__none__" ? "" : v;
+                const seeded = course ? seedParFromCourse(course) : null;
+                setNewRound({ ...newRound, course_name: course, par_per_hole: seeded || newRound.par_per_hole });
+              }}
+            >
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Pick a course (defined in Pars tab)" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— None —</SelectItem>
+                {courseOptions.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground mt-1">Each team's par comes from the par set matching this course + their location's software.</p>
+          </div>
           <ParGrid value={newRound.par_per_hole} onChange={(v) => setNewRound({ ...newRound, par_per_hole: v })} />
           <div className="flex gap-2">
             <Button size="sm" onClick={handleCreate} disabled={createRound.isPending}>
@@ -1381,6 +1392,9 @@ function RoundsPanel({ league }: { league: League }) {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-sm">Round {r.round_number}: {r.name}</span>
+                        {r.course_name && (
+                          <Badge variant="secondary" className="text-[10px]">{r.course_name}</Badge>
+                        )}
                         {parSet ? (
                           <Badge variant="outline" className="text-[10px]">Par {r.par_per_hole.reduce((s, v) => s + v, 0)}</Badge>
                         ) : (
@@ -1408,26 +1422,25 @@ function RoundsPanel({ league }: { league: League }) {
                       <div><Label>Start Date</Label><Input type="date" value={editData.start_date} onChange={(e) => setEditData({ ...editData, start_date: e.target.value })} /></div>
                       <div><Label>End Date</Label><Input type="date" value={editData.end_date} onChange={(e) => setEditData({ ...editData, end_date: e.target.value })} /></div>
                     </div>
-                    {(parSets || []).length > 0 && (
-                      <div>
-                        <Label className="text-xs">Seed par from par set (optional)</Label>
-                        <Select
-                          onValueChange={(id) => {
-                            const ps = (parSets || []).find((p) => p.id === id);
-                            if (ps && ps.par_per_hole?.length === numHoles) {
-                              setEditData({ ...editData, par_per_hole: [...ps.par_per_hole] });
-                            }
-                          }}
-                        >
-                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Choose a par set to copy from…" /></SelectTrigger>
-                          <SelectContent>
-                            {(parSets || []).map((ps) => (
-                              <SelectItem key={ps.id} value={ps.id}>{ps.name} · {ps.software}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
+                    <div>
+                      <Label className="text-xs">Course</Label>
+                      <Select
+                        value={editData.course_name || "__none__"}
+                        onValueChange={(v) => {
+                          const course = v === "__none__" ? "" : v;
+                          const seeded = course ? seedParFromCourse(course) : null;
+                          setEditData({ ...editData, course_name: course, par_per_hole: seeded || editData.par_per_hole });
+                        }}
+                      >
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Pick a course" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">— None —</SelectItem>
+                          {courseOptions.map((c) => (
+                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <ParGrid value={editData.par_per_hole} onChange={(v) => setEditData({ ...editData, par_per_hole: v })} />
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => saveEdit(r.id)} disabled={updateRound.isPending}>Save</Button>
@@ -1435,6 +1448,7 @@ function RoundsPanel({ league }: { league: League }) {
                     </div>
                   </div>
                 )}
+
 
                 {expandedRound === r.id && editingRound !== r.id && (
                   <div className="px-3 pb-3 border-t pt-3 space-y-3">
