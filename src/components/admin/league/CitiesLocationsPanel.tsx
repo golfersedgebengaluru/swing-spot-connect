@@ -2,11 +2,9 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Plus, Trash2, ChevronDown, ChevronRight, MapPin, Flag } from "lucide-react";
+import { Loader2, Plus, Trash2, ChevronDown, ChevronRight, MapPin, Monitor } from "lucide-react";
 import {
   useLeagueCities,
   useCreateLeagueCity,
@@ -19,39 +17,47 @@ import {
   useImportLocationBays,
   useUnmapLocationBay,
   useTenantBays,
-  useLeagueParSets,
 } from "@/hooks/useLeagues";
 
 interface Props {
   leagueId: string;
   tenantId: string;
 }
-function LocationParSetSelect({ leagueId, cityId, locationId, parSetId }: { leagueId: string; cityId: string; locationId: string; parSetId: string | null }) {
-  const { data: parSets } = useLeagueParSets(leagueId);
+
+const SOFTWARES = ["TGC", "GSPro", "Other"] as const;
+
+function LocationSoftwareSelect({
+  leagueId,
+  cityId,
+  locationId,
+  software,
+}: {
+  leagueId: string;
+  cityId: string;
+  locationId: string;
+  software: string;
+}) {
   const updateLoc = useUpdateLeagueLocation(leagueId, cityId);
-  const NONE = "__none__";
   return (
     <Select
-      value={parSetId || NONE}
-      onValueChange={(v) => updateLoc.mutate({ locationId, par_set_id: v === NONE ? null : v })}
+      value={software || "TGC"}
+      onValueChange={(v) => updateLoc.mutate({ locationId, software: v })}
       disabled={updateLoc.isPending}
     >
-      <SelectTrigger className="h-6 text-[10px] px-2 w-[170px]">
+      <SelectTrigger className="h-6 text-[10px] px-2 w-[110px]">
         <div className="flex items-center gap-1 truncate">
-          <Flag className="h-2.5 w-2.5 shrink-0" />
-          <SelectValue placeholder="No par set" />
+          <Monitor className="h-2.5 w-2.5 shrink-0" />
+          <SelectValue />
         </div>
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={NONE}>No par set</SelectItem>
-        {(parSets || []).map((ps) => (
-          <SelectItem key={ps.id} value={ps.id}>{ps.name} · {ps.software}</SelectItem>
+        {SOFTWARES.map((s) => (
+          <SelectItem key={s} value={s}>{s}</SelectItem>
         ))}
       </SelectContent>
     </Select>
   );
 }
-
 
 function LocationBays({ leagueId, cityId, locationId, tenantId }: { leagueId: string; cityId: string; locationId: string; tenantId: string }) {
   const { data: mappings } = useLocationBays(leagueId, cityId, locationId);
@@ -155,7 +161,7 @@ function CityLocations({ leagueId, cityId, tenantId }: { leagueId: string; cityI
                   {loc.name}
                 </button>
                 <div className="flex items-center gap-1">
-                  <LocationParSetSelect leagueId={leagueId} cityId={cityId} locationId={loc.id} parSetId={loc.par_set_id} />
+                  <LocationSoftwareSelect leagueId={leagueId} cityId={cityId} locationId={loc.id} software={(loc as any).software || "TGC"} />
                   <Button
                     size="sm"
                     variant="ghost"
@@ -194,7 +200,10 @@ export function CitiesLocationsPanel({ leagueId, tenantId }: Props) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm">League Cities & Locations</CardTitle>
+        <CardTitle className="text-sm">Cities & Locations</CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Set each location's simulator software (TGC / GSPro). Teams at a location automatically get the par set matching their round's course and that location's software.
+        </p>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-center gap-2">

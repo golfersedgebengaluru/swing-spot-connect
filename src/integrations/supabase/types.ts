@@ -2636,7 +2636,7 @@ export type Database = {
           league_city_id: string
           league_id: string
           name: string
-          par_set_id: string | null
+          software: string
           tenant_id: string
           updated_at: string
         }
@@ -2648,7 +2648,7 @@ export type Database = {
           league_city_id: string
           league_id: string
           name: string
-          par_set_id?: string | null
+          software: string
           tenant_id: string
           updated_at?: string
         }
@@ -2660,7 +2660,7 @@ export type Database = {
           league_city_id?: string
           league_id?: string
           name?: string
-          par_set_id?: string | null
+          software?: string
           tenant_id?: string
           updated_at?: string
         }
@@ -2680,13 +2680,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "league_locations_par_set_id_fkey"
-            columns: ["par_set_id"]
-            isOneToOne: false
-            referencedRelation: "league_par_sets"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "league_locations_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -2697,6 +2690,7 @@ export type Database = {
       }
       league_par_sets: {
         Row: {
+          course_name: string
           created_at: string
           created_by: string
           id: string
@@ -2708,6 +2702,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          course_name: string
           created_at?: string
           created_by: string
           id?: string
@@ -2719,6 +2714,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          course_name?: string
           created_at?: string
           created_by?: string
           id?: string
@@ -2907,6 +2903,7 @@ export type Database = {
       }
       league_rounds: {
         Row: {
+          course_name: string | null
           created_at: string
           description: string | null
           end_date: string
@@ -2920,6 +2917,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          course_name?: string | null
           created_at?: string
           description?: string | null
           end_date: string
@@ -2933,6 +2931,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          course_name?: string | null
           created_at?: string
           description?: string | null
           end_date?: string

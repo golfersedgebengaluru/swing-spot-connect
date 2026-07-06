@@ -456,11 +456,53 @@ async function computeLeaderboard(
 
   const { data: allRounds } = await supabase
     .from('league_rounds')
-    .select('round_number, par_per_hole')
+    .select('round_number, par_per_hole, course_name')
     .eq('league_id', leagueId)
+
+  // ── Per-team par resolver ─────────────────────────────────
+  // For each (userId, roundNumber): resolve par via
+  //   round.course_name + player-location.software → league_par_sets match.
+  // Falls back to round.par_per_hole when any piece is missing.
+  const [{ data: parSetsAll }, { data: locsAll }, { data: playersAll }] = await Promise.all([
+    supabase.from('league_par_sets').select('course_name, software, par_per_hole').eq('league_id', leagueId),
+    supabase.from('league_locations').select('id, software').eq('league_id', leagueId),
+    supabase.from('league_players').select('user_id, league_location_id, league_teams!team_id(league_location_id)').eq('league_id', leagueId),
+  ])
+  const parSetMap: Record<string, number[]> = {}
+  for (const ps of ((parSetsAll || []) as any[])) {
+    parSetMap[`${ps.course_name}||${ps.software}`] = (ps.par_per_hole as number[]) || []
+  }
+  const locSoftware: Record<string, string> = {}
+  for (const l of ((locsAll || []) as any[])) locSoftware[l.id] = l.software || 'TGC'
+  const userLocation: Record<string, string | null> = {}
+  for (const p of ((playersAll || []) as any[])) {
+    const teamLoc = Array.isArray(p.league_teams) ? p.league_teams[0]?.league_location_id : p.league_teams?.league_location_id
+    userLocation[p.user_id] = p.league_location_id || teamLoc || null
+  }
+  const roundInfo: Record<number, { par: number[]; course: string | null }> = {}
+  for (const r of ((allRounds || []) as any[])) {
+    roundInfo[r.round_number] = { par: (r.par_per_hole as number[]) || [], course: r.course_name || null }
+  }
+  const resolvePar = (userId: string, roundNumber: number): number[] => {
+    const info = roundInfo[roundNumber]
+    if (!info) return []
+    if (info.course) {
+      const locId = userLocation[userId]
+      const sw = locId ? locSoftware[locId] : null
+      if (sw) {
+        const custom = parSetMap[`${info.course}||${sw}`]
+        if (custom && custom.length > 0) return custom
+      }
+    }
+    return info.par
+  }
+  const resolveTotalPar = (userId: string, roundNumber: number): number =>
+    resolvePar(userId, roundNumber).reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
+
+  // Legacy maps kept for team best-ball loop (see below); they use round.par as team default.
   const roundParMap: Record<number, number> = {}
   const parPerHoleMap: Record<number, number[]> = {}
-  for (const r of (allRounds || [])) {
+  for (const r of ((allRounds || []) as any[])) {
     const arr = (r.par_per_hole as number[]) || []
     roundParMap[r.round_number] = arr.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
     parPerHoleMap[r.round_number] = arr.map((p) => Number(p) || 0)
@@ -504,8 +546,9 @@ async function computeLeaderboard(
     const holeScores = (score.hole_scores as number[]) || []
     const grossScore = score.total_score || holeScores.reduce((s: number, v: number) => s + (v || 0), 0)
     const hiddenHoles = hiddenHolesMap[score.round_number]
-    const roundPar = roundParMap[score.round_number] || 0
-    const parsForRound = parPerHoleMap[score.round_number] || []
+    // Per-team par: resolved by (round.course_name, player's location software).
+    const parsForRound = resolvePar(score.player_id, score.round_number)
+    const roundPar = parsForRound.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
     let netScore = grossScore
     let hiddenSum = 0
     let handicap = 0
@@ -605,7 +648,7 @@ async function computeLeaderboard(
     for (const [playerId, pScores] of Object.entries(individualScores)) {
       const totalGross = pScores.reduce((s, p) => s + p.gross_score, 0)
       const totalNet = pScores.reduce((s, p) => s + p.net_score, 0)
-      const totalPar = pScores.reduce((s, p) => s + (roundParMap[p.round_number] || 0), 0)
+      const totalPar = pScores.reduce((s, p) => s + resolveTotalPar(playerId, p.round_number), 0)
       const totalStableford = pScores.reduce((s, p) => s + (p.stableford_points || 0), 0)
       const teamId = playerIdToTeamId[playerId]
       entries.push({
@@ -622,7 +665,7 @@ async function computeLeaderboard(
         total_stableford: totalStableford,
         rounds_played: pScores.length,
         breakdown: pScores.map((p) => {
-          const par = roundParMap[p.round_number] || 0
+          const par = resolveTotalPar(playerId, p.round_number)
           return { round: p.round_number, gross: p.gross_score, net: p.net_score, handicap: p.peoria_handicap, par, net_vs_par: p.net_score - par, stableford: p.stableford_points || 0 }
         }),
       })
@@ -657,12 +700,14 @@ async function computeLeaderboard(
         }
         const roundHandicap = memberScoresForRound.reduce((s, p) => s + p.peoria_handicap, 0) / memberScoresForRound.length
         const roundNet = roundGross - roundHandicap
-        const roundPar = roundParMap[rn] || 0
+        // Team par: all members share a location, so use first member's resolved par.
+        const teamParUid = memberScoresForRound[0]?.player_id || memberUserIds[0]
+        const parsForRound = resolvePar(teamParUid, rn)
+        const roundPar = parsForRound.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
         // Stableford layer for the team: apply per-hole best ball, then convert
         // each hole to Modified Stableford points. For 'average' aggregation we
         // still use best-ball-per-hole for the Stableford layer (the spec is a
         // best-ball points layer); the stroke aggregation above is untouched.
-        const parsForRound = parPerHoleMap[rn] || []
         const teamHoleArrays = memberScoresForRound.map((p) => p.hole_scores || [])
         const len = Math.max(0, ...teamHoleArrays.map((a) => a.length))
         const bestBallHoles: number[] = new Array(len).fill(0)
@@ -694,7 +739,7 @@ async function computeLeaderboard(
         const ms = individualScores[uid] || []
         const net = ms.reduce((s, p) => s + p.net_score, 0)
         const gross = ms.reduce((s, p) => s + p.gross_score, 0)
-        const par = ms.reduce((s, p) => s + (roundParMap[p.round_number] || 0), 0)
+        const par = ms.reduce((s, p) => s + resolveTotalPar(uid, p.round_number), 0)
         const stableford = ms.reduce((s, p) => s + (p.stableford_points || 0), 0)
         return {
           player_id: uid,
@@ -1944,6 +1989,7 @@ Deno.serve(async (req) => {
           description: body.description ?? null,
           start_date: body.start_date,
           end_date: body.end_date,
+          course_name: (typeof body.course_name === 'string' && body.course_name.trim()) ? body.course_name.trim() : null,
           ...(parPerHole ? { par_per_hole: parPerHole } : {}),
         }).select().single()
         if (error) return err(error.message, 500)
@@ -1970,8 +2016,10 @@ Deno.serve(async (req) => {
         for (const key of ['name', 'description', 'start_date', 'end_date', 'round_number']) {
           if (body[key] !== undefined) updates[key] = body[key]
         }
+        if (body.course_name !== undefined) {
+          updates.course_name = (typeof body.course_name === 'string' && body.course_name.trim()) ? body.course_name.trim() : null
+        }
         if (Array.isArray(body.par_per_hole)) {
-          // Allow clearing with [] or setting full-length array
           if (body.par_per_hole.length > 0) {
             const { data: lg } = await supabase.from('leagues').select('scoring_holes').eq('id', route.leagueId).single()
             const holes = (lg?.scoring_holes as number) || 18
@@ -2849,7 +2897,9 @@ Deno.serve(async (req) => {
         const updates: Record<string, unknown> = {}
         if (typeof body.name === 'string') updates.name = body.name.trim()
         if (typeof body.display_order === 'number') updates.display_order = body.display_order
-        if (body.par_set_id === null || typeof body.par_set_id === 'string') updates.par_set_id = body.par_set_id
+        if (typeof body.software === 'string' && ['TGC','GSPro','Other'].includes(body.software)) {
+          updates.software = body.software
+        }
         if (Object.keys(updates).length === 0) return err('No valid fields')
         const { data, error } = await supabase.from('league_locations').update(updates).eq('id', route.subId).select().single()
         if (error) return err(error.message, 500)
@@ -2889,6 +2939,7 @@ Deno.serve(async (req) => {
         if (role !== 'franchise_admin' && role !== 'site_admin' && role !== 'league_admin') return err('Forbidden', 403)
         const body = await req.json().catch(() => ({}))
         if (!body.name || typeof body.name !== 'string') return err('name is required')
+        const courseName = (typeof body.course_name === 'string' && body.course_name.trim()) ? body.course_name.trim() : body.name.trim()
         const holes = league.scoring_holes || 18
         let parPerHole: number[] = Array(holes).fill(4)
         if (Array.isArray(body.par_per_hole) && body.par_per_hole.length > 0) {
@@ -2903,6 +2954,7 @@ Deno.serve(async (req) => {
             league_id: route.leagueId,
             tenant_id: tenantId,
             name: body.name.trim(),
+            course_name: courseName,
             software,
             par_per_hole: parPerHole,
             created_by: user.id,
@@ -2932,6 +2984,7 @@ Deno.serve(async (req) => {
         const updates: Record<string, unknown> = {}
         if (typeof body.name === 'string') updates.name = body.name.trim()
         if (typeof body.software === 'string') updates.software = body.software.trim()
+        if (typeof body.course_name === 'string') updates.course_name = body.course_name.trim()
         if (Array.isArray(body.par_per_hole)) {
           if (body.par_per_hole.length !== holes) return err(`par_per_hole must have ${holes} entries`)
           if (body.par_per_hole.some((p: number) => !Number.isInteger(p) || p < 3 || p > 6)) return err('par values must be integers 3-6')

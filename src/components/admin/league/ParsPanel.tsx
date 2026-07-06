@@ -13,7 +13,6 @@ import {
   useDeleteLeagueParSet,
   useLeagueCities,
   useLeagueLocations,
-  useUpdateLeagueLocation,
 } from "@/hooks/useLeagues";
 import type { LeagueParSetRow } from "@/types/league";
 
@@ -52,49 +51,44 @@ function ParGrid({ value, onChange, numHoles }: { value: number[]; onChange: (v:
   );
 }
 
-function LocationAssignments({ leagueId, parSet }: { leagueId: string; parSet: LeagueParSetRow }) {
+/** Read-only chips of locations that will use this par set (software match). */
+function DerivedLocationPills({ leagueId, software }: { leagueId: string; software: string }) {
   const { data: cities } = useLeagueCities(leagueId);
   return (
     <div className="space-y-1.5 pt-2 border-t border-border/50">
-      <Label className="text-[11px] text-muted-foreground">Used by locations</Label>
+      <Label className="text-[11px] text-muted-foreground">Locations using this par set (auto-matched by software)</Label>
       {(cities || []).length === 0 && <p className="text-xs text-muted-foreground">No cities yet.</p>}
       {(cities || []).map((c) => (
-        <CityLocationAssignRow key={c.id} leagueId={leagueId} cityId={c.id} cityName={c.name} parSetId={parSet.id} />
+        <CityDerivedRow key={c.id} leagueId={leagueId} cityId={c.id} cityName={c.name} software={software} />
       ))}
     </div>
   );
 }
 
-function CityLocationAssignRow({ leagueId, cityId, cityName, parSetId }: { leagueId: string; cityId: string; cityName: string; parSetId: string }) {
+function CityDerivedRow({ leagueId, cityId, cityName, software }: { leagueId: string; cityId: string; cityName: string; software: string }) {
   const { data: locations } = useLeagueLocations(leagueId, cityId);
-  const updateLoc = useUpdateLeagueLocation(leagueId, cityId);
   if (!locations || locations.length === 0) return null;
   return (
     <div className="text-xs">
       <div className="text-muted-foreground mb-1">{cityName}</div>
       <div className="flex flex-wrap gap-1.5 pl-2">
         {locations.map((loc) => {
-          const assigned = loc.par_set_id === parSetId;
+          const locSw = (loc as any).software || "TGC";
+          const matches = locSw === software;
           return (
-            <button
+            <div
               key={loc.id}
-              type="button"
-              onClick={() =>
-                updateLoc.mutate({ locationId: loc.id, par_set_id: assigned ? null : parSetId })
-              }
               className={`px-2 py-0.5 rounded-full border text-[11px] flex items-center gap-1 ${
-                assigned
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-background border-border hover:bg-muted"
+                matches
+                  ? "bg-green-100 text-green-800 border-green-400 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700"
+                  : "bg-muted text-muted-foreground border-border"
               }`}
-              disabled={updateLoc.isPending}
+              title={matches ? "This location's software matches" : `Location runs ${locSw}`}
             >
               <MapPin className="h-2.5 w-2.5" />
               {loc.name}
-              {loc.par_set_id && !assigned && (
-                <span className="text-[9px] opacity-70">(other)</span>
-              )}
-            </button>
+              <span className="text-[9px] opacity-70">· {locSw}</span>
+            </div>
           );
         })}
       </div>
@@ -106,6 +100,7 @@ function ParSetCard({ leagueId, parSet, numHoles }: { leagueId: string; parSet: 
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(parSet.name);
+  const [courseName, setCourseName] = useState(parSet.course_name || parSet.name);
   const [software, setSoftware] = useState(parSet.software);
   const [par, setPar] = useState<number[]>(
     parSet.par_per_hole?.length === numHoles ? [...parSet.par_per_hole] : Array(numHoles).fill(4),
@@ -120,7 +115,7 @@ function ParSetCard({ leagueId, parSet, numHoles }: { leagueId: string; parSet: 
       <div className="flex items-center justify-between">
         <button className="flex items-center gap-2 text-sm font-medium" onClick={() => setExpanded(!expanded)}>
           {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          <span>{parSet.name}</span>
+          <span>{parSet.course_name || parSet.name}</span>
           <Badge variant="secondary" className="text-[10px]">{parSet.software}</Badge>
           <Badge variant="outline" className="text-[10px]">Par {totalPar}</Badge>
         </button>
@@ -135,7 +130,7 @@ function ParSetCard({ leagueId, parSet, numHoles }: { leagueId: string; parSet: 
             variant="ghost"
             className="h-7 w-7 p-0"
             onClick={() => {
-              if (confirm(`Delete par set "${parSet.name}"? Locations using it will be unlinked.`)) {
+              if (confirm(`Delete par set "${parSet.name}"?`)) {
                 deleteMut.mutate(parSet.id);
               }
             }}
@@ -149,10 +144,10 @@ function ParSetCard({ leagueId, parSet, numHoles }: { leagueId: string; parSet: 
         <div className="mt-3 space-y-3">
           {editing ? (
             <>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-2 sm:grid-cols-3">
                 <div>
-                  <Label className="text-xs">Name</Label>
-                  <Input value={name} onChange={(e) => setName(e.target.value)} className="h-8 text-xs" />
+                  <Label className="text-xs">Course name</Label>
+                  <Input value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="e.g. Royal Birkdale" className="h-8 text-xs" />
                 </div>
                 <div>
                   <Label className="text-xs">Software</Label>
@@ -163,6 +158,10 @@ function ParSetCard({ leagueId, parSet, numHoles }: { leagueId: string; parSet: 
                     </SelectContent>
                   </Select>
                 </div>
+                <div>
+                  <Label className="text-xs">Display name</Label>
+                  <Input value={name} onChange={(e) => setName(e.target.value)} className="h-8 text-xs" />
+                </div>
               </div>
               <ParGrid value={par} onChange={setPar} numHoles={numHoles} />
               <div className="flex gap-2">
@@ -170,7 +169,7 @@ function ParSetCard({ leagueId, parSet, numHoles }: { leagueId: string; parSet: 
                   size="sm"
                   onClick={() =>
                     updateMut.mutate(
-                      { id: parSet.id, name: name.trim(), software, par_per_hole: par },
+                      { id: parSet.id, name: name.trim(), course_name: courseName.trim(), software, par_per_hole: par },
                       { onSuccess: () => setEditing(false) },
                     )
                   }
@@ -182,6 +181,7 @@ function ParSetCard({ leagueId, parSet, numHoles }: { leagueId: string; parSet: 
                 <Button size="sm" variant="ghost" onClick={() => {
                   setEditing(false);
                   setName(parSet.name);
+                  setCourseName(parSet.course_name || parSet.name);
                   setSoftware(parSet.software);
                   setPar(parSet.par_per_hole?.length === numHoles ? [...parSet.par_per_hole] : Array(numHoles).fill(4));
                 }}>
@@ -199,7 +199,7 @@ function ParSetCard({ leagueId, parSet, numHoles }: { leagueId: string; parSet: 
               ))}
             </div>
           )}
-          <LocationAssignments leagueId={leagueId} parSet={parSet} />
+          <DerivedLocationPills leagueId={leagueId} software={parSet.software} />
         </div>
       )}
     </div>
@@ -210,12 +210,12 @@ export function ParsPanel({ leagueId, numHoles }: Props) {
   const { data: parSets, isLoading } = useLeagueParSets(leagueId);
   const createMut = useCreateLeagueParSet(leagueId);
   const [showAdd, setShowAdd] = useState(false);
-  const [name, setName] = useState("");
+  const [courseName, setCourseName] = useState("");
   const [software, setSoftware] = useState("TGC");
   const [par, setPar] = useState<number[]>(Array(numHoles).fill(4));
 
   const reset = () => {
-    setName("");
+    setCourseName("");
     setSoftware("TGC");
     setPar(Array(numHoles).fill(4));
     setShowAdd(false);
@@ -231,15 +231,14 @@ export function ParsPanel({ leagueId, numHoles }: Props) {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-xs text-muted-foreground">
-          Define per-course par values by simulator (e.g. "Pebble Beach — TGC"), then assign each par set to the locations that use it.
-          Rounds can seed their par from any par set in the round dialog.
+          One par set per <b>course + software</b> (e.g. "Royal Birkdale — TGC"). Rounds pick a course; each team gets the par set matching their location's software automatically.
         </p>
         {showAdd && (
           <div className="border rounded-md p-3 space-y-3 bg-muted/30">
             <div className="grid gap-2 sm:grid-cols-2">
               <div>
-                <Label className="text-xs">Name</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Pebble Beach — TGC" className="h-8 text-xs" />
+                <Label className="text-xs">Course name</Label>
+                <Input value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="e.g. Royal Birkdale" className="h-8 text-xs" />
               </div>
               <div>
                 <Label className="text-xs">Software</Label>
@@ -255,13 +254,14 @@ export function ParsPanel({ leagueId, numHoles }: Props) {
             <div className="flex gap-2">
               <Button
                 size="sm"
-                disabled={!name.trim() || createMut.isPending}
-                onClick={() =>
+                disabled={!courseName.trim() || createMut.isPending}
+                onClick={() => {
+                  const cn = courseName.trim();
                   createMut.mutate(
-                    { name: name.trim(), software, par_per_hole: par },
+                    { name: `${cn} — ${software}`, course_name: cn, software, par_per_hole: par },
                     { onSuccess: reset },
-                  )
-                }
+                  );
+                }}
               >
                 {createMut.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
                 Create
