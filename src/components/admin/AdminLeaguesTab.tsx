@@ -73,6 +73,7 @@ import {
   useAssignPlayerLocation,
   useAssignTeamLocation,
   leagueServiceInvoke,
+  useLeagueParSets,
 } from "@/hooks/useLeagues";
 import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam, LeaderboardEntry } from "@/types/league";
