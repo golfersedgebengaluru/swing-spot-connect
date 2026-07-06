@@ -2871,6 +2871,7 @@ Deno.serve(async (req) => {
             league_id: route.leagueId,
             tenant_id: tenantId,
             name: body.name.trim(),
+            software: typeof body.software === 'string' && ['TGC','GSPro','Other'].includes(body.software) ? body.software : 'TGC',
             display_order: typeof body.display_order === 'number' ? body.display_order : 0,
             created_by: user.id,
           })
