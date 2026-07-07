@@ -134,10 +134,10 @@ export function RevealedRoundScores({
               {rows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="text-xs font-medium">{r.name}</TableCell>
-                  {Array.from({ length: parPerHole.length || r.hs.length }).map((_, i) => {
+                  {Array.from({ length: r.par.length || displayPar.length || r.hs.length }).map((_, i) => {
                     const isHidden = hiddenHoles.includes(i + 1);
                     const v = r.hs[i];
-                    const p = parPerHole[i];
+                    const p = r.par[i] ?? displayPar[i];
                     const diff = typeof v === "number" && typeof p === "number" && p > 0 ? v - p : null;
                     const holePts = holeToStablefordPoints(Number(v) || 0, Number(p) || 0);
                     return (
@@ -159,10 +159,10 @@ export function RevealedRoundScores({
                   <TableCell className="text-center text-xs font-semibold">{r.gross || "—"}</TableCell>
                   <TableCell className="text-center text-xs">{r.hiddenSum || "—"}</TableCell>
                   <TableCell className="text-center text-xs font-semibold">
-                    {hiddenHoles.length > 0 && roundPar > 0 ? r.handicap : "—"}
+                    {hiddenHoles.length > 0 && r.parTotal > 0 ? r.handicap : "—"}
                   </TableCell>
                   <TableCell className="text-center text-xs font-bold text-primary">
-                    {hiddenHoles.length > 0 && roundPar > 0 ? r.net : "—"}
+                    {hiddenHoles.length > 0 && r.parTotal > 0 ? r.net : "—"}
                   </TableCell>
                   {showPoints && (
                     <TableCell className="text-center text-xs font-bold text-emerald-600">
