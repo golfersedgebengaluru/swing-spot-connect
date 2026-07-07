@@ -1263,9 +1263,46 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Resolve per-player par via (round.course_name, player-location.software) → league_par_sets
+        const [{ data: parSetsAll }, { data: locsAll }, { data: playersAll }, { data: roundsAll }] = await Promise.all([
+          supabase.from('league_par_sets').select('course_name, software, par_per_hole').eq('league_id', route.leagueId),
+          supabase.from('league_locations').select('id, software').eq('league_id', route.leagueId),
+          supabase.from('league_players').select('user_id, league_location_id, league_teams!team_id(league_location_id)').eq('league_id', route.leagueId),
+          supabase.from('league_rounds').select('round_number, par_per_hole, course_name').eq('league_id', route.leagueId),
+        ])
+        const parSetMap: Record<string, number[]> = {}
+        for (const ps of ((parSetsAll || []) as any[])) {
+          parSetMap[`${ps.course_name}||${ps.software}`] = (ps.par_per_hole as number[]) || []
+        }
+        const locSoftware: Record<string, string> = {}
+        for (const l of ((locsAll || []) as any[])) locSoftware[l.id] = l.software || 'TGC'
+        const userLocation: Record<string, string | null> = {}
+        for (const p of ((playersAll || []) as any[])) {
+          const teamLoc = Array.isArray(p.league_teams) ? p.league_teams[0]?.league_location_id : p.league_teams?.league_location_id
+          userLocation[p.user_id] = p.league_location_id || teamLoc || null
+        }
+        const roundInfo: Record<number, { par: number[]; course: string | null }> = {}
+        for (const r of ((roundsAll || []) as any[])) {
+          roundInfo[r.round_number] = { par: (r.par_per_hole as number[]) || [], course: r.course_name || null }
+        }
+        const resolveParFor = (userId: string, roundNumber: number): number[] => {
+          const info = roundInfo[roundNumber]
+          if (!info) return []
+          if (info.course) {
+            const locId = userLocation[userId]
+            const sw = locId ? locSoftware[locId] : null
+            if (sw) {
+              const custom = parSetMap[`${info.course}||${sw}`]
+              if (custom && custom.length > 0) return custom
+            }
+          }
+          return info.par
+        }
+
         const enriched = (data || []).map((s: any) => ({
           ...s,
           player_name: profileMap[s.player_id] || null,
+          resolved_par_per_hole: resolveParFor(s.player_id, s.round_number),
         }))
 
         return json(enriched)
