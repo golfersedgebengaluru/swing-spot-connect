@@ -1264,11 +1264,12 @@ Deno.serve(async (req) => {
         }
 
         // Resolve per-player par via (round.course_name, player-location.software) → league_par_sets
-        const [{ data: parSetsAll }, { data: locsAll }, { data: playersAll }, { data: roundsAll }] = await Promise.all([
+        const [{ data: parSetsAll }, { data: locsAll }, { data: playersAll }, { data: roundsAll }, { data: teamsAll }] = await Promise.all([
           supabase.from('league_par_sets').select('course_name, software, par_per_hole').eq('league_id', route.leagueId),
           supabase.from('league_locations').select('id, software').eq('league_id', route.leagueId),
-          supabase.from('league_players').select('user_id, league_location_id, league_teams!team_id(league_location_id)').eq('league_id', route.leagueId),
+          supabase.from('league_players').select('user_id, team_id, league_location_id, league_teams!team_id(league_location_id)').eq('league_id', route.leagueId),
           supabase.from('league_rounds').select('round_number, par_per_hole, course_name').eq('league_id', route.leagueId),
+          supabase.from('league_teams').select('id, name').eq('league_id', route.leagueId),
         ])
         const parSetMap: Record<string, number[]> = {}
         for (const ps of ((parSetsAll || []) as any[])) {
@@ -1277,10 +1278,14 @@ Deno.serve(async (req) => {
         const locSoftware: Record<string, string> = {}
         for (const l of ((locsAll || []) as any[])) locSoftware[l.id] = l.software || 'TGC'
         const userLocation: Record<string, string | null> = {}
+        const userTeamId: Record<string, string | null> = {}
         for (const p of ((playersAll || []) as any[])) {
           const teamLoc = Array.isArray(p.league_teams) ? p.league_teams[0]?.league_location_id : p.league_teams?.league_location_id
           userLocation[p.user_id] = p.league_location_id || teamLoc || null
+          userTeamId[p.user_id] = p.team_id || null
         }
+        const teamNameMap: Record<string, string> = {}
+        for (const t of ((teamsAll || []) as any[])) teamNameMap[t.id] = t.name
         const roundInfo: Record<number, { par: number[]; course: string | null }> = {}
         for (const r of ((roundsAll || []) as any[])) {
           roundInfo[r.round_number] = { par: (r.par_per_hole as number[]) || [], course: r.course_name || null }
@@ -1299,11 +1304,16 @@ Deno.serve(async (req) => {
           return info.par
         }
 
-        const enriched = (data || []).map((s: any) => ({
-          ...s,
-          player_name: profileMap[s.player_id] || null,
-          resolved_par_per_hole: resolveParFor(s.player_id, s.round_number),
-        }))
+        const enriched = (data || []).map((s: any) => {
+          const tid = userTeamId[s.player_id] || null
+          return {
+            ...s,
+            player_name: profileMap[s.player_id] || null,
+            resolved_par_per_hole: resolveParFor(s.player_id, s.round_number),
+            team_id: tid,
+            team_name: tid ? (teamNameMap[tid] || null) : null,
+          }
+        })
 
         return json(enriched)
       }

@@ -1511,7 +1511,9 @@ function RoundsPanel({ league }: { league: League }) {
                         hiddenHoles={adminHH.hidden_holes || []}
                         showPoints={league.stableford_enabled !== false}
                         format={league.format}
+                        groupByTeam
                       />
+
                     )}
                     <CompetitionEditor leagueId={league.id} round={r} />
                   </div>

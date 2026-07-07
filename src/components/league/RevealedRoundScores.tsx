@@ -22,6 +22,7 @@ export function RevealedRoundScores({
   showTeamTotal = false,
   showPoints = true,
   format,
+  groupByTeam = false,
 }: {
   leagueId: string;
   roundNumber: number;
@@ -31,6 +32,7 @@ export function RevealedRoundScores({
   showTeamTotal?: boolean;
   showPoints?: boolean;
   format?: string;
+  groupByTeam?: boolean;
 }) {
   const { data: allScores, isLoading } = useLeagueScores(leagueId, roundNumber);
   const scores = playerIds
@@ -77,8 +79,41 @@ export function RevealedRoundScores({
     const handicap = parTotal > 0 && hiddenHoles.length > 0 ? Math.max(0, hiddenSum * HC_MULT - parTotal) : 0;
     const net = gross - handicap;
     const points = holeScoresToStableford(hs, par);
-    return { id: s.id, name: s.player_name || s.player_id?.slice(0, 8), hs, par, parTotal, gross, hiddenSum, handicap, net, points };
+    return { id: s.id, name: s.player_name || s.player_id?.slice(0, 8), team_id: s.team_id || null, team_name: s.team_name || null, hs, par, parTotal, gross, hiddenSum, handicap, net, points };
   });
+
+  // Team grouping (admin view). Assign a stable color per team from a small palette.
+  const TEAM_PALETTE = [
+    { bar: "bg-sky-500",    tint: "bg-sky-50",    text: "text-sky-700",    border: "border-l-sky-500" },
+    { bar: "bg-amber-500",  tint: "bg-amber-50",  text: "text-amber-700",  border: "border-l-amber-500" },
+    { bar: "bg-emerald-500",tint: "bg-emerald-50",text: "text-emerald-700",border: "border-l-emerald-500" },
+    { bar: "bg-violet-500", tint: "bg-violet-50", text: "text-violet-700", border: "border-l-violet-500" },
+    { bar: "bg-rose-500",   tint: "bg-rose-50",   text: "text-rose-700",   border: "border-l-rose-500" },
+    { bar: "bg-cyan-500",   tint: "bg-cyan-50",   text: "text-cyan-700",   border: "border-l-cyan-500" },
+  ];
+  const teamOrder: string[] = [];
+  const teamNameById: Record<string, string> = {};
+  for (const r of rows) {
+    const key = r.team_id || "__none__";
+    if (!teamOrder.includes(key)) teamOrder.push(key);
+    if (r.team_id && r.team_name) teamNameById[r.team_id] = r.team_name;
+  }
+  const teamColorById: Record<string, typeof TEAM_PALETTE[number]> = {};
+  let ci = 0;
+  for (const key of teamOrder) {
+    if (key === "__none__") continue;
+    teamColorById[key] = TEAM_PALETTE[ci % TEAM_PALETTE.length];
+    ci++;
+  }
+  const orderedRows = groupByTeam
+    ? [...rows].sort((a, b) => {
+        const ai = teamOrder.indexOf(a.team_id || "__none__");
+        const bi = teamOrder.indexOf(b.team_id || "__none__");
+        if (ai !== bi) return ai - bi;
+        return a.name.localeCompare(b.name);
+      })
+    : rows;
+  const totalCols = 1 + (displayPar.length || (rows[0]?.hs.length ?? 0)) + 4 + (showPoints ? 1 : 0);
 
 
   return (
@@ -131,46 +166,76 @@ export function RevealedRoundScores({
               )}
             </TableHeader>
             <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="text-xs font-medium">{r.name}</TableCell>
-                  {Array.from({ length: r.par.length || displayPar.length || r.hs.length }).map((_, i) => {
-                    const isHidden = hiddenHoles.includes(i + 1);
-                    const v = r.hs[i];
-                    const p = r.par[i] ?? displayPar[i];
-                    const diff = typeof v === "number" && typeof p === "number" && p > 0 ? v - p : null;
-                    const holePts = holeToStablefordPoints(Number(v) || 0, Number(p) || 0);
-                    return (
-                      <TableCell
-                        key={i}
-                        className={`text-center px-1.5 text-xs ${isHidden ? "bg-accent/30" : ""} ${
-                          diff !== null && diff < 0 ? "text-green-600" : diff !== null && diff > 0 ? "text-destructive" : ""
-                        }`}
-                      >
-                        <div>{v ?? "—"}</div>
-                        {showPoints && p > 0 && v ? (
-                          <div className="text-[9px] text-muted-foreground font-normal leading-none mt-0.5">
-                            {formatPoints(holePts)}
-                          </div>
-                        ) : null}
-                      </TableCell>
+              {(() => {
+                const nodes: JSX.Element[] = [];
+                let lastTeamKey: string | null = null;
+                orderedRows.forEach((r) => {
+                  const key = r.team_id || "__none__";
+                  if (groupByTeam && key !== lastTeamKey) {
+                    const color = r.team_id ? teamColorById[r.team_id] : null;
+                    nodes.push(
+                      <TableRow key={`team-${key}`} className={color?.tint || "bg-muted/40"}>
+                        <TableCell
+                          colSpan={totalCols}
+                          className={`py-1 text-[11px] font-semibold ${color?.text || "text-muted-foreground"} border-l-4 ${color?.border || "border-l-muted"}`}
+                        >
+                          {r.team_id ? (r.team_name || teamNameById[r.team_id] || "Team") : "Unassigned"}
+                        </TableCell>
+                      </TableRow>,
                     );
-                  })}
-                  <TableCell className="text-center text-xs font-semibold">{r.gross || "—"}</TableCell>
-                  <TableCell className="text-center text-xs">{r.hiddenSum || "—"}</TableCell>
-                  <TableCell className="text-center text-xs font-semibold">
-                    {hiddenHoles.length > 0 && r.parTotal > 0 ? r.handicap : "—"}
-                  </TableCell>
-                  <TableCell className="text-center text-xs font-bold text-primary">
-                    {hiddenHoles.length > 0 && r.parTotal > 0 ? r.net : "—"}
-                  </TableCell>
-                  {showPoints && (
-                    <TableCell className="text-center text-xs font-bold text-emerald-600">
-                      {formatPoints(r.points)}
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))}
+                    lastTeamKey = key;
+                  }
+                  const color = groupByTeam && r.team_id ? teamColorById[r.team_id] : null;
+                  nodes.push(
+                    <TableRow key={r.id} className={color ? `${color.tint} border-l-4 ${color.border}` : undefined}>
+                      <TableCell className="text-xs font-medium">
+                        <div>{r.name}</div>
+                        {groupByTeam && r.team_name && (
+                          <div className={`text-[10px] font-normal ${color?.text || "text-muted-foreground"}`}>
+                            {r.team_name}
+                          </div>
+                        )}
+                      </TableCell>
+                      {Array.from({ length: r.par.length || displayPar.length || r.hs.length }).map((_, i) => {
+                        const isHidden = hiddenHoles.includes(i + 1);
+                        const v = r.hs[i];
+                        const p = r.par[i] ?? displayPar[i];
+                        const diff = typeof v === "number" && typeof p === "number" && p > 0 ? v - p : null;
+                        const holePts = holeToStablefordPoints(Number(v) || 0, Number(p) || 0);
+                        return (
+                          <TableCell
+                            key={i}
+                            className={`text-center px-1.5 text-xs ${isHidden ? "bg-accent/30" : ""} ${
+                              diff !== null && diff < 0 ? "text-green-600" : diff !== null && diff > 0 ? "text-destructive" : ""
+                            }`}
+                          >
+                            <div>{v ?? "—"}</div>
+                            {showPoints && p > 0 && v ? (
+                              <div className="text-[9px] text-muted-foreground font-normal leading-none mt-0.5">
+                                {formatPoints(holePts)}
+                              </div>
+                            ) : null}
+                          </TableCell>
+                        );
+                      })}
+                      <TableCell className="text-center text-xs font-semibold">{r.gross || "—"}</TableCell>
+                      <TableCell className="text-center text-xs">{r.hiddenSum || "—"}</TableCell>
+                      <TableCell className="text-center text-xs font-semibold">
+                        {hiddenHoles.length > 0 && r.parTotal > 0 ? r.handicap : "—"}
+                      </TableCell>
+                      <TableCell className="text-center text-xs font-bold text-primary">
+                        {hiddenHoles.length > 0 && r.parTotal > 0 ? r.net : "—"}
+                      </TableCell>
+                      {showPoints && (
+                        <TableCell className="text-center text-xs font-bold text-emerald-600">
+                          {formatPoints(r.points)}
+                        </TableCell>
+                      )}
+                    </TableRow>,
+                  );
+                });
+                return nodes;
+              })()}
               {showTeamTotal && rows.length > 1 && (() => {
                 const holeCount = displayPar.length || rows[0].hs.length;
                 const isBestBall = format === "best_ball";
