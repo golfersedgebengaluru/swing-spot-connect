@@ -284,6 +284,42 @@ export function RevealedRoundScores({
                   for (const [key, teamRows] of byTeam) {
                     const color = key !== "__none__" ? teamColorById[key] : null;
                     const first = teamRows[0];
+                    // Pick par + location label for this team (majority among members).
+                    const teamParCounts = new Map<string, { par: number[]; n: number; locs: Set<string> }>();
+                    for (const r of teamRows) {
+                      const pk = r.par.join(",");
+                      const prev = teamParCounts.get(pk);
+                      const locs = prev?.locs || new Set<string>();
+                      const src = (scores || []).find((s: any) => s.id === r.id) as any;
+                      const ln = src?.location_name || src?.player_location_name || src?.software_name;
+                      if (ln) locs.add(String(ln));
+                      teamParCounts.set(pk, { par: r.par, n: (prev?.n || 0) + 1, locs });
+                    }
+                    let teamPar = displayPar;
+                    let teamLocLabel: string | null = null;
+                    let bestN = -1;
+                    for (const v of teamParCounts.values()) {
+                      if (v.n > bestN) { bestN = v.n; teamPar = v.par; teamLocLabel = v.locs.size ? Array.from(v.locs).join(" / ") : null; }
+                    }
+                    const teamParTotal = teamPar.reduce((a, p) => a + (Number(p) > 0 ? Number(p) : 0), 0);
+
+                    if (distinctParSets.length > 1) {
+                      nodes.push(
+                        <TableRow key={`par-${key}`} className={color?.tint || undefined}>
+                          <TableCell className={`text-[10px] ${color?.text || "text-muted-foreground"} border-l-4 ${color?.border || "border-l-transparent"}`}>
+                            Par{teamLocLabel ? ` — ${teamLocLabel}` : ""}
+                          </TableCell>
+                          {teamPar.map((p, i) => (
+                            <TableCell key={i} className="text-center px-1.5 text-[10px] text-muted-foreground">
+                              {p || "—"}
+                            </TableCell>
+                          ))}
+                          <TableCell className="text-center text-[10px] text-muted-foreground">{teamParTotal}</TableCell>
+                          <TableCell colSpan={showPoints ? 4 : 3} />
+                        </TableRow>,
+                      );
+                    }
+
                     nodes.push(
                       <TableRow key={`team-${key}`} className={color?.tint || "bg-muted/40"}>
                         <TableCell
