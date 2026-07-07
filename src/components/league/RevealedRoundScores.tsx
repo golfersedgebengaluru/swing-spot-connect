@@ -82,6 +82,39 @@ export function RevealedRoundScores({
     return { id: s.id, name: s.player_name || s.player_id?.slice(0, 8), team_id: s.team_id || null, team_name: s.team_name || null, hs, par, parTotal, gross, hiddenSum, handicap, net, points };
   });
 
+  // Team grouping (admin view). Assign a stable color per team from a small palette.
+  const TEAM_PALETTE = [
+    { bar: "bg-sky-500",    tint: "bg-sky-50",    text: "text-sky-700",    border: "border-l-sky-500" },
+    { bar: "bg-amber-500",  tint: "bg-amber-50",  text: "text-amber-700",  border: "border-l-amber-500" },
+    { bar: "bg-emerald-500",tint: "bg-emerald-50",text: "text-emerald-700",border: "border-l-emerald-500" },
+    { bar: "bg-violet-500", tint: "bg-violet-50", text: "text-violet-700", border: "border-l-violet-500" },
+    { bar: "bg-rose-500",   tint: "bg-rose-50",   text: "text-rose-700",   border: "border-l-rose-500" },
+    { bar: "bg-cyan-500",   tint: "bg-cyan-50",   text: "text-cyan-700",   border: "border-l-cyan-500" },
+  ];
+  const teamOrder: string[] = [];
+  const teamNameById: Record<string, string> = {};
+  for (const r of rows) {
+    const key = r.team_id || "__none__";
+    if (!teamOrder.includes(key)) teamOrder.push(key);
+    if (r.team_id && r.team_name) teamNameById[r.team_id] = r.team_name;
+  }
+  const teamColorById: Record<string, typeof TEAM_PALETTE[number]> = {};
+  let ci = 0;
+  for (const key of teamOrder) {
+    if (key === "__none__") continue;
+    teamColorById[key] = TEAM_PALETTE[ci % TEAM_PALETTE.length];
+    ci++;
+  }
+  const orderedRows = groupByTeam
+    ? [...rows].sort((a, b) => {
+        const ai = teamOrder.indexOf(a.team_id || "__none__");
+        const bi = teamOrder.indexOf(b.team_id || "__none__");
+        if (ai !== bi) return ai - bi;
+        return a.name.localeCompare(b.name);
+      })
+    : rows;
+  const totalCols = 1 + (displayPar.length || (rows[0]?.hs.length ?? 0)) + 4 + (showPoints ? 1 : 0);
+
 
   return (
     <div className="rounded-md border p-3 space-y-2 bg-card">
