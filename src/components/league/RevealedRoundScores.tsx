@@ -22,6 +22,7 @@ export function RevealedRoundScores({
   showTeamTotal = false,
   showPoints = true,
   format,
+  groupByTeam = false,
 }: {
   leagueId: string;
   roundNumber: number;
@@ -31,6 +32,7 @@ export function RevealedRoundScores({
   showTeamTotal?: boolean;
   showPoints?: boolean;
   format?: string;
+  groupByTeam?: boolean;
 }) {
   const { data: allScores, isLoading } = useLeagueScores(leagueId, roundNumber);
   const scores = playerIds
