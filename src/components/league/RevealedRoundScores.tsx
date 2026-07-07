@@ -100,7 +100,7 @@ export function RevealedRoundScores({
             <TableHeader>
               <TableRow>
                 <TableHead className="text-xs">Player</TableHead>
-                {Array.from({ length: parPerHole.length || (rows[0]?.hs.length ?? 0) }).map((_, i) => {
+                {Array.from({ length: displayPar.length || (rows[0]?.hs.length ?? 0) }).map((_, i) => {
                   const isHidden = hiddenHoles.includes(i + 1);
                   return (
                     <TableHead
@@ -117,10 +117,10 @@ export function RevealedRoundScores({
                 <TableHead className="text-center text-xs">Net</TableHead>
                 {showPoints && <TableHead className="text-center text-xs">Pts</TableHead>}
               </TableRow>
-              {parPerHole.length > 0 && (
+              {displayPar.length > 0 && (
                 <TableRow>
                   <TableHead className="text-[10px] text-muted-foreground">Par</TableHead>
-                  {parPerHole.map((p, i) => (
+                  {displayPar.map((p, i) => (
                     <TableHead key={i} className="text-center px-1.5 text-[10px] text-muted-foreground font-normal">
                       {p || "—"}
                     </TableHead>
