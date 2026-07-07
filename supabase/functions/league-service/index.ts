@@ -691,23 +691,8 @@ async function computeLeaderboard(
           (ps) => memberUserIds.includes(ps.player_id) && ps.round_number === rn
         )
         if (memberScoresForRound.length === 0) continue
-        let roundGross: number
-        if (aggregation === 'best_ball') {
-          const best = memberScoresForRound.reduce((a, b) => a.gross_score < b.gross_score ? a : b)
-          roundGross = best.gross_score
-        } else {
-          roundGross = memberScoresForRound.reduce((s, p) => s + p.gross_score, 0) / memberScoresForRound.length
-        }
-        const roundHandicap = memberScoresForRound.reduce((s, p) => s + p.peoria_handicap, 0) / memberScoresForRound.length
-        const roundNet = roundGross - roundHandicap
-        // Team par: all members share a location, so use first member's resolved par.
-        const teamParUid = memberScoresForRound[0]?.player_id || memberUserIds[0]
-        const parsForRound = resolvePar(teamParUid, rn)
-        const roundPar = parsForRound.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
-        // Stableford layer for the team: apply per-hole best ball, then convert
-        // each hole to Modified Stableford points. For 'average' aggregation we
-        // still use best-ball-per-hole for the Stableford layer (the spec is a
-        // best-ball points layer); the stroke aggregation above is untouched.
+        // Build per-hole best-ball (min across teammates, skipping 0) once and
+        // reuse for both gross aggregation (best-ball leagues) and Stableford.
         const teamHoleArrays = memberScoresForRound.map((p) => p.hole_scores || [])
         const len = Math.max(0, ...teamHoleArrays.map((a) => a.length))
         const bestBallHoles: number[] = new Array(len).fill(0)
@@ -719,7 +704,28 @@ async function computeLeaderboard(
           }
           bestBallHoles[i] = best
         }
+        let roundGross: number
+        if (aggregation === 'best_ball') {
+          // Best ball = per-hole minimum summed, NOT the lower player's total.
+          const bestBallGross = bestBallHoles.reduce((s, v) => s + (v || 0), 0)
+          if (bestBallGross > 0) {
+            roundGross = bestBallGross
+          } else {
+            // Fallback when hole-level data is missing: use lowest player total.
+            const best = memberScoresForRound.reduce((a, b) => a.gross_score < b.gross_score ? a : b)
+            roundGross = best.gross_score
+          }
+        } else {
+          roundGross = memberScoresForRound.reduce((s, p) => s + p.gross_score, 0) / memberScoresForRound.length
+        }
+        const roundHandicap = memberScoresForRound.reduce((s, p) => s + p.peoria_handicap, 0) / memberScoresForRound.length
+        const roundNet = roundGross - roundHandicap
+        // Team par: all members share a location, so use first member's resolved par.
+        const teamParUid = memberScoresForRound[0]?.player_id || memberUserIds[0]
+        const parsForRound = resolvePar(teamParUid, rn)
+        const roundPar = parsForRound.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
         const roundStableford = sumStableford(bestBallHoles, parsForRound)
+
         teamTotalNet += roundNet
         teamTotalGross += roundGross
         teamTotalPar += roundPar
