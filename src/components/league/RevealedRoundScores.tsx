@@ -46,12 +46,15 @@ export function RevealedRoundScores({
   };
   // Header "Par" row uses the majority per-player par (so viewers see the par
   // that matches most players) or falls back to the round default.
-  const parCounts = new Map<string, { par: number[]; n: number }>();
+  const parCounts = new Map<string, { par: number[]; n: number; locations: Set<string> }>();
   for (const s of (scores || [])) {
     const p = resolvedParFor(s);
     const key = p.join(",");
     const prev = parCounts.get(key);
-    parCounts.set(key, { par: p, n: (prev?.n || 0) + 1 });
+    const locs = prev?.locations || new Set<string>();
+    const locName = s.location_name || s.player_location_name || s.software_name || null;
+    if (locName) locs.add(String(locName));
+    parCounts.set(key, { par: p, n: (prev?.n || 0) + 1, locations: locs });
   }
   let displayPar = parPerHole;
   if (parCounts.size > 0) {
@@ -60,6 +63,12 @@ export function RevealedRoundScores({
   }
   const roundPar = displayPar.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0);
   const HC_MULT = 3;
+  // Distinct par sets to render as separate "Par — <location>" rows in admin view.
+  const distinctParSets = Array.from(parCounts.values()).map((v) => ({
+    par: v.par,
+    label: v.locations.size > 0 ? Array.from(v.locations).join(" / ") : null,
+    total: v.par.reduce((a, p) => a + (Number(p) > 0 ? Number(p) : 0), 0),
+  }));
 
   if (isLoading) {
     return (
