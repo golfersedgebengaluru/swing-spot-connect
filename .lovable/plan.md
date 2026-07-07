@@ -1,35 +1,27 @@
-## Modified Stableford Points Layer
+## Admin Round Reveal — display-only enhancements
 
-A new points layer sits on top of today's Best Ball scoring. Nothing about how strokes, Peoria handicap, net scores, or team best-ball totals are calculated will change — those numbers stay exactly as they are today.
+Purely cosmetic. No scoring logic changes.
 
-### What gets added
+### 1. Per-location Par rows at the top
+Today there's a single "Par" row using the majority par. Instead:
+- Group players by their resolved location/par set.
+- Show one "Par — <Location name>" row per distinct par used in this round (e.g. one row for GEC Royal Birkdale Par 72, another for GEB location Par 71).
+- Round Par badge stays as-is (majority), or we show each location's total at the row end.
 
-**1. A shared points conversion**
-One reusable function that turns each hole's strokes vs. par into Modified Stableford points:
+### 2. Team groups (unchanged)
+Keep the current team grouping and colour-coding exactly as it is now.
 
-- Albatross or better → +8
-- Eagle → +5
-- Birdie → +2
-- Par → 0
-- Bogey → −1
-- Double bogey or worse → −2 (capped)
+### 3. Team best-ball summary row per team
+At the end of each team block, add one extra row in the same team colour showing:
+- Hole-by-hole team best-ball score (per-hole min across teammates)
+- Team Gross
+- Hidden Σ
+- Team Peoria HC (average of member HCs, matching the player-facing view)
+- Team Net
+- Team Pts (best-ball Stableford)
 
-Used everywhere points are shown so the rule lives in one place.
+This mirrors the "Team (Best Ball)" row already used in the player view — we're just repeating that pattern once per team inside the admin grouped table.
 
-**2. Leaderboard ranks by points**
-The league leaderboard (both player view and admin view) will rank by **total Stableford points, highest first**. Existing stroke totals, net scores, and vs-par stay visible as the secondary detail — nothing is removed. Teams are scored by applying the conversion to the team's best-ball result per hole, then summed.
-
-**3. Round breakdown shows both**
-For each round, you'll see the points earned as the headline number, with the existing stroke result right next to it (e.g. **+14 pts** — Birdie, Par, +2…).
-
-**4. Closed-round / Peoria reveal view**
-The hole-by-hole table gains a small **Pts** column per hole and a points total per player, alongside the existing strokes and Peoria columns.
-
-### What does NOT change
-- Best Ball stroke calculation
-- Peoria handicap math and reveal flow
-- Fairness factor for teams
-- Score entry (admin or player)
-- Database tables or any existing API fields
-
-Fully additive and backward-compatible — every number you see today will still be there, with points layered on top.
+### Scope
+- Only file touched: `src/components/league/RevealedRoundScores.tsx`.
+- No backend, no hook, no scoring changes. Uses data already fetched.
