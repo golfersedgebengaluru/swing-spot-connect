@@ -79,7 +79,7 @@ export function RevealedRoundScores({
     const handicap = parTotal > 0 && hiddenHoles.length > 0 ? Math.max(0, hiddenSum * HC_MULT - parTotal) : 0;
     const net = gross - handicap;
     const points = holeScoresToStableford(hs, par);
-    return { id: s.id, name: s.player_name || s.player_id?.slice(0, 8), hs, par, parTotal, gross, hiddenSum, handicap, net, points };
+    return { id: s.id, name: s.player_name || s.player_id?.slice(0, 8), team_id: s.team_id || null, team_name: s.team_name || null, hs, par, parTotal, gross, hiddenSum, handicap, net, points };
   });
 
 
