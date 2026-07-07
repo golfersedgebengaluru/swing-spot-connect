@@ -201,7 +201,7 @@ export function RevealedRoundScores({
                   : 0;
                 const teamNet = teamGross - teamHc;
                 const teamPoints = isBestBall
-                  ? holeScoresToStableford(holeTotals, parPerHole)
+                  ? holeScoresToStableford(holeTotals, displayPar)
                   : rows.reduce((s, r) => s + (r.points || 0), 0);
                 return (
                   <TableRow className="bg-primary/5 font-semibold">
