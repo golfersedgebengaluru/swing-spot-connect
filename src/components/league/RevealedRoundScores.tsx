@@ -36,7 +36,27 @@ export function RevealedRoundScores({
   const scores = playerIds
     ? (allScores || []).filter((s: any) => playerIds.includes(s.player_id))
     : allScores;
-  const roundPar = parPerHole.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0);
+  // Prefer per-player resolved par (course + player-location software) from
+  // the server. Falls back to the round default `parPerHole` when missing.
+  const resolvedParFor = (s: any): number[] => {
+    const rp = Array.isArray(s?.resolved_par_per_hole) ? s.resolved_par_per_hole : [];
+    return rp.length > 0 ? rp : parPerHole;
+  };
+  // Header "Par" row uses the majority per-player par (so viewers see the par
+  // that matches most players) or falls back to the round default.
+  const parCounts = new Map<string, { par: number[]; n: number }>();
+  for (const s of (scores || [])) {
+    const p = resolvedParFor(s);
+    const key = p.join(",");
+    const prev = parCounts.get(key);
+    parCounts.set(key, { par: p, n: (prev?.n || 0) + 1 });
+  }
+  let displayPar = parPerHole;
+  if (parCounts.size > 0) {
+    let best = -1;
+    for (const { par, n } of parCounts.values()) if (n > best) { best = n; displayPar = par; }
+  }
+  const roundPar = displayPar.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0);
   const HC_MULT = 3;
 
   if (isLoading) {
