@@ -52,7 +52,7 @@ export function RevealedRoundScores({
     const key = p.join(",");
     const prev = parCounts.get(key);
     const locs = prev?.locations || new Set<string>();
-    const locName = s.location_name || s.player_location_name || s.software_name || null;
+    const locName = (s as any).location_name || (s as any).player_location_name || (s as any).software_name || null;
     if (locName) locs.add(String(locName));
     parCounts.set(key, { par: p, n: (prev?.n || 0) + 1, locations: locs });
   }
