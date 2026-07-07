@@ -194,75 +194,133 @@ export function RevealedRoundScores({
             <TableBody>
               {(() => {
                 const nodes: JSX.Element[] = [];
-                let lastTeamKey: string | null = null;
-                orderedRows.forEach((r) => {
-                  const key = r.team_id || "__none__";
-                  if (groupByTeam && key !== lastTeamKey) {
-                    const color = r.team_id ? teamColorById[r.team_id] : null;
+                const holeCount = displayPar.length || rows[0]?.hs.length || 0;
+
+                const renderPlayerRow = (r: typeof rows[number], color: typeof TEAM_PALETTE[number] | null) => (
+                  <TableRow key={r.id} className={color ? `${color.tint} border-l-4 ${color.border}` : undefined}>
+                    <TableCell className="text-xs font-medium">
+                      <div>{r.name}</div>
+                      {groupByTeam && r.team_name && (
+                        <div className={`text-[10px] font-normal ${color?.text || "text-muted-foreground"}`}>
+                          {r.team_name}
+                        </div>
+                      )}
+                    </TableCell>
+                    {Array.from({ length: r.par.length || displayPar.length || r.hs.length }).map((_, i) => {
+                      const isHidden = hiddenHoles.includes(i + 1);
+                      const v = r.hs[i];
+                      const p = r.par[i] ?? displayPar[i];
+                      const diff = typeof v === "number" && typeof p === "number" && p > 0 ? v - p : null;
+                      const holePts = holeToStablefordPoints(Number(v) || 0, Number(p) || 0);
+                      return (
+                        <TableCell
+                          key={i}
+                          className={`text-center px-1.5 text-xs ${isHidden ? "bg-accent/30" : ""} ${
+                            diff !== null && diff < 0 ? "text-green-600" : diff !== null && diff > 0 ? "text-destructive" : ""
+                          }`}
+                        >
+                          <div>{v ?? "—"}</div>
+                          {showPoints && p > 0 && v ? (
+                            <div className="text-[9px] text-muted-foreground font-normal leading-none mt-0.5">
+                              {formatPoints(holePts)}
+                            </div>
+                          ) : null}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell className="text-center text-xs font-semibold">{r.gross || "—"}</TableCell>
+                    <TableCell className="text-center text-xs">{r.hiddenSum || "—"}</TableCell>
+                    <TableCell className="text-center text-xs font-semibold">
+                      {hiddenHoles.length > 0 && r.parTotal > 0 ? r.handicap : "—"}
+                    </TableCell>
+                    <TableCell className="text-center text-xs font-bold text-primary">
+                      {hiddenHoles.length > 0 && r.parTotal > 0 ? r.net : "—"}
+                    </TableCell>
+                    {showPoints && (
+                      <TableCell className="text-center text-xs font-bold text-emerald-600">
+                        {formatPoints(r.points)}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                );
+
+                const renderTeamSummary = (
+                  teamKey: string,
+                  teamRows: typeof rows,
+                  color: typeof TEAM_PALETTE[number] | null,
+                ) => {
+                  if (teamRows.length < 2) return null;
+                  // Per-hole best-ball across teammates (min >0)
+                  const holeTotals = Array.from({ length: holeCount }).map((_, i) => {
+                    const vals = teamRows.map((r) => Number(r.hs[i]) || 0).filter((v) => v > 0);
+                    return vals.length ? Math.min(...vals) : 0;
+                  });
+                  const teamGross = holeTotals.reduce((s, v) => s + (v || 0), 0);
+                  const teamHiddenSum = hiddenHoles.reduce((s, h) => s + (Number(holeTotals[h - 1]) || 0), 0);
+                  const teamHc = hiddenHoles.length > 0 && roundPar > 0
+                    ? Math.round((teamRows.reduce((s, r) => s + (r.handicap || 0), 0) / teamRows.length) * 100) / 100
+                    : 0;
+                  const teamNet = teamGross - teamHc;
+                  const teamPoints = holeScoresToStableford(holeTotals, displayPar);
+                  return (
+                    <TableRow
+                      key={`team-summary-${teamKey}`}
+                      className={`${color?.tint || "bg-primary/5"} border-l-4 ${color?.border || "border-l-primary"} font-semibold`}
+                    >
+                      <TableCell className={`text-xs ${color?.text || "text-primary"}`}>
+                        Team (Best Ball)
+                      </TableCell>
+                      {holeTotals.map((t, i) => (
+                        <TableCell key={i} className="text-center px-1.5 text-xs">{t || "—"}</TableCell>
+                      ))}
+                      <TableCell className="text-center text-xs">{teamGross || "—"}</TableCell>
+                      <TableCell className="text-center text-xs">{teamHiddenSum || "—"}</TableCell>
+                      <TableCell className="text-center text-xs">
+                        {hiddenHoles.length > 0 && roundPar > 0 ? teamHc : "—"}
+                      </TableCell>
+                      <TableCell className={`text-center text-xs ${color?.text || "text-primary"}`}>
+                        {hiddenHoles.length > 0 && roundPar > 0 ? teamNet : "—"}
+                      </TableCell>
+                      {showPoints && (
+                        <TableCell className="text-center text-xs text-emerald-600">
+                          {formatPoints(teamPoints)}
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                };
+
+                if (groupByTeam) {
+                  // Group ordered rows by team, emit header, players, summary.
+                  const byTeam = new Map<string, typeof rows>();
+                  for (const r of orderedRows) {
+                    const k = r.team_id || "__none__";
+                    if (!byTeam.has(k)) byTeam.set(k, [] as any);
+                    (byTeam.get(k) as any).push(r);
+                  }
+                  for (const [key, teamRows] of byTeam) {
+                    const color = key !== "__none__" ? teamColorById[key] : null;
+                    const first = teamRows[0];
                     nodes.push(
                       <TableRow key={`team-${key}`} className={color?.tint || "bg-muted/40"}>
                         <TableCell
                           colSpan={totalCols}
                           className={`py-1 text-[11px] font-semibold ${color?.text || "text-muted-foreground"} border-l-4 ${color?.border || "border-l-muted"}`}
                         >
-                          {r.team_id ? (r.team_name || teamNameById[r.team_id] || "Team") : "Unassigned"}
+                          {key !== "__none__" ? (first.team_name || teamNameById[key] || "Team") : "Unassigned"}
                         </TableCell>
                       </TableRow>,
                     );
-                    lastTeamKey = key;
+                    for (const r of teamRows) nodes.push(renderPlayerRow(r, color));
+                    const summary = renderTeamSummary(key, teamRows, color);
+                    if (summary) nodes.push(summary);
                   }
-                  const color = groupByTeam && r.team_id ? teamColorById[r.team_id] : null;
-                  nodes.push(
-                    <TableRow key={r.id} className={color ? `${color.tint} border-l-4 ${color.border}` : undefined}>
-                      <TableCell className="text-xs font-medium">
-                        <div>{r.name}</div>
-                        {groupByTeam && r.team_name && (
-                          <div className={`text-[10px] font-normal ${color?.text || "text-muted-foreground"}`}>
-                            {r.team_name}
-                          </div>
-                        )}
-                      </TableCell>
-                      {Array.from({ length: r.par.length || displayPar.length || r.hs.length }).map((_, i) => {
-                        const isHidden = hiddenHoles.includes(i + 1);
-                        const v = r.hs[i];
-                        const p = r.par[i] ?? displayPar[i];
-                        const diff = typeof v === "number" && typeof p === "number" && p > 0 ? v - p : null;
-                        const holePts = holeToStablefordPoints(Number(v) || 0, Number(p) || 0);
-                        return (
-                          <TableCell
-                            key={i}
-                            className={`text-center px-1.5 text-xs ${isHidden ? "bg-accent/30" : ""} ${
-                              diff !== null && diff < 0 ? "text-green-600" : diff !== null && diff > 0 ? "text-destructive" : ""
-                            }`}
-                          >
-                            <div>{v ?? "—"}</div>
-                            {showPoints && p > 0 && v ? (
-                              <div className="text-[9px] text-muted-foreground font-normal leading-none mt-0.5">
-                                {formatPoints(holePts)}
-                              </div>
-                            ) : null}
-                          </TableCell>
-                        );
-                      })}
-                      <TableCell className="text-center text-xs font-semibold">{r.gross || "—"}</TableCell>
-                      <TableCell className="text-center text-xs">{r.hiddenSum || "—"}</TableCell>
-                      <TableCell className="text-center text-xs font-semibold">
-                        {hiddenHoles.length > 0 && r.parTotal > 0 ? r.handicap : "—"}
-                      </TableCell>
-                      <TableCell className="text-center text-xs font-bold text-primary">
-                        {hiddenHoles.length > 0 && r.parTotal > 0 ? r.net : "—"}
-                      </TableCell>
-                      {showPoints && (
-                        <TableCell className="text-center text-xs font-bold text-emerald-600">
-                          {formatPoints(r.points)}
-                        </TableCell>
-                      )}
-                    </TableRow>,
-                  );
-                });
+                } else {
+                  for (const r of orderedRows) nodes.push(renderPlayerRow(r, null));
+                }
                 return nodes;
               })()}
-              {showTeamTotal && rows.length > 1 && (() => {
+              {showTeamTotal && !groupByTeam && rows.length > 1 && (() => {
                 const holeCount = displayPar.length || rows[0].hs.length;
                 const isBestBall = format === "best_ball";
                 // Per-hole team score: best_ball = min of members (>0); else = sum
