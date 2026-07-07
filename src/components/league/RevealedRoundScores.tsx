@@ -161,34 +161,17 @@ export function RevealedRoundScores({
                 <TableHead className="text-center text-xs">Net</TableHead>
                 {showPoints && <TableHead className="text-center text-xs">Pts</TableHead>}
               </TableRow>
-              {displayPar.length > 0 && (
-                groupByTeam && distinctParSets.length > 1 ? (
-                  distinctParSets.map((ps, idx) => (
-                    <TableRow key={`par-${idx}`}>
-                      <TableHead className="text-[10px] text-muted-foreground">
-                        Par{ps.label ? ` — ${ps.label}` : ""}
-                      </TableHead>
-                      {ps.par.map((p, i) => (
-                        <TableHead key={i} className="text-center px-1.5 text-[10px] text-muted-foreground font-normal">
-                          {p || "—"}
-                        </TableHead>
-                      ))}
-                      <TableHead className="text-center text-[10px] text-muted-foreground font-normal">{ps.total}</TableHead>
-                      <TableHead colSpan={showPoints ? 4 : 3} />
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableHead className="text-[10px] text-muted-foreground">Par</TableHead>
-                    {displayPar.map((p, i) => (
-                      <TableHead key={i} className="text-center px-1.5 text-[10px] text-muted-foreground font-normal">
-                        {p || "—"}
-                      </TableHead>
-                    ))}
-                    <TableHead className="text-center text-[10px] text-muted-foreground font-normal">{roundPar}</TableHead>
-                    <TableHead colSpan={showPoints ? 4 : 3} />
-                  </TableRow>
-                )
+              {displayPar.length > 0 && !(groupByTeam && distinctParSets.length > 1) && (
+                <TableRow>
+                  <TableHead className="text-[10px] text-muted-foreground">Par</TableHead>
+                  {displayPar.map((p, i) => (
+                    <TableHead key={i} className="text-center px-1.5 text-[10px] text-muted-foreground font-normal">
+                      {p || "—"}
+                    </TableHead>
+                  ))}
+                  <TableHead className="text-center text-[10px] text-muted-foreground font-normal">{roundPar}</TableHead>
+                  <TableHead colSpan={showPoints ? 4 : 3} />
+                </TableRow>
               )}
             </TableHeader>
             <TableBody>
