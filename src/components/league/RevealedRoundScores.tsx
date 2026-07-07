@@ -172,7 +172,7 @@ export function RevealedRoundScores({
                 </TableRow>
               ))}
               {showTeamTotal && rows.length > 1 && (() => {
-                const holeCount = parPerHole.length || rows[0].hs.length;
+                const holeCount = displayPar.length || rows[0].hs.length;
                 const isBestBall = format === "best_ball";
                 // Per-hole team score: best_ball = min of members (>0); else = sum
                 const holeTotals = Array.from({ length: holeCount }).map((_, i) => {
