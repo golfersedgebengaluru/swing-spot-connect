@@ -36,7 +36,27 @@ export function RevealedRoundScores({
   const scores = playerIds
     ? (allScores || []).filter((s: any) => playerIds.includes(s.player_id))
     : allScores;
-  const roundPar = parPerHole.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0);
+  // Prefer per-player resolved par (course + player-location software) from
+  // the server. Falls back to the round default `parPerHole` when missing.
+  const resolvedParFor = (s: any): number[] => {
+    const rp = Array.isArray(s?.resolved_par_per_hole) ? s.resolved_par_per_hole : [];
+    return rp.length > 0 ? rp : parPerHole;
+  };
+  // Header "Par" row uses the majority per-player par (so viewers see the par
+  // that matches most players) or falls back to the round default.
+  const parCounts = new Map<string, { par: number[]; n: number }>();
+  for (const s of (scores || [])) {
+    const p = resolvedParFor(s);
+    const key = p.join(",");
+    const prev = parCounts.get(key);
+    parCounts.set(key, { par: p, n: (prev?.n || 0) + 1 });
+  }
+  let displayPar = parPerHole;
+  if (parCounts.size > 0) {
+    let best = -1;
+    for (const { par, n } of parCounts.values()) if (n > best) { best = n; displayPar = par; }
+  }
+  const roundPar = displayPar.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0);
   const HC_MULT = 3;
 
   if (isLoading) {
@@ -50,12 +70,14 @@ export function RevealedRoundScores({
 
   const rows = (scores || []).map((s: any) => {
     const hs: number[] = Array.isArray(s.hole_scores) ? s.hole_scores : [];
+    const par = resolvedParFor(s);
+    const parTotal = par.reduce((a, p) => a + (Number(p) > 0 ? Number(p) : 0), 0);
     const gross = s.total_score ?? hs.reduce((a, v) => a + (Number(v) || 0), 0);
     const hiddenSum = hiddenHoles.reduce((sum, h) => sum + (Number(hs[h - 1]) || 0), 0);
-    const handicap = roundPar > 0 && hiddenHoles.length > 0 ? Math.max(0, hiddenSum * HC_MULT - roundPar) : 0;
+    const handicap = parTotal > 0 && hiddenHoles.length > 0 ? Math.max(0, hiddenSum * HC_MULT - parTotal) : 0;
     const net = gross - handicap;
-    const points = holeScoresToStableford(hs, parPerHole);
-    return { id: s.id, name: s.player_name || s.player_id?.slice(0, 8), hs, gross, hiddenSum, handicap, net, points };
+    const points = holeScoresToStableford(hs, par);
+    return { id: s.id, name: s.player_name || s.player_id?.slice(0, 8), hs, par, parTotal, gross, hiddenSum, handicap, net, points };
   });
 
 
@@ -78,7 +100,7 @@ export function RevealedRoundScores({
             <TableHeader>
               <TableRow>
                 <TableHead className="text-xs">Player</TableHead>
-                {Array.from({ length: parPerHole.length || (rows[0]?.hs.length ?? 0) }).map((_, i) => {
+                {Array.from({ length: displayPar.length || (rows[0]?.hs.length ?? 0) }).map((_, i) => {
                   const isHidden = hiddenHoles.includes(i + 1);
                   return (
                     <TableHead
@@ -95,10 +117,10 @@ export function RevealedRoundScores({
                 <TableHead className="text-center text-xs">Net</TableHead>
                 {showPoints && <TableHead className="text-center text-xs">Pts</TableHead>}
               </TableRow>
-              {parPerHole.length > 0 && (
+              {displayPar.length > 0 && (
                 <TableRow>
                   <TableHead className="text-[10px] text-muted-foreground">Par</TableHead>
-                  {parPerHole.map((p, i) => (
+                  {displayPar.map((p, i) => (
                     <TableHead key={i} className="text-center px-1.5 text-[10px] text-muted-foreground font-normal">
                       {p || "—"}
                     </TableHead>
@@ -112,10 +134,10 @@ export function RevealedRoundScores({
               {rows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="text-xs font-medium">{r.name}</TableCell>
-                  {Array.from({ length: parPerHole.length || r.hs.length }).map((_, i) => {
+                  {Array.from({ length: r.par.length || displayPar.length || r.hs.length }).map((_, i) => {
                     const isHidden = hiddenHoles.includes(i + 1);
                     const v = r.hs[i];
-                    const p = parPerHole[i];
+                    const p = r.par[i] ?? displayPar[i];
                     const diff = typeof v === "number" && typeof p === "number" && p > 0 ? v - p : null;
                     const holePts = holeToStablefordPoints(Number(v) || 0, Number(p) || 0);
                     return (
@@ -137,10 +159,10 @@ export function RevealedRoundScores({
                   <TableCell className="text-center text-xs font-semibold">{r.gross || "—"}</TableCell>
                   <TableCell className="text-center text-xs">{r.hiddenSum || "—"}</TableCell>
                   <TableCell className="text-center text-xs font-semibold">
-                    {hiddenHoles.length > 0 && roundPar > 0 ? r.handicap : "—"}
+                    {hiddenHoles.length > 0 && r.parTotal > 0 ? r.handicap : "—"}
                   </TableCell>
                   <TableCell className="text-center text-xs font-bold text-primary">
-                    {hiddenHoles.length > 0 && roundPar > 0 ? r.net : "—"}
+                    {hiddenHoles.length > 0 && r.parTotal > 0 ? r.net : "—"}
                   </TableCell>
                   {showPoints && (
                     <TableCell className="text-center text-xs font-bold text-emerald-600">
@@ -150,7 +172,7 @@ export function RevealedRoundScores({
                 </TableRow>
               ))}
               {showTeamTotal && rows.length > 1 && (() => {
-                const holeCount = parPerHole.length || rows[0].hs.length;
+                const holeCount = displayPar.length || rows[0].hs.length;
                 const isBestBall = format === "best_ball";
                 // Per-hole team score: best_ball = min of members (>0); else = sum
                 const holeTotals = Array.from({ length: holeCount }).map((_, i) => {
@@ -179,7 +201,7 @@ export function RevealedRoundScores({
                   : 0;
                 const teamNet = teamGross - teamHc;
                 const teamPoints = isBestBall
-                  ? holeScoresToStableford(holeTotals, parPerHole)
+                  ? holeScoresToStableford(holeTotals, displayPar)
                   : rows.reduce((s, r) => s + (r.points || 0), 0);
                 return (
                   <TableRow className="bg-primary/5 font-semibold">
