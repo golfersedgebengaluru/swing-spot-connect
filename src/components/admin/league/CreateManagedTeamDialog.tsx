@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Plus, Trash2, Star } from "lucide-react";
+import { Loader2, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { League } from "@/types/league";
 import { useLegacyLeagueCities, useLegacyLeagueLocations, useCreateManagedTeam } from "@/hooks/useLegacyLeagueRegistration";
