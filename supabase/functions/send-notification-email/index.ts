@@ -403,6 +403,31 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
       </div>
     </div>`,
 
+  league_managed_team_welcome: (d) => `
+    <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:0">
+      <div style="background:#2b3544;padding:32px 24px;text-align:center">
+        <h1 style="color:#f5f0eb;margin:0;font-family:'Playfair Display',Georgia,serif;font-size:24px">Welcome to your team 🏌️</h1>
+      </div>
+      <div style="padding:32px 24px">
+        <p style="color:#1a2332;font-size:16px;margin:0 0 16px">Hi ${d.display_name || "there"},</p>
+        <p style="color:#1a2332;font-size:16px;margin:0 0 24px">
+          You've been added to team <strong>${d.team_name}</strong> in the <strong>${d.league_name}</strong> league${d.location ? ` at ${d.location}` : ""}${d.role === "captain" ? " as the captain" : ""}.
+        </p>
+        <div style="background:#f0f3f7;border-radius:8px;padding:20px;margin:0 0 24px">
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">League</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.league_name}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Team</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.team_name}</td></tr>
+            ${d.location ? `<tr><td style="padding:6px 0;color:#6b7a8d;font-size:14px">Location</td><td style="padding:6px 0;color:#1a2332;font-size:14px;font-weight:600;text-align:right">${d.location}</td></tr>` : ""}
+          </table>
+        </div>
+        <p style="color:#6b7a8d;font-size:14px;margin:0">Your team is all set — nothing to do from your end. If you ever want to see scores or standings online, sign up with this email address and everything will be waiting for you.</p>
+      </div>
+      <div style="background:#f0f3f7;padding:20px 24px;text-align:center">
+        <p style="color:#6b7a8d;font-size:12px;margin:0">Golfer's Edge</p>
+      </div>
+    </div>`,
+
+
   admin_league_registration: (d) => `
     <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:0">
       <div style="background:#2b3544;padding:32px 24px;text-align:center">
@@ -499,6 +524,7 @@ const TEMPLATE_PREF_MAP: Record<string, string> = {
   guest_booking_confirmed: "",
   league_team_invite: "",
   league_team_created: "",
+  league_managed_team_welcome: "",
   admin_league_registration: "",
   password_reset: "",
 };
@@ -630,6 +656,7 @@ Deno.serve(async (req) => {
         "guest_booking_confirmed",
         "league_team_invite",
         "league_team_created",
+        "league_managed_team_welcome",
         "admin_league_registration",
         "password_reset",
       ];

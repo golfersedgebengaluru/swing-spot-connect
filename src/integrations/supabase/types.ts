@@ -2744,34 +2744,43 @@ export type Database = {
       }
       league_players: {
         Row: {
+          display_name: string | null
+          email: string | null
           id: string
           joined_at: string
           joined_via_code_id: string | null
           league_city_id: string | null
           league_id: string
           league_location_id: string | null
+          phone: string | null
           team_id: string | null
-          user_id: string
+          user_id: string | null
         }
         Insert: {
+          display_name?: string | null
+          email?: string | null
           id?: string
           joined_at?: string
           joined_via_code_id?: string | null
           league_city_id?: string | null
           league_id: string
           league_location_id?: string | null
+          phone?: string | null
           team_id?: string | null
-          user_id: string
+          user_id?: string | null
         }
         Update: {
+          display_name?: string | null
+          email?: string | null
           id?: string
           joined_at?: string
           joined_via_code_id?: string | null
           league_city_id?: string | null
           league_id?: string
           league_location_id?: string | null
+          phone?: string | null
           team_id?: string | null
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -3357,31 +3366,46 @@ export type Database = {
       }
       legacy_league_team_members: {
         Row: {
+          added_by_admin_user_id: string | null
+          display_name: string | null
+          email: string | null
           id: string
           joined_at: string
           joined_via: string
           league_id: string
+          league_player_id: string | null
+          phone: string | null
           role: string
           team_registration_id: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
+          added_by_admin_user_id?: string | null
+          display_name?: string | null
+          email?: string | null
           id?: string
           joined_at?: string
           joined_via?: string
           league_id: string
+          league_player_id?: string | null
+          phone?: string | null
           role?: string
           team_registration_id: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
+          added_by_admin_user_id?: string | null
+          display_name?: string | null
+          email?: string | null
           id?: string
           joined_at?: string
           joined_via?: string
           league_id?: string
+          league_player_id?: string | null
+          phone?: string | null
           role?: string
           team_registration_id?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -3406,6 +3430,8 @@ export type Database = {
           coupon_code: string | null
           coupon_id: string | null
           created_at: string
+          created_by_admin: boolean
+          created_by_admin_user_id: string | null
           currency: string
           discount_amount: number
           gst_amount: number | null
@@ -3433,6 +3459,8 @@ export type Database = {
           coupon_code?: string | null
           coupon_id?: string | null
           created_at?: string
+          created_by_admin?: boolean
+          created_by_admin_user_id?: string | null
           currency?: string
           discount_amount?: number
           gst_amount?: number | null
@@ -3460,6 +3488,8 @@ export type Database = {
           coupon_code?: string | null
           coupon_id?: string | null
           created_at?: string
+          created_by_admin?: boolean
+          created_by_admin_user_id?: string | null
           currency?: string
           discount_amount?: number
           gst_amount?: number | null
@@ -5538,6 +5568,31 @@ export type Database = {
       }
     }
     Functions: {
+      admin_add_managed_member: {
+        Args: {
+          _caller: string
+          _email: string
+          _name: string
+          _phone: string
+          _registration_id: string
+        }
+        Returns: Json
+      }
+      admin_create_managed_team: {
+        Args: {
+          _caller: string
+          _league_city_id: string
+          _league_id: string
+          _league_location_id: string
+          _members: Json
+          _team_name: string
+        }
+        Returns: Json
+      }
+      admin_delete_managed_member: {
+        Args: { _caller: string; _member_id: string }
+        Returns: Json
+      }
       admin_get_bay_calendar_emails: {
         Args: never
         Returns: {
@@ -5577,6 +5632,16 @@ export type Database = {
       admin_set_product_cost_price: {
         Args: { p_cost: number; p_id: string }
         Returns: undefined
+      }
+      admin_update_managed_member: {
+        Args: {
+          _caller: string
+          _email: string
+          _member_id: string
+          _name: string
+          _phone: string
+        }
+        Returns: Json
       }
       age_years: { Args: { _dob: string }; Returns: number }
       auto_create_invoice_for_revenue: {
@@ -5735,6 +5800,10 @@ export type Database = {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
       }
+      link_managed_member_on_login: {
+        Args: { _email: string; _user_id: string }
+        Returns: Json
+      }
       lookup_parental_consent_token: {
         Args: { _token: string }
         Returns: {
@@ -5747,6 +5816,10 @@ export type Database = {
       needs_reconsent: { Args: { _user_id: string }; Returns: Json }
       promote_legacy_team_member: {
         Args: { _registration_id: string; _user_id: string }
+        Returns: Json
+      }
+      promote_managed_team_member: {
+        Args: { _member_id: string }
         Returns: Json
       }
       record_consent: {
