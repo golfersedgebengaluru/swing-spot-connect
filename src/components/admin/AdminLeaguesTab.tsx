@@ -1538,13 +1538,24 @@ function RegistrationsPanel({ league }: { league: League }) {
   const addMember = useAddManagedMember(league.id);
   const updateMember = useUpdateManagedMember(league.id);
   const deleteMember = useDeleteManagedMember(league.id);
+  const deleteTeamMut = useDeleteTeamRegistration(league.id);
   const { toast } = useToast();
   const rows = (data as any[]) || [];
   const [showManagedDialog, setShowManagedDialog] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<any | null>(null);
   const [addingToTeam, setAddingToTeam] = useState<string | null>(null);
   const [newMember, setNewMember] = useState({ name: "", email: "", phone: "" });
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [editMember, setEditMember] = useState({ name: "", email: "", phone: "" });
+
+  const handleDeleteTeam = (r: any) => {
+    if (!r.created_by_admin) return;
+    if (!confirm(`Delete managed team "${r.team_name}"? This removes the team and all its members.`)) return;
+    deleteTeamMut.mutate(r.id, {
+      onSuccess: () => toast({ title: "Team deleted" }),
+      onError: (e: any) => toast({ title: "Could not delete", description: e?.message, variant: "destructive" }),
+    });
+  };
 
   const inviteOrigin = typeof window !== "undefined" ? window.location.origin : "";
   const handleRevoke = (id: string) => {
