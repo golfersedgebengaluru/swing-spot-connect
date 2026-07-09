@@ -1838,6 +1838,12 @@ function RegistrationsPanel({ league }: { league: League }) {
       {invitesLoading && <Loader2 className="h-4 w-4 animate-spin" />}
 
       <CreateManagedTeamDialog open={showManagedDialog} onOpenChange={setShowManagedDialog} league={league} />
+      <EditTeamDialog
+        open={!!editingTeam}
+        onOpenChange={(v) => { if (!v) setEditingTeam(null); }}
+        league={league}
+        team={editingTeam}
+      />
     </div>
   );
 }
