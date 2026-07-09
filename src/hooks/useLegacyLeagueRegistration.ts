@@ -216,3 +216,34 @@ export function useDeleteManagedMember(leagueId: string) {
   });
 }
 
+export interface UpdateTeamRegistrationBody {
+  registrationId: string;
+  team_name: string;
+  league_city_id: string;
+  league_location_id: string;
+  team_size: number;
+}
+
+export function useUpdateTeamRegistration(leagueId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: UpdateTeamRegistrationBody) =>
+      leagueServiceInvoke(`/leagues/${leagueId}/team-registrations/${body.registrationId}`, "PATCH", {
+        team_name: body.team_name,
+        league_city_id: body.league_city_id,
+        league_location_id: body.league_location_id,
+        team_size: body.team_size,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["legacy-registered-teams", leagueId] }),
+  });
+}
+
+export function useDeleteTeamRegistration(leagueId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (registrationId: string) =>
+      leagueServiceInvoke(`/leagues/${leagueId}/team-registrations/${registrationId}`, "DELETE", undefined),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["legacy-registered-teams", leagueId] }),
+  });
+}
+

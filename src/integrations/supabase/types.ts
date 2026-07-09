@@ -5593,6 +5593,10 @@ export type Database = {
         Args: { _caller: string; _member_id: string }
         Returns: Json
       }
+      admin_delete_team_registration: {
+        Args: { _caller: string; _registration_id: string }
+        Returns: Json
+      }
       admin_get_bay_calendar_emails: {
         Args: never
         Returns: {
@@ -5640,6 +5644,17 @@ export type Database = {
           _member_id: string
           _name: string
           _phone: string
+        }
+        Returns: Json
+      }
+      admin_update_team_registration: {
+        Args: {
+          _caller: string
+          _league_city_id: string
+          _league_location_id: string
+          _registration_id: string
+          _team_name: string
+          _team_size: number
         }
         Returns: Json
       }

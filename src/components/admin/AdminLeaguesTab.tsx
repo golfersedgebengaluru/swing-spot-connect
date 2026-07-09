@@ -79,7 +79,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam, LeaderboardEntry } from "@/types/league";
 import type { LeaguePlayerWithProfile } from "@/hooks/useLeagues";
-import { useRegisteredLegacyTeams, useLegacyTeamInvites, useRevokeLegacyInvite, useRotateLegacyInvite, useAddManagedMember, useUpdateManagedMember, useDeleteManagedMember } from "@/hooks/useLegacyLeagueRegistration";
+import { useRegisteredLegacyTeams, useLegacyTeamInvites, useRevokeLegacyInvite, useRotateLegacyInvite, useAddManagedMember, useUpdateManagedMember, useDeleteManagedMember, useUpdateTeamRegistration, useDeleteTeamRegistration } from "@/hooks/useLegacyLeagueRegistration";
+import { EditTeamDialog } from "@/components/admin/league/EditTeamDialog";
 import { CreateManagedTeamDialog } from "@/components/admin/league/CreateManagedTeamDialog";
 
 // Parse a comma-separated string of team sizes (e.g. "2, 4") into a unique sorted int[].
@@ -1537,13 +1538,24 @@ function RegistrationsPanel({ league }: { league: League }) {
   const addMember = useAddManagedMember(league.id);
   const updateMember = useUpdateManagedMember(league.id);
   const deleteMember = useDeleteManagedMember(league.id);
+  const deleteTeamMut = useDeleteTeamRegistration(league.id);
   const { toast } = useToast();
   const rows = (data as any[]) || [];
   const [showManagedDialog, setShowManagedDialog] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<any | null>(null);
   const [addingToTeam, setAddingToTeam] = useState<string | null>(null);
   const [newMember, setNewMember] = useState({ name: "", email: "", phone: "" });
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [editMember, setEditMember] = useState({ name: "", email: "", phone: "" });
+
+  const handleDeleteTeam = (r: any) => {
+    if (!r.created_by_admin) return;
+    if (!confirm(`Delete managed team "${r.team_name}"? This removes the team and all its members.`)) return;
+    deleteTeamMut.mutate(r.id, {
+      onSuccess: () => toast({ title: "Team deleted" }),
+      onError: (e: any) => toast({ title: "Could not delete", description: e?.message, variant: "destructive" }),
+    });
+  };
 
   const inviteOrigin = typeof window !== "undefined" ? window.location.origin : "";
   const handleRevoke = (id: string) => {
@@ -1640,7 +1652,7 @@ function RegistrationsPanel({ league }: { league: League }) {
       </div>
 
       {emptyState ? (
-        <p className="text-sm text-muted-foreground py-4">No team registrations yet.</p>
+        <p className="text-sm text-muted-foreground py-4">No teams yet.</p>
       ) : (
         <Table>
           <TableHeader>
@@ -1652,6 +1664,7 @@ function RegistrationsPanel({ league }: { league: League }) {
               <TableHead>Amount</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Registered</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1685,11 +1698,25 @@ function RegistrationsPanel({ league }: { league: League }) {
                       <Badge variant={r.payment_status === "paid" ? "secondary" : "outline"}>{r.payment_status}</Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{format(new Date(r.created_at), "PP")}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Edit team"
+                          onClick={() => setEditingTeam(r)}>
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                        {r.created_by_admin && (
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" title="Delete managed team"
+                            onClick={() => handleDeleteTeam(r)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
 
                   {teamMembers.length > 0 && (
                     <TableRow key={`${r.id}-members`} className="bg-muted/20">
-                      <TableCell colSpan={7} className="py-2">
+                      <TableCell colSpan={8} className="py-2">
                         <div className="text-xs font-semibold text-muted-foreground mb-1">Roster</div>
                         <div className="space-y-1">
                           {teamMembers.map((m: any) => {
@@ -1769,7 +1796,7 @@ function RegistrationsPanel({ league }: { league: League }) {
 
                   {teamInvites.length > 0 && (
                     <TableRow key={`${r.id}-invites`} className="bg-muted/30">
-                      <TableCell colSpan={7} className="py-2">
+                      <TableCell colSpan={8} className="py-2">
                         <div className="text-xs font-semibold text-muted-foreground mb-1">Invites</div>
                         <div className="space-y-1">
                           {teamInvites.map((inv: any) => (
@@ -1811,6 +1838,12 @@ function RegistrationsPanel({ league }: { league: League }) {
       {invitesLoading && <Loader2 className="h-4 w-4 animate-spin" />}
 
       <CreateManagedTeamDialog open={showManagedDialog} onOpenChange={setShowManagedDialog} league={league} />
+      <EditTeamDialog
+        open={!!editingTeam}
+        onOpenChange={(v) => { if (!v) setEditingTeam(null); }}
+        league={league}
+        team={editingTeam}
+      />
     </div>
   );
 }
@@ -2531,8 +2564,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
       <Tabs defaultValue="players">
         <TabsList className="flex flex-wrap h-auto gap-1 p-1 mb-4">
           <TabsTrigger value="players"><Users className="h-3.5 w-3.5 mr-1" />Players ({players?.length || 0})</TabsTrigger>
-          <TabsTrigger value="teams"><Users className="h-3.5 w-3.5 mr-1" />Teams</TabsTrigger>
-          <TabsTrigger value="registrations"><Users className="h-3.5 w-3.5 mr-1" />Registrations</TabsTrigger>
+          <TabsTrigger value="registrations"><Users className="h-3.5 w-3.5 mr-1" />Teams</TabsTrigger>
           <TabsTrigger value="locations"><MapPin className="h-3.5 w-3.5 mr-1" />Locations</TabsTrigger>
           <TabsTrigger value="pars"><Flag className="h-3.5 w-3.5 mr-1" />Pars</TabsTrigger>
           
@@ -2602,12 +2634,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
           )}
         </TabsContent>
 
-        {/* Teams */}
-        <TabsContent value="teams">
-          <TeamsPanel league={league} />
-        </TabsContent>
-
-        {/* Registrations (paid) */}
+        {/* Teams (unified: paid + admin-managed) */}
         <TabsContent value="registrations">
           <RegistrationsPanel league={league} />
         </TabsContent>

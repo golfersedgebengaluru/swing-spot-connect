@@ -555,6 +555,10 @@ function parseRoute(url: URL): Route {
     if (subResource === 'managed-members' && segments[4]) {
       return { action: 'admin-managed-member', leagueId, subId: segments[4] }
     }
+    // /leagues/:id/team-registrations/:regId  (PATCH / DELETE)
+    if (subResource === 'team-registrations' && segments[4]) {
+      return { action: 'admin-team-registration', leagueId, subId: segments[4] }
+    }
     // /leagues/:id/screen → public bay-screen meta
     if (subResource === 'screen') {
       return { action: 'league-screen', leagueId, subResource }
@@ -4418,6 +4422,40 @@ Deno.serve(async (req) => {
       if (!isAdmin) return err('Forbidden', 403)
       const { data, error } = await supabase.rpc('admin_delete_managed_member', {
         _caller: user.id, _member_id: route.subId,
+      })
+      if (error) return err(error.message, 400)
+      const result = data as any
+      if (!result?.ok) return err(result?.error || 'delete_failed', 400)
+      return json({ success: true })
+    }
+
+    if (route.action === 'admin-team-registration' && route.leagueId && route.subId && method === 'PATCH') {
+      const { data: isAdmin } = await supabase.rpc('is_admin_or_site_admin', { _user_id: user.id })
+      if (!isAdmin) return err('Forbidden', 403)
+      const body = await req.json().catch(() => ({}))
+      const { team_name, league_city_id, league_location_id, team_size } = body || {}
+      if (!team_name || !league_city_id || !league_location_id || !team_size) {
+        return err('team_name, league_city_id, league_location_id, team_size required')
+      }
+      const { data, error } = await supabase.rpc('admin_update_team_registration', {
+        _caller: user.id,
+        _registration_id: route.subId,
+        _team_name: String(team_name).trim(),
+        _league_city_id: league_city_id,
+        _league_location_id: league_location_id,
+        _team_size: Number(team_size),
+      })
+      if (error) return err(error.message, 400)
+      const result = data as any
+      if (!result?.ok) return err(result?.error || 'update_failed', 400)
+      return json({ success: true })
+    }
+
+    if (route.action === 'admin-team-registration' && route.leagueId && route.subId && method === 'DELETE') {
+      const { data: isAdmin } = await supabase.rpc('is_admin_or_site_admin', { _user_id: user.id })
+      if (!isAdmin) return err('Forbidden', 403)
+      const { data, error } = await supabase.rpc('admin_delete_team_registration', {
+        _caller: user.id, _registration_id: route.subId,
       })
       if (error) return err(error.message, 400)
       const result = data as any
