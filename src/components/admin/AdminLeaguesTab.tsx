@@ -1652,7 +1652,7 @@ function RegistrationsPanel({ league }: { league: League }) {
       </div>
 
       {emptyState ? (
-        <p className="text-sm text-muted-foreground py-4">No team registrations yet.</p>
+        <p className="text-sm text-muted-foreground py-4">No teams yet.</p>
       ) : (
         <Table>
           <TableHeader>
@@ -1664,6 +1664,7 @@ function RegistrationsPanel({ league }: { league: League }) {
               <TableHead>Amount</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Registered</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
