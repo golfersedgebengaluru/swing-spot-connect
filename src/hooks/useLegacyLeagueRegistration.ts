@@ -158,3 +158,61 @@ export function useRotateLegacyInvite(leagueId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["legacy-team-invites", leagueId] }),
   });
 }
+
+// ─────────────── Admin-managed teams ───────────────
+export interface ManagedMemberInput {
+  name: string;
+  email?: string;
+  phone?: string;
+  is_captain?: boolean;
+}
+
+export interface CreateManagedTeamBody {
+  league_city_id: string;
+  league_location_id: string;
+  team_name: string;
+  members: ManagedMemberInput[];
+}
+
+export function useCreateManagedTeam(leagueId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateManagedTeamBody) =>
+      leagueServiceInvoke(`/leagues/${leagueId}/managed-teams`, "POST", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["legacy-registered-teams", leagueId] });
+    },
+  });
+}
+
+export function useAddManagedMember(leagueId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { registrationId: string; name: string; email?: string; phone?: string }) =>
+      leagueServiceInvoke(`/leagues/${leagueId}/managed-teams/${args.registrationId}/members`, "POST", {
+        name: args.name, email: args.email, phone: args.phone,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["legacy-registered-teams", leagueId] }),
+  });
+}
+
+export function useUpdateManagedMember(leagueId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { memberId: string; name: string; email?: string; phone?: string }) =>
+      leagueServiceInvoke(`/leagues/${leagueId}/managed-members/${args.memberId}`, "PATCH", {
+        name: args.name, email: args.email, phone: args.phone,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["legacy-registered-teams", leagueId] }),
+  });
+}
+
+export function useDeleteManagedMember(leagueId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (memberId: string) =>
+      leagueServiceInvoke(`/leagues/${leagueId}/managed-members/${memberId}`, "DELETE", undefined),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["legacy-registered-teams", leagueId] }),
+  });
+}
+

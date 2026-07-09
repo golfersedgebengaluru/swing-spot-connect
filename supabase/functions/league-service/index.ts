@@ -125,6 +125,157 @@ async function sendTeamCreationEmails(opts: {
   await Promise.allSettled(tasks)
 }
 
+// ── Managed-team email helpers ───────────────────────────────
+// Sends welcome mail to every member with an email + admin notification.
+async function sendManagedTeamEmails(opts: {
+  supabaseUrl: string
+  serviceKey: string
+  origin: string
+  registrationId: string
+}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${opts.serviceKey}`,
+    apikey: opts.serviceKey,
+  }
+  const adminSupabase = createClient(opts.supabaseUrl, opts.serviceKey, { auth: { persistSession: false } })
+  const post = (body: Record<string, unknown>) =>
+    fetch(`${opts.supabaseUrl}/functions/v1/send-notification-email`, {
+      method: 'POST', headers, body: JSON.stringify(body),
+    }).then((r) => r.ok ? null : r.text().then((t) => console.error('[managed email] failed', body.template, r.status, t)))
+      .catch((e) => console.error('[managed email] error', body.template, e))
+
+  const { data: reg } = await adminSupabase
+    .from('legacy_league_team_registrations')
+    .select('id, league_id, team_name, team_size, league_city_id, league_location_id')
+    .eq('id', opts.registrationId).maybeSingle()
+  if (!reg) return
+  const [{ data: league }, { data: loc }, { data: members }] = await Promise.all([
+    adminSupabase.from('leagues').select('name').eq('id', (reg as any).league_id).maybeSingle(),
+    (reg as any).league_location_id
+      ? adminSupabase.from('league_locations').select('name').eq('id', (reg as any).league_location_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    adminSupabase.from('legacy_league_team_members')
+      .select('display_name, email, role')
+      .eq('team_registration_id', opts.registrationId),
+  ])
+  const leagueName = (league as any)?.name || 'League'
+  const locationName = (loc as any)?.name || null
+  const teamName = (reg as any).team_name
+  const teamSize = (reg as any).team_size
+  const captainRow = ((members || []) as any[]).find((m) => m.role === 'captain') || null
+
+  const tasks: Promise<unknown>[] = []
+  for (const m of ((members || []) as any[])) {
+    if (!m.email) continue
+    tasks.push(post({
+      user_id: null,
+      recipient_email: m.email,
+      template: 'league_managed_team_welcome',
+      subject: `You've been added to "${teamName}" — ${leagueName}`,
+      data: {
+        display_name: m.display_name,
+        league_name: leagueName,
+        team_name: teamName,
+        location: locationName,
+        role: m.role,
+      },
+    }))
+  }
+
+  // Admin notification: global admins + site admins matching the league city
+  try {
+    let cityName: string | null = null
+    if ((reg as any).league_city_id) {
+      const { data: cityRow } = await adminSupabase
+        .from('league_cities').select('name').eq('id', (reg as any).league_city_id).maybeSingle()
+      cityName = (cityRow as any)?.name ?? null
+    }
+    const { data: adminRoles } = await adminSupabase.from('user_roles').select('user_id').eq('role', 'admin')
+    const adminIds = ((adminRoles || []) as any[]).map((r) => r.user_id)
+    const siteAdminIds: string[] = []
+    if (cityName) {
+      const aliases = new Set<string>([cityName.toLowerCase()])
+      const lc = cityName.toLowerCase()
+      if (lc === 'bangalore') aliases.add('bengaluru')
+      if (lc === 'bengaluru') aliases.add('bangalore')
+      const { data: sacRows } = await adminSupabase.from('site_admin_cities').select('user_id, city')
+      for (const row of ((sacRows || []) as any[])) {
+        if (row?.city && aliases.has(String(row.city).toLowerCase())) siteAdminIds.push(row.user_id)
+      }
+    }
+    const allIds = Array.from(new Set([...adminIds, ...siteAdminIds]))
+    if (allIds.length > 0) {
+      const { data: adminProfiles } = await adminSupabase.from('profiles').select('email').in('user_id', allIds)
+      const adminEmails = Array.from(new Set(((adminProfiles || []) as any[]).map((p) => p.email).filter((e): e is string => !!e)))
+      for (const adminEmail of adminEmails) {
+        tasks.push(post({
+          user_id: null,
+          recipient_email: adminEmail,
+          template: 'admin_league_registration',
+          subject: `New managed team: "${teamName}" — ${leagueName}`,
+          data: {
+            league_name: leagueName,
+            team_name: teamName,
+            captain_name: captainRow?.display_name || null,
+            captain_email: captainRow?.email || null,
+            location: locationName,
+            team_size: teamSize,
+            invites_sent: 0,
+            managed: true,
+          },
+        }))
+      }
+    }
+  } catch (e) { console.error('[managed email] admin notify failed:', e) }
+
+  await Promise.allSettled(tasks)
+}
+
+async function sendManagedMemberWelcome(opts: {
+  supabaseUrl: string
+  serviceKey: string
+  origin: string
+  memberId: string
+}) {
+  const adminSupabase = createClient(opts.supabaseUrl, opts.serviceKey, { auth: { persistSession: false } })
+  const { data: m } = await adminSupabase
+    .from('legacy_league_team_members')
+    .select('display_name, email, role, team_registration_id, league_id')
+    .eq('id', opts.memberId).maybeSingle()
+  if (!m || !(m as any).email) return
+  const [{ data: reg }, { data: league }] = await Promise.all([
+    adminSupabase.from('legacy_league_team_registrations')
+      .select('team_name, league_location_id').eq('id', (m as any).team_registration_id).maybeSingle(),
+    adminSupabase.from('leagues').select('name').eq('id', (m as any).league_id).maybeSingle(),
+  ])
+  const { data: loc } = (reg as any)?.league_location_id
+    ? await adminSupabase.from('league_locations').select('name').eq('id', (reg as any).league_location_id).maybeSingle()
+    : { data: null } as any
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${opts.serviceKey}`,
+    apikey: opts.serviceKey,
+  }
+  await fetch(`${opts.supabaseUrl}/functions/v1/send-notification-email`, {
+    method: 'POST', headers, body: JSON.stringify({
+      user_id: null,
+      recipient_email: (m as any).email,
+      template: 'league_managed_team_welcome',
+      subject: `You've been added to "${(reg as any)?.team_name}" — ${(league as any)?.name || 'League'}`,
+      data: {
+        display_name: (m as any).display_name,
+        league_name: (league as any)?.name || 'League',
+        team_name: (reg as any)?.team_name,
+        location: (loc as any)?.name || null,
+        role: (m as any).role,
+      },
+    }),
+  }).catch((e) => console.error('[managed member email]', e))
+}
+
+
+
 // ── Audit helper ─────────────────────────────────────────────
 async function audit(
   supabase: any,
@@ -389,6 +540,20 @@ function parseRoute(url: URL): Route {
     }
     if (subResource === 'my-team') {
       return { action: 'legacy-my-team', leagueId, subResource }
+    }
+    // Admin-managed teams:
+    // POST   /leagues/:id/managed-teams
+    // POST   /leagues/:id/managed-teams/:regId/members
+    // PATCH  /leagues/:id/managed-members/:memberId
+    // DELETE /leagues/:id/managed-members/:memberId
+    if (subResource === 'managed-teams' && segments[4] && segments[5] === 'members') {
+      return { action: 'admin-managed-add-member', leagueId, subId: segments[4] }
+    }
+    if (subResource === 'managed-teams') {
+      return { action: 'admin-managed-create-team', leagueId }
+    }
+    if (subResource === 'managed-members' && segments[4]) {
+      return { action: 'admin-managed-member', leagueId, subId: segments[4] }
     }
     // /leagues/:id/screen → public bay-screen meta
     if (subResource === 'screen') {
@@ -4011,6 +4176,10 @@ Deno.serve(async (req) => {
         _user_id: user.id, _email: user.email,
       })
       if (error) return err(error.message, 500)
+      // Also auto-link any admin-added managed rows matching this email
+      await supabase.rpc('link_managed_member_on_login', {
+        _user_id: user.id, _email: user.email,
+      }).catch((e: any) => console.error('link_managed_member_on_login failed:', e?.message))
       return json({ success: true, claimed: Number(data) || 0 })
     }
 
@@ -4104,6 +4273,7 @@ Deno.serve(async (req) => {
         .select(`
           id, team_name, team_size, total_amount, currency, payment_status,
           razorpay_order_id, razorpay_payment_id, captain_user_id, created_at,
+          created_by_admin, created_by_admin_user_id,
           league_city_id, league_location_id,
           city:league_cities!league_city_id(name),
           location:league_locations!league_location_id(name)
@@ -4112,26 +4282,147 @@ Deno.serve(async (req) => {
         .order('created_at', { ascending: false })
       if (error) return err(error.message, 500)
 
-      // Decorate with captain display_name + email
-      const ids = Array.from(new Set((data || []).map((r: any) => r.captain_user_id))).filter(Boolean)
+      // Fetch members for all these teams
+      const regIds = (data || []).map((r: any) => r.id)
+      let membersByReg: Record<string, any[]> = {}
+      if (regIds.length) {
+        const { data: memRows } = await supabase
+          .from('legacy_league_team_members')
+          .select('id, team_registration_id, user_id, role, joined_via, display_name, email, phone, added_by_admin_user_id, joined_at')
+          .in('team_registration_id', regIds)
+        for (const m of (memRows || []) as any[]) {
+          const arr = membersByReg[m.team_registration_id] || []
+          arr.push(m); membersByReg[m.team_registration_id] = arr
+        }
+      }
+
+      // Decorate captain from profiles OR from the captain member row (managed teams)
+      const userIds = Array.from(new Set([
+        ...((data || []) as any[]).map((r) => r.captain_user_id),
+        ...Object.values(membersByReg).flat().map((m: any) => m.user_id).filter(Boolean),
+      ])).filter(Boolean)
       let profilesById: Record<string, { display_name: string | null; email: string | null }> = {}
-      if (ids.length) {
+      if (userIds.length) {
         const { data: profs } = await supabase
-          .from('profiles')
-          .select('user_id, display_name, email')
-          .in('user_id', ids)
+          .from('profiles').select('user_id, display_name, email').in('user_id', userIds)
         for (const p of profs || []) {
           profilesById[(p as any).user_id] = { display_name: (p as any).display_name, email: (p as any).email }
         }
       }
-      const decorated = (data || []).map((r: any) => ({
-        ...r,
-        captain_name: profilesById[r.captain_user_id]?.display_name ?? null,
-        captain_email: profilesById[r.captain_user_id]?.email ?? null,
-        city_name: r.city?.name ?? null,
-        location_name: r.location?.name ?? null,
-      }))
+      const decorated = (data || []).map((r: any) => {
+        const teamMembers = (membersByReg[r.id] || []).map((m: any) => ({
+          ...m,
+          linked_display_name: m.user_id ? profilesById[m.user_id]?.display_name ?? null : null,
+          linked_email: m.user_id ? profilesById[m.user_id]?.email ?? null : null,
+        }))
+        const captainMember = teamMembers.find((m: any) => m.role === 'captain')
+        const captainName = r.created_by_admin
+          ? (captainMember?.display_name || captainMember?.linked_display_name || null)
+          : (profilesById[r.captain_user_id]?.display_name ?? null)
+        const captainEmail = r.created_by_admin
+          ? (captainMember?.email || captainMember?.linked_email || null)
+          : (profilesById[r.captain_user_id]?.email ?? null)
+        return {
+          ...r,
+          captain_name: captainName,
+          captain_email: captainEmail,
+          city_name: r.city?.name ?? null,
+          location_name: r.location?.name ?? null,
+          members: teamMembers,
+        }
+      })
       return json(decorated)
+    }
+
+
+    // ============================================================
+    // Admin-managed teams
+    // ============================================================
+    if (route.action === 'admin-managed-create-team' && route.leagueId && method === 'POST') {
+      const { data: isAdmin } = await supabase.rpc('is_admin_or_site_admin', { _user_id: user.id })
+      if (!isAdmin) return err('Forbidden', 403)
+      const body = await req.json().catch(() => ({}))
+      const { league_city_id, league_location_id, team_name, members } = body || {}
+      if (!league_city_id || !league_location_id || !team_name || !Array.isArray(members) || members.length < 1) {
+        return err('league_city_id, league_location_id, team_name and members[] are required')
+      }
+      const { data, error } = await supabase.rpc('admin_create_managed_team', {
+        _caller: user.id,
+        _league_id: route.leagueId,
+        _league_city_id: league_city_id,
+        _league_location_id: league_location_id,
+        _team_name: String(team_name).trim(),
+        _members: members,
+      })
+      if (error) return err(error.message, 400)
+      const result = data as any
+      if (!result?.ok) return err(result?.error || 'create_failed', 400)
+      // Best-effort emails
+      try {
+        const origin = (req.headers.get('origin') || req.headers.get('referer') || 'https://golfersedge.golf-collective.com').replace(/(https?:\/\/[^/]+).*/, '$1')
+        await sendManagedTeamEmails({
+          supabaseUrl: Deno.env.get('SUPABASE_URL')!,
+          serviceKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+          origin,
+          registrationId: result.registration_id,
+        })
+      } catch (e) { console.error('[managed emails] failed:', e) }
+      return json({ success: true, registration_id: result.registration_id })
+    }
+
+    if (route.action === 'admin-managed-add-member' && route.leagueId && route.subId && method === 'POST') {
+      const { data: isAdmin } = await supabase.rpc('is_admin_or_site_admin', { _user_id: user.id })
+      if (!isAdmin) return err('Forbidden', 403)
+      const body = await req.json().catch(() => ({}))
+      const { data, error } = await supabase.rpc('admin_add_managed_member', {
+        _caller: user.id,
+        _registration_id: route.subId,
+        _name: body?.name || null,
+        _email: body?.email || null,
+        _phone: body?.phone || null,
+      })
+      if (error) return err(error.message, 400)
+      const result = data as any
+      if (!result?.ok) return err(result?.error || 'add_failed', result?.error === 'team_full' ? 409 : 400)
+      try {
+        const origin = (req.headers.get('origin') || req.headers.get('referer') || 'https://golfersedge.golf-collective.com').replace(/(https?:\/\/[^/]+).*/, '$1')
+        await sendManagedMemberWelcome({
+          supabaseUrl: Deno.env.get('SUPABASE_URL')!,
+          serviceKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+          origin,
+          memberId: result.member_id,
+        })
+      } catch (e) { console.error('[managed member email] failed:', e) }
+      return json({ success: true, member_id: result.member_id })
+    }
+
+    if (route.action === 'admin-managed-member' && route.subId && method === 'PATCH') {
+      const { data: isAdmin } = await supabase.rpc('is_admin_or_site_admin', { _user_id: user.id })
+      if (!isAdmin) return err('Forbidden', 403)
+      const body = await req.json().catch(() => ({}))
+      const { data, error } = await supabase.rpc('admin_update_managed_member', {
+        _caller: user.id,
+        _member_id: route.subId,
+        _name: body?.name || null,
+        _email: body?.email || null,
+        _phone: body?.phone || null,
+      })
+      if (error) return err(error.message, 400)
+      const result = data as any
+      if (!result?.ok) return err(result?.error || 'update_failed', 400)
+      return json({ success: true })
+    }
+
+    if (route.action === 'admin-managed-member' && route.subId && method === 'DELETE') {
+      const { data: isAdmin } = await supabase.rpc('is_admin_or_site_admin', { _user_id: user.id })
+      if (!isAdmin) return err('Forbidden', 403)
+      const { data, error } = await supabase.rpc('admin_delete_managed_member', {
+        _caller: user.id, _member_id: route.subId,
+      })
+      if (error) return err(error.message, 400)
+      const result = data as any
+      if (!result?.ok) return err(result?.error || 'delete_failed', 400)
+      return json({ success: true })
     }
 
     return err('Not found', 404)

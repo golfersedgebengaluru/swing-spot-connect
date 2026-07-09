@@ -79,7 +79,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam, LeaderboardEntry } from "@/types/league";
 import type { LeaguePlayerWithProfile } from "@/hooks/useLeagues";
-import { useRegisteredLegacyTeams, useLegacyTeamInvites, useRevokeLegacyInvite, useRotateLegacyInvite } from "@/hooks/useLegacyLeagueRegistration";
+import { useRegisteredLegacyTeams, useLegacyTeamInvites, useRevokeLegacyInvite, useRotateLegacyInvite, useAddManagedMember, useUpdateManagedMember, useDeleteManagedMember } from "@/hooks/useLegacyLeagueRegistration";
+import { CreateManagedTeamDialog } from "@/components/admin/league/CreateManagedTeamDialog";
 
 // Parse a comma-separated string of team sizes (e.g. "2, 4") into a unique sorted int[].
 function parseTeamSizes(input: string): number[] {
@@ -1533,8 +1534,16 @@ function RegistrationsPanel({ league }: { league: League }) {
   const { data: invites, isLoading: invitesLoading } = useLegacyTeamInvites(league.id);
   const revoke = useRevokeLegacyInvite(league.id);
   const rotate = useRotateLegacyInvite(league.id);
+  const addMember = useAddManagedMember(league.id);
+  const updateMember = useUpdateManagedMember(league.id);
+  const deleteMember = useDeleteManagedMember(league.id);
   const { toast } = useToast();
   const rows = (data as any[]) || [];
+  const [showManagedDialog, setShowManagedDialog] = useState(false);
+  const [addingToTeam, setAddingToTeam] = useState<string | null>(null);
+  const [newMember, setNewMember] = useState({ name: "", email: "", phone: "" });
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const [editMember, setEditMember] = useState({ name: "", email: "", phone: "" });
 
   const inviteOrigin = typeof window !== "undefined" ? window.location.origin : "";
   const handleRevoke = (id: string) => {
@@ -1556,6 +1565,58 @@ function RegistrationsPanel({ league }: { league: League }) {
     }
   };
 
+  const handleAddMember = async (regId: string) => {
+    if (!newMember.name.trim()) return toast({ title: "Name required", variant: "destructive" });
+    try {
+      await addMember.mutateAsync({
+        registrationId: regId,
+        name: newMember.name.trim(),
+        email: newMember.email.trim() || undefined,
+        phone: newMember.phone.trim() || undefined,
+      });
+      toast({ title: "Member added" });
+      setAddingToTeam(null);
+      setNewMember({ name: "", email: "", phone: "" });
+    } catch (e: any) {
+      toast({
+        title: e?.message?.includes("team_full") ? "Team is full" : "Could not add member",
+        description: e?.message, variant: "destructive",
+      });
+    }
+  };
+
+  const startEdit = (m: any) => {
+    setEditingMemberId(m.id);
+    setEditMember({
+      name: m.display_name || m.linked_display_name || "",
+      email: m.email || m.linked_email || "",
+      phone: m.phone || "",
+    });
+  };
+  const handleSaveEdit = async () => {
+    if (!editingMemberId) return;
+    try {
+      await updateMember.mutateAsync({
+        memberId: editingMemberId,
+        name: editMember.name.trim(),
+        email: editMember.email.trim() || undefined,
+        phone: editMember.phone.trim() || undefined,
+      });
+      toast({ title: "Member updated" });
+      setEditingMemberId(null);
+    } catch (e: any) {
+      toast({ title: "Could not update", description: e?.message, variant: "destructive" });
+    }
+  };
+  const handleDeleteMember = (m: any) => {
+    if (m.role === "captain") return toast({ title: "Captain cannot be deleted", variant: "destructive" });
+    if (!confirm(`Remove ${m.display_name || m.linked_display_name || m.email || "this member"} from the team?`)) return;
+    deleteMember.mutate(m.id, {
+      onSuccess: () => toast({ title: "Member removed" }),
+      onError: (e: any) => toast({ title: "Could not remove", description: e?.message, variant: "destructive" }),
+    });
+  };
+
   const invitesByTeam = new Map<string, any[]>();
   for (const inv of (invites || [])) {
     const arr = invitesByTeam.get(inv.team_registration_id) || [];
@@ -1564,93 +1625,196 @@ function RegistrationsPanel({ league }: { league: League }) {
   }
 
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin" />;
-  if (rows.length === 0) {
-    return <p className="text-sm text-muted-foreground py-4">No paid team registrations yet.</p>;
-  }
+
+  const emptyState = rows.length === 0;
 
   return (
-    <div className="space-y-6">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Team</TableHead>
-            <TableHead>Captain</TableHead>
-            <TableHead>City / Location</TableHead>
-            <TableHead>Size</TableHead>
-            <TableHead>Amount</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Registered</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((r) => {
-            const teamInvites = invitesByTeam.get(r.id) || [];
-            const joinedCount = teamInvites.filter((i) => i.status === "joined").length + 1; // +captain
-            return (
-              <>
-                <TableRow key={r.id}>
-                  <TableCell className="font-medium">
-                    {r.team_name}
-                    <div className="text-xs text-muted-foreground">{joinedCount} / {r.team_size} joined</div>
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    <div>{r.captain_name || "—"}</div>
-                    <div className="text-xs text-muted-foreground">{r.captain_email || "—"}</div>
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {(r.city_name || "—")}{r.location_name ? ` / ${r.location_name}` : ""}
-                  </TableCell>
-                  <TableCell>{r.team_size}</TableCell>
-                  <TableCell>{r.total_amount} {r.currency}</TableCell>
-                  <TableCell>
-                    <Badge variant={r.payment_status === "paid" ? "secondary" : "outline"}>{r.payment_status}</Badge>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{format(new Date(r.created_at), "PP")}</TableCell>
-                </TableRow>
-                {teamInvites.length > 0 && (
-                  <TableRow key={`${r.id}-invites`} className="bg-muted/30">
-                    <TableCell colSpan={7} className="py-2">
-                      <div className="text-xs font-semibold text-muted-foreground mb-1">Invites</div>
-                      <div className="space-y-1">
-                        {teamInvites.map((inv: any) => (
-                          <div key={inv.id} className="flex items-center justify-between gap-2 text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono">{inv.email}</span>
-                              <Badge
-                                variant={inv.status === "joined" ? "secondary" : inv.status === "revoked" ? "destructive" : "outline"}
-                                className="text-[10px] py-0 px-1.5"
-                              >
-                                {inv.status}
-                              </Badge>
-                              <span className="text-muted-foreground">
-                                sent {format(new Date(inv.invited_at), "PP")}
-                              </span>
-                            </div>
-                            {inv.status !== "joined" && (
-                              <div className="flex gap-1">
-                                <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => handleResend(inv)}>
-                                  Refresh link
-                                </Button>
-                                <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-destructive" onClick={() => handleRevoke(inv.id)}>
-                                  Revoke
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div className="text-sm text-muted-foreground">
+          {rows.length} team{rows.length === 1 ? "" : "s"} registered
+        </div>
+        <Button size="sm" onClick={() => setShowManagedDialog(true)}>
+          <Plus className="h-4 w-4 mr-1" /> Create Managed Team
+        </Button>
+      </div>
+
+      {emptyState ? (
+        <p className="text-sm text-muted-foreground py-4">No team registrations yet.</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Team</TableHead>
+              <TableHead>Captain</TableHead>
+              <TableHead>City / Location</TableHead>
+              <TableHead>Size</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Registered</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r) => {
+              const teamInvites = invitesByTeam.get(r.id) || [];
+              const teamMembers: any[] = r.members || [];
+              const rosterCount = teamMembers.length || (teamInvites.filter((i) => i.status === "joined").length + 1);
+              const canAdd = rosterCount < r.team_size;
+              return (
+                <>
+                  <TableRow key={r.id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {r.team_name}
+                        {r.created_by_admin && (
+                          <Badge variant="outline" className="text-[10px] py-0 px-1.5">Managed</Badge>
+                        )}
                       </div>
+                      <div className="text-xs text-muted-foreground">{rosterCount} / {r.team_size} on roster</div>
                     </TableCell>
+                    <TableCell className="text-sm">
+                      <div>{r.captain_name || "—"}</div>
+                      <div className="text-xs text-muted-foreground">{r.captain_email || "—"}</div>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {(r.city_name || "—")}{r.location_name ? ` / ${r.location_name}` : ""}
+                    </TableCell>
+                    <TableCell>{r.team_size}</TableCell>
+                    <TableCell>{r.total_amount} {r.currency}</TableCell>
+                    <TableCell>
+                      <Badge variant={r.payment_status === "paid" ? "secondary" : "outline"}>{r.payment_status}</Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{format(new Date(r.created_at), "PP")}</TableCell>
                   </TableRow>
-                )}
-              </>
-            );
-          })}
-        </TableBody>
-      </Table>
+
+                  {teamMembers.length > 0 && (
+                    <TableRow key={`${r.id}-members`} className="bg-muted/20">
+                      <TableCell colSpan={7} className="py-2">
+                        <div className="text-xs font-semibold text-muted-foreground mb-1">Roster</div>
+                        <div className="space-y-1">
+                          {teamMembers.map((m: any) => {
+                            const isEditing = editingMemberId === m.id;
+                            const nameStr = m.display_name || m.linked_display_name || "—";
+                            const emailStr = m.email || m.linked_email || "—";
+                            const canEdit = !m.user_id; // only admin-added / unlinked rows are safe to edit inline
+                            return (
+                              <div key={m.id} className="flex items-center justify-between gap-2 text-xs">
+                                {isEditing ? (
+                                  <div className="flex-1 grid grid-cols-3 gap-1">
+                                    <Input className="h-7 text-xs" placeholder="Name" value={editMember.name} onChange={(e) => setEditMember({ ...editMember, name: e.target.value })} />
+                                    <Input className="h-7 text-xs" placeholder="Email" value={editMember.email} onChange={(e) => setEditMember({ ...editMember, email: e.target.value })} />
+                                    <Input className="h-7 text-xs" placeholder="Phone" value={editMember.phone} onChange={(e) => setEditMember({ ...editMember, phone: e.target.value })} />
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-medium">{nameStr}</span>
+                                    <span className="text-muted-foreground">{emailStr}</span>
+                                    {m.phone && <span className="text-muted-foreground">· {m.phone}</span>}
+                                    <Badge variant={m.role === "captain" ? "default" : "outline"} className="text-[10px] py-0 px-1.5">
+                                      {m.role}
+                                    </Badge>
+                                    {m.user_id && <Badge variant="secondary" className="text-[10px] py-0 px-1.5">Linked</Badge>}
+                                    {m.joined_via === "admin_add" && !m.user_id && (
+                                      <Badge variant="outline" className="text-[10px] py-0 px-1.5">Admin-added</Badge>
+                                    )}
+                                  </div>
+                                )}
+                                <div className="flex gap-1">
+                                  {isEditing ? (
+                                    <>
+                                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={handleSaveEdit}>Save</Button>
+                                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setEditingMemberId(null)}>Cancel</Button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {canEdit && (
+                                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => startEdit(m)}>
+                                          <Edit className="h-3 w-3" />
+                                        </Button>
+                                      )}
+                                      {m.role !== "captain" && (
+                                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-destructive" onClick={() => handleDeleteMember(m)}>
+                                          <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          {addingToTeam === r.id ? (
+                            <div className="flex items-center gap-1 pt-2 border-t">
+                              <Input className="h-7 text-xs" placeholder="Name*" value={newMember.name} onChange={(e) => setNewMember({ ...newMember, name: e.target.value })} />
+                              <Input className="h-7 text-xs" placeholder="Email" value={newMember.email} onChange={(e) => setNewMember({ ...newMember, email: e.target.value })} />
+                              <Input className="h-7 text-xs" placeholder="Phone" value={newMember.phone} onChange={(e) => setNewMember({ ...newMember, phone: e.target.value })} />
+                              <Button size="sm" className="h-7 text-xs" onClick={() => handleAddMember(r.id)} disabled={addMember.isPending}>Add</Button>
+                              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setAddingToTeam(null); setNewMember({ name: "", email: "", phone: "" }); }}>Cancel</Button>
+                            </div>
+                          ) : (
+                            canAdd && (
+                              <Button size="sm" variant="ghost" className="h-6 px-2 text-xs mt-1" onClick={() => setAddingToTeam(r.id)}>
+                                <UserPlus className="h-3 w-3 mr-1" /> Add Member Manually
+                              </Button>
+                            )
+                          )}
+                          {!canAdd && (
+                            <div className="text-[11px] text-muted-foreground mt-1">Team is full ({r.team_size}/{r.team_size}).</div>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+
+                  {teamInvites.length > 0 && (
+                    <TableRow key={`${r.id}-invites`} className="bg-muted/30">
+                      <TableCell colSpan={7} className="py-2">
+                        <div className="text-xs font-semibold text-muted-foreground mb-1">Invites</div>
+                        <div className="space-y-1">
+                          {teamInvites.map((inv: any) => (
+                            <div key={inv.id} className="flex items-center justify-between gap-2 text-xs">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono">{inv.email}</span>
+                                <Badge
+                                  variant={inv.status === "joined" ? "secondary" : inv.status === "revoked" ? "destructive" : "outline"}
+                                  className="text-[10px] py-0 px-1.5"
+                                >
+                                  {inv.status}
+                                </Badge>
+                                <span className="text-muted-foreground">
+                                  sent {format(new Date(inv.invited_at), "PP")}
+                                </span>
+                              </div>
+                              {inv.status !== "joined" && (
+                                <div className="flex gap-1">
+                                  <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => handleResend(inv)}>
+                                    Refresh link
+                                  </Button>
+                                  <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-destructive" onClick={() => handleRevoke(inv.id)}>
+                                    Revoke
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
+              );
+            })}
+          </TableBody>
+        </Table>
+      )}
       {invitesLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+
+      <CreateManagedTeamDialog open={showManagedDialog} onOpenChange={setShowManagedDialog} league={league} />
     </div>
   );
 }
+
 
 
 function TeamsPanel({ league }: { league: League }) {
