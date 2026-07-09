@@ -2564,8 +2564,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
       <Tabs defaultValue="players">
         <TabsList className="flex flex-wrap h-auto gap-1 p-1 mb-4">
           <TabsTrigger value="players"><Users className="h-3.5 w-3.5 mr-1" />Players ({players?.length || 0})</TabsTrigger>
-          <TabsTrigger value="teams"><Users className="h-3.5 w-3.5 mr-1" />Teams</TabsTrigger>
-          <TabsTrigger value="registrations"><Users className="h-3.5 w-3.5 mr-1" />Registrations</TabsTrigger>
+          <TabsTrigger value="registrations"><Users className="h-3.5 w-3.5 mr-1" />Teams</TabsTrigger>
           <TabsTrigger value="locations"><MapPin className="h-3.5 w-3.5 mr-1" />Locations</TabsTrigger>
           <TabsTrigger value="pars"><Flag className="h-3.5 w-3.5 mr-1" />Pars</TabsTrigger>
           
