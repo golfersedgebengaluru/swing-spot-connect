@@ -79,7 +79,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueFormat, LeagueStatus, Tenant, LeagueRound, LeagueCompetition, LeagueTeam, LeaderboardEntry } from "@/types/league";
 import type { LeaguePlayerWithProfile } from "@/hooks/useLeagues";
-import { useRegisteredLegacyTeams, useLegacyTeamInvites, useRevokeLegacyInvite, useRotateLegacyInvite } from "@/hooks/useLegacyLeagueRegistration";
+import { useRegisteredLegacyTeams, useLegacyTeamInvites, useRevokeLegacyInvite, useRotateLegacyInvite, useAddManagedMember, useUpdateManagedMember, useDeleteManagedMember } from "@/hooks/useLegacyLeagueRegistration";
+import { CreateManagedTeamDialog } from "@/components/admin/league/CreateManagedTeamDialog";
 
 // Parse a comma-separated string of team sizes (e.g. "2, 4") into a unique sorted int[].
 function parseTeamSizes(input: string): number[] {
