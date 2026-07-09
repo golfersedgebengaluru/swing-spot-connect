@@ -1716,7 +1716,7 @@ function RegistrationsPanel({ league }: { league: League }) {
 
                   {teamMembers.length > 0 && (
                     <TableRow key={`${r.id}-members`} className="bg-muted/20">
-                      <TableCell colSpan={7} className="py-2">
+                      <TableCell colSpan={8} className="py-2">
                         <div className="text-xs font-semibold text-muted-foreground mb-1">Roster</div>
                         <div className="space-y-1">
                           {teamMembers.map((m: any) => {
@@ -1796,7 +1796,7 @@ function RegistrationsPanel({ league }: { league: League }) {
 
                   {teamInvites.length > 0 && (
                     <TableRow key={`${r.id}-invites`} className="bg-muted/30">
-                      <TableCell colSpan={7} className="py-2">
+                      <TableCell colSpan={8} className="py-2">
                         <div className="text-xs font-semibold text-muted-foreground mb-1">Invites</div>
                         <div className="space-y-1">
                           {teamInvites.map((inv: any) => (
