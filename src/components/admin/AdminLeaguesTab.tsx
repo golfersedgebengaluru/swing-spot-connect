@@ -2634,12 +2634,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
           )}
         </TabsContent>
 
-        {/* Teams */}
-        <TabsContent value="teams">
-          <TeamsPanel league={league} />
-        </TabsContent>
-
-        {/* Registrations (paid) */}
+        {/* Teams (unified: paid + admin-managed) */}
         <TabsContent value="registrations">
           <RegistrationsPanel league={league} />
         </TabsContent>
