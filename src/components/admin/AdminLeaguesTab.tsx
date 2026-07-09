@@ -1698,6 +1698,20 @@ function RegistrationsPanel({ league }: { league: League }) {
                       <Badge variant={r.payment_status === "paid" ? "secondary" : "outline"}>{r.payment_status}</Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{format(new Date(r.created_at), "PP")}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Edit team"
+                          onClick={() => setEditingTeam(r)}>
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                        {r.created_by_admin && (
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" title="Delete managed team"
+                            onClick={() => handleDeleteTeam(r)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
 
                   {teamMembers.length > 0 && (
