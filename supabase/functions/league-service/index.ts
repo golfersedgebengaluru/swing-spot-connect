@@ -4369,7 +4369,24 @@ Deno.serve(async (req) => {
         .from('legacy_league_team_invites')
         .select('email, status')
         .eq('team_registration_id', member.team_registration_id)
-      return json({ success: true, team, my_role: member.role, members, invites: invites || [] })
+
+      // Roster from league_players (hybrid model) — gives client the
+      // league_player_id needed to match scores for shadow (unclaimed) rows
+      // whose league_scores.player_id is league_players.id, not a user_id.
+      let roster: Array<{ id: string; user_id: string | null; display_name: string | null }> = []
+      if ((team as any)?.league_team_id) {
+        const { data: lps } = await supabase
+          .from('league_players')
+          .select('id, user_id, display_name')
+          .eq('league_id', route.leagueId)
+          .eq('team_id', (team as any).league_team_id)
+        roster = (lps || []).map((p: any) => ({
+          id: p.id,
+          user_id: p.user_id || null,
+          display_name: p.display_name || null,
+        }))
+      }
+      return json({ success: true, team, my_role: member.role, members, invites: invites || [], roster })
     }
 
 
