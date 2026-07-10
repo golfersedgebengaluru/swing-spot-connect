@@ -4288,15 +4288,39 @@ Deno.serve(async (req) => {
           location:league_locations!league_location_id(name)
         `)
         .eq('id', member.team_registration_id).single()
-      const { data: members } = await supabase
+      const { data: rawMembers } = await supabase
         .from('legacy_league_team_members')
-        .select('user_id, role, joined_at')
+        .select('user_id, role, joined_at, display_name, email')
         .eq('team_registration_id', member.team_registration_id)
+      // Enrich with profiles for claimed members (managed rows already carry
+      // display_name/email in-place). Emails are only exposed to the captain.
+      const mUserIds = Array.from(new Set((rawMembers || []).map((m: any) => m.user_id).filter(Boolean)))
+      let profMap = new Map<string, { display_name: string | null; email: string | null }>()
+      if (mUserIds.length) {
+        const { data: profs } = await supabase
+          .from('profiles').select('user_id, display_name, email').in('user_id', mUserIds)
+        for (const p of (profs || []) as any[]) {
+          profMap.set(p.user_id, { display_name: p.display_name, email: p.email })
+        }
+      }
+      const isCaptain = member.role === 'captain'
+      const members = (rawMembers || []).map((m: any) => {
+        const prof = m.user_id ? profMap.get(m.user_id) : undefined
+        const name = prof?.display_name || m.display_name || null
+        const email = prof?.email || m.email || null
+        return {
+          user_id: m.user_id,
+          role: m.role,
+          joined_at: m.joined_at,
+          display_name: name,
+          email: isCaptain ? email : null,
+        }
+      })
       const { data: invites } = await supabase
         .from('legacy_league_team_invites')
         .select('email, status')
         .eq('team_registration_id', member.team_registration_id)
-      return json({ success: true, team, my_role: member.role, members: members || [], invites: invites || [] })
+      return json({ success: true, team, my_role: member.role, members, invites: invites || [] })
     }
 
     // ── List registered teams (admin) ───────────────────────────────
