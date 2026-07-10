@@ -2245,7 +2245,7 @@ function HiddenHolesPanel({ league }: { league: League }) {
                 .sort((a: any, b: any) => a.net_score - b.net_score)
                 .map((r: any) => (
                   <TableRow key={r.score_id}>
-                    <TableCell className="text-xs">{playerNameByUserId.get(r.player_id) || r.player_id.slice(0, 8)}</TableCell>
+                    <TableCell className="text-xs">{playerNameByUserId.get(r.player_id) || r.player_id?.slice(0, 8) || "—"}</TableCell>
                     <TableCell>{r.gross_score}</TableCell>
                     <TableCell>{r.hidden_hole_sum}</TableCell>
                     <TableCell>{r.peoria_handicap}</TableCell>
