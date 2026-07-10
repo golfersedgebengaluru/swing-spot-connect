@@ -887,12 +887,27 @@ async function computeLeaderboard(
         } else {
           roundGross = memberScoresForRound.reduce((s, p) => s + p.gross_score, 0) / memberScoresForRound.length
         }
-        const roundHandicap = memberScoresForRound.reduce((s, p) => s + p.peoria_handicap, 0) / memberScoresForRound.length
-        const roundNet = roundGross - roundHandicap
         // Team par: all members share a location, so use first member's resolved par.
         const teamParUid = memberScoresForRound[0]?.player_id || memberUserIds[0]
         const parsForRound = resolvePar(teamParUid, rn)
         const roundPar = parsForRound.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
+        // Team Peoria handicap: apply the Peoria formula to the team's BEST-BALL
+        // score on the hidden holes (per-hole minimum across teammates), rather
+        // than averaging each player's individually-computed handicap.
+        // Fall back to the average of individual handicaps when hidden holes are
+        // not yet revealed or per-hole data is missing (so live leaderboards
+        // mid-round don't regress).
+        const hiddenHolesForRound = hiddenHolesMap[rn]
+        let roundHandicap: number
+        if (hiddenHolesForRound && bestBallHoles.length > 0 && roundPar > 0) {
+          const teamHiddenSum = hiddenHolesForRound.reduce(
+            (sum, holeNum) => sum + (bestBallHoles[holeNum - 1] || 0), 0,
+          )
+          roundHandicap = Math.max(0, (teamHiddenSum * HC_MULTIPLIER) - roundPar)
+        } else {
+          roundHandicap = memberScoresForRound.reduce((s, p) => s + p.peoria_handicap, 0) / memberScoresForRound.length
+        }
+        const roundNet = roundGross - roundHandicap
         const roundStableford = sumStableford(bestBallHoles, parsForRound)
 
         teamTotalNet += roundNet
