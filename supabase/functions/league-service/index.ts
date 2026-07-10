@@ -1973,6 +1973,20 @@ Deno.serve(async (req) => {
           profiles = profs || []
         }
 
+        // Fallback: admin-managed team members store display_name/email on
+        // legacy_league_team_members (no profiles row until they claim).
+        let managedByUserId = new Map<string, { display_name: string | null; email: string | null }>()
+        if (userIds.length > 0) {
+          const { data: managed } = await supabase
+            .from('legacy_league_team_members')
+            .select('user_id, display_name, email')
+            .eq('league_id', route.leagueId)
+            .in('user_id', userIds)
+          for (const m of (managed || []) as any[]) {
+            if (m.user_id) managedByUserId.set(m.user_id, { display_name: m.display_name, email: m.email })
+          }
+        }
+
         // Resolve team city/location for players that belong to a team
         const teamIds = Array.from(new Set((players || []).map((p: any) => p.team_id).filter(Boolean)))
         let teamMap = new Map<string, any>()
@@ -1987,10 +2001,12 @@ Deno.serve(async (req) => {
         const profileMap = new Map(profiles.map((p: any) => [p.user_id, p]))
         const enriched = (players || []).map((p: any) => {
           const team = p.team_id ? teamMap.get(p.team_id) : null
+          const prof = profileMap.get(p.user_id)
+          const managed = managedByUserId.get(p.user_id)
           return {
             ...p,
-            display_name: profileMap.get(p.user_id)?.display_name || null,
-            email: profileMap.get(p.user_id)?.email || null,
+            display_name: prof?.display_name || managed?.display_name || null,
+            email: prof?.email || managed?.email || null,
             team_name: team?.name || null,
             team_city_id: team?.league_city_id || null,
             team_location_id: team?.league_location_id || null,
