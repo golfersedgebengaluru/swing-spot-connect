@@ -2759,7 +2759,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
                         className="text-primary hover:underline font-medium"
                         onClick={(e) => { e.stopPropagation(); setScorecardScore(s); }}
                       >
-                        {(s as any).player_name || s.player_id.slice(0, 8)}
+                        {(s as any).player_name || s.player_id?.slice(0, 8) || "—"}
                       </button>
                     </TableCell>
                     <TableCell>{s.round_number}</TableCell>
