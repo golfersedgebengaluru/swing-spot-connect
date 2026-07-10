@@ -14,7 +14,7 @@ export interface MyLegacyTeam {
     location?: { name: string } | null;
   };
   my_role?: "captain" | "member";
-  members?: { user_id: string; role: string }[];
+  members?: { user_id: string | null; role: string; display_name: string | null; email: string | null; joined_at?: string }[];
   invites?: { email: string; status: string }[];
 }
 
