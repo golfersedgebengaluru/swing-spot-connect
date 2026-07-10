@@ -4275,10 +4275,32 @@ Deno.serve(async (req) => {
 
     // ── My team for a league ────────────────────────────────────────
     if (route.action === 'legacy-my-team' && route.leagueId && method === 'GET') {
-      const { data: member } = await supabase
+      // Path 1: caller is in legacy_league_team_members directly
+      let { data: member } = await supabase
         .from('legacy_league_team_members')
         .select('team_registration_id, role')
         .eq('league_id', route.leagueId).eq('user_id', user.id).maybeSingle()
+
+      // Path 2: caller joined via hybrid team code — look up via league_players + league_team_members
+      if (!member) {
+        const { data: myPlayer } = await supabase
+          .from('league_players')
+          .select('id, team_id')
+          .eq('league_id', route.leagueId).eq('user_id', user.id).maybeSingle()
+        if (myPlayer?.team_id) {
+          const { data: reg } = await supabase
+            .from('legacy_league_team_registrations')
+            .select('id, captain_user_id')
+            .eq('league_team_id', myPlayer.team_id).maybeSingle()
+          if (reg) {
+            member = {
+              team_registration_id: reg.id,
+              role: reg.captain_user_id === user.id ? 'captain' : 'member',
+            } as any
+          }
+        }
+      }
+
       if (!member) return json({ success: true, team: null })
       const { data: team } = await supabase
         .from('legacy_league_team_registrations')
@@ -4323,6 +4345,7 @@ Deno.serve(async (req) => {
         .eq('team_registration_id', member.team_registration_id)
       return json({ success: true, team, my_role: member.role, members, invites: invites || [] })
     }
+
 
     // ── List registered teams (admin) ───────────────────────────────
     if (route.action === 'legacy-registered-teams' && route.leagueId && method === 'GET') {
