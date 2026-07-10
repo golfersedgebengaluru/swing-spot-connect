@@ -105,7 +105,7 @@ export function AdminScoreEntryDialog({ league, players }: Props) {
         round_number: round,
         hole_scores: holeScores,
         method: "manual",
-        player_id: playerId,
+        league_player_id: playerId,
       },
       {
         onSuccess: () => {
@@ -178,7 +178,7 @@ export function AdminScoreEntryDialog({ league, players }: Props) {
                   </SelectTrigger>
                   <SelectContent>
                     {(players || []).map((p) => (
-                      <SelectItem key={p.id} value={p.user_id}>
+                      <SelectItem key={p.id} value={p.id}>
                         {p.display_name || p.email || p.user_id?.slice(0, 8) || "Player"}
                       </SelectItem>
                     ))}
