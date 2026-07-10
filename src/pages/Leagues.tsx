@@ -515,13 +515,30 @@ function MyScores({ leagueId, league }: { leagueId: string; league: League }) {
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin mx-auto" />;
 
   const myScores = (allScores || []).filter((s) => s.player_id === user?.id);
-  if (myScores.length === 0 && (!rounds || rounds.length === 0)) {
+
+  // Teammate identity: use the hybrid roster (league_players) when available
+  // — this includes managed/shadow members whose scores are keyed by
+  // league_players.id (not a user_id). Fall back to legacy members list.
+  const roster = myTeam?.roster || [];
+  const rosterIdentityIds: string[] = roster.length > 0
+    ? Array.from(new Set(roster.flatMap((r) => [r.user_id, r.id]).filter(Boolean) as string[]))
+    : ((myTeam?.members || []).map((m) => m.user_id).filter(Boolean) as string[]);
+
+  // Teammate names for the roster panel (always visible once a team exists)
+  const teammateNames: string[] = roster.length > 0
+    ? roster
+        .filter((r) => r.user_id !== user?.id)
+        .map((r) => r.display_name || "Player")
+    : (myTeam?.members || [])
+        .filter((m) => m.user_id !== user?.id)
+        .map((m) => m.display_name || "Player");
+
+  // Always include self so a soloist still sees their hole-by-hole
+  const playerIds = Array.from(new Set([user?.id, ...rosterIdentityIds].filter(Boolean) as string[]));
+
+  if (myScores.length === 0 && (!rounds || rounds.length === 0) && teammateNames.length === 0) {
     return <p className="text-sm text-muted-foreground text-center py-4">No scores submitted yet.</p>;
   }
-
-  const teamMemberIds = (myTeam?.members || []).map((m) => m.user_id);
-  // Always include self so a soloist still sees their hole-by-hole
-  const playerIds = Array.from(new Set([user?.id, ...teamMemberIds].filter(Boolean) as string[]));
 
   const revealedByRound = new Map<number, number[]>();
   for (const r of (hiddenRows || []) as Array<{ round_number: number; hidden_holes: number[] }>) {
