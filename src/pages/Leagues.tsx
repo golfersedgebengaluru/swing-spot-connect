@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Trophy, Plus, Camera, Upload, ChevronRight } from "lucide-react";
+import { Loader2, Trophy, Plus, Camera, Upload } from "lucide-react";
 import { LeaguesLandingSection } from "@/components/home/LeaguesLandingSection";
 import { Navigate, useLocation } from "react-router-dom";
 import { format } from "date-fns";
