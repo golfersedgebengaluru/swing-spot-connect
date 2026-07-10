@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Trophy, Plus, Camera, Upload, ChevronRight } from "lucide-react";
+import { Loader2, Trophy, Plus, Camera, Upload } from "lucide-react";
 import { LeaguesLandingSection } from "@/components/home/LeaguesLandingSection";
 import { Navigate, useLocation } from "react-router-dom";
 import { format } from "date-fns";
@@ -227,43 +227,66 @@ function ScoreEntryDialog({ leagueId }: { leagueId: string }) {
   );
 }
 
-// ── Leaderboard (mirrors Admin LeaderboardPanel) ─────────────
-function Leaderboard({ leagueId, league }: { leagueId: string; league: League }) {
+// ── Leaderboard (Teams only, simplified) ─────────────────────
+function Leaderboard({ leagueId, league: _league }: { leagueId: string; league: League }) {
   const { data: rounds } = useLeagueRounds(leagueId);
   const [selectedRound, setSelectedRound] = useState<number | undefined>(undefined);
-  const [filter, setFilter] = useState<'all' | 'individuals' | 'teams'>('individuals');
-  const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
-  const { data: leaderboard, isLoading } = useLeaderboard(leagueId, selectedRound, filter);
+  const { data: leaderboard, isLoading } = useLeaderboard(leagueId, selectedRound, 'teams');
   const { data: hiddenRows } = useHiddenHoles(leagueId);
-  const revealedByRound = new Map<number, number[]>();
-  for (const r of (hiddenRows || []) as Array<{ round_number: number; hidden_holes: number[] }>) {
-    revealedByRound.set(r.round_number, r.hidden_holes || []);
-  }
+
+  // A round is "published" once its hidden holes have been revealed (round closed).
+  const publishedRounds = new Set<number>(
+    ((hiddenRows || []) as Array<{ round_number: number; hidden_holes: number[] }>)
+      .filter((r) => (r.hidden_holes || []).length >= 0)
+      .map((r) => r.round_number)
+  );
 
   if (isLoading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>;
 
-  const rawEntries = leaderboard?.entries || [];
-  const teamEntries = rawEntries.filter((e) => e.type === 'team');
-  const hasTeams = teamEntries.length > 0;
-  const teamFirst = filter === 'all' && hasTeams;
-  const entries: LeaderboardEntry[] = teamFirst
-    ? teamEntries.map((e, i) => ({ ...e, rank: i + 1 }))
-    : rawEntries;
+  const rawTeams = (leaderboard?.entries || []).filter((e) => e.type === 'team');
+
+  // Compute each team's displayed score based on the round filter, using only published rounds.
+  type Row = { id: string; name: string; scoreNum: number | null; scoreLabel: string };
+  const rows: Row[] = rawTeams.map((e) => {
+    let scoreNum: number | null = null;
+    if (selectedRound != null) {
+      if (publishedRounds.has(selectedRound)) {
+        const b = e.breakdown.find((x) => x.round === selectedRound);
+        if (b && b.net_vs_par !== undefined && b.net_vs_par !== null) scoreNum = b.net_vs_par;
+      }
+    } else {
+      const pubBreak = e.breakdown.filter((b) => publishedRounds.has(b.round) && b.net_vs_par !== undefined && b.net_vs_par !== null);
+      if (pubBreak.length > 0) scoreNum = pubBreak.reduce((acc, b) => acc + (b.net_vs_par as number), 0);
+    }
+    const scoreLabel = scoreNum === null ? '—' : scoreNum === 0 ? 'E' : scoreNum > 0 ? `+${scoreNum}` : `${scoreNum}`;
+    return { id: e.id, name: e.team_name || e.name, scoreNum, scoreLabel };
+  });
+
+  // Sort: teams with a score first (ascending, lower is better), tied teams alphabetical.
+  // Teams with no score at the bottom, alphabetical.
+  const scored = rows.filter((r) => r.scoreNum !== null).sort((a, b) => {
+    if (a.scoreNum! !== b.scoreNum!) return a.scoreNum! - b.scoreNum!;
+    return a.name.localeCompare(b.name);
+  });
+  const unscored = rows.filter((r) => r.scoreNum === null).sort((a, b) => a.name.localeCompare(b.name));
+
+  // Competition ranking (1224): tied teams share rank, next rank skips.
+  const ranked: Array<Row & { rank: number | null }> = [];
+  let currentRank = 0;
+  let seen = 0;
+  let lastScore: number | null = null;
+  for (const r of scored) {
+    seen += 1;
+    if (r.scoreNum !== lastScore) {
+      currentRank = seen;
+      lastScore = r.scoreNum;
+    }
+    ranked.push({ ...r, rank: currentRank });
+  }
+  for (const r of unscored) ranked.push({ ...r, rank: null });
 
   return (
     <div className="space-y-4">
-      {/* Sponsor branding */}
-      {league.league_branding && (
-        <div className="p-3 rounded-lg bg-muted/50 flex items-center gap-3">
-          {league.league_branding.sponsor_logo_url && (
-            <img src={league.league_branding.sponsor_logo_url} alt="" className="h-8 object-contain" />
-          )}
-          {league.league_branding.sponsor_name && (
-            <span className="text-xs text-muted-foreground">Sponsored by {league.league_branding.sponsor_name}</span>
-          )}
-        </div>
-      )}
-
       <div className="flex items-center gap-3 flex-wrap">
         <div>
           <Label className="text-xs">Round</Label>
@@ -277,167 +300,36 @@ function Leaderboard({ leagueId, league }: { leagueId: string; league: League })
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label className="text-xs">View</Label>
-          <div className="flex gap-1 mt-0.5">
-            {(['individuals', 'teams'] as const).map((f) => (
-              <Button key={f} size="sm" variant={filter === f ? "default" : "outline"} className="h-8 text-xs capitalize" onClick={() => setFilter(f)}>
-                {f}
-              </Button>
-            ))}
-          </div>
-        </div>
       </div>
 
-      {entries.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">No leaderboard data yet. Scores need to be submitted and rounds closed.</p>
+      <p className="text-xs text-muted-foreground italic">
+        Only scores from closed rounds are published on the leaderboard.
+      </p>
+
+      {ranked.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-8 text-center">No teams to display yet.</p>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-8"></TableHead>
-              <TableHead className="w-12">#</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Type</TableHead>
-              {leaderboard?.stableford_enabled !== false && <TableHead className="text-right">Points</TableHead>}
-              {!leaderboard?.handicap_active && <TableHead className="text-right">Gross</TableHead>}
-              <TableHead className="text-right">Net</TableHead>
-              <TableHead className="text-right">Par</TableHead>
-              <TableHead className="text-right">vs Par</TableHead>
-              <TableHead className="text-right">Final</TableHead>
-              <TableHead className="text-right">Rounds</TableHead>
+              <TableHead className="w-16">Rank</TableHead>
+              <TableHead>Team</TableHead>
+              <TableHead className="text-right">Score</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {entries.map((entry) => {
-              const vsPar = entry.final_vs_par ?? entry.net_vs_par ?? 0;
-              const vsParLabel = vsPar === 0 ? "E" : vsPar > 0 ? `+${vsPar}` : `${vsPar}`;
-              const vsParClass = vsPar < 0 ? "text-emerald-600" : vsPar > 0 ? "text-red-600" : "text-muted-foreground";
-              const showPts = leaderboard?.stableford_enabled !== false;
-              const pts = entry.total_stableford ?? 0;
-              const ptsLabel = pts === 0 ? "0" : pts > 0 ? `+${pts}` : `${pts}`;
-              const ptsClass = pts > 0 ? "text-emerald-600" : pts < 0 ? "text-red-600" : "text-muted-foreground";
-              const baseCols = 9; // chevron + # + name + type + net + par + vs + final + rounds
-              const colSpanForDetail = baseCols + (showPts ? 1 : 0) + (!leaderboard?.handicap_active ? 1 : 0);
-              const isExpanded = expandedEntry === entry.id;
-              const expandable = entry.type === 'team' || entry.breakdown.length > 0;
+            {ranked.map((r) => {
+              const vsCls = r.scoreNum === null
+                ? 'text-muted-foreground'
+                : r.scoreNum < 0 ? 'text-emerald-600'
+                : r.scoreNum > 0 ? 'text-red-600'
+                : 'text-muted-foreground';
               return (
-                <>
-                  <TableRow
-                    key={entry.id}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => setExpandedEntry(expandedEntry === entry.id ? null : entry.id)}
-                  >
-                    <TableCell className="px-2">
-                      {expandable ? (
-                        <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition-transform", isExpanded && "rotate-90")} />
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="font-semibold">{entry.rank}</TableCell>
-                    <TableCell>
-                      <div>
-                        <span className="font-medium text-sm">{entry.name}</span>
-                        {entry.team_name && <p className="text-xs text-muted-foreground">{entry.team_name}</p>}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={entry.type === 'team' ? 'default' : 'outline'} className="text-xs">
-                        {entry.type === 'team' ? '🏆 Team' : '👤 Individual'}
-                      </Badge>
-                    </TableCell>
-                    {showPts && <TableCell className={cn("text-right font-bold", ptsClass)}>{ptsLabel} pts</TableCell>}
-                    {!leaderboard?.handicap_active && <TableCell className="text-right">{entry.total_gross}</TableCell>}
-                    <TableCell className="text-right">{entry.total_net}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">{entry.total_par ?? '—'}</TableCell>
-                    <TableCell className={cn("text-right font-semibold", vsParClass)}>{vsParLabel}</TableCell>
-                    <TableCell className="text-right font-semibold">{entry.final_score}</TableCell>
-                    <TableCell className="text-right">{entry.rounds_played}</TableCell>
-                  </TableRow>
-
-
-                  {isExpanded && (
-                    <TableRow key={`${entry.id}-detail`}>
-                      <TableCell colSpan={colSpanForDetail} className="bg-muted/20 p-4">
-                        <div className="space-y-3">
-                          {(() => {
-                            const closedInBreakdown = entry.breakdown
-                              .map((b) => ({ round: b.round, hidden: revealedByRound.get(b.round) }))
-                              .filter((x) => x.hidden && x.hidden.length > 0);
-                            if (closedInBreakdown.length === 0) return null;
-                            return (
-                              <div>
-                                <p className="text-xs font-medium text-muted-foreground mb-1">Revealed Hidden Holes</p>
-                                <div className="flex gap-2 flex-wrap">
-                                  {closedInBreakdown.map((c) => (
-                                    <Badge key={c.round} variant="secondary" className="text-[10px]">
-                                      R{c.round}: {(c.hidden || []).join(", ")}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })()}
-                          {entry.breakdown.length > 0 && (
-                            <div>
-                              <p className="text-xs font-medium text-muted-foreground mb-1">Round Breakdown</p>
-                              <div className="flex gap-3 flex-wrap">
-                                {entry.breakdown.map((b) => {
-                                  const rVs = b.net_vs_par ?? 0;
-                                  const rLabel = rVs === 0 ? "E" : rVs > 0 ? `+${rVs}` : `${rVs}`;
-                                  const rClass = rVs < 0 ? "text-emerald-600" : rVs > 0 ? "text-red-600" : "text-muted-foreground";
-                                  const rPts = b.stableford ?? 0;
-                                  const rPtsLabel = rPts === 0 ? "0" : rPts > 0 ? `+${rPts}` : `${rPts}`;
-                                  const rPtsCls = rPts > 0 ? "text-emerald-600" : rPts < 0 ? "text-red-600" : "text-muted-foreground";
-                                  return (
-                                    <div key={b.round} className="border rounded px-3 py-1.5 text-xs bg-background">
-                                      <span className="font-medium">R{b.round}</span>:{" "}
-                                      {showPts && (<>
-                                        <span className={cn("font-bold", rPtsCls)}>{rPtsLabel} pts</span>
-                                        <span className="text-muted-foreground"> · </span>
-                                      </>)}
-                                      Gross {b.gross}, Net {b.net}
-                                      {b.par ? <span className="text-muted-foreground"> (Par {b.par})</span> : null}
-                                      {b.net_vs_par !== undefined && (
-                                        <span className={cn("ml-1 font-semibold", rClass)}>{rLabel}</span>
-                                      )}
-                                      {b.handicap > 0 && <span className="text-muted-foreground"> · HC -{b.handicap}</span>}
-                                    </div>
-                                  );
-                                })}
-
-                              </div>
-                            </div>
-                          )}
-
-                          {entry.type === 'team' && entry.members && entry.members.length > 0 && (
-                            <div>
-                              <p className="text-xs font-medium text-muted-foreground mb-1">Team Members</p>
-                              <div className="flex gap-3 flex-wrap">
-                                {entry.members.map((m) => {
-                                  const mvs = m.vs_par;
-                                  const mvsStr = mvs === undefined || mvs === null ? '—' : mvs === 0 ? 'E' : mvs > 0 ? `+${mvs}` : `${mvs}`;
-                                  const mvsCls = (mvs ?? 0) > 0 ? 'text-destructive' : (mvs ?? 0) < 0 ? 'text-emerald-600' : '';
-                                  return (
-                                    <div key={m.player_id} className="border rounded px-3 py-1.5 text-xs bg-background">
-                                      <span className="font-medium">{m.name}</span>
-                                      <span className="text-muted-foreground"> · Gross {m.gross_score ?? '—'} · Net {m.net_score} · Par {m.total_par ?? '—'} · </span>
-                                      <span className={cn('font-semibold', mvsCls)}>vs Par {mvsStr}</span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                              {(league.fairness_factor_pct || 0) > 0 && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Fairness factor: -{league.fairness_factor_pct}% applied → Final: {entry.final_score}
-                                </p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </>
+                <TableRow key={r.id}>
+                  <TableCell className="font-semibold">{r.rank ?? '—'}</TableCell>
+                  <TableCell className="font-medium text-sm">{r.name}</TableCell>
+                  <TableCell className={cn('text-right font-semibold', vsCls)}>{r.scoreLabel}</TableCell>
+                </TableRow>
               );
             })}
           </TableBody>
