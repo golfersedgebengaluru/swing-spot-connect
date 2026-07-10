@@ -179,7 +179,7 @@ export function AdminScoreEntryDialog({ league, players }: Props) {
                   <SelectContent>
                     {(players || []).map((p) => (
                       <SelectItem key={p.id} value={p.user_id}>
-                        {p.display_name || p.email || p.user_id.slice(0, 8)}
+                        {p.display_name || p.email || p.user_id?.slice(0, 8) || "Player"}
                       </SelectItem>
                     ))}
                   </SelectContent>
