@@ -595,7 +595,7 @@ function MyScores({ leagueId, league }: { leagueId: string; league: League }) {
               parPerHole={(round?.par_per_hole as number[]) || []}
               hiddenHoles={hidden}
               playerIds={playerIds}
-              showTeamTotal={teamMemberIds.length > 0}
+              showTeamTotal={rosterIdentityIds.length > 0}
               showPoints={league.stableford_enabled !== false}
               format={league.format}
             />
