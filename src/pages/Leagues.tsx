@@ -554,6 +554,16 @@ function MyScores({ leagueId, league }: { leagueId: string; league: League }) {
 
   return (
     <div className="space-y-6">
+      {teammateNames.length > 0 && (
+        <div className="rounded-md border bg-muted/30 p-3">
+          <div className="text-xs font-semibold text-muted-foreground mb-1.5">Your team</div>
+          <div className="flex flex-wrap gap-1.5">
+            {teammateNames.map((n, i) => (
+              <Badge key={`${n}-${i}`} variant="secondary" className="text-xs">{n}</Badge>
+            ))}
+          </div>
+        </div>
+      )}
       {orderedRounds.map((rn) => {
         const round = (rounds || []).find((r) => r.round_number === rn);
         const mine = myScores.find((s) => s.round_number === rn);
