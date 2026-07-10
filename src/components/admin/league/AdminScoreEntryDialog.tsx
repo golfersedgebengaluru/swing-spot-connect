@@ -105,7 +105,7 @@ export function AdminScoreEntryDialog({ league, players }: Props) {
         round_number: round,
         hole_scores: holeScores,
         method: "manual",
-        player_id: playerId,
+        league_player_id: playerId,
       },
       {
         onSuccess: () => {
