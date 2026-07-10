@@ -1530,10 +1530,26 @@ Deno.serve(async (req) => {
         const validMethods = ['photo_ocr', 'manual', 'api']
         if (!validMethods.includes(method_val)) return err('Invalid score method')
 
-        // Determine target player. Admins can submit on behalf of others by passing player_id.
+        // Determine target player. Admins can submit on behalf of others.
+        // Preferred: body.league_player_id (league_players.id) — works for managed/shadow players (user_id NULL).
+        // Legacy: body.player_id (user_id).
         let targetPlayerId = user.id
         let actorRole: string = 'player'
-        if (body.player_id && body.player_id !== user.id) {
+        if (body.league_player_id) {
+          const role = await getUserLeagueRole(supabase, user.id, tenantId)
+          if (role !== 'franchise_admin' && role !== 'site_admin' && role !== 'league_admin') {
+            return err('Only admins can submit scores for other players', 403)
+          }
+          const { data: lp } = await supabase.from('league_players')
+            .select('id, user_id')
+            .eq('league_id', route.leagueId)
+            .eq('id', body.league_player_id)
+            .maybeSingle()
+          if (!lp) return err('Target player is not in this league', 404)
+          // Use user_id when present; fall back to league_players.id (unique uuid) for shadow rows.
+          targetPlayerId = lp.user_id || lp.id
+          actorRole = role
+        } else if (body.player_id && body.player_id !== user.id) {
           const role = await getUserLeagueRole(supabase, user.id, tenantId)
           if (role !== 'franchise_admin' && role !== 'site_admin' && role !== 'league_admin') {
             return err('Only admins can submit scores for other players', 403)
