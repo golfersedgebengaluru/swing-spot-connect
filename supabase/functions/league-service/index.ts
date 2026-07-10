@@ -1440,24 +1440,11 @@ Deno.serve(async (req) => {
         const { data, error } = await query
         if (error) return err(error.message, 500)
 
-        // Enrich with player names from profiles
-        const playerIds = [...new Set((data || []).map((s: any) => s.player_id))]
-        let profileMap: Record<string, string> = {}
-        if (playerIds.length > 0) {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('user_id, display_name')
-            .in('user_id', playerIds)
-          if (profiles) {
-            profileMap = Object.fromEntries(profiles.map((p: any) => [p.user_id, p.display_name || '']))
-          }
-        }
-
         // Resolve per-player par via (round.course_name, player-location.software) → league_par_sets
         const [{ data: parSetsAll }, { data: locsAll }, { data: playersAll }, { data: roundsAll }, { data: teamsAll }] = await Promise.all([
           supabase.from('league_par_sets').select('course_name, software, par_per_hole').eq('league_id', route.leagueId),
           supabase.from('league_locations').select('id, software').eq('league_id', route.leagueId),
-          supabase.from('league_players').select('user_id, team_id, league_location_id, league_teams!team_id(league_location_id)').eq('league_id', route.leagueId),
+          supabase.from('league_players').select('id, user_id, display_name, team_id, league_location_id, league_teams!team_id(league_location_id)').eq('league_id', route.leagueId),
           supabase.from('league_rounds').select('round_number, par_per_hole, course_name').eq('league_id', route.leagueId),
           supabase.from('league_teams').select('id, name').eq('league_id', route.leagueId),
         ])
@@ -1467,12 +1454,32 @@ Deno.serve(async (req) => {
         }
         const locSoftware: Record<string, string> = {}
         for (const l of ((locsAll || []) as any[])) locSoftware[l.id] = l.software || 'TGC'
-        const userLocation: Record<string, string | null> = {}
-        const userTeamId: Record<string, string | null> = {}
+        // Index league_players by BOTH user_id and league_players.id so we
+        // resolve shadow rows (user_id NULL, score.player_id = league_players.id).
+        const playerByKey: Record<string, { id: string; user_id: string | null; display_name: string | null; team_id: string | null; location_id: string | null }> = {}
         for (const p of ((playersAll || []) as any[])) {
           const teamLoc = Array.isArray(p.league_teams) ? p.league_teams[0]?.league_location_id : p.league_teams?.league_location_id
-          userLocation[p.user_id] = p.league_location_id || teamLoc || null
-          userTeamId[p.user_id] = p.team_id || null
+          const rec = {
+            id: p.id,
+            user_id: p.user_id || null,
+            display_name: p.display_name || null,
+            team_id: p.team_id || null,
+            location_id: p.league_location_id || teamLoc || null,
+          }
+          playerByKey[p.id] = rec
+          if (p.user_id) playerByKey[p.user_id] = rec
+        }
+        // Enrich player names from profiles for claimed users
+        const claimedUserIds = [...new Set((data || []).map((s: any) => s.player_id).filter((id: string) => playerByKey[id]?.user_id === id))]
+        let profileMap: Record<string, string> = {}
+        if (claimedUserIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('user_id, display_name')
+            .in('user_id', claimedUserIds)
+          if (profiles) {
+            profileMap = Object.fromEntries(profiles.map((p: any) => [p.user_id, p.display_name || '']))
+          }
         }
         const teamNameMap: Record<string, string> = {}
         for (const t of ((teamsAll || []) as any[])) teamNameMap[t.id] = t.name
@@ -1480,11 +1487,11 @@ Deno.serve(async (req) => {
         for (const r of ((roundsAll || []) as any[])) {
           roundInfo[r.round_number] = { par: (r.par_per_hole as number[]) || [], course: r.course_name || null }
         }
-        const resolveParFor = (userId: string, roundNumber: number): number[] => {
+        const resolveParFor = (playerKey: string, roundNumber: number): number[] => {
           const info = roundInfo[roundNumber]
           if (!info) return []
           if (info.course) {
-            const locId = userLocation[userId]
+            const locId = playerByKey[playerKey]?.location_id || null
             const sw = locId ? locSoftware[locId] : null
             if (sw) {
               const custom = parSetMap[`${info.course}||${sw}`]
@@ -1495,10 +1502,13 @@ Deno.serve(async (req) => {
         }
 
         const enriched = (data || []).map((s: any) => {
-          const tid = userTeamId[s.player_id] || null
+          const rec = playerByKey[s.player_id]
+          const tid = rec?.team_id || null
+          const name = profileMap[s.player_id] || rec?.display_name || null
           return {
             ...s,
-            player_name: profileMap[s.player_id] || null,
+            player_name: name,
+            league_player_id: rec?.id || null,
             resolved_par_per_hole: resolveParFor(s.player_id, s.round_number),
             team_id: tid,
             team_name: tid ? (teamNameMap[tid] || null) : null,
