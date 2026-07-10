@@ -121,7 +121,7 @@ export function SeasonWrapUpPanel({ league, players, isSiteAdmin }: Props) {
   const snapshot = wrapUp?.snapshot;
   const auto = (wrapUp?.awards || []).filter((a) => !a.is_manual);
   const manual = (wrapUp?.awards || []).filter((a) => a.is_manual);
-  const playerNameById = new Map(players.map((p) => [p.user_id, p.display_name || p.email || p.user_id.slice(0, 8)]));
+  const playerNameById = new Map(players.map((p) => [p.user_id, p.display_name || p.email || p.user_id?.slice(0, 8) || "Player"]));
 
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin" />;
 
