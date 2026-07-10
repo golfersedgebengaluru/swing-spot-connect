@@ -515,13 +515,30 @@ function MyScores({ leagueId, league }: { leagueId: string; league: League }) {
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin mx-auto" />;
 
   const myScores = (allScores || []).filter((s) => s.player_id === user?.id);
-  if (myScores.length === 0 && (!rounds || rounds.length === 0)) {
+
+  // Teammate identity: use the hybrid roster (league_players) when available
+  // — this includes managed/shadow members whose scores are keyed by
+  // league_players.id (not a user_id). Fall back to legacy members list.
+  const roster = myTeam?.roster || [];
+  const rosterIdentityIds: string[] = roster.length > 0
+    ? Array.from(new Set(roster.flatMap((r) => [r.user_id, r.id]).filter(Boolean) as string[]))
+    : ((myTeam?.members || []).map((m) => m.user_id).filter(Boolean) as string[]);
+
+  // Teammate names for the roster panel (always visible once a team exists)
+  const teammateNames: string[] = roster.length > 0
+    ? roster
+        .filter((r) => r.user_id !== user?.id)
+        .map((r) => r.display_name || "Player")
+    : (myTeam?.members || [])
+        .filter((m) => m.user_id !== user?.id)
+        .map((m) => m.display_name || "Player");
+
+  // Always include self so a soloist still sees their hole-by-hole
+  const playerIds = Array.from(new Set([user?.id, ...rosterIdentityIds].filter(Boolean) as string[]));
+
+  if (myScores.length === 0 && (!rounds || rounds.length === 0) && teammateNames.length === 0) {
     return <p className="text-sm text-muted-foreground text-center py-4">No scores submitted yet.</p>;
   }
-
-  const teamMemberIds = (myTeam?.members || []).map((m) => m.user_id);
-  // Always include self so a soloist still sees their hole-by-hole
-  const playerIds = Array.from(new Set([user?.id, ...teamMemberIds].filter(Boolean) as string[]));
 
   const revealedByRound = new Map<number, number[]>();
   for (const r of (hiddenRows || []) as Array<{ round_number: number; hidden_holes: number[] }>) {
@@ -537,6 +554,16 @@ function MyScores({ leagueId, league }: { leagueId: string; league: League }) {
 
   return (
     <div className="space-y-6">
+      {teammateNames.length > 0 && (
+        <div className="rounded-md border bg-muted/30 p-3">
+          <div className="text-xs font-semibold text-muted-foreground mb-1.5">Your team</div>
+          <div className="flex flex-wrap gap-1.5">
+            {teammateNames.map((n, i) => (
+              <Badge key={`${n}-${i}`} variant="secondary" className="text-xs">{n}</Badge>
+            ))}
+          </div>
+        </div>
+      )}
       {orderedRounds.map((rn) => {
         const round = (rounds || []).find((r) => r.round_number === rn);
         const mine = myScores.find((s) => s.round_number === rn);
@@ -568,7 +595,7 @@ function MyScores({ leagueId, league }: { leagueId: string; league: League }) {
               parPerHole={(round?.par_per_hole as number[]) || []}
               hiddenHoles={hidden}
               playerIds={playerIds}
-              showTeamTotal={teamMemberIds.length > 0}
+              showTeamTotal={rosterIdentityIds.length > 0}
               showPoints={league.stableford_enabled !== false}
               format={league.format}
             />
