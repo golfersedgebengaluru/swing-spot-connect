@@ -267,7 +267,8 @@ export interface SubmitScoreRequest {
   total_score?: number;
   method?: 'photo_ocr' | 'manual' | 'api';
   photo_url?: string;
-  player_id?: string; // admin-only: submit on behalf of another player
+  player_id?: string; // admin-only: submit on behalf of another player (user_id)
+  league_player_id?: string; // admin-only: preferred — league_players.id (works for managed/shadow players)
 }
 
 export interface UpdateBrandingRequest {
