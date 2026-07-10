@@ -4332,7 +4332,7 @@ Deno.serve(async (req) => {
         .from('legacy_league_team_registrations')
         .select(`
           id, team_name, team_size, currency, total_amount, payment_status,
-          join_token, captain_user_id, league_city_id, league_location_id,
+          join_token, captain_user_id, league_city_id, league_location_id, league_team_id,
           city:league_cities!league_city_id(name),
           location:league_locations!league_location_id(name)
         `)
