@@ -283,7 +283,7 @@ export function SeasonWrapUpPanel({ league, players, isSiteAdmin }: Props) {
                       <SelectContent>
                         {players.map((p) => (
                           <SelectItem key={p.user_id} value={p.user_id}>
-                            {p.display_name || p.email || p.user_id.slice(0, 8)}
+                            {p.display_name || p.email || p.user_id?.slice(0, 8) || "Player"}
                           </SelectItem>
                         ))}
                       </SelectContent>
