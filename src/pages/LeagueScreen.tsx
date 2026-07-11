@@ -138,24 +138,24 @@ function RoundStatusPill({ round, status }: { round: ScreenRound; status: RoundS
   const base = "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium border";
   if (status === "published") {
     return (
-      <div className={cn(base, "bg-white text-stone-700 border-stone-200")}>
-        <span className="h-1.5 w-1.5 rounded-full bg-stone-400" />
-        R{round.round_number} · Published
+      <div className={cn(base, "bg-emerald-50 text-emerald-800 border-emerald-200")}>
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+        ✓ R{round.round_number} · Published
       </div>
     );
   }
   if (status === "open") {
     return (
-      <div className={cn(base, "bg-emerald-50 text-emerald-800 border-emerald-200")}>
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-        R{round.round_number} · Open · Closes {dayName(round.end_date)}
+      <div className={cn(base, "bg-amber-50 text-amber-800 border-amber-300")}>
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+        ● R{round.round_number} · Open · Closes {dayName(round.end_date)}
       </div>
     );
   }
   return (
-    <div className={cn(base, "bg-stone-50 text-stone-400 border-stone-200")}>
-      <span className="h-1.5 w-1.5 rounded-full bg-stone-300" />
-      R{round.round_number} · Upcoming
+    <div className={cn(base, "bg-stone-50 text-stone-500 border-stone-300 border-dashed")}>
+      <span className="h-1.5 w-1.5 rounded-full bg-stone-400" />
+      ● R{round.round_number} · Upcoming
     </div>
   );
 }
