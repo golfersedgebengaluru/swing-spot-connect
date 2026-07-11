@@ -335,6 +335,8 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
     setSessionType("practice");
     setCoachName("");
     setAdvanceDrawdown(0);
+    setDiscountType("none");
+    setDiscountValue(0);
   };
 
   return (
