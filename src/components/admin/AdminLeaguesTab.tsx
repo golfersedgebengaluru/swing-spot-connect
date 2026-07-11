@@ -2448,7 +2448,14 @@ function LeaderboardPanel({ league }: { league: League }) {
                   <TableCell className="font-semibold">{entry.rank}</TableCell>
                   <TableCell>
                     <div>
-                      <span className="font-medium text-sm">{entry.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={cn("font-medium text-sm", entry.qualified === false && "text-muted-foreground")}>{entry.name}</span>
+                        {entry.qualified === false && (
+                          <span className="inline-flex items-center rounded-full border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Incomplete
+                          </span>
+                        )}
+                      </div>
                       {entry.team_name && <p className="text-xs text-muted-foreground">{entry.team_name}</p>}
                     </div>
                   </TableCell>
