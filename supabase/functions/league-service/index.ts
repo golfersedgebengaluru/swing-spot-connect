@@ -642,7 +642,7 @@ async function computeLeaderboard(
   const [{ data: parSetsAll }, { data: locsAll }, { data: playersAll }] = await Promise.all([
     supabase.from('league_par_sets').select('course_name, software, par_per_hole').eq('league_id', leagueId),
     supabase.from('league_locations').select('id, software').eq('league_id', leagueId),
-    supabase.from('league_players').select('user_id, league_location_id, league_teams!team_id(league_location_id)').eq('league_id', leagueId),
+    supabase.from('league_players').select('id, user_id, league_location_id, league_teams!team_id(league_location_id)').eq('league_id', leagueId),
   ])
   const parSetMap: Record<string, number[]> = {}
   for (const ps of ((parSetsAll || []) as any[])) {
@@ -650,20 +650,25 @@ async function computeLeaderboard(
   }
   const locSoftware: Record<string, string> = {}
   for (const l of ((locsAll || []) as any[])) locSoftware[l.id] = l.software || 'TGC'
+  // Key by BOTH user_id (claimed players) and league_players.id (shadow players)
+  // because score.player_id can be either.
   const userLocation: Record<string, string | null> = {}
   for (const p of ((playersAll || []) as any[])) {
     const teamLoc = Array.isArray(p.league_teams) ? p.league_teams[0]?.league_location_id : p.league_teams?.league_location_id
-    userLocation[p.user_id] = p.league_location_id || teamLoc || null
+    const loc = p.league_location_id || teamLoc || null
+    if (p.user_id) userLocation[p.user_id] = loc
+    userLocation[p.id] = loc
   }
   const roundInfo: Record<number, { par: number[]; course: string | null }> = {}
   for (const r of ((allRounds || []) as any[])) {
     roundInfo[r.round_number] = { par: (r.par_per_hole as number[]) || [], course: r.course_name || null }
   }
-  const resolvePar = (userId: string, roundNumber: number): number[] => {
+  const resolvePar = (playerKey: string, roundNumber: number): number[] => {
     const info = roundInfo[roundNumber]
     if (!info) return []
     if (info.course) {
-      const locId = userLocation[userId]
+      const locId = userLocation[playerKey]
+
       const sw = locId ? locSoftware[locId] : null
       if (sw) {
         const custom = parSetMap[`${info.course}||${sw}`]
