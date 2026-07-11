@@ -199,9 +199,30 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
     setLineItems((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  // GST calculation
+  // GST calculation with discount applied proportionally to each line's inclusive price
   const gstType = getGstType(profile?.state_code || "", customerGstin || undefined);
-  const calculated = calculateLineItems(lineItems, gstType);
+  const grossInclusive = useMemo(
+    () => lineItems.reduce((s, li) => s + (Number(li.quantity) || 0) * (Number(li.unitPrice) || 0), 0),
+    [lineItems]
+  );
+  const discountAmount = useMemo(() => {
+    if (discountType === "none" || !discountValue || discountValue <= 0) return 0;
+    if (discountType === "percentage") {
+      const pct = Math.min(Math.max(discountValue, 0), 100);
+      return Math.round(grossInclusive * (pct / 100) * 100) / 100;
+    }
+    return Math.round(Math.min(discountValue, grossInclusive) * 100) / 100;
+  }, [discountType, discountValue, grossInclusive]);
+  const discountedLineItems = useMemo(() => {
+    if (discountAmount <= 0 || grossInclusive <= 0) return lineItems;
+    const factor = 1 - discountAmount / grossInclusive;
+    return lineItems.map((li) => ({
+      ...li,
+      unitPrice: Math.round(Number(li.unitPrice) * factor * 100) / 100,
+    }));
+  }, [lineItems, discountAmount, grossInclusive]);
+  const calculated = calculateLineItems(discountedLineItems, gstType);
+
 
   const handleSubmit = async () => {
     if (!customerName) {
