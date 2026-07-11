@@ -2538,7 +2538,7 @@ function LeaderboardPanel({ league }: { league: League }) {
             })}
           </TableBody>
         </Table>
-      )}
+      </>)}
     </div>
   );
 }
