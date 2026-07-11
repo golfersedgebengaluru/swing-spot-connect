@@ -165,11 +165,16 @@ interface RowData {
   rank: number | null;
   finalVsPar: number | null;
   byRound: Record<number, number | undefined>;
+  qualified: boolean;
 }
 
 function computeRows(entries: LeaderboardEntry[], rounds: ScreenRound[], now: Date): RowData[] {
   const roundStatus: Record<number, RoundStatus> = {};
   for (const r of rounds) roundStatus[r.round_number] = getRoundStatus(r, now);
+  const publishedRoundNums = rounds
+    .filter((r) => roundStatus[r.round_number] === "published")
+    .map((r) => r.round_number);
+  const totalPublished = publishedRoundNums.length;
 
   const rows = entries.map<RowData>((entry) => {
     const byRound: Record<number, number | undefined> = {};
@@ -183,10 +188,14 @@ function computeRows(entries: LeaderboardEntry[], rounds: ScreenRound[], now: Da
         anyPublished = true;
       }
     }
-    return { entry, rank: null, finalVsPar: anyPublished ? finalVsPar : null, byRound };
+    const playedPublished = publishedRoundNums.filter((rn) => byRound[rn] !== undefined).length;
+    const qualified = totalPublished === 0 ? true : playedPublished >= totalPublished;
+    return { entry, rank: null, finalVsPar: anyPublished ? finalVsPar : null, byRound, qualified };
   });
 
   rows.sort((a, b) => {
+    // Qualified entries always rank above non-qualified.
+    if (a.qualified !== b.qualified) return a.qualified ? -1 : 1;
     const aHas = a.finalVsPar !== null;
     const bHas = b.finalVsPar !== null;
     if (aHas && !bHas) return -1;
@@ -197,16 +206,19 @@ function computeRows(entries: LeaderboardEntry[], rounds: ScreenRound[], now: Da
     return a.entry.name.localeCompare(b.entry.name);
   });
 
+  // Continuous ranks 1..N across both groups; unscored (no rounds published for them) get null.
   let lastScore: number | null = Number.NaN as unknown as number;
+  let lastQualified: boolean | null = null;
   let lastRank = 0;
   rows.forEach((r, i) => {
     if (r.finalVsPar === null) {
       r.rank = null;
       return;
     }
-    if (r.finalVsPar !== lastScore) {
+    if (r.finalVsPar !== lastScore || r.qualified !== lastQualified) {
       lastRank = i + 1;
       lastScore = r.finalVsPar;
+      lastQualified = r.qualified;
     }
     r.rank = lastRank;
   });
@@ -319,6 +331,9 @@ export default function LeagueScreen() {
 
       {/* Leaderboard */}
       <main className="px-3 sm:px-6 md:px-12 pb-12 pt-4">
+        <p className="text-[11px] sm:text-xs italic text-stone-500 mb-2 px-1">
+          Scores for all rounds must be submitted to qualify to win. Teams with missing rounds are ranked below all fully-qualified teams.
+        </p>
         <div className="rounded-2xl border border-stone-200 bg-white shadow-sm overflow-hidden">
           {lbLoading && rows.length === 0 ? (
             <div className="flex items-center justify-center py-16 text-stone-500">
@@ -355,11 +370,11 @@ export default function LeagueScreen() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map(({ entry, rank, finalVsPar, byRound }, i) => {
+                  {rows.map(({ entry, rank, finalVsPar, byRound, qualified }, i) => {
                     const key = `${entry.type}-${entry.id}`;
                     const rowBg = i % 2 === 0 ? "bg-white" : "bg-stone-50/60";
                     return (
-                      <tr key={key} className={cn("border-t border-stone-100 transition-colors hover:bg-amber-50/40", rowBg)}>
+                      <tr key={key} className={cn("border-t border-stone-100 transition-colors hover:bg-amber-50/40", rowBg, !qualified && "opacity-70")}>
                         <td className={cn("sticky left-0 z-10 px-3 sm:px-5 py-3 sm:py-4", rowBg)}>
                           <span
                             className={cn(
@@ -381,8 +396,13 @@ export default function LeagueScreen() {
                               {initials(entry.name)}
                             </span>
                             <div className="min-w-0">
-                              <div className="font-semibold text-stone-900 truncate max-w-[180px] sm:max-w-[280px]">
-                                {entry.name}
+                              <div className="font-semibold text-stone-900 truncate max-w-[180px] sm:max-w-[280px] flex items-center gap-2">
+                                <span className="truncate">{entry.name}</span>
+                                {!qualified && (
+                                  <span className="shrink-0 inline-flex items-center rounded-full border border-stone-300 bg-stone-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-stone-600">
+                                    Incomplete
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>

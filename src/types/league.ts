@@ -317,6 +317,9 @@ export interface LeaderboardEntry {
   /** Modified Stableford points (additive layer; primary ranking signal). */
   total_stableford?: number;
   rounds_played: number;
+  /** True when the entrant has submitted scores for every published round.
+   *  Non-qualified entries are always ranked below all qualified ones. */
+  qualified?: boolean;
   breakdown: { round: number; gross: number; net: number; handicap: number; par?: number; net_vs_par?: number; stableford?: number }[];
   members?: { player_id: string; name: string; net_score: number; gross_score?: number; total_par?: number; vs_par?: number; stableford?: number }[];
 }
@@ -330,6 +333,8 @@ export interface LeaderboardResponse {
   handicap_active?: boolean;
   /** When false, the Modified Stableford points layer is disabled for this league. */
   stableford_enabled?: boolean;
+  /** Count of published rounds — the denominator for `qualified`. */
+  total_active_rounds?: number;
 }
 
 // ── League Round ─────────────────────────────────────────────

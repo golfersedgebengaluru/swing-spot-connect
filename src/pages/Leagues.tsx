@@ -246,40 +246,51 @@ function Leaderboard({ leagueId, league: _league }: { leagueId: string; league: 
   const rawTeams = (leaderboard?.entries || []).filter((e) => e.type === 'team');
 
   // Compute each team's displayed score based on the round filter, using only published rounds.
-  type Row = { id: string; name: string; scoreNum: number | null; scoreLabel: string };
+  // A team "qualifies" when it has a published score for every published round in scope.
+  const publishedRoundsList = (rounds || [])
+    .map((r) => r.round_number)
+    .filter((rn) => publishedRounds.has(rn));
+  type Row = { id: string; name: string; scoreNum: number | null; scoreLabel: string; qualified: boolean };
   const rows: Row[] = rawTeams.map((e) => {
     let scoreNum: number | null = null;
+    let qualified = true;
     if (selectedRound != null) {
       if (publishedRounds.has(selectedRound)) {
         const b = e.breakdown.find((x) => x.round === selectedRound);
         if (b && b.net_vs_par !== undefined && b.net_vs_par !== null) scoreNum = b.net_vs_par;
+        qualified = scoreNum !== null;
       }
     } else {
       const pubBreak = e.breakdown.filter((b) => publishedRounds.has(b.round) && b.net_vs_par !== undefined && b.net_vs_par !== null);
       if (pubBreak.length > 0) scoreNum = pubBreak.reduce((acc, b) => acc + (b.net_vs_par as number), 0);
+      qualified = publishedRoundsList.length === 0 ? true : pubBreak.length >= publishedRoundsList.length;
     }
     const scoreLabel = scoreNum === null ? '—' : scoreNum === 0 ? 'E' : scoreNum > 0 ? `+${scoreNum}` : `${scoreNum}`;
-    return { id: e.id, name: e.team_name || e.name, scoreNum, scoreLabel };
+    return { id: e.id, name: e.team_name || e.name, scoreNum, scoreLabel, qualified };
   });
 
-  // Sort: teams with a score first (ascending, lower is better), tied teams alphabetical.
-  // Teams with no score at the bottom, alphabetical.
-  const scored = rows.filter((r) => r.scoreNum !== null).sort((a, b) => {
+  // Sort: qualified teams first (by score asc, ties alphabetical), then non-qualified
+  // (scored, but missing rounds — by score asc), then teams with no score at all.
+  const cmp = (a: Row, b: Row) => {
     if (a.scoreNum! !== b.scoreNum!) return a.scoreNum! - b.scoreNum!;
     return a.name.localeCompare(b.name);
-  });
+  };
+  const qualifiedScored = rows.filter((r) => r.qualified && r.scoreNum !== null).sort(cmp);
+  const nonQualScored = rows.filter((r) => !r.qualified && r.scoreNum !== null).sort(cmp);
   const unscored = rows.filter((r) => r.scoreNum === null).sort((a, b) => a.name.localeCompare(b.name));
 
-  // Competition ranking (1224): tied teams share rank, next rank skips.
+  // Competition ranking (1224): tied teams share rank. Boundary between groups always breaks ties.
   const ranked: Array<Row & { rank: number | null }> = [];
   let currentRank = 0;
   let seen = 0;
   let lastScore: number | null = null;
-  for (const r of scored) {
+  let lastQual: boolean | null = null;
+  for (const r of [...qualifiedScored, ...nonQualScored]) {
     seen += 1;
-    if (r.scoreNum !== lastScore) {
+    if (r.scoreNum !== lastScore || r.qualified !== lastQual) {
       currentRank = seen;
       lastScore = r.scoreNum;
+      lastQual = r.qualified;
     }
     ranked.push({ ...r, rank: currentRank });
   }
@@ -303,7 +314,7 @@ function Leaderboard({ leagueId, league: _league }: { leagueId: string; league: 
       </div>
 
       <p className="text-xs text-muted-foreground italic">
-        Only scores from closed rounds are published on the leaderboard.
+        Scores for all rounds must be submitted to qualify to win. Teams with missing rounds are ranked below all fully-qualified teams. Only scores from closed rounds are published.
       </p>
 
       {ranked.length === 0 ? (
@@ -325,9 +336,18 @@ function Leaderboard({ leagueId, league: _league }: { leagueId: string; league: 
                 : r.scoreNum > 0 ? 'text-red-600'
                 : 'text-muted-foreground';
               return (
-                <TableRow key={r.id}>
+                <TableRow key={r.id} className={cn(!r.qualified && 'opacity-70')}>
                   <TableCell className="font-semibold">{r.rank ?? '—'}</TableCell>
-                  <TableCell className="font-medium text-sm">{r.name}</TableCell>
+                  <TableCell className="font-medium text-sm">
+                    <div className="flex items-center gap-2">
+                      <span>{r.name}</span>
+                      {!r.qualified && (
+                        <span className="inline-flex items-center rounded-full border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                          Incomplete
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className={cn('text-right font-semibold', vsCls)}>{r.scoreLabel}</TableCell>
                 </TableRow>
               );

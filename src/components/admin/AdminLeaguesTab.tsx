@@ -2400,7 +2400,10 @@ function LeaderboardPanel({ league }: { league: League }) {
         <p className="text-sm text-muted-foreground py-8 text-center">Select a league city to view its leaderboard.</p>
       ) : entries.length === 0 ? (
         <p className="text-sm text-muted-foreground py-8 text-center">No leaderboard data yet. Scores need to be submitted and rounds closed.</p>
-      ) : (
+      ) : (<>
+        <p className="text-xs text-muted-foreground italic mb-2">
+          Scores for all rounds must be submitted to qualify to win. Entries with missing rounds are ranked below all fully-qualified ones.
+        </p>
         <Table>
           <TableHeader>
             <TableRow>
@@ -2445,7 +2448,14 @@ function LeaderboardPanel({ league }: { league: League }) {
                   <TableCell className="font-semibold">{entry.rank}</TableCell>
                   <TableCell>
                     <div>
-                      <span className="font-medium text-sm">{entry.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={cn("font-medium text-sm", entry.qualified === false && "text-muted-foreground")}>{entry.name}</span>
+                        {entry.qualified === false && (
+                          <span className="inline-flex items-center rounded-full border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Incomplete
+                          </span>
+                        )}
+                      </div>
                       {entry.team_name && <p className="text-xs text-muted-foreground">{entry.team_name}</p>}
                     </div>
                   </TableCell>
@@ -2535,7 +2545,7 @@ function LeaderboardPanel({ league }: { league: League }) {
             })}
           </TableBody>
         </Table>
-      )}
+      </>)}
     </div>
   );
 }
