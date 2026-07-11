@@ -828,6 +828,8 @@ async function computeLeaderboard(
     /** Modified Stableford points (additive layer on top of stroke scoring). */
     total_stableford: number
     rounds_played: number
+    /** True when the entrant has submitted scores for every published (closed) round. */
+    qualified?: boolean
     breakdown: { round: number; gross: number; net: number; handicap: number; par: number; net_vs_par: number; stableford: number }[]
     members?: { player_id: string; name: string; net_score: number; gross_score: number; total_par: number; vs_par: number; stableford?: number }[]
   }
