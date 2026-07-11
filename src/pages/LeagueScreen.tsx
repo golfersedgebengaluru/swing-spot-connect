@@ -367,11 +367,11 @@ export default function LeagueScreen() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map(({ entry, rank, finalVsPar, byRound }, i) => {
+                  {rows.map(({ entry, rank, finalVsPar, byRound, qualified }, i) => {
                     const key = `${entry.type}-${entry.id}`;
                     const rowBg = i % 2 === 0 ? "bg-white" : "bg-stone-50/60";
                     return (
-                      <tr key={key} className={cn("border-t border-stone-100 transition-colors hover:bg-amber-50/40", rowBg)}>
+                      <tr key={key} className={cn("border-t border-stone-100 transition-colors hover:bg-amber-50/40", rowBg, !qualified && "opacity-70")}>
                         <td className={cn("sticky left-0 z-10 px-3 sm:px-5 py-3 sm:py-4", rowBg)}>
                           <span
                             className={cn(
@@ -393,8 +393,13 @@ export default function LeagueScreen() {
                               {initials(entry.name)}
                             </span>
                             <div className="min-w-0">
-                              <div className="font-semibold text-stone-900 truncate max-w-[180px] sm:max-w-[280px]">
-                                {entry.name}
+                              <div className="font-semibold text-stone-900 truncate max-w-[180px] sm:max-w-[280px] flex items-center gap-2">
+                                <span className="truncate">{entry.name}</span>
+                                {!qualified && (
+                                  <span className="shrink-0 inline-flex items-center rounded-full border border-stone-300 bg-stone-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-stone-600">
+                                    Incomplete
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
