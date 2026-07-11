@@ -336,9 +336,18 @@ function Leaderboard({ leagueId, league: _league }: { leagueId: string; league: 
                 : r.scoreNum > 0 ? 'text-red-600'
                 : 'text-muted-foreground';
               return (
-                <TableRow key={r.id}>
+                <TableRow key={r.id} className={cn(!r.qualified && 'opacity-70')}>
                   <TableCell className="font-semibold">{r.rank ?? '—'}</TableCell>
-                  <TableCell className="font-medium text-sm">{r.name}</TableCell>
+                  <TableCell className="font-medium text-sm">
+                    <div className="flex items-center gap-2">
+                      <span>{r.name}</span>
+                      {!r.qualified && (
+                        <span className="inline-flex items-center rounded-full border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                          Incomplete
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className={cn('text-right font-semibold', vsCls)}>{r.scoreLabel}</TableCell>
                 </TableRow>
               );
