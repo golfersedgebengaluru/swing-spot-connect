@@ -188,6 +188,10 @@ export interface CreateInvoiceParams {
   addToUserList?: boolean;
   amountPaid?: number;
   paymentStatus?: string;
+  // Discount
+  discountType?: "percentage" | "amount" | null;
+  discountValue?: number;
+  discountAmount?: number;
   // Booking-specific
   bookingDate?: string;
   bookingStartTime?: string;
