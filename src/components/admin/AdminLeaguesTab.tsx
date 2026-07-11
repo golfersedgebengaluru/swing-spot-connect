@@ -1400,16 +1400,46 @@ function RoundsPanel({ league }: { league: League }) {
                           <Badge variant="secondary" className="text-[10px]">{r.course_name}</Badge>
                         )}
                         {(() => {
-                          // Show one capsule per configured par set (Par 72 · GSPro, Par 71 · TGC, …).
-                          // Falls back to the round's own par total when no par sets are defined.
-                          const sets = (parSets || []).filter((ps) => (ps.par_per_hole?.length || 0) === numHoles);
-                          if (sets.length > 0) {
-                            return sets.map((ps) => (
+                          // Preferred: one capsule per location (Par 72 · GEC, Par 71 · GEB),
+                          // deriving par from the par-set that matches the location's software.
+                          const validSets = (parSets || []).filter(
+                            (ps) => (ps.par_per_hole?.length || 0) === numHoles,
+                          );
+                          const parBySoftware = new Map<string, number>();
+                          for (const ps of validSets) {
+                            const total = ps.par_per_hole.reduce((s, v) => s + (v || 0), 0);
+                            if (!parBySoftware.has(ps.software)) parBySoftware.set(ps.software, total);
+                          }
+                          const locs = (allLocations || []).filter((l) => {
+                            const sw = l.software || "TGC";
+                            return parBySoftware.has(sw);
+                          });
+                          if (locs.length > 0) {
+                            return locs.map((l) => {
+                              const sw = l.software || "TGC";
+                              return (
+                                <Badge key={l.id} variant="outline" className="text-[10px]">
+                                  Par {parBySoftware.get(sw)} · {l.name}
+                                </Badge>
+                              );
+                            });
+                          }
+                          // Fallback 1: no locations yet — dedupe par sets by (total · software).
+                          if (validSets.length > 0) {
+                            const seen = new Set<string>();
+                            const unique = validSets.filter((ps) => {
+                              const key = `${ps.par_per_hole.reduce((s, v) => s + (v || 0), 0)}·${ps.software}`;
+                              if (seen.has(key)) return false;
+                              seen.add(key);
+                              return true;
+                            });
+                            return unique.map((ps) => (
                               <Badge key={ps.id} variant="outline" className="text-[10px]">
                                 Par {ps.par_per_hole.reduce((s, v) => s + (v || 0), 0)} · {ps.software}
                               </Badge>
                             ));
                           }
+                          // Fallback 2: round's own par total.
                           return parSet ? (
                             <Badge variant="outline" className="text-[10px]">Par {r.par_per_hole.reduce((s, v) => s + v, 0)}</Badge>
                           ) : (
