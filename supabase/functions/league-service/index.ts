@@ -988,10 +988,24 @@ async function computeLeaderboard(
     }
   }
 
+  // Qualification: an entry qualifies for ranking only after submitting scores for
+  // every published round. Non-qualified entries are always ranked below all
+  // qualified ones (grouped-sort), regardless of score.
+  const publishedRoundSet = new Set<number>(Object.keys(hiddenHolesMap).map((k) => Number(k)))
+  const totalActiveRounds = publishedRoundSet.size
+  for (const e of entries) {
+    const playedPublished = totalActiveRounds === 0
+      ? 0
+      : (e.breakdown || []).filter((b) => publishedRoundSet.has(b.round)).length
+    e.qualified = totalActiveRounds === 0 ? true : playedPublished >= totalActiveRounds
+  }
+
   // Primary rank: Modified Stableford points (highest first) when enabled.
   // When disabled, fall back to lower final stroke score wins.
   const stablefordEnabled = league.stableford_enabled !== false
   entries.sort((a, b) => {
+    // Qualified entrants always ahead of non-qualified.
+    if ((a.qualified ? 1 : 0) !== (b.qualified ? 1 : 0)) return a.qualified ? -1 : 1
     if (stablefordEnabled) {
       const ptsDiff = (b.total_stableford || 0) - (a.total_stableford || 0)
       if (ptsDiff !== 0) return ptsDiff
@@ -1000,7 +1014,7 @@ async function computeLeaderboard(
   })
   const ranked = entries.map((e, i) => ({ ...e, rank: i + 1 }))
   const handicapActive = Object.keys(hiddenHolesMap).length > 0
-  return { entries: ranked, round: roundParam, filter: filterParam, scope: scopeParam, league_city_id: cityIdParam, handicap_active: handicapActive, stableford_enabled: stablefordEnabled }
+  return { entries: ranked, round: roundParam, filter: filterParam, scope: scopeParam, league_city_id: cityIdParam, handicap_active: handicapActive, stableford_enabled: stablefordEnabled, total_active_rounds: totalActiveRounds }
 
 }
 
