@@ -741,47 +741,62 @@ async function computeLeaderboard(
 
   const { data: teams } = await supabase.from('league_teams').select('id, name, max_roster_size').eq('league_id', leagueId)
   const { data: teamMembers } = await supabase.from('league_team_members').select('team_id, player_id').in('team_id', (teams || []).map((t: any) => t.id))
-  const { data: playerRows } = await supabase.from('league_players').select('id, user_id, team_id').eq('league_id', leagueId)
+  const { data: playerRows } = await supabase.from('league_players').select('id, user_id, team_id, display_name, email').eq('league_id', leagueId)
+
+  // Identity key for a score/player row: user_id when present, else league_players.id
+  // (shadow / admin-managed players don't have a user_id).
+  const playerRowById: Record<string, any> = {}
+  for (const p of (playerRows || [])) playerRowById[p.id] = p
+  const identityKey = (p: any): string => (p?.user_id || p?.id)
 
   const playerIdToTeamId: Record<string, string> = {}
   for (const tm of (teamMembers || [])) {
-    const playerRow = (playerRows || []).find((p: any) => p.id === tm.player_id)
-    if (playerRow) playerIdToTeamId[playerRow.user_id] = tm.team_id
+    const playerRow = playerRowById[tm.player_id]
+    if (playerRow) playerIdToTeamId[identityKey(playerRow)] = tm.team_id
   }
   for (const p of (playerRows || [])) {
-    if (p.team_id && !playerIdToTeamId[p.user_id]) {
-      playerIdToTeamId[p.user_id] = p.team_id
+    const k = identityKey(p)
+    if (p.team_id && !playerIdToTeamId[k]) {
+      playerIdToTeamId[k] = p.team_id
     }
   }
 
-  // Include team member uids too — a rostered teammate may have no scores yet
-  // but still needs a presentable name in the team-expansion breakdown.
-  const teamMemberUids = (playerRows || []).map((p: any) => p.user_id).filter(Boolean)
+  // All identity keys we may need names for: score authors + rostered teammates.
+  const rosterKeys = (playerRows || []).map(identityKey).filter(Boolean)
   const allNeededIds = [...new Set([
     ...playerScores.map((ps) => ps.player_id),
-    ...teamMemberUids,
+    ...rosterKeys,
   ])]
   const allPlayerIds = [...new Set(playerScores.map((ps) => ps.player_id))]
-  let profileMap: Record<string, string> = {}
-  if (allNeededIds.length > 0) {
+
+  // Name map: seed with league_players.display_name / email (covers shadow rows),
+  // then override with profiles.display_name for claimed users.
+  const nameMap: Record<string, string> = {}
+  for (const p of (playerRows || [])) {
+    const dn = (p.display_name || '').trim()
+    const em = (p.email || '').trim()
+    let name = dn
+    if (!name && em && !em.includes('privaterelay.appleid.com')) name = em.split('@')[0]
+    if (name) {
+      if (p.user_id) nameMap[p.user_id] = name
+      nameMap[p.id] = name
+    }
+  }
+  const userIdsToLookup = allNeededIds.filter((id) => !!id)
+  if (userIdsToLookup.length > 0) {
     const { data: profiles } = await supabase
       .from('profiles')
       .select('user_id, display_name, email')
-      .in('user_id', allNeededIds)
-    if (profiles) {
-      profileMap = Object.fromEntries(profiles.map((p: any) => {
-        const dn = (p.display_name || '').trim()
-        if (dn) return [p.user_id, dn]
-        const em = (p.email || '').trim()
-        if (em && !em.includes('privaterelay.appleid.com')) {
-          // Use email local part as a readable fallback (e.g. "john.doe")
-          return [p.user_id, em.split('@')[0]]
-        }
-        return [p.user_id, '']
-      }))
+      .in('user_id', userIdsToLookup)
+    for (const p of (profiles || [])) {
+      const dn = (p.display_name || '').trim()
+      const em = (p.email || '').trim()
+      let name = dn
+      if (!name && em && !em.includes('privaterelay.appleid.com')) name = em.split('@')[0]
+      if (name) nameMap[p.user_id] = name
     }
   }
-  const nameFor = (uid: string) => profileMap[uid] || 'Player'
+  const nameFor = (uid: string) => nameMap[uid] || 'Player'
 
 
   const teamMap: Record<string, string> = {}
