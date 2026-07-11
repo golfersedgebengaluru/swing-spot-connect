@@ -143,7 +143,7 @@ export function RevealedRoundScores({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-xs">Player</TableHead>
+                <TableHead className="text-xs">Holes</TableHead>
                 {Array.from({ length: displayPar.length || (rows[0]?.hs.length ?? 0) }).map((_, i) => {
                   const isHidden = hiddenHoles.includes(i + 1);
                   return (
