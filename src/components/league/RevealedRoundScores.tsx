@@ -362,13 +362,12 @@ export function RevealedRoundScores({
                 const teamHiddenSum = isBestBall
                   ? hiddenHoles.reduce((s, h) => s + (Number(holeTotals[h - 1]) || 0), 0)
                   : rows.reduce((s, r) => s + (r.hiddenSum || 0), 0);
-                // Team handicap: best_ball = average of member handicaps (floored at 0);
-                // else = sum (legacy behaviour for scramble/stroke_play)
+                // Team handicap: best_ball uses TEAM best-ball hidden-hole sum
+                //   max(0, teamHiddenSum × 3 − roundPar)   — NOT an average of members.
+                // Other formats keep the legacy sum-of-member-handicaps behaviour.
                 const teamHc = hiddenHoles.length > 0 && roundPar > 0
                   ? (isBestBall
-                      ? Math.round(
-                          (rows.reduce((s, r) => s + (r.handicap || 0), 0) / rows.length) * 100,
-                        ) / 100
+                      ? Math.max(0, teamHiddenSum * HC_MULT - roundPar)
                       : rows.reduce((s, r) => s + (r.handicap || 0), 0))
                   : 0;
                 const teamNet = teamGross - teamHc;
