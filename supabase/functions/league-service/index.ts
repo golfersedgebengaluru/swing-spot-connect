@@ -2433,12 +2433,13 @@ Deno.serve(async (req) => {
 
         const { data, error } = await supabase
           .from('league_teams')
-          .select('*, league_team_members(*, league_players(user_id))')
+          .select('*, league_team_members(*, league_players(id, user_id, display_name, email))')
           .eq('league_id', route.leagueId)
           .order('name')
         if (error) return err(error.message, 500)
 
-        // Enrich with player display names
+        // Enrich with player display names. Shadow (admin-managed) players have
+        // no user_id / profile row — fall back to league_players.display_name/email.
         const allUserIds = (data || []).flatMap((t: any) =>
           (t.league_team_members || []).map((m: any) => m.league_players?.user_id).filter(Boolean)
         )
@@ -2453,13 +2454,24 @@ Deno.serve(async (req) => {
           }
         }
 
+        const resolveName = (lp: any): string | null => {
+          if (!lp) return null
+          const fromProfile = lp.user_id ? profileMap[lp.user_id] : null
+          if (fromProfile) return fromProfile
+          const dn = (lp.display_name || '').trim()
+          if (dn) return dn
+          const em = (lp.email || '').trim()
+          if (em && !em.includes('privaterelay.appleid.com')) return em.split('@')[0]
+          return null
+        }
+
         const enriched = (data || []).map((t: any) => ({
           ...t,
           members: (t.league_team_members || []).map((m: any) => ({
             id: m.id,
             player_id: m.player_id,
             user_id: m.league_players?.user_id,
-            display_name: profileMap[m.league_players?.user_id] || null,
+            display_name: resolveName(m.league_players),
             assigned_at: m.assigned_at,
           })),
           league_team_members: undefined,
@@ -2467,6 +2479,7 @@ Deno.serve(async (req) => {
 
         return json(enriched)
       }
+
 
       if (method === 'POST') {
         const role = await getUserLeagueRole(supabase, user.id, tenantId)
