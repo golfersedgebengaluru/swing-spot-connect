@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Trophy, Loader2, CheckCircle2, Circle, Clock } from "lucide-react";
+import { Trophy, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { LeaderboardEntry, LeaderboardResponse, LeagueCity } from "@/types/league";
 
@@ -68,10 +68,10 @@ function formatVsPar(v: number | undefined | null) {
 }
 
 function vsParClass(v: number | undefined | null) {
-  if (v === undefined || v === null) return "text-muted-foreground";
-  if (v < 0) return "text-red-500";
-  if (v > 0) return "text-muted-foreground";
-  return "text-foreground";
+  if (v === undefined || v === null) return "text-stone-500";
+  if (v < 0) return "text-red-600";
+  if (v > 0) return "text-stone-500";
+  return "text-stone-800";
 }
 
 type RoundStatus = "published" | "open" | "upcoming";
@@ -87,6 +87,35 @@ function dayName(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { weekday: "long" });
 }
 
+// Deterministic soft avatar color from team name.
+function avatarColor(name: string) {
+  const palette = [
+    "bg-rose-200 text-rose-800",
+    "bg-amber-200 text-amber-800",
+    "bg-emerald-200 text-emerald-800",
+    "bg-sky-200 text-sky-800",
+    "bg-violet-200 text-violet-800",
+    "bg-orange-200 text-orange-800",
+    "bg-teal-200 text-teal-800",
+    "bg-fuchsia-200 text-fuchsia-800",
+  ];
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return palette[h % palette.length];
+}
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).slice(0, 2);
+  return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
+}
+
+function rankBadgeClass(rank: number | null) {
+  if (rank === 1) return "bg-amber-400 text-amber-950 ring-amber-500/40";
+  if (rank === 2) return "bg-slate-300 text-slate-800 ring-slate-400/40";
+  if (rank === 3) return "bg-orange-300 text-orange-900 ring-orange-400/40";
+  return "bg-stone-100 text-stone-600 ring-stone-200";
+}
+
 function CityPill({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
     <button
@@ -95,8 +124,8 @@ function CityPill({ active, label, onClick }: { active: boolean; label: string; 
       className={cn(
         "px-4 py-1.5 rounded-full text-xs md:text-sm font-medium border transition",
         active
-          ? "bg-primary text-primary-foreground border-primary shadow"
-          : "bg-background/40 text-foreground border-border hover:bg-background/70",
+          ? "bg-stone-900 text-stone-50 border-stone-900 shadow-sm"
+          : "bg-white/60 text-stone-700 border-stone-200 hover:bg-white",
       )}
     >
       {label}
@@ -105,25 +134,26 @@ function CityPill({ active, label, onClick }: { active: boolean; label: string; 
 }
 
 function RoundStatusPill({ round, status }: { round: ScreenRound; status: RoundStatus }) {
+  const base = "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium border";
   if (status === "published") {
     return (
-      <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 text-xs font-medium">
-        <CheckCircle2 className="h-3.5 w-3.5" />
+      <div className={cn(base, "bg-white text-stone-700 border-stone-200")}>
+        <span className="h-1.5 w-1.5 rounded-full bg-stone-400" />
         R{round.round_number} · Published
       </div>
     );
   }
   if (status === "open") {
     return (
-      <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 px-3 py-1 text-xs font-medium">
-        <Clock className="h-3.5 w-3.5" />
+      <div className={cn(base, "bg-emerald-50 text-emerald-800 border-emerald-200")}>
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
         R{round.round_number} · Open · Closes {dayName(round.end_date)}
       </div>
     );
   }
   return (
-    <div className="inline-flex items-center gap-1.5 rounded-full bg-muted/40 text-muted-foreground border border-border px-3 py-1 text-xs font-medium">
-      <Circle className="h-3.5 w-3.5" />
+    <div className={cn(base, "bg-stone-50 text-stone-400 border-stone-200")}>
+      <span className="h-1.5 w-1.5 rounded-full bg-stone-300" />
       R{round.round_number} · Upcoming
     </div>
   );
@@ -131,16 +161,12 @@ function RoundStatusPill({ round, status }: { round: ScreenRound; status: RoundS
 
 interface RowData {
   entry: LeaderboardEntry;
-  rank: number | null; // null when no published rounds
+  rank: number | null;
   finalVsPar: number | null;
-  byRound: Record<number, number | undefined>; // net_vs_par per published round
+  byRound: Record<number, number | undefined>;
 }
 
-function computeRows(
-  entries: LeaderboardEntry[],
-  rounds: ScreenRound[],
-  now: Date,
-): RowData[] {
+function computeRows(entries: LeaderboardEntry[], rounds: ScreenRound[], now: Date): RowData[] {
   const roundStatus: Record<number, RoundStatus> = {};
   for (const r of rounds) roundStatus[r.round_number] = getRoundStatus(r, now);
 
@@ -156,16 +182,9 @@ function computeRows(
         anyPublished = true;
       }
     }
-    return {
-      entry,
-      rank: null,
-      finalVsPar: anyPublished ? finalVsPar : null,
-      byRound,
-    };
+    return { entry, rank: null, finalVsPar: anyPublished ? finalVsPar : null, byRound };
   });
 
-  // Sort: rows with finalVsPar first (asc), then alphabetical for ties;
-  // rows without any published rounds go to the bottom, alphabetical.
   rows.sort((a, b) => {
     const aHas = a.finalVsPar !== null;
     const bHas = b.finalVsPar !== null;
@@ -177,7 +196,6 @@ function computeRows(
     return a.entry.name.localeCompare(b.entry.name);
   });
 
-  // Assign competition-style tied ranks (1,1,1,4,...) only to rows with published scores.
   let lastScore: number | null = Number.NaN as unknown as number;
   let lastRank = 0;
   rows.forEach((r, i) => {
@@ -228,51 +246,36 @@ export default function LeagueScreen() {
     return map;
   }, [rounds, now]);
 
-  // Keep the Teams/All toggle behavior.
+  // Teams-only competition: never show individual players.
   const teamEntries = useMemo(() => entries.filter((e) => e.type === "team"), [entries]);
-  const hasTeams = teamEntries.length > 0;
-  const viewKey = id ? `league-screen:${id}:view` : null;
-  const [viewMode, setViewMode] = useState<"teams" | "all">("teams");
-  useEffect(() => {
-    if (!viewKey) return;
-    const stored = localStorage.getItem(viewKey);
-    if (stored === "teams" || stored === "all") setViewMode(stored);
-  }, [viewKey]);
-  const updateViewMode = (next: "teams" | "all") => {
-    setViewMode(next);
-    if (viewKey) localStorage.setItem(viewKey, next);
-  };
-  const effectiveView: "teams" | "all" = hasTeams ? viewMode : "all";
-  const sourceEntries = effectiveView === "teams" ? teamEntries : entries;
-
-  const rows = useMemo(() => computeRows(sourceEntries, rounds, now), [sourceEntries, rounds, now]);
+  const rows = useMemo(() => computeRows(teamEntries, rounds, now), [teamEntries, rounds, now]);
 
   if (metaError) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center text-center p-6">
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center text-center p-6">
         <div>
-          <h1 className="text-2xl font-semibold">Leaderboard unavailable</h1>
-          <p className="text-muted-foreground mt-2">{(metaError as Error).message}</p>
+          <h1 className="text-2xl font-semibold text-stone-900">Leaderboard unavailable</h1>
+          <p className="text-stone-500 mt-2">{(metaError as Error).message}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen bg-[#F6F1E7] text-stone-900">
       {/* Top bar */}
-      <header className="flex items-center justify-between gap-3 sm:gap-6 px-3 sm:px-6 md:px-12 py-4 sm:py-6 border-b border-slate-800">
+      <header className="flex items-center justify-between gap-3 sm:gap-6 px-3 sm:px-6 md:px-12 py-4 sm:py-6 border-b border-stone-200/70">
         <div className="flex items-center gap-4 min-w-0">
           {meta?.branding?.logo_url ? (
             <img src={meta.branding.logo_url} alt="League logo" className="h-12 md:h-16 w-auto object-contain" />
           ) : (
-            <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center">
-              <Trophy className="h-6 w-6 text-primary" />
+            <div className="h-12 w-12 rounded-full bg-stone-200 flex items-center justify-center">
+              <Trophy className="h-6 w-6 text-stone-700" />
             </div>
           )}
           <div className="min-w-0">
-            <p className="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-slate-400">Live Leaderboard</p>
-            <h1 className="text-lg sm:text-2xl md:text-4xl font-bold truncate tracking-tight">
+            <p className="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-stone-500">Live Leaderboard</p>
+            <h1 className="text-lg sm:text-2xl md:text-4xl font-bold truncate tracking-tight text-stone-900">
               {meta?.league?.name || (metaLoading ? "Loading…" : "League")}
             </h1>
           </div>
@@ -285,7 +288,7 @@ export default function LeagueScreen() {
             className="flex items-center gap-3 shrink-0"
           >
             {meta.branding.sponsor_name && (
-              <span className="hidden md:block text-[10px] uppercase tracking-[0.25em] text-slate-400">Presented by</span>
+              <span className="hidden md:block text-[10px] uppercase tracking-[0.25em] text-stone-500">Presented by</span>
             )}
             <img
               src={meta.branding.sponsor_logo_url}
@@ -313,104 +316,82 @@ export default function LeagueScreen() {
         </div>
       )}
 
-      {/* Teams/All toggle */}
-      {hasTeams && (
-        <div className="flex justify-end px-3 sm:px-6 md:px-12 pt-4">
-          <div className="inline-flex rounded-full border border-slate-700 bg-slate-900 p-0.5 text-xs">
-            <button
-              onClick={() => updateViewMode("teams")}
-              className={cn(
-                "px-3 py-1 rounded-full transition",
-                effectiveView === "teams" ? "bg-primary text-primary-foreground" : "text-slate-400 hover:text-slate-100",
-              )}
-              data-testid="view-teams"
-            >
-              Teams
-            </button>
-            <button
-              onClick={() => updateViewMode("all")}
-              className={cn(
-                "px-3 py-1 rounded-full transition",
-                effectiveView === "all" ? "bg-primary text-primary-foreground" : "text-slate-400 hover:text-slate-100",
-              )}
-              data-testid="view-all"
-            >
-              All
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Leaderboard */}
       <main className="px-3 sm:px-6 md:px-12 pb-12 pt-4">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 shadow-2xl overflow-hidden">
+        <div className="rounded-2xl border border-stone-200 bg-white shadow-sm overflow-hidden">
           {lbLoading && rows.length === 0 ? (
-            <div className="flex items-center justify-center py-16 text-slate-400">
+            <div className="flex items-center justify-center py-16 text-stone-500">
               <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading scores…
             </div>
           ) : rows.length === 0 ? (
-            <div className="text-center py-16 text-slate-400 text-sm">No teams registered yet.</div>
+            <div className="text-center py-16 text-stone-500 text-sm">No teams registered yet.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[560px] border-collapse">
                 <thead>
-                  <tr className="bg-slate-900/80 text-[10px] sm:text-xs uppercase tracking-wider text-slate-400">
-                    <th className="sticky left-0 z-10 bg-slate-900/95 backdrop-blur px-3 sm:px-5 py-3 text-left font-semibold w-[52px]">
-                      #
-                    </th>
-                    <th className="sticky left-[52px] z-10 bg-slate-900/95 backdrop-blur px-2 py-3 text-left font-semibold min-w-[160px]">
+                  <tr className="bg-stone-50 text-[10px] sm:text-xs uppercase tracking-wider text-stone-500 border-b border-stone-200">
+                    <th className="sticky left-0 z-10 bg-stone-50 px-3 sm:px-5 py-3 text-left font-semibold w-[60px]">#</th>
+                    <th className="sticky left-[60px] z-10 bg-stone-50 px-2 py-3 text-left font-semibold min-w-[180px]">
                       Team
                     </th>
-                    {rounds.map((r) => (
-                      <th key={r.round_number} className="px-3 sm:px-4 py-3 text-right font-semibold whitespace-nowrap">
-                        R{r.round_number}
-                      </th>
-                    ))}
-                    <th className="px-3 sm:px-5 py-3 text-right font-bold text-slate-200 whitespace-nowrap">Final</th>
+                    {rounds.map((r) => {
+                      const st = roundStatus[r.round_number];
+                      return (
+                        <th
+                          key={r.round_number}
+                          className={cn(
+                            "px-3 sm:px-4 py-3 text-right font-semibold whitespace-nowrap",
+                            st === "open" && "text-emerald-700",
+                          )}
+                        >
+                          R{r.round_number}
+                        </th>
+                      );
+                    })}
+                    <th className="px-3 sm:px-5 py-3 text-right font-bold text-stone-700 whitespace-nowrap border-l border-stone-200">
+                      Final
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map(({ entry, rank, finalVsPar, byRound }, i) => {
                     const key = `${entry.type}-${entry.id}`;
-                    const isTopThree = rank !== null && rank <= 3;
+                    const rowBg = i % 2 === 0 ? "bg-white" : "bg-stone-50/60";
                     return (
-                      <tr
-                        key={key}
-                        className={cn(
-                          "border-t border-slate-800 transition-colors",
-                          i % 2 === 0 ? "bg-slate-900/30" : "bg-slate-900/10",
-                          "hover:bg-slate-800/40",
-                        )}
-                      >
-                        <td
-                          className={cn(
-                            "sticky left-0 z-10 px-3 sm:px-5 py-3 sm:py-4 font-bold tabular-nums text-base sm:text-lg",
-                            i % 2 === 0 ? "bg-slate-900/80" : "bg-slate-900/60",
-                            isTopThree ? "text-amber-400" : "text-slate-300",
-                          )}
-                        >
-                          {rank ?? "—"}
+                      <tr key={key} className={cn("border-t border-stone-100 transition-colors hover:bg-amber-50/40", rowBg)}>
+                        <td className={cn("sticky left-0 z-10 px-3 sm:px-5 py-3 sm:py-4", rowBg)}>
+                          <span
+                            className={cn(
+                              "inline-flex items-center justify-center h-8 w-8 rounded-full text-sm font-bold tabular-nums ring-1",
+                              rankBadgeClass(rank),
+                            )}
+                          >
+                            {rank ?? "—"}
+                          </span>
                         </td>
-                        <td
-                          className={cn(
-                            "sticky left-[52px] z-10 px-2 py-3 sm:py-4",
-                            i % 2 === 0 ? "bg-slate-900/80" : "bg-slate-900/60",
-                          )}
-                        >
-                          <div className="font-semibold text-slate-100 truncate max-w-[180px] sm:max-w-[260px]">
-                            {entry.name}
-                          </div>
-                          {entry.team_name && entry.team_name !== entry.name && (
-                            <div className="text-[11px] text-slate-500 truncate max-w-[180px] sm:max-w-[260px]">
-                              {entry.team_name}
+                        <td className={cn("sticky left-[60px] z-10 px-2 py-3 sm:py-4", rowBg)}>
+                          <div className="flex items-center gap-3">
+                            <span
+                              className={cn(
+                                "inline-flex items-center justify-center h-9 w-9 rounded-full text-xs font-bold shrink-0",
+                                avatarColor(entry.name),
+                              )}
+                            >
+                              {initials(entry.name)}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="font-semibold text-stone-900 truncate max-w-[180px] sm:max-w-[280px]">
+                                {entry.name}
+                              </div>
                             </div>
-                          )}
+                          </div>
                         </td>
                         {rounds.map((r) => {
                           const st = roundStatus[r.round_number];
+                          const cellBase = "px-3 sm:px-4 py-3 sm:py-4 text-right tabular-nums";
                           if (st === "upcoming") {
                             return (
-                              <td key={r.round_number} className="px-3 sm:px-4 py-3 sm:py-4 text-right text-slate-600 tabular-nums">
+                              <td key={r.round_number} className={cn(cellBase, "text-stone-300")}>
                                 —
                               </td>
                             );
@@ -419,7 +400,7 @@ export default function LeagueScreen() {
                             return (
                               <td
                                 key={r.round_number}
-                                className="px-3 sm:px-4 py-3 sm:py-4 text-right text-xs font-semibold text-amber-400/80 tabular-nums"
+                                className={cn(cellBase, "text-xs font-semibold text-stone-400 bg-emerald-50/30")}
                               >
                                 TBC
                               </td>
@@ -427,24 +408,18 @@ export default function LeagueScreen() {
                           }
                           const v = byRound[r.round_number];
                           return (
-                            <td
-                              key={r.round_number}
-                              className={cn(
-                                "px-3 sm:px-4 py-3 sm:py-4 text-right tabular-nums font-medium",
-                                vsParClass(v ?? null),
-                              )}
-                            >
-                              {v === undefined ? <span className="text-slate-600">—</span> : formatVsPar(v)}
+                            <td key={r.round_number} className={cn(cellBase, "font-medium", vsParClass(v ?? null))}>
+                              {v === undefined ? <span className="text-stone-300">—</span> : formatVsPar(v)}
                             </td>
                           );
                         })}
                         <td
                           className={cn(
-                            "px-3 sm:px-5 py-3 sm:py-4 text-right tabular-nums font-bold text-lg sm:text-xl",
+                            "px-3 sm:px-5 py-3 sm:py-4 text-right tabular-nums font-bold text-lg sm:text-2xl border-l border-stone-100",
                             vsParClass(finalVsPar),
                           )}
                         >
-                          {finalVsPar === null ? <span className="text-slate-600">—</span> : formatVsPar(finalVsPar)}
+                          {finalVsPar === null ? <span className="text-stone-300">—</span> : formatVsPar(finalVsPar)}
                         </td>
                       </tr>
                     );
@@ -455,9 +430,21 @@ export default function LeagueScreen() {
           )}
         </div>
 
-        <p className="text-[11px] text-slate-500 mt-3 px-1">
-          Final = cumulative net-to-par across published rounds. Rounds are revealed when the admin closes them.
-        </p>
+        {/* Legend */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-4 px-1 text-[11px] text-stone-500">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-red-500" /> Under par
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-stone-400" /> Over / even par
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-stone-200" /> Round not published
+          </span>
+          <span className="ml-auto">
+            Final = cumulative net-to-par across published rounds. Rounds are revealed when the admin closes them.
+          </span>
+        </div>
       </main>
     </div>
   );
