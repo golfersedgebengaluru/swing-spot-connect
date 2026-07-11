@@ -2585,7 +2585,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
         <TabsContent value="wrapup" className="space-y-4">
           <SeasonWrapUpPanel
             league={league}
-            players={(players || []).map((p: any) => ({ user_id: p.user_id, display_name: p.display_name, email: p.email }))}
+            players={(players || []).map((p: any) => ({ id: p.id, user_id: p.user_id, display_name: p.display_name, email: p.email }))}
             isSiteAdmin={true}
           />
         </TabsContent>

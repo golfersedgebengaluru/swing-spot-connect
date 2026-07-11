@@ -27,9 +27,30 @@ import {
 } from "@/hooks/useLeagues";
 import type { League, SeasonStandingEntry } from "@/types/league";
 
+export type WrapUpPlayer = { id?: string | null; user_id: string | null; display_name: string | null; email?: string | null };
+
+/**
+ * Build a dual-keyed player-name lookup for season wrap-up displays.
+ *
+ * Shadow (admin-managed) players have no `user_id` and their scores/standings
+ * are keyed by `league_players.id`, while claimed players are keyed by
+ * `user_id`. Register both keys so lookups never fall through to a truncated
+ * UUID or "Player".
+ */
+export function buildWrapUpNameMap(players: WrapUpPlayer[]): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const p of players) {
+    const name = p.display_name || p.email || null;
+    if (!name) continue;
+    if (p.user_id) m.set(p.user_id, name);
+    if (p.id) m.set(p.id, name);
+  }
+  return m;
+}
+
 interface Props {
   league: League;
-  players: { user_id: string; display_name: string | null; email?: string | null }[];
+  players: WrapUpPlayer[];
   isSiteAdmin: boolean;
 }
 
@@ -121,7 +142,7 @@ export function SeasonWrapUpPanel({ league, players, isSiteAdmin }: Props) {
   const snapshot = wrapUp?.snapshot;
   const auto = (wrapUp?.awards || []).filter((a) => !a.is_manual);
   const manual = (wrapUp?.awards || []).filter((a) => a.is_manual);
-  const playerNameById = new Map(players.map((p) => [p.user_id, p.display_name || p.email || p.user_id?.slice(0, 8) || "Player"]));
+  const playerNameById = buildWrapUpNameMap(players);
 
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin" />;
 
