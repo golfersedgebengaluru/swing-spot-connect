@@ -601,11 +601,18 @@ async function computeLeaderboard(
   let cityScopedPlayerIds: Set<string> | null = null
   let cityScopedTeamIds: Set<string> | null = null
   if (scopeParam === 'city' && cityIdParam) {
-    const { data: cityPlayers } = await supabase.from('league_players').select('user_id').eq('league_id', leagueId).eq('league_city_id', cityIdParam)
-    cityScopedPlayerIds = new Set((cityPlayers || []).map((p: any) => p.user_id))
+    // Include BOTH identity keys used in league_scores.player_id:
+    //   user_id for claimed players, league_players.id for admin-added shadows.
+    const { data: cityPlayers } = await supabase.from('league_players').select('id, user_id').eq('league_id', leagueId).eq('league_city_id', cityIdParam)
+    cityScopedPlayerIds = new Set<string>()
+    for (const p of (cityPlayers || []) as any[]) {
+      if (p.user_id) cityScopedPlayerIds.add(p.user_id)
+      cityScopedPlayerIds.add(p.id)
+    }
     const { data: cityTeams } = await supabase.from('league_teams').select('id').eq('league_id', leagueId).eq('league_city_id', cityIdParam)
     cityScopedTeamIds = new Set((cityTeams || []).map((t: any) => t.id))
   }
+
 
   let scoresQuery = supabase.from('league_scores').select('*').eq('league_id', leagueId)
   if (roundParam) scoresQuery = scoresQuery.eq('round_number', roundParam)
@@ -635,7 +642,7 @@ async function computeLeaderboard(
   const [{ data: parSetsAll }, { data: locsAll }, { data: playersAll }] = await Promise.all([
     supabase.from('league_par_sets').select('course_name, software, par_per_hole').eq('league_id', leagueId),
     supabase.from('league_locations').select('id, software').eq('league_id', leagueId),
-    supabase.from('league_players').select('user_id, league_location_id, league_teams!team_id(league_location_id)').eq('league_id', leagueId),
+    supabase.from('league_players').select('id, user_id, league_location_id, league_teams!team_id(league_location_id)').eq('league_id', leagueId),
   ])
   const parSetMap: Record<string, number[]> = {}
   for (const ps of ((parSetsAll || []) as any[])) {
@@ -643,20 +650,25 @@ async function computeLeaderboard(
   }
   const locSoftware: Record<string, string> = {}
   for (const l of ((locsAll || []) as any[])) locSoftware[l.id] = l.software || 'TGC'
+  // Key by BOTH user_id (claimed players) and league_players.id (shadow players)
+  // because score.player_id can be either.
   const userLocation: Record<string, string | null> = {}
   for (const p of ((playersAll || []) as any[])) {
     const teamLoc = Array.isArray(p.league_teams) ? p.league_teams[0]?.league_location_id : p.league_teams?.league_location_id
-    userLocation[p.user_id] = p.league_location_id || teamLoc || null
+    const loc = p.league_location_id || teamLoc || null
+    if (p.user_id) userLocation[p.user_id] = loc
+    userLocation[p.id] = loc
   }
   const roundInfo: Record<number, { par: number[]; course: string | null }> = {}
   for (const r of ((allRounds || []) as any[])) {
     roundInfo[r.round_number] = { par: (r.par_per_hole as number[]) || [], course: r.course_name || null }
   }
-  const resolvePar = (userId: string, roundNumber: number): number[] => {
+  const resolvePar = (playerKey: string, roundNumber: number): number[] => {
     const info = roundInfo[roundNumber]
     if (!info) return []
     if (info.course) {
-      const locId = userLocation[userId]
+      const locId = userLocation[playerKey]
+
       const sw = locId ? locSoftware[locId] : null
       if (sw) {
         const custom = parSetMap[`${info.course}||${sw}`]
@@ -2553,21 +2565,26 @@ Deno.serve(async (req) => {
         const { count } = await supabase.from('league_team_members').select('id', { count: 'exact', head: true }).eq('team_id', route.subId)
         if (count && count > 0) return err('Cannot delete a team with members. Remove all members first.')
 
-        // ── Collect every user_id ever associated with this team (new + legacy) ──
-        // We need this list BEFORE deleting the team so we can also purge their
-        // per-user artefacts (scores, feed items) that are keyed by user_id, not
-        // team_id, and would otherwise remain visible in the users' account view
-        // (leaderboards, activity feed, score history) even after team deletion.
-        const userIds = new Set<string>()
+        // ── Collect every identity key ever associated with this team ──
+        // league_scores.player_id is dual-identity: user_id for claimed players,
+        // league_players.id for admin-added shadow players. Purge both.
+        const userIds = new Set<string>()          // claimed user_ids (also used to purge feed_items.actor_id)
+        const scorePlayerIds = new Set<string>()   // union: user_ids + shadow league_players.id
 
         // New-model members via league_players
         const { data: newMembers } = await supabase
           .from('league_team_members')
-          .select('player_id, league_players(user_id)')
+          .select('player_id, league_players(id, user_id)')
           .eq('team_id', route.subId)
         for (const m of (newMembers || []) as any[]) {
-          const uid = m?.league_players?.user_id
-          if (uid) userIds.add(uid)
+          const lp = m?.league_players
+          const uid = lp?.user_id
+          if (uid) {
+            userIds.add(uid)
+            scorePlayerIds.add(uid)
+          }
+          if (lp?.id) scorePlayerIds.add(lp.id)     // shadow rows: score.player_id = league_players.id
+          else if (m?.player_id) scorePlayerIds.add(m.player_id)
         }
 
         // Legacy registration (match by captain_user_id when possible, else team_name)
@@ -2577,16 +2594,26 @@ Deno.serve(async (req) => {
           .eq('league_id', route.leagueId)
           .eq('team_name', (team as any).name)
         const legacyRegIds = ((legacyRegs || []) as any[]).map((r) => r.id)
-        for (const r of (legacyRegs || []) as any[]) if (r.captain_user_id) userIds.add(r.captain_user_id)
+        for (const r of (legacyRegs || []) as any[]) if (r.captain_user_id) {
+          userIds.add(r.captain_user_id)
+          scorePlayerIds.add(r.captain_user_id)
+        }
         if (legacyRegIds.length) {
           const { data: legacyMembers } = await supabase
             .from('legacy_league_team_members')
-            .select('user_id')
+            .select('user_id, league_player_id')
             .in('team_registration_id', legacyRegIds)
-          for (const m of (legacyMembers || []) as any[]) if (m.user_id) userIds.add(m.user_id)
+          for (const m of (legacyMembers || []) as any[]) {
+            if (m.user_id) {
+              userIds.add(m.user_id)
+              scorePlayerIds.add(m.user_id)
+            }
+            if (m.league_player_id) scorePlayerIds.add(m.league_player_id)
+          }
         }
 
         const userIdList = Array.from(userIds)
+        const scorePlayerIdList = Array.from(scorePlayerIds)
 
         const { error } = await supabase.from('league_teams').delete().eq('id', route.subId)
         if (error) return err(error.message, 500)
@@ -2600,15 +2627,18 @@ Deno.serve(async (req) => {
           .eq('team_name', (team as any).name)
         if (legacyErr) console.error('[league-team-detail DELETE] legacy cleanup failed:', legacyErr.message)
 
-        // Purge per-user artefacts for this league so team-mates' account views
-        // (leaderboard, feed, score history) no longer show the deleted team's data.
-        if (userIdList.length > 0) {
+        // Purge scores for BOTH claimed and shadow players; feed items are only
+        // ever authored by claimed users (actor_id = auth user_id).
+        if (scorePlayerIdList.length > 0) {
           const { error: scoresErr } = await supabase
             .from('league_scores')
             .delete()
             .eq('league_id', route.leagueId)
-            .in('player_id', userIdList)
+            .in('player_id', scorePlayerIdList)
           if (scoresErr) console.error('[league-team-detail DELETE] league_scores cleanup failed:', scoresErr.message)
+        }
+        if (userIdList.length > 0) {
+
 
           const { error: feedErr } = await supabase
             .from('league_feed_items')
