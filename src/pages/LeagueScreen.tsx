@@ -79,6 +79,7 @@ type RoundStatus = "published" | "open" | "upcoming";
 function getRoundStatus(r: ScreenRound, now: Date): RoundStatus {
   if (r.closed_at) return "published";
   const start = new Date(r.start_date);
+  // Open once start date reached; stays Open until admin closes (single source of truth).
   if (now < start) return "upcoming";
   return "open";
 }
