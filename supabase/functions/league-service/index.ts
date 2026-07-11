@@ -1584,6 +1584,16 @@ Deno.serve(async (req) => {
           if (!lp) return err('Target player is not in this league', 404)
           targetPlayerId = body.player_id
           actorRole = role
+        } else {
+          // Self-submit path: caller must be a rostered player in this league,
+          // otherwise the row would be an orphan (no team linkage, no name).
+          const { data: selfLp } = await supabase
+            .from('league_players')
+            .select('id')
+            .eq('league_id', route.leagueId)
+            .eq('user_id', user.id)
+            .maybeSingle()
+          if (!selfLp) return err('You are not registered as a player in this league', 403)
         }
 
         // Apply per-hole cap (project rule: max +4 over par per hole) for gross-stroke formats only.
