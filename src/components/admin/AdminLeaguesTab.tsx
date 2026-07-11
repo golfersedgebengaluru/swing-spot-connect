@@ -2400,7 +2400,10 @@ function LeaderboardPanel({ league }: { league: League }) {
         <p className="text-sm text-muted-foreground py-8 text-center">Select a league city to view its leaderboard.</p>
       ) : entries.length === 0 ? (
         <p className="text-sm text-muted-foreground py-8 text-center">No leaderboard data yet. Scores need to be submitted and rounds closed.</p>
-      ) : (
+      ) : (<>
+        <p className="text-xs text-muted-foreground italic mb-2">
+          Scores for all rounds must be submitted to qualify to win. Entries with missing rounds are ranked below all fully-qualified ones.
+        </p>
         <Table>
           <TableHeader>
             <TableRow>
