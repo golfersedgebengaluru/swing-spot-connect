@@ -312,6 +312,9 @@ export function useCreateInvoice() {
         payment_reference: params.paymentReference || null,
         amount_paid: params.amountPaid ?? params.total,
         payment_status: params.paymentStatus || "paid",
+        discount_type: params.discountType || null,
+        discount_value: params.discountValue ?? 0,
+        discount_amount: params.discountAmount ?? 0,
       };
 
       const { data: invoice, error: invErr } = await supabase.from("invoices")
