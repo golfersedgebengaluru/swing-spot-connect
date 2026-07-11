@@ -2565,21 +2565,26 @@ Deno.serve(async (req) => {
         const { count } = await supabase.from('league_team_members').select('id', { count: 'exact', head: true }).eq('team_id', route.subId)
         if (count && count > 0) return err('Cannot delete a team with members. Remove all members first.')
 
-        // ── Collect every user_id ever associated with this team (new + legacy) ──
-        // We need this list BEFORE deleting the team so we can also purge their
-        // per-user artefacts (scores, feed items) that are keyed by user_id, not
-        // team_id, and would otherwise remain visible in the users' account view
-        // (leaderboards, activity feed, score history) even after team deletion.
-        const userIds = new Set<string>()
+        // ── Collect every identity key ever associated with this team ──
+        // league_scores.player_id is dual-identity: user_id for claimed players,
+        // league_players.id for admin-added shadow players. Purge both.
+        const userIds = new Set<string>()          // claimed user_ids (also used to purge feed_items.actor_id)
+        const scorePlayerIds = new Set<string>()   // union: user_ids + shadow league_players.id
 
         // New-model members via league_players
         const { data: newMembers } = await supabase
           .from('league_team_members')
-          .select('player_id, league_players(user_id)')
+          .select('player_id, league_players(id, user_id)')
           .eq('team_id', route.subId)
         for (const m of (newMembers || []) as any[]) {
-          const uid = m?.league_players?.user_id
-          if (uid) userIds.add(uid)
+          const lp = m?.league_players
+          const uid = lp?.user_id
+          if (uid) {
+            userIds.add(uid)
+            scorePlayerIds.add(uid)
+          }
+          if (lp?.id) scorePlayerIds.add(lp.id)     // shadow rows: score.player_id = league_players.id
+          else if (m?.player_id) scorePlayerIds.add(m.player_id)
         }
 
         // Legacy registration (match by captain_user_id when possible, else team_name)
@@ -2589,16 +2594,26 @@ Deno.serve(async (req) => {
           .eq('league_id', route.leagueId)
           .eq('team_name', (team as any).name)
         const legacyRegIds = ((legacyRegs || []) as any[]).map((r) => r.id)
-        for (const r of (legacyRegs || []) as any[]) if (r.captain_user_id) userIds.add(r.captain_user_id)
+        for (const r of (legacyRegs || []) as any[]) if (r.captain_user_id) {
+          userIds.add(r.captain_user_id)
+          scorePlayerIds.add(r.captain_user_id)
+        }
         if (legacyRegIds.length) {
           const { data: legacyMembers } = await supabase
             .from('legacy_league_team_members')
-            .select('user_id')
+            .select('user_id, league_player_id')
             .in('team_registration_id', legacyRegIds)
-          for (const m of (legacyMembers || []) as any[]) if (m.user_id) userIds.add(m.user_id)
+          for (const m of (legacyMembers || []) as any[]) {
+            if (m.user_id) {
+              userIds.add(m.user_id)
+              scorePlayerIds.add(m.user_id)
+            }
+            if (m.league_player_id) scorePlayerIds.add(m.league_player_id)
+          }
         }
 
         const userIdList = Array.from(userIds)
+        const scorePlayerIdList = Array.from(scorePlayerIds)
 
         const { error } = await supabase.from('league_teams').delete().eq('id', route.subId)
         if (error) return err(error.message, 500)
@@ -2612,15 +2627,18 @@ Deno.serve(async (req) => {
           .eq('team_name', (team as any).name)
         if (legacyErr) console.error('[league-team-detail DELETE] legacy cleanup failed:', legacyErr.message)
 
-        // Purge per-user artefacts for this league so team-mates' account views
-        // (leaderboard, feed, score history) no longer show the deleted team's data.
-        if (userIdList.length > 0) {
+        // Purge scores for BOTH claimed and shadow players; feed items are only
+        // ever authored by claimed users (actor_id = auth user_id).
+        if (scorePlayerIdList.length > 0) {
           const { error: scoresErr } = await supabase
             .from('league_scores')
             .delete()
             .eq('league_id', route.leagueId)
-            .in('player_id', userIdList)
+            .in('player_id', scorePlayerIdList)
           if (scoresErr) console.error('[league-team-detail DELETE] league_scores cleanup failed:', scoresErr.message)
+        }
+        if (userIdList.length > 0) {
+
 
           const { error: feedErr } = await supabase
             .from('league_feed_items')
