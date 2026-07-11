@@ -165,11 +165,16 @@ interface RowData {
   rank: number | null;
   finalVsPar: number | null;
   byRound: Record<number, number | undefined>;
+  qualified: boolean;
 }
 
 function computeRows(entries: LeaderboardEntry[], rounds: ScreenRound[], now: Date): RowData[] {
   const roundStatus: Record<number, RoundStatus> = {};
   for (const r of rounds) roundStatus[r.round_number] = getRoundStatus(r, now);
+  const publishedRoundNums = rounds
+    .filter((r) => roundStatus[r.round_number] === "published")
+    .map((r) => r.round_number);
+  const totalPublished = publishedRoundNums.length;
 
   const rows = entries.map<RowData>((entry) => {
     const byRound: Record<number, number | undefined> = {};
@@ -183,10 +188,14 @@ function computeRows(entries: LeaderboardEntry[], rounds: ScreenRound[], now: Da
         anyPublished = true;
       }
     }
-    return { entry, rank: null, finalVsPar: anyPublished ? finalVsPar : null, byRound };
+    const playedPublished = publishedRoundNums.filter((rn) => byRound[rn] !== undefined).length;
+    const qualified = totalPublished === 0 ? true : playedPublished >= totalPublished;
+    return { entry, rank: null, finalVsPar: anyPublished ? finalVsPar : null, byRound, qualified };
   });
 
   rows.sort((a, b) => {
+    // Qualified entries always rank above non-qualified.
+    if (a.qualified !== b.qualified) return a.qualified ? -1 : 1;
     const aHas = a.finalVsPar !== null;
     const bHas = b.finalVsPar !== null;
     if (aHas && !bHas) return -1;
@@ -197,16 +206,19 @@ function computeRows(entries: LeaderboardEntry[], rounds: ScreenRound[], now: Da
     return a.entry.name.localeCompare(b.entry.name);
   });
 
+  // Continuous ranks 1..N across both groups; unscored (no rounds published for them) get null.
   let lastScore: number | null = Number.NaN as unknown as number;
+  let lastQualified: boolean | null = null;
   let lastRank = 0;
   rows.forEach((r, i) => {
     if (r.finalVsPar === null) {
       r.rank = null;
       return;
     }
-    if (r.finalVsPar !== lastScore) {
+    if (r.finalVsPar !== lastScore || r.qualified !== lastQualified) {
       lastRank = i + 1;
       lastScore = r.finalVsPar;
+      lastQualified = r.qualified;
     }
     r.rank = lastRank;
   });
