@@ -601,11 +601,18 @@ async function computeLeaderboard(
   let cityScopedPlayerIds: Set<string> | null = null
   let cityScopedTeamIds: Set<string> | null = null
   if (scopeParam === 'city' && cityIdParam) {
-    const { data: cityPlayers } = await supabase.from('league_players').select('user_id').eq('league_id', leagueId).eq('league_city_id', cityIdParam)
-    cityScopedPlayerIds = new Set((cityPlayers || []).map((p: any) => p.user_id))
+    // Include BOTH identity keys used in league_scores.player_id:
+    //   user_id for claimed players, league_players.id for admin-added shadows.
+    const { data: cityPlayers } = await supabase.from('league_players').select('id, user_id').eq('league_id', leagueId).eq('league_city_id', cityIdParam)
+    cityScopedPlayerIds = new Set<string>()
+    for (const p of (cityPlayers || []) as any[]) {
+      if (p.user_id) cityScopedPlayerIds.add(p.user_id)
+      cityScopedPlayerIds.add(p.id)
+    }
     const { data: cityTeams } = await supabase.from('league_teams').select('id').eq('league_id', leagueId).eq('league_city_id', cityIdParam)
     cityScopedTeamIds = new Set((cityTeams || []).map((t: any) => t.id))
   }
+
 
   let scoresQuery = supabase.from('league_scores').select('*').eq('league_id', leagueId)
   if (roundParam) scoresQuery = scoresQuery.eq('round_number', roundParam)
