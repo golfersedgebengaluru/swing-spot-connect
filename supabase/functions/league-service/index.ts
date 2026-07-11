@@ -3464,7 +3464,16 @@ Deno.serve(async (req) => {
       const { data: scores } = await supabase.from('league_scores').select('*').eq('league_id', leagueId)
       const { data: allHH } = await supabase.from('league_round_hidden_holes').select('*').eq('league_id', leagueId)
       const { data: rounds } = await supabase.from('league_rounds').select('round_number, par_per_hole').eq('league_id', leagueId)
-      const { data: profiles } = await supabase.from('profiles').select('user_id, display_name, email')
+      // Load league_players first so shadow (admin-managed) rows — whose scores
+      // are keyed by league_players.id, not user_id — still resolve to a name.
+      const { data: leaguePlayers } = await supabase
+        .from('league_players')
+        .select('id, user_id, display_name, email')
+        .eq('league_id', leagueId)
+      const claimedUserIds = ((leaguePlayers || []) as any[]).map((p) => p.user_id).filter(Boolean)
+      const { data: profiles } = claimedUserIds.length > 0
+        ? await supabase.from('profiles').select('user_id, display_name, email').in('user_id', claimedUserIds)
+        : { data: [] as any[] }
 
       const hiddenMap: Record<number, number[]> = {}
       for (const hh of (allHH || [])) {
@@ -3475,14 +3484,28 @@ Deno.serve(async (req) => {
         const arr = ((r as any).par_per_hole as number[]) || []
         parMap[(r as any).round_number] = arr.reduce((s, p) => s + (Number(p) > 0 ? Number(p) : 0), 0)
       }
-      const nameMap: Record<string, string> = {}
-      for (const p of (profiles || [])) {
-        const dn = ((p as any).display_name || '').trim()
-        const em = ((p as any).email || '').trim()
-        let name = dn
-        if (!name && em && !em.includes('privaterelay.appleid.com')) name = em.split('@')[0]
-        nameMap[(p as any).user_id] = name
+      const readableName = (dn?: string | null, em?: string | null): string => {
+        const d = (dn || '').trim()
+        if (d) return d
+        const e = (em || '').trim()
+        if (e && !e.includes('privaterelay.appleid.com')) return e.split('@')[0]
+        return ''
       }
+      const nameMap: Record<string, string> = {}
+      // Seed from league_players (covers shadow rows and gives us a name
+      // under BOTH the user_id and the league_players.id).
+      for (const p of ((leaguePlayers || []) as any[])) {
+        const name = readableName(p.display_name, p.email)
+        if (!name) continue
+        if (p.user_id) nameMap[p.user_id] = name
+        nameMap[p.id] = name
+      }
+      // Override with profile name for claimed users.
+      for (const p of ((profiles || []) as any[])) {
+        const name = readableName(p.display_name, p.email)
+        if (name) nameMap[p.user_id] = name
+      }
+
 
 
       const HC_MULT = 3
