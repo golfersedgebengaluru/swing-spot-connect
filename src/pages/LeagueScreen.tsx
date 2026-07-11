@@ -331,6 +331,9 @@ export default function LeagueScreen() {
 
       {/* Leaderboard */}
       <main className="px-3 sm:px-6 md:px-12 pb-12 pt-4">
+        <p className="text-[11px] sm:text-xs italic text-stone-500 mb-2 px-1">
+          Scores for all rounds must be submitted to qualify to win. Teams with missing rounds are ranked below all fully-qualified teams.
+        </p>
         <div className="rounded-2xl border border-stone-200 bg-white shadow-sm overflow-hidden">
           {lbLoading && rows.length === 0 ? (
             <div className="flex items-center justify-center py-16 text-stone-500">
