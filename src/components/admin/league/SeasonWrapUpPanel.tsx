@@ -27,9 +27,30 @@ import {
 } from "@/hooks/useLeagues";
 import type { League, SeasonStandingEntry } from "@/types/league";
 
+export type WrapUpPlayer = { id?: string | null; user_id: string | null; display_name: string | null; email?: string | null };
+
+/**
+ * Build a dual-keyed player-name lookup for season wrap-up displays.
+ *
+ * Shadow (admin-managed) players have no `user_id` and their scores/standings
+ * are keyed by `league_players.id`, while claimed players are keyed by
+ * `user_id`. Register both keys so lookups never fall through to a truncated
+ * UUID or "Player".
+ */
+export function buildWrapUpNameMap(players: WrapUpPlayer[]): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const p of players) {
+    const name = p.display_name || p.email || null;
+    if (!name) continue;
+    if (p.user_id) m.set(p.user_id, name);
+    if (p.id) m.set(p.id, name);
+  }
+  return m;
+}
+
 interface Props {
   league: League;
-  players: { id?: string | null; user_id: string | null; display_name: string | null; email?: string | null }[];
+  players: WrapUpPlayer[];
   isSiteAdmin: boolean;
 }
 
