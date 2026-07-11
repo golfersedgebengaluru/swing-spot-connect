@@ -1031,6 +1031,19 @@ Deno.serve(async (req) => {
         .select('id, name, display_order')
         .eq('league_id', route.leagueId)
         .order('display_order', { ascending: true })
+      const { data: rounds } = await supabase
+        .from('league_rounds')
+        .select('round_number, name, start_date, end_date')
+        .eq('league_id', route.leagueId)
+        .order('round_number', { ascending: true })
+      const { data: hh } = await supabase
+        .from('league_round_hidden_holes')
+        .select('round_number, revealed_at')
+        .eq('league_id', route.leagueId)
+      const closedMap: Record<number, string | null> = {}
+      for (const r of (hh || []) as Array<{ round_number: number; revealed_at: string | null }>) {
+        closedMap[r.round_number] = r.revealed_at
+      }
       return json({
         league: { id: league.id, name: league.name, status: league.status },
         branding: {
@@ -1040,6 +1053,13 @@ Deno.serve(async (req) => {
           sponsor_url: branding?.sponsor_url || null,
         },
         cities: cities || [],
+        rounds: (rounds || []).map((r: any) => ({
+          round_number: r.round_number,
+          name: r.name,
+          start_date: r.start_date,
+          end_date: r.end_date,
+          closed_at: closedMap[r.round_number] ?? null,
+        })),
       })
     }
 
