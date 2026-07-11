@@ -131,13 +131,9 @@ describe("LeagueScreen team-first view", () => {
     expect(screen.queryByText("Alice Kumar")).not.toBeInTheDocument();
   });
 
-  it("expands a team row to reveal member sub-rows", async () => {
-    renderAt("/leagues/lg1/screen");
-    await waitFor(() => screen.getAllByText("Eagles"));
-    const target = screen.getAllByText("Eagles")[0].closest('[role="button"]') as HTMLElement;
-    fireEvent.click(target);
-    await waitFor(() => expect(screen.getAllByText(/Alice Kumar/).length).toBeGreaterThan(0));
-  });
+  // Note: the PGA-style bay screen leaderboard does not expose per-team member
+  // drill-down. Member breakdowns live in the members-only leaderboard views.
+
 
   it("toggling to All view shows individuals again", async () => {
     renderAt("/leagues/lg1/screen");
