@@ -57,6 +57,9 @@ interface InvoiceData {
   sgst_total: number;
   igst_total: number;
   total: number;
+  discount_type?: string | null;
+  discount_value?: number | null;
+  discount_amount?: number | null;
   payment_method?: string;
   payment_reference?: string;
   notes?: string;
@@ -125,7 +128,17 @@ function buildTableHeader(isIgst: boolean) {
 
 function buildTotals(inv: InvoiceData, currency: FormatCurrency) {
   const isIgst = Number(inv.igst_total) > 0;
-  let rows = `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;"><span style="color:#666;">Taxable Amount</span><span>${currency.format(Number(inv.subtotal))}</span></div>`;
+  const discountAmt = Number(inv.discount_amount || 0);
+  let rows = "";
+  if (discountAmt > 0) {
+    const gross = Number(inv.subtotal) + Number(inv.cgst_total) + Number(inv.sgst_total) + Number(inv.igst_total) + discountAmt;
+    const label = inv.discount_type === "percentage" && inv.discount_value
+      ? `Discount (${Number(inv.discount_value)}%)`
+      : "Discount";
+    rows += `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;"><span style="color:#666;">Gross (incl. GST)</span><span>${currency.format(gross)}</span></div>`;
+    rows += `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:#b00;"><span>${label}</span><span>− ${currency.format(discountAmt)}</span></div>`;
+  }
+  rows += `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;"><span style="color:#666;">Taxable Amount</span><span>${currency.format(Number(inv.subtotal))}</span></div>`;
   if (isIgst) {
     rows += `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;"><span style="color:#666;">IGST</span><span>${currency.format(Number(inv.igst_total))}</span></div>`;
   } else {

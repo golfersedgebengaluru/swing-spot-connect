@@ -139,6 +139,11 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
   const [catalogueSearch, setCatalogueSearch] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
 
+  // Discount
+  const [discountType, setDiscountType] = useState<"none" | "percentage" | "amount">("none");
+  const [discountValue, setDiscountValue] = useState<number>(0);
+
+
   const filteredCatalogue = useMemo(() => {
     if (!catalogue || !catalogueSearch) return [];
     const q = catalogueSearch.toLowerCase();
@@ -194,9 +199,30 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
     setLineItems((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  // GST calculation
+  // GST calculation with discount applied proportionally to each line's inclusive price
   const gstType = getGstType(profile?.state_code || "", customerGstin || undefined);
-  const calculated = calculateLineItems(lineItems, gstType);
+  const grossInclusive = useMemo(
+    () => lineItems.reduce((s, li) => s + (Number(li.quantity) || 0) * (Number(li.unitPrice) || 0), 0),
+    [lineItems]
+  );
+  const discountAmount = useMemo(() => {
+    if (discountType === "none" || !discountValue || discountValue <= 0) return 0;
+    if (discountType === "percentage") {
+      const pct = Math.min(Math.max(discountValue, 0), 100);
+      return Math.round(grossInclusive * (pct / 100) * 100) / 100;
+    }
+    return Math.round(Math.min(discountValue, grossInclusive) * 100) / 100;
+  }, [discountType, discountValue, grossInclusive]);
+  const discountedLineItems = useMemo(() => {
+    if (discountAmount <= 0 || grossInclusive <= 0) return lineItems;
+    const factor = 1 - discountAmount / grossInclusive;
+    return lineItems.map((li) => ({
+      ...li,
+      unitPrice: Math.round(Number(li.unitPrice) * factor * 100) / 100,
+    }));
+  }, [lineItems, discountAmount, grossInclusive]);
+  const calculated = calculateLineItems(discountedLineItems, gstType);
+
 
   const handleSubmit = async () => {
     if (!customerName) {
@@ -251,6 +277,9 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
         amountPaid: paymentStatus === "paid" ? calculated.total : amountPaid,
         paymentStatus,
         addToUserList: invoiceCategory === "booking" ? true : addToUserList,
+        discountType: discountType === "none" ? null : discountType,
+        discountValue: discountType === "none" ? 0 : discountValue,
+        discountAmount,
         // Booking-specific
         bookingDate: bookingDate ? format(bookingDate, "yyyy-MM-dd") : undefined,
         bookingStartTime: invoiceCategory === "booking" ? bookingStartTime : undefined,
@@ -306,6 +335,8 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
     setSessionType("practice");
     setCoachName("");
     setAdvanceDrawdown(0);
+    setDiscountType("none");
+    setDiscountValue(0);
   };
 
   return (
@@ -620,10 +651,47 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
             )}
           </div>
 
+          {/* ── Discount ── */}
+          {lineItems.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Discount</Label>
+              <div className="grid grid-cols-[160px_1fr] gap-3">
+                <Select value={discountType} onValueChange={(v) => setDiscountType(v as any)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No discount</SelectItem>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="amount">Amount ({currency.symbol ?? ""})</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  disabled={discountType === "none"}
+                  value={discountValue || ""}
+                  onChange={(e) => setDiscountValue(e.target.value === "" ? 0 : Number(e.target.value))}
+                  placeholder={discountType === "percentage" ? "e.g. 10 for 10%" : "e.g. 500"}
+                />
+              </div>
+              {discountAmount > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Discount applied proportionally across line items; GST is recomputed on the discounted amount.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* ── Summary ── */}
           {lineItems.length > 0 && (
             <Card className="bg-muted/30">
               <CardContent className="p-4 space-y-1.5 text-sm">
+                {discountAmount > 0 && (
+                  <>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Gross (incl. GST)</span><span>{currency.format(grossInclusive)}</span></div>
+                    <div className="flex justify-between text-destructive"><span>Discount{discountType === "percentage" ? ` (${discountValue}%)` : ""}</span><span>− {currency.format(discountAmount)}</span></div>
+                  </>
+                )}
                 <div className="flex justify-between"><span className="text-muted-foreground">Taxable Amount</span><span>{currency.format(calculated.subtotal)}</span></div>
                 {gstType === "cgst_sgst" ? (
                   <>
@@ -640,6 +708,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
               </CardContent>
             </Card>
           )}
+
 
           {/* ── Advance Balance Drawdown ── */}
           {effectiveCustomerId && (advanceBalance ?? 0) > 0 && calculated.total > 0 && (
