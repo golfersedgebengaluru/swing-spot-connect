@@ -139,6 +139,11 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
   const [catalogueSearch, setCatalogueSearch] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
 
+  // Discount
+  const [discountType, setDiscountType] = useState<"none" | "percentage" | "amount">("none");
+  const [discountValue, setDiscountValue] = useState<number>(0);
+
+
   const filteredCatalogue = useMemo(() => {
     if (!catalogue || !catalogueSearch) return [];
     const q = catalogueSearch.toLowerCase();
