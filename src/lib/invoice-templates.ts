@@ -57,6 +57,9 @@ interface InvoiceData {
   sgst_total: number;
   igst_total: number;
   total: number;
+  discount_type?: string | null;
+  discount_value?: number | null;
+  discount_amount?: number | null;
   payment_method?: string;
   payment_reference?: string;
   notes?: string;
