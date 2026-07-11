@@ -121,7 +121,16 @@ export function SeasonWrapUpPanel({ league, players, isSiteAdmin }: Props) {
   const snapshot = wrapUp?.snapshot;
   const auto = (wrapUp?.awards || []).filter((a) => !a.is_manual);
   const manual = (wrapUp?.awards || []).filter((a) => a.is_manual);
-  const playerNameById = new Map(players.map((p) => [p.user_id, p.display_name || p.email || p.user_id?.slice(0, 8) || "Player"]));
+  // Dual-key name map: shadow (admin-managed) players have no user_id and their
+  // scores/standings are keyed by league_players.id — register both keys so
+  // wrap-up standings never fall through to a truncated ID or "Player".
+  const playerNameById = new Map<string, string>();
+  players.forEach((p) => {
+    const name = p.display_name || p.email || null;
+    if (!name) return;
+    if (p.user_id) playerNameById.set(p.user_id, name);
+    if (p.id) playerNameById.set(p.id, name);
+  });
 
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin" />;
 
