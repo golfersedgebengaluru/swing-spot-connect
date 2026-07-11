@@ -2095,9 +2095,12 @@ function HiddenHolesPanel({ league }: { league: League }) {
 
   const playerNameByUserId = new Map<string, string>();
   (leaguePlayers || []).forEach((p) => {
-    if (p.user_id) {
-      playerNameByUserId.set(p.user_id, p.display_name || p.email || p.user_id);
-    }
+    const name = p.display_name || p.email || null;
+    if (!name) return;
+    // Register under both keys so shadow (admin-managed) players — who have no
+    // user_id and whose scores are keyed by league_players.id — also resolve.
+    if (p.user_id) playerNameByUserId.set(p.user_id, name);
+    if (p.id) playerNameByUserId.set(p.id, name);
   });
   const [selectedRound, setSelectedRound] = useState<number>(1);
   const [manualHoles, setManualHoles] = useState<number[]>([]);
