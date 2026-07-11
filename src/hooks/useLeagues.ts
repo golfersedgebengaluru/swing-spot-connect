@@ -855,6 +855,26 @@ export function useLeagueLocationCount(leagueId: string | null) {
   });
 }
 
+/** All locations across every city of the league (id, name, software). */
+export function useLeagueAllLocations(leagueId: string | null) {
+  return useQuery<Array<{ id: string; name: string; software?: string; city_id: string }>>({
+    queryKey: ["league-all-locations", leagueId],
+    queryFn: async () => {
+      const cities: { id: string }[] = await invoke(`/leagues/${leagueId}/cities`, "GET");
+      if (!cities?.length) return [];
+      const lists = await Promise.all(
+        cities.map((c) =>
+          invoke(`/leagues/${leagueId}/cities/${c.id}/locations`, "GET").catch(() => []),
+        ),
+      );
+      return lists.flat() as any;
+    },
+    enabled: !!leagueId,
+    staleTime: LEAGUE_STALE_TIME,
+  });
+}
+
+
 export function useCreateLeagueCity(leagueId: string) {
   const qc = useQueryClient();
   const { toast } = useToast();
