@@ -231,6 +231,7 @@ export function RevealedRoundScores({
                   teamKey: string,
                   teamRows: typeof rows,
                   color: typeof TEAM_PALETTE[number] | null,
+                  teamParTotal?: number,
                 ) => {
                   if (teamRows.length < 2) return null;
                   // Per-hole best-ball across teammates (min >0)
@@ -240,8 +241,11 @@ export function RevealedRoundScores({
                   });
                   const teamGross = holeTotals.reduce((s, v) => s + (v || 0), 0);
                   const teamHiddenSum = hiddenHoles.reduce((s, h) => s + (Number(holeTotals[h - 1]) || 0), 0);
-                  const teamHc = hiddenHoles.length > 0 && roundPar > 0
-                    ? Math.round((teamRows.reduce((s, r) => s + (r.handicap || 0), 0) / teamRows.length) * 100) / 100
+                  // Team Peoria HC uses the TEAM best-ball hidden-hole sum, not an
+                  // average of member handicaps: max(0, teamHiddenSum × 3 − teamPar)
+                  const parBase = teamParTotal && teamParTotal > 0 ? teamParTotal : roundPar;
+                  const teamHc = hiddenHoles.length > 0 && parBase > 0
+                    ? Math.max(0, teamHiddenSum * HC_MULT - parBase)
                     : 0;
                   const teamNet = teamGross - teamHc;
                   const teamPoints = holeScoresToStableford(holeTotals, displayPar);
