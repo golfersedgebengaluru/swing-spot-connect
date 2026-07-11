@@ -1891,6 +1891,9 @@ export type Database = {
           customer_state: string | null
           customer_state_code: string | null
           customer_user_id: string | null
+          discount_amount: number
+          discount_type: string | null
+          discount_value: number
           due_date: string | null
           financial_year_id: string | null
           id: string
@@ -1929,6 +1932,9 @@ export type Database = {
           customer_state?: string | null
           customer_state_code?: string | null
           customer_user_id?: string | null
+          discount_amount?: number
+          discount_type?: string | null
+          discount_value?: number
           due_date?: string | null
           financial_year_id?: string | null
           id?: string
@@ -1967,6 +1973,9 @@ export type Database = {
           customer_state?: string | null
           customer_state_code?: string | null
           customer_user_id?: string | null
+          discount_amount?: number
+          discount_type?: string | null
+          discount_value?: number
           due_date?: string | null
           financial_year_id?: string | null
           id?: string
