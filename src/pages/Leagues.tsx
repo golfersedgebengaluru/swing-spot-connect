@@ -417,13 +417,20 @@ function MyScores({ leagueId, league }: { leagueId: string; league: League }) {
     : ((myTeam?.members || []).map((m) => m.user_id).filter(Boolean) as string[]);
 
   // Teammate names for the roster panel (always visible once a team exists)
+  const nameFromEmail = (email?: string | null) => (email ? email.split("@")[0] : null);
+  const selfName =
+    (roster.find((r) => r.user_id === user?.id)?.display_name) ||
+    ((myTeam?.members || []).find((m) => m.user_id === user?.id)?.display_name) ||
+    nameFromEmail(user?.email) ||
+    "You";
+
   const teammateNames: string[] = roster.length > 0
     ? roster
         .filter((r) => r.user_id !== user?.id)
-        .map((r) => r.display_name || "Player")
+        .map((r, i) => r.display_name || nameFromEmail((myTeam?.members || [])[i]?.email) || "Unnamed player")
     : (myTeam?.members || [])
         .filter((m) => m.user_id !== user?.id)
-        .map((m) => m.display_name || "Player");
+        .map((m) => m.display_name || nameFromEmail(m.email) || "Unnamed player");
 
   // Always include self so a soloist still sees their hole-by-hole
   const playerIds = Array.from(new Set([user?.id, ...rosterIdentityIds].filter(Boolean) as string[]));
@@ -444,18 +451,24 @@ function MyScores({ leagueId, league }: { leagueId: string; league: League }) {
   }
   const orderedRounds = Array.from(roundNumbers).sort((a, b) => b - a);
 
+  // Display name for the header: team name if present, otherwise the individual's name.
+  const displayName = myTeam?.team?.team_name || selfName;
+
   return (
     <div className="space-y-6">
-      {teammateNames.length > 0 && (
+      {(displayName || teammateNames.length > 0) && (
         <div className="rounded-md border bg-muted/30 p-3">
-          <div className="text-xs font-semibold text-muted-foreground mb-1.5">Your team</div>
-          <div className="flex flex-wrap gap-1.5">
-            {teammateNames.map((n, i) => (
-              <Badge key={`${n}-${i}`} variant="secondary" className="text-xs">{n}</Badge>
-            ))}
-          </div>
+          <div className="text-xs font-semibold text-muted-foreground mb-1.5">Name: {displayName}</div>
+          {teammateNames.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {teammateNames.map((n, i) => (
+                <Badge key={`${n}-${i}`} variant="secondary" className="text-xs">{n}</Badge>
+              ))}
+            </div>
+          )}
         </div>
       )}
+
       {orderedRounds.map((rn) => {
         const round = (rounds || []).find((r) => r.round_number === rn);
         const mine = myScores.find((s) => s.round_number === rn);
