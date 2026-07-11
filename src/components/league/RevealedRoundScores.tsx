@@ -335,7 +335,7 @@ export function RevealedRoundScores({
                       </TableRow>,
                     );
                     for (const r of teamRows) nodes.push(renderPlayerRow(r, color));
-                    const summary = renderTeamSummary(key, teamRows, color);
+                    const summary = renderTeamSummary(key, teamRows, color, teamParTotal);
                     if (summary) nodes.push(summary);
                   }
                 } else {
