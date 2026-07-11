@@ -277,6 +277,9 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
         amountPaid: paymentStatus === "paid" ? calculated.total : amountPaid,
         paymentStatus,
         addToUserList: invoiceCategory === "booking" ? true : addToUserList,
+        discountType: discountType === "none" ? null : discountType,
+        discountValue: discountType === "none" ? 0 : discountValue,
+        discountAmount,
         // Booking-specific
         bookingDate: bookingDate ? format(bookingDate, "yyyy-MM-dd") : undefined,
         bookingStartTime: invoiceCategory === "booking" ? bookingStartTime : undefined,
