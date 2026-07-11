@@ -3599,12 +3599,21 @@ Deno.serve(async (req) => {
         byPlayer[r.player_id].push(r)
       }
 
+      // Qualification: only players who submitted scores for every published
+      // round are eligible for ranking / awards. Others rank below all qualified.
+      const publishedRoundSet = new Set<number>(Object.keys(hiddenMap).map((k) => Number(k)))
+      const totalActiveRounds = publishedRoundSet.size
+
       const netStandings: any[] = []
       const grossStandings: any[] = []
       for (const [pid, list] of Object.entries(byPlayer)) {
         const totalGross = list.reduce((s, r) => s + r.gross, 0)
         const totalNet = list.reduce((s, r) => s + r.net, 0)
         const totalPar = list.reduce((s, r) => s + r.par, 0)
+        const playedPublished = totalActiveRounds === 0
+          ? 0
+          : list.filter((r) => publishedRoundSet.has(r.round_number)).length
+        const qualified = totalActiveRounds === 0 ? true : playedPublished >= totalActiveRounds
         const base = {
           player_id: pid,
           name: nameMap[pid] || 'Player',
@@ -3612,12 +3621,17 @@ Deno.serve(async (req) => {
           total_net: totalNet,
           total_par: totalPar,
           rounds_played: list.length,
+          qualified,
         }
         netStandings.push({ ...base, score: totalNet, vs_par: totalNet - totalPar })
         grossStandings.push({ ...base, score: totalGross, vs_par: totalGross - totalPar })
       }
-      netStandings.sort((a, b) => a.vs_par - b.vs_par)
-      grossStandings.sort((a, b) => a.vs_par - b.vs_par)
+      const groupSort = (a: any, b: any) => {
+        if ((a.qualified ? 1 : 0) !== (b.qualified ? 1 : 0)) return a.qualified ? -1 : 1
+        return a.vs_par - b.vs_par
+      }
+      netStandings.sort(groupSort)
+      grossStandings.sort(groupSort)
       netStandings.forEach((e, i) => (e.rank = i + 1))
       grossStandings.forEach((e, i) => (e.rank = i + 1))
 
