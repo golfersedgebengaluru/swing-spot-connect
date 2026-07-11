@@ -1397,11 +1397,23 @@ function RoundsPanel({ league }: { league: League }) {
                         {r.course_name && (
                           <Badge variant="secondary" className="text-[10px]">{r.course_name}</Badge>
                         )}
-                        {parSet ? (
-                          <Badge variant="outline" className="text-[10px]">Par {r.par_per_hole.reduce((s, v) => s + v, 0)}</Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-[10px]">Par not set</Badge>
-                        )}
+                        {(() => {
+                          // Show one capsule per configured par set (Par 72 · GSPro, Par 71 · TGC, …).
+                          // Falls back to the round's own par total when no par sets are defined.
+                          const sets = (parSets || []).filter((ps) => (ps.par_per_hole?.length || 0) === numHoles);
+                          if (sets.length > 0) {
+                            return sets.map((ps) => (
+                              <Badge key={ps.id} variant="outline" className="text-[10px]">
+                                Par {ps.par_per_hole.reduce((s, v) => s + (v || 0), 0)} · {ps.software}
+                              </Badge>
+                            ));
+                          }
+                          return parSet ? (
+                            <Badge variant="outline" className="text-[10px]">Par {r.par_per_hole.reduce((s, v) => s + v, 0)}</Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-[10px]">Par not set</Badge>
+                          );
+                        })()}
                       </div>
                       <p className="text-xs text-muted-foreground">{r.start_date} → {r.end_date}</p>
                     </div>
