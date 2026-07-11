@@ -29,7 +29,7 @@ import type { League, SeasonStandingEntry } from "@/types/league";
 
 interface Props {
   league: League;
-  players: { user_id: string; display_name: string | null; email?: string | null }[];
+  players: { id?: string | null; user_id: string | null; display_name: string | null; email?: string | null }[];
   isSiteAdmin: boolean;
 }
 
