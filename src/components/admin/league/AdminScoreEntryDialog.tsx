@@ -212,12 +212,19 @@ export function AdminScoreEntryDialog({ league, players }: Props) {
                   <Select value={String(round)} onValueChange={(v) => setRound(Number(v))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {rounds.map((r) => (
-                        <SelectItem key={r.id} value={String(r.round_number)}>
-                          R{r.round_number}: {r.name}
-                          {r.par_per_hole?.length === numHoles ? ` · Par ${totalPar(r.par_per_hole)}` : ""}
-                        </SelectItem>
-                      ))}
+                      {rounds.map((r) => {
+                        const variants = (parSets || []).filter(
+                          (ps) => ps.course_name && ps.course_name === r.course_name && (ps.par_per_hole?.length || 0) === numHoles,
+                        );
+                        const label = variants.length > 0
+                          ? variants.map((v) => `Par ${totalPar(v.par_per_hole as number[])} ${v.software}`).join(" · ")
+                          : r.par_per_hole?.length === numHoles ? `Par ${totalPar(r.par_per_hole)}` : "";
+                        return (
+                          <SelectItem key={r.id} value={String(r.round_number)}>
+                            R{r.round_number}: {r.name}{label ? ` · ${label}` : ""}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 ) : (
