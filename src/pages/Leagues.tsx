@@ -27,6 +27,7 @@ import {
   useLeaderboard,
   useLeagueRounds,
   useHiddenHoles,
+  useMyLegacyLeagues,
 } from "@/hooks/useLeagues";
 import { supabase } from "@/integrations/supabase/client";
 import type { League, LeagueScore, LeaderboardEntry } from "@/types/league";
