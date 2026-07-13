@@ -270,7 +270,7 @@ export function AdminScoreEntryDialog({ league, players }: Props) {
 
             <div className="flex items-center justify-between rounded border p-3 bg-muted/40">
               <span className="text-sm font-medium">
-                Total ({holeLabel}){isStroke && parReady ? ` · Par ${totalPar(parPerHole)}` : ""}
+                Total ({holeLabel}){isStroke && parReady ? ` · Par ${totalPar(parPerHole)}${resolved.software ? ` (${resolved.software})` : ""}` : ""}
               </span>
               <span className="text-lg font-bold">
                 {total}
