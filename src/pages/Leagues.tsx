@@ -541,12 +541,25 @@ export default function Leagues() {
 
   // Collect leagues from all user tenants
   const firstTenantId = tenants?.[0]?.id ?? null;
-  const { data: leagues, isLoading: leaguesLoading } = useLeagues(firstTenantId);
+  const { data: tenantLeagues, isLoading: leaguesLoading } = useLeagues(firstTenantId);
+
+  // Legacy / hybrid team memberships (users without any league_roles row)
+  const { data: legacyResp, isLoading: legacyLoading } = useMyLegacyLeagues(!!user);
 
   if (authLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!user) return <Navigate to="/auth?redirect=/leagues" replace />;
 
-  const isLoading = tenantsLoading || leaguesLoading;
+  const isLoading = tenantsLoading || leaguesLoading || legacyLoading;
+
+  // Merge + de-duplicate by league id
+  const merged: League[] = [];
+  const seen = new Set<string>();
+  for (const l of (tenantLeagues || [])) {
+    if (!seen.has(l.id)) { seen.add(l.id); merged.push(l); }
+  }
+  for (const l of (legacyResp?.leagues || [])) {
+    if (!seen.has(l.id)) { seen.add(l.id); merged.push(l); }
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -561,9 +574,9 @@ export default function Leagues() {
 
         {isLoading ? (
           <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-        ) : (!leagues || leagues.length === 0) ? null : (
+        ) : merged.length === 0 ? null : (
           <div className="space-y-4 mt-8">
-            {leagues.map(l => <LeagueCard key={l.id} league={l} />)}
+            {merged.map(l => <LeagueCard key={l.id} league={l} />)}
           </div>
         )}
       </main>
