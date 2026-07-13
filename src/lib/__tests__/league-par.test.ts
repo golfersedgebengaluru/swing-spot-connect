@@ -6,10 +6,12 @@ const locs = [
   { id: "gspro-loc", software: "GSPro" },
 ];
 const parSets = [
-  { course_name: "Royal Birkdale", software: "TGC",   par_per_hole: [4,4,3,4,4,5,4,3,4, 4,4,3,4,3,5,4,5,5] }, // 70
-  { course_name: "Royal Birkdale", software: "GSPro", par_per_hole: [4,4,3,4,4,5,4,4,4, 4,4,3,4,4,5,4,5,5] }, // 72
+  // 8x4 + 1x3 = 35 out; same for in → 70
+  { course_name: "Royal Birkdale", software: "TGC",   par_per_hole: [4,4,4,4,4,4,4,4,3, 4,4,4,4,4,4,4,4,3] },
+  // 9x4 = 36 out; same for in → 72
+  { course_name: "Royal Birkdale", software: "GSPro", par_per_hole: [4,4,4,4,4,4,4,4,4, 4,4,4,4,4,4,4,4,4] },
 ];
-const roundFallback = [4,4,3,4,4,5,4,4,4, 4,4,3,4,4,5,4,5,5]; // 72
+const roundFallback = [4,4,4,4,4,4,4,4,4, 4,4,4,4,4,4,4,4,4]; // 72
 
 describe("resolveLeaguePar", () => {
   it("resolves TGC par set for Eden Aquatic Club (Par 70)", () => {
