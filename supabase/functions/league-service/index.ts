@@ -522,6 +522,9 @@ function parseRoute(url: URL): Route {
     if (leagueId === 'legacy' && subResource === 'claim-by-invite') {
       return { action: 'legacy-claim-by-invite' }
     }
+    if (leagueId === 'legacy' && subResource === 'my-leagues') {
+      return { action: 'legacy-my-leagues' }
+    }
     if (subResource === 'legacy-invites' && segments[4] && segments[5]) {
       // /leagues/:id/legacy-invites/:inviteId/(revoke|rotate)
       return { action: 'legacy-invite-action', leagueId, subResource, subId: segments[4], bookingId: segments[5] }
