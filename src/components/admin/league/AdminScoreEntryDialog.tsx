@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Plus } from "lucide-react";
-import { useSubmitScore, useLeagueRounds } from "@/hooks/useLeagues";
+import { useSubmitScore, useLeagueRounds, useLeagueParSets, useLeagueAllLocations } from "@/hooks/useLeagues";
 import type { League } from "@/types/league";
 import type { LeaguePlayerWithProfile } from "@/hooks/useLeagues";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +18,7 @@ import {
   formatRelativeToPar,
   MAX_OVER_PAR_PER_HOLE,
 } from "@/lib/golf-scoring";
+import { resolveLeaguePar } from "@/lib/league-par";
 
 interface Props {
   league: League;
