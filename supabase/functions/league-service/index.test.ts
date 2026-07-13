@@ -181,3 +181,9 @@ Deno.test("league-service: POST legacy-invite rotate without auth returns 401", 
   const { status } = await fetchAPI("/leagues/fake-id/legacy-invites/fake-invite/rotate", "POST", {});
   assertEquals(status, 401);
 });
+
+// ── Legacy my-leagues endpoint (powers /leagues for legacy team members) ──
+Deno.test("league-service: GET legacy/my-leagues without auth returns 401", async () => {
+  const { status } = await fetchAPI("/leagues/legacy/my-leagues", "GET");
+  assertEquals(status, 401);
+});
