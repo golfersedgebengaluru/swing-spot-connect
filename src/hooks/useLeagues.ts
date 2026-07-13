@@ -101,6 +101,19 @@ export function useLeagues(tenantId: string | null) {
   });
 }
 
+// Every league the caller is on via legacy team OR hybrid team membership.
+// Complements useLeagues() (which only sees leagues in tenants the user has
+// a league_roles entry in) so legacy team members see their leagues on
+// /leagues without needing admin/tenant access.
+export function useMyLegacyLeagues(enabled: boolean) {
+  return useQuery<{ leagues: League[] }>({
+    queryKey: ["leagues-legacy-my"],
+    queryFn: () => invoke("/leagues/legacy/my-leagues", "GET"),
+    enabled,
+    staleTime: LEAGUE_STALE_TIME,
+  });
+}
+
 export function useLeague(leagueId: string | null) {
   return useQuery<League>({
     queryKey: ["league", leagueId],
