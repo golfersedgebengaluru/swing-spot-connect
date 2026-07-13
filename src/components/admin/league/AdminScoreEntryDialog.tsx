@@ -231,7 +231,12 @@ export function AdminScoreEntryDialog({ league, players }: Props) {
                 Holes ({numHoles}) · {holeLabel}
                 {isStroke && parReady && (
                   <span className="text-xs text-muted-foreground ml-2">
-                    Par per hole shown · scores capped at par +{MAX_OVER_PAR_PER_HOLE}
+                    Par per hole shown{resolved.software ? ` (${resolved.software})` : ""} · scores capped at par +{MAX_OVER_PAR_PER_HOLE}
+                  </span>
+                )}
+                {isStroke && !parReady && selectedPlayer && (
+                  <span className="text-xs text-amber-600 ml-2">
+                    No matching par set for this player's location — using round default.
                   </span>
                 )}
               </Label>
