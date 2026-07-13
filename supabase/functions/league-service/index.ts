@@ -4406,10 +4406,20 @@ Deno.serve(async (req) => {
         _user_id: user.id, _email: user.email,
       })
       if (error) return err(error.message, 500)
-      // Also auto-link any admin-added managed rows matching this email
-      await supabase.rpc('link_managed_member_on_login', {
-        _user_id: user.id, _email: user.email,
-      }).catch((e: any) => console.error('link_managed_member_on_login failed:', e?.message))
+      // Also auto-link any admin-added managed rows matching this email.
+      // NOTE: Supabase query builders are thenables, NOT real Promises — do
+      // NOT chain `.catch()` directly on them (it throws synchronously and
+      // crashes the whole request). Always await + try/catch, or await + check
+      // the returned `error` field. See guardrail test:
+      // supabase/functions/league-service/__tests__/no-builder-catch.test.ts
+      try {
+        const { error: linkErr } = await supabase.rpc('link_managed_member_on_login', {
+          _user_id: user.id, _email: user.email,
+        })
+        if (linkErr) console.error('link_managed_member_on_login failed:', linkErr.message)
+      } catch (e: any) {
+        console.error('link_managed_member_on_login threw:', e?.message || e)
+      }
       return json({ success: true, claimed: Number(data) || 0 })
     }
 

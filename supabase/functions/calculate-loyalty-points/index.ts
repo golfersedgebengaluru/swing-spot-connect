@@ -370,8 +370,14 @@ async function checkMilestones(supabase: any, userId: string, staffId: string) {
   for (const m of milestones || []) {
     if (achievedIds.includes(m.id)) continue;
 
-    // Award milestone bonus
-    await supabase.rpc("increment_user_points", { p_user_id: userId, p_delta: m.bonus_points }).catch(() => {});
+    // Award milestone bonus. Supabase builders are thenables — never chain
+    // `.catch()` on them (crashes at runtime). Await + try/catch.
+    try {
+      const { error: incErr } = await supabase.rpc("increment_user_points", { p_user_id: userId, p_delta: m.bonus_points });
+      if (incErr) console.error("increment_user_points failed:", incErr.message);
+    } catch (e: any) {
+      console.error("increment_user_points threw:", e?.message || e);
+    }
 
     await supabase.from("points_transactions").insert({
       user_id: userId,
