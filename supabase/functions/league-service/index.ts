@@ -4570,6 +4570,54 @@ Deno.serve(async (req) => {
       return json({ success: true, team, my_role: member.role, members, invites: invites || [], roster })
     }
 
+    // ── List every league the caller is on (legacy team OR hybrid team) ──
+    // Powers the "My Leagues" screen so legacy team captains/members see
+    // their leagues even without a league_roles / tenant row. Never throws.
+    if (route.action === 'legacy-my-leagues' && method === 'GET') {
+      const leagueIds = new Set<string>()
+
+      // Path 1: legacy_league_team_members rows
+      try {
+        const { data: legacyRows } = await supabase
+          .from('legacy_league_team_members')
+          .select('league_id, role')
+          .eq('user_id', user.id)
+        for (const r of (legacyRows || []) as any[]) {
+          if (r?.league_id) leagueIds.add(r.league_id)
+        }
+      } catch (e) {
+        console.error('[legacy-my-leagues] legacy members lookup failed:', (e as Error).message)
+      }
+
+      // Path 2: hybrid league_players rows
+      try {
+        const { data: playerRows } = await supabase
+          .from('league_players')
+          .select('league_id')
+          .eq('user_id', user.id)
+        for (const r of (playerRows || []) as any[]) {
+          if (r?.league_id) leagueIds.add(r.league_id)
+        }
+      } catch (e) {
+        console.error('[legacy-my-leagues] players lookup failed:', (e as Error).message)
+      }
+
+      const ids = Array.from(leagueIds)
+      if (ids.length === 0) return json({ success: true, leagues: [] })
+
+      const { data: leagues, error } = await supabase
+        .from('leagues')
+        .select('*, league_branding(*)')
+        .in('id', ids)
+        .order('created_at', { ascending: false })
+      if (error) {
+        console.error('[legacy-my-leagues] leagues fetch failed:', error.message)
+        return json({ success: true, leagues: [] })
+      }
+      return json({ success: true, leagues: leagues || [] })
+    }
+
+
 
     // ── List registered teams (admin) ───────────────────────────────
     if (route.action === 'legacy-registered-teams' && route.leagueId && method === 'GET') {
