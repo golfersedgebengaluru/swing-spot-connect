@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Plus } from "lucide-react";
-import { useSubmitScore, useLeagueRounds } from "@/hooks/useLeagues";
+import { useSubmitScore, useLeagueRounds, useLeagueParSets, useLeagueAllLocations } from "@/hooks/useLeagues";
 import type { League } from "@/types/league";
 import type { LeaguePlayerWithProfile } from "@/hooks/useLeagues";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +18,7 @@ import {
   formatRelativeToPar,
   MAX_OVER_PAR_PER_HOLE,
 } from "@/lib/golf-scoring";
+import { resolveLeaguePar } from "@/lib/league-par";
 
 interface Props {
   league: League;
@@ -49,6 +50,8 @@ export function AdminScoreEntryDialog({ league, players }: Props) {
   const { toast } = useToast();
   const submit = useSubmitScore(league.id);
   const { data: rounds } = useLeagueRounds(league.id);
+  const { data: parSets } = useLeagueParSets(league.id);
+  const { data: allLocations } = useLeagueAllLocations(league.id);
 
   const [open, setOpen] = useState(false);
   const [playerId, setPlayerId] = useState<string>("");
@@ -60,7 +63,25 @@ export function AdminScoreEntryDialog({ league, players }: Props) {
   const isStroke = (STROKE_FORMATS as readonly string[]).includes(format);
 
   const currentRound = useMemo(() => (rounds || []).find((r) => r.round_number === round), [rounds, round]);
-  const parPerHole = currentRound?.par_per_hole || [];
+  const selectedPlayer = useMemo(() => (players || []).find((p) => p.id === playerId), [players, playerId]);
+
+  // Resolve par based on selected player's location + round course.
+  // Mirrors the server-side rule used by leaderboard + score cap.
+  const resolved = useMemo(() => {
+    const playerLocationId = selectedPlayer?.league_location_id || selectedPlayer?.team_location_id || null;
+    return resolveLeaguePar({
+      playerLocationId,
+      roundCourseName: currentRound?.course_name ?? null,
+      roundParPerHole: (currentRound?.par_per_hole as number[] | undefined) || [],
+      locations: (allLocations || []).map((l) => ({ id: l.id, software: l.software ?? null })),
+      parSets: (parSets || []).map((ps) => ({
+        course_name: ps.course_name ?? null,
+        software: ps.software ?? null,
+        par_per_hole: (ps.par_per_hole as number[] | null) ?? null,
+      })),
+    });
+  }, [selectedPlayer, currentRound, allLocations, parSets]);
+  const parPerHole = resolved.par;
   const parReady = parPerHole.length === numHoles && parPerHole.every((p) => p > 0);
 
   const holeLabel = useMemo(() => {
@@ -191,12 +212,19 @@ export function AdminScoreEntryDialog({ league, players }: Props) {
                   <Select value={String(round)} onValueChange={(v) => setRound(Number(v))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {rounds.map((r) => (
-                        <SelectItem key={r.id} value={String(r.round_number)}>
-                          R{r.round_number}: {r.name}
-                          {r.par_per_hole?.length === numHoles ? ` · Par ${totalPar(r.par_per_hole)}` : ""}
-                        </SelectItem>
-                      ))}
+                      {rounds.map((r) => {
+                        const variants = (parSets || []).filter(
+                          (ps) => ps.course_name && ps.course_name === r.course_name && (ps.par_per_hole?.length || 0) === numHoles,
+                        );
+                        const label = variants.length > 0
+                          ? variants.map((v) => `Par ${totalPar(v.par_per_hole as number[])} ${v.software}`).join(" · ")
+                          : r.par_per_hole?.length === numHoles ? `Par ${totalPar(r.par_per_hole)}` : "";
+                        return (
+                          <SelectItem key={r.id} value={String(r.round_number)}>
+                            R{r.round_number}: {r.name}{label ? ` · ${label}` : ""}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 ) : (
@@ -210,7 +238,12 @@ export function AdminScoreEntryDialog({ league, players }: Props) {
                 Holes ({numHoles}) · {holeLabel}
                 {isStroke && parReady && (
                   <span className="text-xs text-muted-foreground ml-2">
-                    Par per hole shown · scores capped at par +{MAX_OVER_PAR_PER_HOLE}
+                    Par per hole shown{resolved.software ? ` (${resolved.software})` : ""} · scores capped at par +{MAX_OVER_PAR_PER_HOLE}
+                  </span>
+                )}
+                {isStroke && !parReady && selectedPlayer && (
+                  <span className="text-xs text-amber-600 ml-2">
+                    No matching par set for this player's location — using round default.
                   </span>
                 )}
               </Label>
@@ -244,7 +277,7 @@ export function AdminScoreEntryDialog({ league, players }: Props) {
 
             <div className="flex items-center justify-between rounded border p-3 bg-muted/40">
               <span className="text-sm font-medium">
-                Total ({holeLabel}){isStroke && parReady ? ` · Par ${totalPar(parPerHole)}` : ""}
+                Total ({holeLabel}){isStroke && parReady ? ` · Par ${totalPar(parPerHole)}${resolved.software ? ` (${resolved.software})` : ""}` : ""}
               </span>
               <span className="text-lg font-bold">
                 {total}

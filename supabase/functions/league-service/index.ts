@@ -1646,18 +1646,44 @@ Deno.serve(async (req) => {
 
         // Apply per-hole cap (project rule: max +4 over par per hole) for gross-stroke formats only.
         // Stableford / match_play encode different per-hole semantics so we skip the cap there.
+        // Par is resolved per player: round.course_name + player-location.software → league_par_sets,
+        // falling back to round.par_per_hole. This mirrors the leaderboard's resolver so the cap
+        // matches the pars later shown for the same score.
         let holeScores: number[] = Array.isArray(body.hole_scores) ? [...body.hole_scores] : []
         const STROKE_FORMATS = ['stroke_play', 'scramble', 'best_ball', 'skins']
         if (holeScores.length > 0 && body.round_number) {
           const { data: leagueFmt } = await supabase.from('leagues').select('format').eq('id', route.leagueId).single()
           if (leagueFmt && STROKE_FORMATS.includes(leagueFmt.format)) {
-            const { data: roundRow } = await supabase
-              .from('league_rounds')
-              .select('par_per_hole')
-              .eq('league_id', route.leagueId)
-              .eq('round_number', body.round_number)
-              .maybeSingle()
-            const parPerHole = (roundRow?.par_per_hole as number[] | null) || []
+            const [{ data: roundRow }, { data: parSetsAll }, { data: locsAll }, { data: playerRow }] = await Promise.all([
+              supabase
+                .from('league_rounds')
+                .select('par_per_hole, course_name')
+                .eq('league_id', route.leagueId)
+                .eq('round_number', body.round_number)
+                .maybeSingle(),
+              supabase.from('league_par_sets').select('course_name, software, par_per_hole').eq('league_id', route.leagueId),
+              supabase.from('league_locations').select('id, software').eq('league_id', route.leagueId),
+              supabase
+                .from('league_players')
+                .select('league_location_id, league_teams!team_id(league_location_id)')
+                .eq('league_id', route.leagueId)
+                .or(`user_id.eq.${targetPlayerId},id.eq.${targetPlayerId}`)
+                .maybeSingle(),
+            ])
+            // Resolve player's location (own, then team fallback) → software → par set.
+            const teamLoc = Array.isArray((playerRow as any)?.league_teams)
+              ? (playerRow as any).league_teams[0]?.league_location_id
+              : (playerRow as any)?.league_teams?.league_location_id
+            const locId = (playerRow as any)?.league_location_id || teamLoc || null
+            const sw = locId ? (((locsAll || []) as any[]).find((l) => l.id === locId)?.software || null) : null
+            const course = (roundRow as any)?.course_name || null
+            let parPerHole = ((roundRow?.par_per_hole as number[] | null) || [])
+            if (course && sw) {
+              const match = ((parSetsAll || []) as any[]).find((ps) => ps.course_name === course && ps.software === sw)
+              if (match && Array.isArray(match.par_per_hole) && match.par_per_hole.length > 0) {
+                parPerHole = match.par_per_hole as number[]
+              }
+            }
             if (parPerHole.length > 0) {
               const MAX_OVER_PAR = 4
               holeScores = holeScores.map((s, i) => {
@@ -1668,6 +1694,7 @@ Deno.serve(async (req) => {
             }
           }
         }
+
 
         // Calculate total from (possibly capped) holes
         let totalScore = body.total_score
