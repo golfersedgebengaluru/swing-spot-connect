@@ -50,6 +50,8 @@ export function AdminScoreEntryDialog({ league, players }: Props) {
   const { toast } = useToast();
   const submit = useSubmitScore(league.id);
   const { data: rounds } = useLeagueRounds(league.id);
+  const { data: parSets } = useLeagueParSets(league.id);
+  const { data: allLocations } = useLeagueAllLocations(league.id);
 
   const [open, setOpen] = useState(false);
   const [playerId, setPlayerId] = useState<string>("");
@@ -61,7 +63,25 @@ export function AdminScoreEntryDialog({ league, players }: Props) {
   const isStroke = (STROKE_FORMATS as readonly string[]).includes(format);
 
   const currentRound = useMemo(() => (rounds || []).find((r) => r.round_number === round), [rounds, round]);
-  const parPerHole = currentRound?.par_per_hole || [];
+  const selectedPlayer = useMemo(() => (players || []).find((p) => p.id === playerId), [players, playerId]);
+
+  // Resolve par based on selected player's location + round course.
+  // Mirrors the server-side rule used by leaderboard + score cap.
+  const resolved = useMemo(() => {
+    const playerLocationId = selectedPlayer?.league_location_id || selectedPlayer?.team_location_id || null;
+    return resolveLeaguePar({
+      playerLocationId,
+      roundCourseName: currentRound?.course_name ?? null,
+      roundParPerHole: (currentRound?.par_per_hole as number[] | undefined) || [],
+      locations: (allLocations || []).map((l) => ({ id: l.id, software: l.software ?? null })),
+      parSets: (parSets || []).map((ps) => ({
+        course_name: ps.course_name ?? null,
+        software: ps.software ?? null,
+        par_per_hole: (ps.par_per_hole as number[] | null) ?? null,
+      })),
+    });
+  }, [selectedPlayer, currentRound, allLocations, parSets]);
+  const parPerHole = resolved.par;
   const parReady = parPerHole.length === numHoles && parPerHole.every((p) => p > 0);
 
   const holeLabel = useMemo(() => {
