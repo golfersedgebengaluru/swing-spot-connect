@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { MapPin, Plus, Pencil, Trash2, Loader2, LayoutGrid, Percent } from "lucide-react";
-import { WeeklyOffEditor, HolidayEditor, PeakHoursEditor } from "./BayScheduleEditors";
+import { WeeklyOffEditor, HolidayEditor, PeakHoursEditor, DayHoursOverrideEditor } from "./BayScheduleEditors";
 import { useEffect } from "react";
 
 function CancellationFeeEditor({ city }: { city: string }) {
