@@ -12,7 +12,7 @@ export function useBayHoursOverrides(bayId?: string) {
         .eq("bay_id", bayId!)
         .order("day_of_week");
       if (error) throw error;
-      return (data ?? []) as Array<{
+      return ((data ?? []) as unknown) as Array<{
         id: string;
         bay_id: string;
         day_of_week: number;
