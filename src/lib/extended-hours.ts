@@ -52,10 +52,22 @@ const toHHMM = (t: string): string => t.slice(0, 5);
 export function getBookableWindow(
   bay: BayLike | null | undefined,
   includeExtended: boolean,
+  date?: Date | null,
 ): BookableWindow | null {
   if (!bay) return null;
-  const normalOpen = toHHMM(bay.open_time);
-  const normalClose = toHHMM(bay.close_time);
+  let normalOpen = toHHMM(bay.open_time);
+  let normalClose = toHHMM(bay.close_time);
+
+  // Apply per-weekday override, if any (fields fall back to defaults when null)
+  if (date && Array.isArray(bay.hours_overrides) && bay.hours_overrides.length > 0) {
+    const dow = date.getDay();
+    const ov = bay.hours_overrides.find((o) => o.day_of_week === dow);
+    if (ov) {
+      if (ov.open_time) normalOpen = toHHMM(ov.open_time);
+      if (ov.close_time) normalClose = toHHMM(ov.close_time);
+    }
+  }
+
   const base = { openTime: normalOpen, closeTime: normalClose, extended: false };
 
   if (
@@ -78,3 +90,4 @@ export function getBookableWindow(
     extended: openTime !== normalOpen || closeTime !== normalClose,
   };
 }
+
