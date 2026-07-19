@@ -442,6 +442,8 @@ export function BayConfigTab() {
                   <Separator />
                   <WeeklyOffEditor bayId={editing.id} city={editing.city} weeklyOffDays={(editing as any).weekly_off_days ?? []} />
                   <Separator />
+                  <DayHoursOverrideEditor bayId={editing.id} />
+                  <Separator />
                   <PeakHoursEditor bayId={editing.id} />
                 </>
               )}
