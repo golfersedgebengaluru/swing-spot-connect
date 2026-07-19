@@ -215,3 +215,52 @@ describe("admin extended-hours gating", () => {
     });
   });
 });
+
+describe("getBookableWindow — per-weekday overrides", () => {
+  const bay = {
+    open_time: "09:00",
+    close_time: "22:00",
+    hours_overrides: [
+      { day_of_week: 0, open_time: null, close_time: "18:00" }, // Sunday closes at 18:00
+      { day_of_week: 3, open_time: "07:30", close_time: "20:00" }, // Wednesday full override
+    ],
+  };
+
+  // 2024-01-07 is a Sunday, 2024-01-10 is a Wednesday, 2024-01-08 is a Monday.
+  const sunday = new Date(2024, 0, 7);
+  const wednesday = new Date(2024, 0, 10);
+  const monday = new Date(2024, 0, 8);
+
+  it("applies close-only override for Sunday and keeps default open", () => {
+    expect(getBookableWindow(bay, false, sunday)).toEqual({
+      openTime: "09:00",
+      closeTime: "18:00",
+      extended: false,
+    });
+  });
+
+  it("applies full override for Wednesday", () => {
+    expect(getBookableWindow(bay, false, wednesday)).toEqual({
+      openTime: "07:30",
+      closeTime: "20:00",
+      extended: false,
+    });
+  });
+
+  it("uses defaults on days without an override", () => {
+    expect(getBookableWindow(bay, false, monday)).toEqual({
+      openTime: "09:00",
+      closeTime: "22:00",
+      extended: false,
+    });
+  });
+
+  it("falls back to defaults when no date is supplied", () => {
+    expect(getBookableWindow(bay, false)).toEqual({
+      openTime: "09:00",
+      closeTime: "22:00",
+      extended: false,
+    });
+  });
+});
+
