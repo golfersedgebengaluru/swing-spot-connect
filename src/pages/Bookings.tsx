@@ -69,7 +69,7 @@ export default function Bookings() {
   };
 
   const includeExtended = !!(profile as any)?.extended_hours_access;
-  const bookableWindow = getBookableWindow(currentBay, includeExtended);
+  const bookableWindow = getBookableWindow(currentBay, includeExtended, selectedDate);
 
   const { data: slots, isLoading: loadingSlots } = useAvailableSlots(
     currentBay?.id,

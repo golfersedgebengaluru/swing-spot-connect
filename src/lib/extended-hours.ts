@@ -6,12 +6,19 @@
  * open/close window (e.g. early morning or late night).
  */
 
+export interface BayHoursOverride {
+  day_of_week: number; // 0=Sunday..6=Saturday
+  open_time: string | null;
+  close_time: string | null;
+}
+
 export interface BayLike {
   open_time: string;
   close_time: string;
   extended_open_time?: string | null;
   extended_close_time?: string | null;
   extended_hours_enabled?: boolean | null;
+  hours_overrides?: BayHoursOverride[] | null;
 }
 
 export interface BookableWindow {
@@ -45,10 +52,22 @@ const toHHMM = (t: string): string => t.slice(0, 5);
 export function getBookableWindow(
   bay: BayLike | null | undefined,
   includeExtended: boolean,
+  date?: Date | null,
 ): BookableWindow | null {
   if (!bay) return null;
-  const normalOpen = toHHMM(bay.open_time);
-  const normalClose = toHHMM(bay.close_time);
+  let normalOpen = toHHMM(bay.open_time);
+  let normalClose = toHHMM(bay.close_time);
+
+  // Apply per-weekday override, if any (fields fall back to defaults when null)
+  if (date && Array.isArray(bay.hours_overrides) && bay.hours_overrides.length > 0) {
+    const dow = date.getDay();
+    const ov = bay.hours_overrides.find((o) => o.day_of_week === dow);
+    if (ov) {
+      if (ov.open_time) normalOpen = toHHMM(ov.open_time);
+      if (ov.close_time) normalClose = toHHMM(ov.close_time);
+    }
+  }
+
   const base = { openTime: normalOpen, closeTime: normalClose, extended: false };
 
   if (
@@ -71,3 +90,4 @@ export function getBookableWindow(
     extended: openTime !== normalOpen || closeTime !== normalClose,
   };
 }
+

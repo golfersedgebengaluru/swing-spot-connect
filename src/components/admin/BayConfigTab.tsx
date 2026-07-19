@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { MapPin, Plus, Pencil, Trash2, Loader2, LayoutGrid, Percent } from "lucide-react";
-import { WeeklyOffEditor, HolidayEditor, PeakHoursEditor } from "./BayScheduleEditors";
+import { WeeklyOffEditor, HolidayEditor, PeakHoursEditor, DayHoursOverrideEditor } from "./BayScheduleEditors";
 import { useEffect } from "react";
 
 function CancellationFeeEditor({ city }: { city: string }) {
@@ -130,7 +130,7 @@ export function BayConfigTab() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bays")
-        .select("id, city, name, sort_order, is_active, open_time, close_time, coaching_mode, coaching_hours, coaching_cancellation_refund_hours, currency, peak_start, peak_end, weekly_off_days, extended_open_time, extended_close_time, extended_hours_enabled, created_at, updated_at")
+        .select("id, city, name, sort_order, is_active, open_time, close_time, coaching_mode, coaching_hours, coaching_cancellation_refund_hours, currency, peak_start, peak_end, weekly_off_days, extended_open_time, extended_close_time, extended_hours_enabled, created_at, updated_at, hours_overrides:bay_hours_overrides(day_of_week, open_time, close_time)")
         .order("city")
         .order("sort_order");
       if (error) throw error;
@@ -441,6 +441,8 @@ export function BayConfigTab() {
                 <>
                   <Separator />
                   <WeeklyOffEditor bayId={editing.id} city={editing.city} weeklyOffDays={(editing as any).weekly_off_days ?? []} />
+                  <Separator />
+                  <DayHoursOverrideEditor bayId={editing.id} />
                   <Separator />
                   <PeakHoursEditor bayId={editing.id} />
                 </>

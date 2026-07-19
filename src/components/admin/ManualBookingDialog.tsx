@@ -129,7 +129,7 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
   const customerHasExtendedAccess = !!selectedProfile?.extended_hours_access;
   const canUseExtended = customerHasExtendedAccess && !!currentBay?.extended_hours_enabled;
   const effectiveShowExtended = showExtended && canUseExtended;
-  const bookableWindow = getBookableWindow(currentBay as any, effectiveShowExtended);
+  const bookableWindow = getBookableWindow(currentBay as any, effectiveShowExtended, selectedDate);
   const { data: availableSlots, isLoading: slotsLoading } = useAvailableSlots(
     currentBay?.id,
     slotDate,

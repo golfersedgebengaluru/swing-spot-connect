@@ -218,6 +218,41 @@ export type Database = {
           },
         ]
       }
+      bay_hours_overrides: {
+        Row: {
+          bay_id: string
+          close_time: string | null
+          created_at: string
+          day_of_week: number
+          id: string
+          open_time: string | null
+        }
+        Insert: {
+          bay_id: string
+          close_time?: string | null
+          created_at?: string
+          day_of_week: number
+          id?: string
+          open_time?: string | null
+        }
+        Update: {
+          bay_id?: string
+          close_time?: string | null
+          created_at?: string
+          day_of_week?: number
+          id?: string
+          open_time?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bay_hours_overrides_bay_id_fkey"
+            columns: ["bay_id"]
+            isOneToOne: false
+            referencedRelation: "bays"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bay_peak_hours: {
         Row: {
           bay_id: string

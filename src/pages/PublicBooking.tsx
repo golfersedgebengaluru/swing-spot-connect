@@ -85,7 +85,7 @@ export default function PublicBooking() {
   // Guests always get the normal window. No toggle is shown — matches the design
   // where eligible members see extended slots transparently on login.
   const includeExtended = !!user && !!(profile as any)?.extended_hours_access;
-  const bookableWindow = getBookableWindow(currentBay as any, includeExtended);
+  const bookableWindow = getBookableWindow(currentBay as any, includeExtended, selectedDate);
 
   // Fetch real-time slots for ALL users (including guests)
   const { data: slots, isLoading: loadingSlots } = useAvailableSlots(

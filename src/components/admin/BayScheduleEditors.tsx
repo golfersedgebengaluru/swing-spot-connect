@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { getDayName } from "@/lib/bay-schedule-utils";
 import { useBayHolidays, useAddBayHoliday, useDeleteBayHoliday } from "@/hooks/useBayHolidays";
 import { useBayPeakHours, useAddBayPeakHour, useDeleteBayPeakHour } from "@/hooks/useBayPeakHours";
+import { useBayHoursOverrides, useUpsertBayHoursOverride, useDeleteBayHoursOverride } from "@/hooks/useBayHoursOverrides";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -264,3 +265,90 @@ export function PeakHoursEditor({ bayId }: PeakHoursEditorProps) {
     </div>
   );
 }
+
+interface DayHoursOverrideEditorProps {
+  bayId: string;
+}
+
+export function DayHoursOverrideEditor({ bayId }: DayHoursOverrideEditorProps) {
+  const { data: overrides = [] } = useBayHoursOverrides(bayId);
+  const upsert = useUpsertBayHoursOverride();
+  const del = useDeleteBayHoursOverride();
+
+  const [newDay, setNewDay] = useState<string>("0");
+  const [newOpen, setNewOpen] = useState<string>("");
+  const [newClose, setNewClose] = useState<string>("");
+
+  const handleAdd = () => {
+    if (!newOpen && !newClose) return;
+    upsert.mutate(
+      {
+        bay_id: bayId,
+        day_of_week: Number(newDay),
+        open_time: newOpen || null,
+        close_time: newClose || null,
+      },
+      {
+        onSuccess: () => {
+          setNewOpen("");
+          setNewClose("");
+        },
+      },
+    );
+  };
+
+  const sorted = [...overrides].sort((a, b) => a.day_of_week - b.day_of_week);
+
+  return (
+    <div className="space-y-3">
+      <Label className="text-sm font-medium">Day-specific Hours</Label>
+      <p className="text-xs text-muted-foreground">
+        Override the bay's default open/close time on specific weekdays. Leave open or close blank to keep the bay's default for that field.
+      </p>
+
+      {sorted.length > 0 && (
+        <div className="space-y-1">
+          {sorted.map((o) => (
+            <div key={o.id} className="flex items-center gap-2 text-sm">
+              <Badge variant="outline" className="text-xs">{getDayName(o.day_of_week)}</Badge>
+              <span>
+                {o.open_time ? o.open_time.slice(0, 5) : "default"} – {o.close_time ? o.close_time.slice(0, 5) : "default"}
+              </span>
+              <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => del.mutate(o.id)}>
+                <Trash2 className="h-3 w-3 text-destructive" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-end gap-2 flex-wrap">
+        <div>
+          <Label className="text-xs">Day</Label>
+          <Select value={newDay} onValueChange={setNewDay}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DAY_OPTIONS.map((d) => (
+                <SelectItem key={d.value} value={String(d.value)}>{d.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Open</Label>
+          <Input type="time" value={newOpen} onChange={(e) => setNewOpen(e.target.value)} className="w-[110px]" />
+        </div>
+        <div>
+          <Label className="text-xs">Close</Label>
+          <Input type="time" value={newClose} onChange={(e) => setNewClose(e.target.value)} className="w-[110px]" />
+        </div>
+        <Button size="sm" onClick={handleAdd} disabled={(!newOpen && !newClose) || upsert.isPending}>
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
