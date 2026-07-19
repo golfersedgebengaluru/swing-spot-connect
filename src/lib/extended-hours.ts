@@ -6,12 +6,19 @@
  * open/close window (e.g. early morning or late night).
  */
 
+export interface BayHoursOverride {
+  day_of_week: number; // 0=Sunday..6=Saturday
+  open_time: string | null;
+  close_time: string | null;
+}
+
 export interface BayLike {
   open_time: string;
   close_time: string;
   extended_open_time?: string | null;
   extended_close_time?: string | null;
   extended_hours_enabled?: boolean | null;
+  hours_overrides?: BayHoursOverride[] | null;
 }
 
 export interface BookableWindow {
