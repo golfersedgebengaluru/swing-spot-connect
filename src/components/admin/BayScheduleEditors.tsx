@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { getDayName } from "@/lib/bay-schedule-utils";
 import { useBayHolidays, useAddBayHoliday, useDeleteBayHoliday } from "@/hooks/useBayHolidays";
 import { useBayPeakHours, useAddBayPeakHour, useDeleteBayPeakHour } from "@/hooks/useBayPeakHours";
+import { useBayHoursOverrides, useUpsertBayHoursOverride, useDeleteBayHoursOverride } from "@/hooks/useBayHoursOverrides";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
