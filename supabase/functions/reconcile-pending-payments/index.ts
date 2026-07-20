@@ -183,6 +183,78 @@ Deno.serve(async (req) => {
     }
   }
 
+  // ── 1b. Signed-in member bookings ──────────────────────────────
+  const { data: memberRows } = await admin
+    .from("pending_bookings")
+    .select("id, razorpay_order_id, city, created_at")
+    .in("status", RECOVERABLE_STATUSES)
+    .lt("created_at", sinceIso)
+    .gt("created_at", cutoffIso)
+    .limit(50);
+
+  for (const row of memberRows ?? []) {
+    summary.member_bookings.checked++;
+    try {
+      const creds = await getGateway(row.city);
+      if (!creds) {
+        summary.member_bookings.errors.push(`no gateway for ${row.city}`);
+        continue;
+      }
+      const { order, payment, error } = await fetchRazorpayOrder(
+        row.razorpay_order_id,
+        creds.key_id,
+        creds.key_secret,
+      );
+      if (error || !order) {
+        summary.member_bookings.errors.push(`${row.razorpay_order_id}: ${error}`);
+        continue;
+      }
+      if (order.status !== "paid") {
+        summary.member_bookings.still_pending++;
+        continue;
+      }
+      const invokeRes = await fetch(`${supabaseUrl}/functions/v1/calendar-sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+        body: JSON.stringify({
+          action: "finalize_pending_member_booking",
+          razorpay_order_id: row.razorpay_order_id,
+          payment_id: payment?.id ?? "cron_reconciled",
+        }),
+      });
+      if (invokeRes.ok) {
+        summary.member_bookings.finalized++;
+      } else {
+        const body = await invokeRes.text();
+        summary.member_bookings.errors.push(`${row.razorpay_order_id} invoke ${invokeRes.status}: ${body.slice(0, 200)}`);
+      }
+    } catch (e) {
+      summary.member_bookings.errors.push(`${row.razorpay_order_id}: ${(e as Error).message}`);
+    }
+  }
+
+  // Flip member pending rows to 'failed' when Razorpay confirms not paid after 30 min
+  const { data: memberMaybeFailed } = await admin
+    .from("pending_bookings")
+    .select("id, razorpay_order_id, city")
+    .in("status", RECOVERABLE_STATUSES)
+    .lt("created_at", failCutoff)
+    .gt("created_at", cutoffIso)
+    .limit(50);
+  for (const row of memberMaybeFailed ?? []) {
+    const creds = await getGateway(row.city);
+    if (!creds) continue;
+    const { order } = await fetchRazorpayOrder(row.razorpay_order_id, creds.key_id, creds.key_secret);
+    if (order && order.status !== "paid") {
+      await admin.from("pending_bookings").update({
+        status: "failed",
+        error_message: `Razorpay order status=${order.status} after 30 min`,
+      }).eq("id", row.id);
+      summary.member_bookings.failed++;
+    }
+  }
+
+
   // ── 2. Hour purchases ──────────────────────────────────────────
   const { data: hpRows } = await admin
     .from("pending_purchases")
