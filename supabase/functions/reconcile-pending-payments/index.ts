@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
 
   const summary = {
     guest_bookings: { checked: 0, finalized: 0, failed: 0, still_pending: 0, errors: [] as string[] },
+    member_bookings: { checked: 0, finalized: 0, failed: 0, still_pending: 0, errors: [] as string[] },
     hour_purchases: { checked: 0, finalized: 0, failed: 0, still_pending: 0, errors: [] as string[] },
     legacy_teams: { checked: 0, finalized: 0, failed: 0, still_pending: 0, errors: [] as string[] },
     qc_entries: { checked: 0, finalized: 0, already_paid: 0, still_pending: 0, errors: [] as string[] },
