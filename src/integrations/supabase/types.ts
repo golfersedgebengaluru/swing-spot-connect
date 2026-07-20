@@ -4103,6 +4103,81 @@ export type Database = {
           },
         ]
       }
+      pending_bookings: {
+        Row: {
+          amount: number
+          bay_id: string | null
+          bay_name: string | null
+          booking_id: string | null
+          city: string
+          coupon_code: string | null
+          created_at: string
+          currency: string
+          discount_amount: number
+          display_name: string | null
+          duration_minutes: number
+          end_time: string
+          error_message: string | null
+          finalized_at: string | null
+          id: string
+          original_amount: number | null
+          razorpay_order_id: string
+          session_type: string | null
+          start_time: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          bay_id?: string | null
+          bay_name?: string | null
+          booking_id?: string | null
+          city: string
+          coupon_code?: string | null
+          created_at?: string
+          currency: string
+          discount_amount?: number
+          display_name?: string | null
+          duration_minutes: number
+          end_time: string
+          error_message?: string | null
+          finalized_at?: string | null
+          id?: string
+          original_amount?: number | null
+          razorpay_order_id: string
+          session_type?: string | null
+          start_time: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          bay_id?: string | null
+          bay_name?: string | null
+          booking_id?: string | null
+          city?: string
+          coupon_code?: string | null
+          created_at?: string
+          currency?: string
+          discount_amount?: number
+          display_name?: string | null
+          duration_minutes?: number
+          end_time?: string
+          error_message?: string | null
+          finalized_at?: string | null
+          id?: string
+          original_amount?: number | null
+          razorpay_order_id?: string
+          session_type?: string | null
+          start_time?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pending_guest_bookings: {
         Row: {
           amount: number
