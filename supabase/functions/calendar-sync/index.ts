@@ -1242,6 +1242,181 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Finalize a signed-in member booking from a pending_bookings row.
+    // Called by razorpay-webhook and reconcile-pending-payments (service role).
+    // Fully idempotent via a status CAS: only the first caller that flips
+    // 'pending' → 'processing' actually creates the booking.
+    if (action === "finalize_pending_member_booking") {
+      const { razorpay_order_id, payment_id } = params as {
+        razorpay_order_id?: string;
+        payment_id?: string | null;
+      };
+      if (!razorpay_order_id) {
+        return new Response(
+          JSON.stringify({ error: "razorpay_order_id required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const adminClient = createAdminClient();
+
+      // Atomic claim: only rows currently 'pending' or webhook_error/failed can be picked up.
+      const { data: claimed, error: claimErr } = await adminClient
+        .from("pending_bookings")
+        .update({ status: "processing" })
+        .eq("razorpay_order_id", razorpay_order_id)
+        .in("status", ["pending", "webhook_error", "failed", "error", "signature_failed"])
+        .select("*")
+        .maybeSingle();
+
+      if (claimErr) {
+        console.error(`[calendar-sync] finalize_pending_member_booking claim failed: ${claimErr.message}`);
+        return new Response(
+          JSON.stringify({ error: "claim failed", detail: claimErr.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      if (!claimed) {
+        // Already completed / processing by another caller. Return existing booking id if any.
+        const { data: existing } = await adminClient
+          .from("pending_bookings")
+          .select("status, booking_id")
+          .eq("razorpay_order_id", razorpay_order_id)
+          .maybeSingle();
+        return new Response(
+          JSON.stringify({ status: "already_finalized", booking_id: existing?.booking_id ?? null }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const row = claimed;
+
+      const release = async (errMsg: string, finalStatus = "webhook_error") => {
+        await adminClient
+          .from("pending_bookings")
+          .update({ status: finalStatus, error_message: errMsg })
+          .eq("id", row.id);
+      };
+
+      try {
+        // Overlap check
+        const overlapQuery = adminClient
+          .from("bookings")
+          .select("id")
+          .in("status", ["confirmed", "pending"])
+          .gt("end_time", row.start_time)
+          .lt("start_time", row.end_time);
+        if (row.bay_id) overlapQuery.eq("bay_id", row.bay_id);
+        else overlapQuery.eq("city", row.city);
+        const { data: existingBookings } = await overlapQuery;
+        if (existingBookings && existingBookings.length > 0) {
+          await release("slot no longer available", "failed");
+          return new Response(
+            JSON.stringify({ error: "slot no longer available" }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+
+        const bayLabel = row.bay_name || row.city;
+        const isCoaching = row.session_type === "coaching";
+
+        const { data: booking, error: bookingError } = await adminClient
+          .from("bookings")
+          .insert({
+            user_id: row.user_id,
+            city: row.city,
+            start_time: row.start_time,
+            end_time: row.end_time,
+            duration_minutes: row.duration_minutes,
+            status: "confirmed",
+            session_type: row.session_type || "practice",
+            bay_id: row.bay_id || null,
+            calendar_event_id: null,
+            note: "[Auto-finalized by payment webhook]",
+          })
+          .select()
+          .single();
+
+        if (bookingError) {
+          if ((bookingError as any).code === "23P01") {
+            await release("db overlap", "failed");
+            return new Response(
+              JSON.stringify({ error: "slot no longer available" }),
+              { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
+          await release(`booking insert failed: ${bookingError.message}`);
+          throw bookingError;
+        }
+
+        // Revenue transaction
+        try {
+          await adminClient.from("revenue_transactions").insert({
+            transaction_type: "payment",
+            amount: row.amount || 0,
+            currency: row.currency || "INR",
+            user_id: row.user_id,
+            gateway_name: "razorpay",
+            gateway_order_ref: row.razorpay_order_id,
+            gateway_payment_ref: payment_id || "webhook_reconciled",
+            booking_id: booking.id,
+            description: `Payment - ${bayLabel} - ${row.display_name || "Member"}`,
+            status: "confirmed",
+            city: row.city,
+          });
+        } catch (e) {
+          console.error("[calendar-sync] finalize_pending_member_booking revenue insert failed:", (e as Error).message);
+        }
+
+        // Google Calendar event (best-effort)
+        try {
+          const sakStr = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
+          const calendar_email = await resolveCalendarEmail(adminClient, { bay_id: row.bay_id, city: row.city });
+          if (sakStr && calendar_email) {
+            const sak = JSON.parse(sakStr);
+            const accessToken = await getAccessToken(sak);
+            const calTz = await getCalendarTimezone(accessToken, calendar_email);
+            const summary = `${bayLabel} - ${row.display_name || "Member"}${isCoaching ? " (Coaching)" : ""}`;
+            const desc = `Booked by ${row.display_name || "Member"} via Golfer's Edge${isCoaching ? " - Coaching Session" : ""}`;
+            const calEvent = await createEvent(accessToken, calendar_email, summary, row.start_time, row.end_time, calTz, desc);
+            await adminClient.from("bookings").update({ calendar_event_id: calEvent.id }).eq("id", booking.id);
+          }
+        } catch (e) {
+          console.error("[calendar-sync] finalize_pending_member_booking calendar event failed:", (e as Error).message);
+        }
+
+        // Notify member
+        try {
+          await adminClient.from("notifications").insert({
+            user_id: row.user_id,
+            title: "Bay Booked!",
+            message: `Your ${bayLabel} booking has been confirmed.`,
+            type: "booking",
+          });
+        } catch (_) {}
+
+        // Mark completed
+        await adminClient
+          .from("pending_bookings")
+          .update({
+            status: "completed",
+            booking_id: booking.id,
+            finalized_at: new Date().toISOString(),
+            error_message: null,
+          })
+          .eq("id", row.id);
+
+        return new Response(
+          JSON.stringify({ booking }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      } catch (e) {
+        await release(`unexpected error: ${(e as Error).message}`);
+        throw e;
+      }
+    }
+
+
     // All other actions require authentication
     const serviceAccountKeyStr = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
     if (!serviceAccountKeyStr) throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY not configured");

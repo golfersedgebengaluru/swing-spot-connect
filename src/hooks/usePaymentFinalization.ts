@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 type PendingTable =
   | "pending_guest_bookings"
+  | "pending_bookings"
   | "pending_purchases"
   | "pending_legacy_league_team_registrations";
 

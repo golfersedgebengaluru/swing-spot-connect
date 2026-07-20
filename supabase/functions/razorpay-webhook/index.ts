@@ -208,7 +208,41 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.error(`[razorpay-webhook] payment lookup failed for order=${razorpayOrderId}: ${(e as Error).message}`);
       }
+    // --- Reconcile signed-in member bookings ---
+    const { data: pendingMember } = await adminClient
+      .from("pending_bookings")
+      .select("id, status")
+      .eq("razorpay_order_id", razorpayOrderId)
+      .in("status", RECOVERABLE_STATUSES)
+      .maybeSingle();
+
+    if (pendingMember) {
+      console.log(`Webhook reconciling member booking for order ${razorpayOrderId} (prev status=${pendingMember.status})`);
+      try {
+        const invokeRes = await fetch(`${supabaseUrl}/functions/v1/calendar-sync`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({
+            action: "finalize_pending_member_booking",
+            razorpay_order_id: razorpayOrderId,
+            payment_id: razorpayPaymentId || null,
+          }),
+        });
+        if (!invokeRes.ok) {
+          const errBody = await invokeRes.text();
+          console.error("Webhook finalize_pending_member_booking invoke failed:", invokeRes.status, errBody);
+        } else {
+          console.log(`Webhook successfully reconciled member booking for order ${razorpayOrderId}`);
+        }
+      } catch (reconcileErr) {
+        console.error("Webhook member reconciliation error:", (reconcileErr as Error).message);
+      }
     }
+
+
 
     // --- Mark bookings/orders as paid ---
     await adminClient
