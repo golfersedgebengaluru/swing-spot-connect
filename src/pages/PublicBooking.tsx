@@ -314,6 +314,20 @@ export default function PublicBooking() {
                   } catch (e) {
                     console.error("Failed to create revenue transaction:", e);
                   }
+                  // Mark pending_bookings row completed so the webhook does not
+                  // try to re-finalize this order.
+                  try {
+                    await supabase
+                      .from("pending_bookings")
+                      .update({
+                        status: "completed",
+                        booking_id: (bookingResult as any)?.booking?.id || null,
+                        finalized_at: new Date().toISOString(),
+                      })
+                      .eq("razorpay_order_id", response.razorpay_order_id);
+                  } catch (e) {
+                    console.error("Failed to mark pending_bookings completed (non-fatal):", e);
+                  }
                 } else {
                   // Webhook (authoritative) finalizes via pending_guest_bookings.
                   // Browser only polls — never calls calendar-sync directly.
