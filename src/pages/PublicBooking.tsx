@@ -199,9 +199,11 @@ export default function PublicBooking() {
 
         const { order_id, key_id, currency: rzpCurrency } = orderRes.data;
 
-        // 1b. For guest checkouts, stash booking params server-side BEFORE opening checkout.
-        // This lets the razorpay-webhook finalize the booking even if the browser handler never fires
+        // 1b. Stash a pending row server-side BEFORE opening checkout, so the
+        // razorpay-webhook can finalize even if the browser handler never fires
         // (e.g., user closes the tab, network drops, or phone locks after payment).
+        // Both guest AND signed-in flows use this — signed-in stashes into
+        // pending_bookings, guests into pending_guest_bookings.
         if (!user) {
           try {
             await supabase.from("pending_guest_bookings").insert({
@@ -224,7 +226,28 @@ export default function PublicBooking() {
             });
           } catch (e) {
             console.error("Failed to stash pending guest booking (non-fatal):", e);
-            // Non-fatal: browser handler will still try to finalize
+          }
+        } else {
+          try {
+            await supabase.from("pending_bookings").insert({
+              razorpay_order_id: order_id,
+              user_id: user.id,
+              city: selectedCity,
+              bay_id: currentBay.id,
+              bay_name: currentBay.name,
+              start_time: selectedSlot,
+              end_time: endTime,
+              duration_minutes: duration,
+              session_type: sessionType,
+              display_name: user.user_metadata?.display_name || user.email,
+              amount: amountToCharge,
+              currency: currentPrice?.currency || "INR",
+              coupon_code: appliedCoupon?.code || null,
+              discount_amount: couponDiscount || 0,
+              original_amount: totalCost,
+            });
+          } catch (e) {
+            console.error("Failed to stash pending member booking (non-fatal):", e);
           }
         }
 
