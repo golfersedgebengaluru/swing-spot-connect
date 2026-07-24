@@ -180,6 +180,9 @@ export default function Auth() {
   const handleOAuthSignIn = async (provider: "google" | "apple") => {
     const { error } = await lovable.auth.signInWithOAuth(provider, {
       redirect_uri: `${window.location.origin}${redirectTo}`,
+      ...(provider === "google" && {
+        extraParams: { prompt: "select_account" },
+      }),
     });
     if (error) {
       toast({
