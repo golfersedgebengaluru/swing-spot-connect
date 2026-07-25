@@ -2802,6 +2802,7 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
                   <TableHead>Method</TableHead>
                   <TableHead>Confirmed</TableHead>
                   <TableHead>Submitted</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -2825,6 +2826,13 @@ function LeagueDetail({ league, tenant }: { league: League; tenant: Tenant }) {
                     <TableCell><Badge variant="secondary">{s.method}</Badge></TableCell>
                     <TableCell>{s.confirmed_at ? "✓" : "Pending"}</TableCell>
                     <TableCell>{format(new Date(s.created_at), "PP p")}</TableCell>
+                    <TableCell className="text-right">
+                      <AdminScoreEditActions
+                        leagueId={league.id}
+                        score={s as any}
+                        numHoles={league.scoring_holes || (s.hole_scores?.length ?? 18)}
+                      />
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
