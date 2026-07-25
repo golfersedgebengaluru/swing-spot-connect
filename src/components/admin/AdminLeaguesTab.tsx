@@ -22,6 +22,7 @@ import { BaySchedulingPanel } from "@/components/admin/league/BaySchedulingPanel
 import { SeasonWrapUpPanel } from "@/components/admin/league/SeasonWrapUpPanel";
 import { LocationAssignCell } from "@/components/admin/league/LocationAssignCell";
 import { AdminScoreEntryDialog } from "@/components/admin/league/AdminScoreEntryDialog";
+import { AdminScoreEditActions } from "@/components/admin/league/AdminScoreEditDialog";
 import { RevealedRoundScores } from "@/components/league/RevealedRoundScores";
 import { ParsPanel } from "@/components/admin/league/ParsPanel";
 import { CitiesLocationsPanel } from "@/components/admin/league/CitiesLocationsPanel";
