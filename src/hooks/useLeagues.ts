@@ -449,6 +449,36 @@ export function useConfirmScore(leagueId: string) {
   });
 }
 
+export function useEditScore(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (body: { score_id: string; hole_scores?: number[]; total_score?: number; reason: string }) =>
+      invoke(`/leagues/${leagueId}/scores`, "PUT", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-scores", leagueId] });
+      qc.invalidateQueries({ queryKey: ["league-audit-log"] });
+      toast({ title: "Score updated" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
+export function useDeleteScore(leagueId: string) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: (body: { score_id: string; reason: string }) =>
+      invoke(`/leagues/${leagueId}/scores`, "DELETE", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["league-scores", leagueId] });
+      qc.invalidateQueries({ queryKey: ["league-audit-log"] });
+      toast({ title: "Score deleted" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+}
+
 // ── Branding ─────────────────────────────────────────────────
 export function useLeagueBranding(leagueId: string | null) {
   return useQuery<LeagueBranding | null>({
