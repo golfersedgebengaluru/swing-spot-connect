@@ -1747,6 +1747,59 @@ Deno.serve(async (req) => {
         await audit(supabase, tenantId, route.leagueId, user.id, 'player', 'ScoreConfirmed', 'league_score', body.score_id, before, updated)
         return json(updated)
       }
+
+      // Admin edit of a submitted score (with mandatory audit reason)
+      if (method === 'PUT') {
+        const role = await getUserLeagueRole(supabase, user.id, tenantId)
+        if (role !== 'franchise_admin' && role !== 'site_admin' && role !== 'league_admin') {
+          return err('Only admins can edit scores', 403)
+        }
+        const body = await req.json()
+        if (!body.score_id) return err('score_id is required')
+        const reason = typeof body.reason === 'string' ? body.reason.trim() : ''
+        if (!reason) return err('A reason is required to edit a score')
+
+        const { data: before } = await supabase.from('league_scores').select('*').eq('id', body.score_id).single()
+        if (!before || before.league_id !== route.leagueId) return err('Score not found', 404)
+
+        const updates: Record<string, any> = {}
+        if (Array.isArray(body.hole_scores)) {
+          updates.hole_scores = body.hole_scores
+          updates.total_score = body.hole_scores.reduce((sum: number, s: number) => sum + (Number(s) || 0), 0)
+        } else if (typeof body.total_score === 'number') {
+          updates.total_score = body.total_score
+        } else {
+          return err('hole_scores or total_score required')
+        }
+
+        const { data: updated, error } = await supabase.from('league_scores').update(updates).eq('id', body.score_id).select().single()
+        if (error) return err(error.message, 500)
+
+        await audit(supabase, tenantId, route.leagueId, user.id, role, 'ScoreEdited', 'league_score', body.score_id, before, { ...updated, edit_reason: reason })
+        return json(updated)
+      }
+
+      // Admin delete of a submitted score (with mandatory audit reason)
+      if (method === 'DELETE') {
+        const role = await getUserLeagueRole(supabase, user.id, tenantId)
+        if (role !== 'franchise_admin' && role !== 'site_admin' && role !== 'league_admin') {
+          return err('Only admins can delete scores', 403)
+        }
+        const body = await req.json().catch(() => ({}))
+        if (!body.score_id) return err('score_id is required')
+        const reason = typeof body.reason === 'string' ? body.reason.trim() : ''
+        if (!reason) return err('A reason is required to delete a score')
+
+        const { data: before } = await supabase.from('league_scores').select('*').eq('id', body.score_id).single()
+        if (!before || before.league_id !== route.leagueId) return err('Score not found', 404)
+
+        const { error } = await supabase.from('league_scores').delete().eq('id', body.score_id)
+        if (error) return err(error.message, 500)
+
+        await audit(supabase, tenantId, route.leagueId, user.id, role, 'ScoreDeleted', 'league_score', body.score_id, before, { delete_reason: reason })
+        return json({ success: true })
+      }
+
       return err('Method not allowed', 405)
     }
 
