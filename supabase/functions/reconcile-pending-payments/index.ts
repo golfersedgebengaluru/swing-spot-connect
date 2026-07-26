@@ -239,7 +239,8 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           action: "finalize_pending_member_booking",
           razorpay_order_id: row.razorpay_order_id,
-          payment_id: payment?.id ?? "cron_reconciled",
+          payment_id: capturedPaymentId ?? "cron_reconciled",
+
         }),
       });
       if (invokeRes.ok) {
