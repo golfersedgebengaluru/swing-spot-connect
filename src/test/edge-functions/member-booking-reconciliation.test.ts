@@ -20,16 +20,17 @@ describe("razorpay-webhook member-booking reconciliation nesting fix", () => {
   // reconciliation block was accidentally nested inside the "payment id missing"
   // branch, so normal payment.captured events skipped member finalization.
   it("looks up pending_bookings unconditionally on every success event", () => {
-    // The pending_bookings lookup must not be gated on a missing payment id.
-    // We assert the lookup appears OUTSIDE the `if (!razorpayPaymentId ...)` block.
-    const idx = webhookSrc.indexOf('.from("pending_bookings")');
-    expect(idx).toBeGreaterThan(0);
-    const before = webhookSrc.slice(0, idx);
-    // The closest preceding `if (` line must NOT be the payment-id-missing branch.
-    const lastIf = before.lastIndexOf("if (");
-    const enclosingIf = before.slice(lastIf, lastIf + 200);
-    expect(enclosingIf).not.toMatch(/!razorpayPaymentId/);
+    // The payment-id-missing lookup block must fully close BEFORE the
+    // pending_bookings reconciliation begins.
+    const paymentIdBranch = webhookSrc.indexOf("if (!razorpayPaymentId");
+    const pendingLookup = webhookSrc.indexOf('.from("pending_bookings")');
+    expect(paymentIdBranch).toBeGreaterThan(0);
+    expect(pendingLookup).toBeGreaterThan(paymentIdBranch);
+    // Between the two, there must be a closing brace at column 4 (end of the branch).
+    const between = webhookSrc.slice(paymentIdBranch, pendingLookup);
+    expect(between).toMatch(/\n {4}}\n/);
   });
+
 
   it("has an explicit comment documenting the nesting fix (prevents regressions)", () => {
     expect(webhookSrc).toMatch(/MUST run for every successful payment[\s\S]{0,400}nested/);
