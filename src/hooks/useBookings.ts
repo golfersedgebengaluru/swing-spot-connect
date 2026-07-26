@@ -42,12 +42,19 @@ export function useAvailableSlots(
   date: string | undefined,
   openTime: string | undefined,
   closeTime: string | undefined,
-  options: { refetchInterval?: number; includeExtended?: boolean; adminMode?: boolean } = {}
+  options: { refetchInterval?: number | false; includeExtended?: boolean; adminMode?: boolean } = {}
 ) {
-  const { includeExtended, adminMode, ...queryOptions } = options;
+  const { includeExtended, adminMode, refetchInterval, ...rest } = options;
+  // Default: re-poll every 30s and on window focus while the picker is open.
+  // This ensures manual Google Calendar blocks added after the customer loaded
+  // the page disappear from their view within ~30s — no manual refresh needed.
+  // Callers can pass `refetchInterval: false` to opt out (admin dialogs).
+  const effectiveRefetchInterval = refetchInterval === undefined ? 30000 : refetchInterval;
   return useQuery({
     queryKey: ["available_slots", bayId, date, openTime, closeTime, !!includeExtended, !!adminMode],
     enabled: !!bayId && !!date && !!openTime && !!closeTime,
+    refetchInterval: effectiveRefetchInterval,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       // calendar_email is resolved server-side from bay_id (private column,
       // hidden from anonymous visitors).
@@ -69,9 +76,10 @@ export function useAvailableSlots(
       }
       return res.data.slots as { time: string; available: boolean }[];
     },
-    ...queryOptions,
+    ...rest,
   });
 }
+
 
 export function useCities() {
   return useQuery({

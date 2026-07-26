@@ -208,7 +208,14 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.error(`[razorpay-webhook] payment lookup failed for order=${razorpayOrderId}: ${(e as Error).message}`);
       }
+    }
+
     // --- Reconcile signed-in member bookings ---
+    // NOTE: This block MUST run for every successful payment, not just the
+    // payment-id-lookup edge case above. Previously it was accidentally nested
+    // inside the `if (!razorpayPaymentId ...)` branch, which meant normal
+    // payment.captured events (which always carry a payment id) skipped
+    // member-booking finalization and left pending_bookings orphaned.
     const { data: pendingMember } = await adminClient
       .from("pending_bookings")
       .select("id, status")
@@ -241,6 +248,8 @@ Deno.serve(async (req) => {
         console.error("Webhook member reconciliation error:", (reconcileErr as Error).message);
       }
     }
+
+
 
 
 

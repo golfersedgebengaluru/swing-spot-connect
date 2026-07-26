@@ -205,21 +205,42 @@ Deno.serve(async (req) => {
         creds.key_id,
         creds.key_secret,
       );
-      if (error || !order) {
-        summary.member_bookings.errors.push(`${row.razorpay_order_id}: ${error}`);
+
+      // Trust payment_events as a signed, verified fallback when the live
+      // Razorpay lookup fails (e.g. rotated keys). payment_events rows are
+      // written only after HMAC verification, so a captured event there is
+      // authoritative proof of payment.
+      let capturedPaymentId: string | null = payment?.id ?? null;
+      let orderPaid = order?.status === "paid";
+      if (!orderPaid) {
+        const { data: evt } = await admin
+          .from("payment_events")
+          .select("razorpay_payment_id")
+          .eq("razorpay_order_id", row.razorpay_order_id)
+          .in("event_type", ["payment.captured", "order.paid"])
+          .not("razorpay_payment_id", "is", null)
+          .limit(1)
+          .maybeSingle();
+        if (evt?.razorpay_payment_id) {
+          orderPaid = true;
+          capturedPaymentId = evt.razorpay_payment_id;
+        }
+      }
+
+      if (!orderPaid) {
+        if (error) summary.member_bookings.errors.push(`${row.razorpay_order_id}: ${error}`);
+        else summary.member_bookings.still_pending++;
         continue;
       }
-      if (order.status !== "paid") {
-        summary.member_bookings.still_pending++;
-        continue;
-      }
+
       const invokeRes = await fetch(`${supabaseUrl}/functions/v1/calendar-sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
         body: JSON.stringify({
           action: "finalize_pending_member_booking",
           razorpay_order_id: row.razorpay_order_id,
-          payment_id: payment?.id ?? "cron_reconciled",
+          payment_id: capturedPaymentId ?? "cron_reconciled",
+
         }),
       });
       if (invokeRes.ok) {
