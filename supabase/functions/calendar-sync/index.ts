@@ -343,6 +343,19 @@ async function notifyAdminsInApp(adminClient: any, adminIds: string[], title: st
   }
 }
 
+// Wiring for the shared booking-notification module (used by both the browser
+// booking flow and the payment-webhook recovery flow).
+const bookingNotifyHelpers: BookingNotificationHelpers = {
+  resolveDisplayName: (admin, userId, fallback) => resolveProfileDisplayName(admin, userId, fallback),
+  getAdminIds: (admin, city, exclude) => getAdminAndSiteAdminIds(admin, city, exclude),
+  notifyAdminsInApp: (admin, ids, title, message, actionUrl) =>
+    notifyAdminsInApp(admin, ids, title, message, actionUrl),
+  notifyAdminsByEmail: (admin, ids, template, subject, data) =>
+    notifyAdmins(admin, ids, template, subject, data),
+};
+
+
+
 // Disposition-aware cancellation: advance_credit (park as customer advance) or external_refund (record net refund after fee).
 async function handleCancellationDisposition(
   adminClient: any,
