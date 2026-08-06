@@ -1386,6 +1386,7 @@ Deno.serve(async (req) => {
         }
 
         // Google Calendar event (best-effort)
+        let notifyTz = "Asia/Kolkata";
         try {
           const sakStr = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
           const calendar_email = await resolveCalendarEmail(adminClient, { bay_id: row.bay_id, city: row.city });
@@ -1393,6 +1394,7 @@ Deno.serve(async (req) => {
             const sak = JSON.parse(sakStr);
             const accessToken = await getAccessToken(sak);
             const calTz = await getCalendarTimezone(accessToken, calendar_email);
+            notifyTz = calTz || notifyTz;
             const summary = `${bayLabel} - ${row.display_name || "Member"}${isCoaching ? " (Coaching)" : ""}`;
             const desc = `Booked by ${row.display_name || "Member"} via Golfer's Edge${isCoaching ? " - Coaching Session" : ""}`;
             const calEvent = await createEvent(accessToken, calendar_email, summary, row.start_time, row.end_time, calTz, desc);
@@ -1411,6 +1413,35 @@ Deno.serve(async (req) => {
             type: "booking",
           });
         } catch (_) {}
+
+        // Member confirmation email + admin alerts — identical to the browser
+        // flow. Best-effort: the booking is already confirmed either way.
+        const addToCalendarUrlRecovered = await generateAddToCalendarUrl(adminClient, booking.id, {
+          start: row.start_time,
+          end: row.end_time,
+          summary: `${isCoaching ? "Coaching" : "Bay"} Booking — ${bayLabel}`,
+          description: `Your ${isCoaching ? "coaching session" : "bay booking"} at ${bayLabel} is confirmed.`,
+          location: `${bayLabel}, ${row.city}`,
+        });
+        await sendBookingConfirmedNotifications(
+          adminClient,
+          {
+            userId: row.user_id,
+            city: row.city,
+            bayLabel,
+            isCoaching,
+            dateLabel: formatDate(row.start_time, notifyTz),
+            timeLabel: formatTimeRange(row.start_time, row.end_time, notifyTz),
+            dateTimeLabel: formatDateTime(row.start_time, notifyTz),
+            duration: `${((row.duration_minutes ?? 60) / 60).toFixed(1).replace(/\.0$/, "")}h`,
+            hoursRemaining: "N/A (paid via gateway)",
+            addToCalendarUrl: addToCalendarUrlRecovered,
+            memberNameFallback: row.display_name || "A member",
+            paymentMethod: "razorpay",
+          },
+          bookingNotifyHelpers,
+        );
+
 
         // Mark completed
         await adminClient
