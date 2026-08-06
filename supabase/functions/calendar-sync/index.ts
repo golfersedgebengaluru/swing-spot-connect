@@ -1778,7 +1778,7 @@ Deno.serve(async (req) => {
             console.error("Failed to send low hours alert email:", (e as Error).message);
           }
         }
-        // Send confirmed booking email
+        // Member confirmation email + admin alerts (shared logic)
         const addToCalendarUrlMember = await generateAddToCalendarUrl(adminClient, booking.id, {
           start: start_time,
           end: end_time,
@@ -1786,49 +1786,23 @@ Deno.serve(async (req) => {
           description: `Your ${isCoaching ? "coaching session" : "bay booking"} at ${bayLabel} is confirmed.`,
           location: `${bayLabel}, ${city}`,
         });
-        try {
-          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-            },
-            body: JSON.stringify({
-              user_id: bookingUserId,
-              template: "booking_confirmed",
-              subject: "✅ Bay Booking Confirmed!",
-              data: {
-                city,
-                bay: bayLabel,
-                date: formatDate(start_time, calTz),
-                time: formatTimeRange(start_time, end_time, calTz),
-                duration: `${hoursNeeded}h`,
-                hours_remaining: `${remaining}h`,
-                add_to_calendar_url: addToCalendarUrlMember,
-              },
-            }),
-          });
-        } catch (e) {
-          console.error("Failed to send booking confirmation email:", (e as Error).message);
-        }
-
-        // Notify admins + site-admins about new confirmed booking
-        try {
-          const memberName = await resolveProfileDisplayName(adminClient, bookingUserId, display_name || "A member");
-          const notifyIds = await getAdminAndSiteAdminIds(adminClient, city, bookingUserId);
-          await notifyAdminsInApp(adminClient, notifyIds, "📅 New Booking", `${memberName} booked ${bayLabel}${isCoaching ? " (Coaching)" : ""} on ${formatDateTime(start_time, calTz)}.`);
-          await notifyAdmins(adminClient, notifyIds, "admin_new_booking", "📅 New Booking", {
-            member_name: memberName,
+        await sendBookingConfirmedNotifications(
+          adminClient,
+          {
+            userId: bookingUserId,
             city,
-            bay: bayLabel,
-            date: formatDate(start_time, calTz),
-            time: formatTimeRange(start_time, end_time, calTz),
+            bayLabel,
+            isCoaching,
+            dateLabel: formatDate(start_time, calTz),
+            timeLabel: formatTimeRange(start_time, end_time, calTz),
+            dateTimeLabel: formatDateTime(start_time, calTz),
             duration: `${hoursNeeded}h`,
-            session_type: isCoaching ? "coaching" : "practice",
-          });
-        } catch (e) {
-          console.error("Failed to notify admins about new booking:", (e as Error).message);
-        }
+            hoursRemaining: `${remaining}h`,
+            addToCalendarUrl: addToCalendarUrlMember,
+            memberNameFallback: display_name || "A member",
+          },
+          bookingNotifyHelpers,
+        );
       } else if (paidViaGateway && !needsApproval) {
         // Gateway-paid booking — no hours deduction, just notifications
 
