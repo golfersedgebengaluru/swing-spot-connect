@@ -1,6 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { resolveProfileDisplayName } from "./profile-lookup.ts";
 import { resolveCorporateTag } from "./corporate-tag.ts";
+import {
+  sendBookingConfirmedNotifications,
+  type BookingNotificationHelpers,
+} from "../_shared/booking-notifications.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") || "*",
@@ -338,6 +342,19 @@ async function notifyAdminsInApp(adminClient: any, adminIds: string[], title: st
     });
   }
 }
+
+// Wiring for the shared booking-notification module (used by both the browser
+// booking flow and the payment-webhook recovery flow).
+const bookingNotifyHelpers: BookingNotificationHelpers = {
+  resolveDisplayName: (admin, userId, fallback) => resolveProfileDisplayName(admin, userId, fallback),
+  getAdminIds: (admin, city, exclude) => getAdminAndSiteAdminIds(admin, city, exclude),
+  notifyAdminsInApp: (admin, ids, title, message, actionUrl) =>
+    notifyAdminsInApp(admin, ids, title, message, actionUrl),
+  notifyAdminsByEmail: (admin, ids, template, subject, data) =>
+    notifyAdmins(admin, ids, template, subject, data),
+};
+
+
 
 // Disposition-aware cancellation: advance_credit (park as customer advance) or external_refund (record net refund after fee).
 async function handleCancellationDisposition(
@@ -1369,6 +1386,7 @@ Deno.serve(async (req) => {
         }
 
         // Google Calendar event (best-effort)
+        let notifyTz = "Asia/Kolkata";
         try {
           const sakStr = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
           const calendar_email = await resolveCalendarEmail(adminClient, { bay_id: row.bay_id, city: row.city });
@@ -1376,6 +1394,7 @@ Deno.serve(async (req) => {
             const sak = JSON.parse(sakStr);
             const accessToken = await getAccessToken(sak);
             const calTz = await getCalendarTimezone(accessToken, calendar_email);
+            notifyTz = calTz || notifyTz;
             const summary = `${bayLabel} - ${row.display_name || "Member"}${isCoaching ? " (Coaching)" : ""}`;
             const desc = `Booked by ${row.display_name || "Member"} via Golfer's Edge${isCoaching ? " - Coaching Session" : ""}`;
             const calEvent = await createEvent(accessToken, calendar_email, summary, row.start_time, row.end_time, calTz, desc);
@@ -1394,6 +1413,35 @@ Deno.serve(async (req) => {
             type: "booking",
           });
         } catch (_) {}
+
+        // Member confirmation email + admin alerts — identical to the browser
+        // flow. Best-effort: the booking is already confirmed either way.
+        const addToCalendarUrlRecovered = await generateAddToCalendarUrl(adminClient, booking.id, {
+          start: row.start_time,
+          end: row.end_time,
+          summary: `${isCoaching ? "Coaching" : "Bay"} Booking — ${bayLabel}`,
+          description: `Your ${isCoaching ? "coaching session" : "bay booking"} at ${bayLabel} is confirmed.`,
+          location: `${bayLabel}, ${row.city}`,
+        });
+        await sendBookingConfirmedNotifications(
+          adminClient,
+          {
+            userId: row.user_id,
+            city: row.city,
+            bayLabel,
+            isCoaching,
+            dateLabel: formatDate(row.start_time, notifyTz),
+            timeLabel: formatTimeRange(row.start_time, row.end_time, notifyTz),
+            dateTimeLabel: formatDateTime(row.start_time, notifyTz),
+            duration: `${((row.duration_minutes ?? 60) / 60).toFixed(1).replace(/\.0$/, "")}h`,
+            hoursRemaining: "N/A (paid via gateway)",
+            addToCalendarUrl: addToCalendarUrlRecovered,
+            memberNameFallback: row.display_name || "A member",
+            paymentMethod: "razorpay",
+          },
+          bookingNotifyHelpers,
+        );
+
 
         // Mark completed
         await adminClient
@@ -1761,7 +1809,7 @@ Deno.serve(async (req) => {
             console.error("Failed to send low hours alert email:", (e as Error).message);
           }
         }
-        // Send confirmed booking email
+        // Member confirmation email + admin alerts (shared logic)
         const addToCalendarUrlMember = await generateAddToCalendarUrl(adminClient, booking.id, {
           start: start_time,
           end: end_time,
@@ -1769,49 +1817,23 @@ Deno.serve(async (req) => {
           description: `Your ${isCoaching ? "coaching session" : "bay booking"} at ${bayLabel} is confirmed.`,
           location: `${bayLabel}, ${city}`,
         });
-        try {
-          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-            },
-            body: JSON.stringify({
-              user_id: bookingUserId,
-              template: "booking_confirmed",
-              subject: "✅ Bay Booking Confirmed!",
-              data: {
-                city,
-                bay: bayLabel,
-                date: formatDate(start_time, calTz),
-                time: formatTimeRange(start_time, end_time, calTz),
-                duration: `${hoursNeeded}h`,
-                hours_remaining: `${remaining}h`,
-                add_to_calendar_url: addToCalendarUrlMember,
-              },
-            }),
-          });
-        } catch (e) {
-          console.error("Failed to send booking confirmation email:", (e as Error).message);
-        }
-
-        // Notify admins + site-admins about new confirmed booking
-        try {
-          const memberName = await resolveProfileDisplayName(adminClient, bookingUserId, display_name || "A member");
-          const notifyIds = await getAdminAndSiteAdminIds(adminClient, city, bookingUserId);
-          await notifyAdminsInApp(adminClient, notifyIds, "📅 New Booking", `${memberName} booked ${bayLabel}${isCoaching ? " (Coaching)" : ""} on ${formatDateTime(start_time, calTz)}.`);
-          await notifyAdmins(adminClient, notifyIds, "admin_new_booking", "📅 New Booking", {
-            member_name: memberName,
+        await sendBookingConfirmedNotifications(
+          adminClient,
+          {
+            userId: bookingUserId,
             city,
-            bay: bayLabel,
-            date: formatDate(start_time, calTz),
-            time: formatTimeRange(start_time, end_time, calTz),
+            bayLabel,
+            isCoaching,
+            dateLabel: formatDate(start_time, calTz),
+            timeLabel: formatTimeRange(start_time, end_time, calTz),
+            dateTimeLabel: formatDateTime(start_time, calTz),
             duration: `${hoursNeeded}h`,
-            session_type: isCoaching ? "coaching" : "practice",
-          });
-        } catch (e) {
-          console.error("Failed to notify admins about new booking:", (e as Error).message);
-        }
+            hoursRemaining: `${remaining}h`,
+            addToCalendarUrl: addToCalendarUrlMember,
+            memberNameFallback: display_name || "A member",
+          },
+          bookingNotifyHelpers,
+        );
       } else if (paidViaGateway && !needsApproval) {
         // Gateway-paid booking — no hours deduction, just notifications
 
@@ -1822,7 +1844,7 @@ Deno.serve(async (req) => {
           type: "booking",
         });
 
-        // Send confirmed booking email
+        // Member confirmation email + admin alerts (shared logic)
         const addToCalendarUrlGateway = await generateAddToCalendarUrl(adminClient, booking.id, {
           start: start_time,
           end: end_time,
@@ -1830,49 +1852,24 @@ Deno.serve(async (req) => {
           description: `Your ${isCoaching ? "coaching session" : "bay booking"} at ${bayLabel} is confirmed.`,
           location: `${bayLabel}, ${city}`,
         });
-        try {
-          await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-notification-email`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-            },
-            body: JSON.stringify({
-              user_id: bookingUserId,
-              template: "booking_confirmed",
-              subject: "✅ Bay Booking Confirmed!",
-              data: {
-                city,
-                bay: bayLabel,
-                date: formatDate(start_time, calTz),
-                time: formatTimeRange(start_time, end_time, calTz),
-                duration: `${hoursNeeded}h`,
-                hours_remaining: "N/A (paid via gateway)",
-                add_to_calendar_url: addToCalendarUrlGateway,
-              },
-            }),
-          });
-        } catch (e) {
-          console.error("Failed to send booking confirmation email:", (e as Error).message);
-        }
-
-        // Notify admins + site-admins about new confirmed booking
-        try {
-          const memberName = await resolveProfileDisplayName(adminClient, bookingUserId, display_name || "A member");
-          const notifyIds = await getAdminAndSiteAdminIds(adminClient, city, bookingUserId);
-          await notifyAdminsInApp(adminClient, notifyIds, "📅 New Booking (Paid)", `${memberName} booked ${bayLabel}${isCoaching ? " (Coaching)" : ""} on ${formatDateTime(start_time, calTz)} — paid via ${payment_method}.`);
-          await notifyAdmins(adminClient, notifyIds, "admin_new_booking", "📅 New Booking (Paid)", {
-            member_name: memberName,
+        await sendBookingConfirmedNotifications(
+          adminClient,
+          {
+            userId: bookingUserId,
             city,
-            bay: bayLabel,
-            date: formatDate(start_time, calTz),
-            time: formatTimeRange(start_time, end_time, calTz),
+            bayLabel,
+            isCoaching,
+            dateLabel: formatDate(start_time, calTz),
+            timeLabel: formatTimeRange(start_time, end_time, calTz),
+            dateTimeLabel: formatDateTime(start_time, calTz),
             duration: `${hoursNeeded}h`,
-            session_type: isCoaching ? "coaching" : "practice",
-          });
-        } catch (e) {
-          console.error("Failed to notify admins about new booking:", (e as Error).message);
-        }
+            hoursRemaining: "N/A (paid via gateway)",
+            addToCalendarUrl: addToCalendarUrlGateway,
+            memberNameFallback: display_name || "A member",
+            paymentMethod: payment_method,
+          },
+          bookingNotifyHelpers,
+        );
       } else {
         // Pending coaching notification
         await adminClient.from("notifications").insert({
