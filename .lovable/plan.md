@@ -49,10 +49,11 @@ Advance deposits (₹10,000), vendor payments (₹13,500), credit-note credits (
 
 ### Step 1 — GST registration becomes a first-class per-city flag
 
-- Add `gst_profiles.is_gst_registered` (boolean, default true). Set Chennai to **false** and clear its borrowed GSTIN/state/state code.
-- Invoice rendering, `useInvoices`, and `CreateInvoiceDialog` branch on the flag: unregistered city → no GSTIN, no tax breakup, no HSN/SAC block, and the document is titled per your preference (Invoice / Bill of Supply — your call below).
+- Add `gst_profiles.is_gst_registered` (boolean, default true). Set Chennai to **false** and clear its borrowed GSTIN/state/state code and default rate.
+- Invoice rendering, `useInvoices`, and `CreateInvoiceDialog` branch on the flag: unregistered city → document still titled **"Invoice"**, but with no GSTIN, no CGST/SGST breakup, no tax column and no HSN/SAC block. Chennai products carry no GST component at all.
 - `gstr1-export.ts` filters to GST-registered cities only. Chennai simply doesn't appear.
 - Because Chennai products are all 0% anyway, this is mostly *hiding* tax scaffolding rather than changing numbers — the risk is low and the correctness gain is large.
+
 
 ### Step 2 — Every priced thing points at a catalogue product
 
