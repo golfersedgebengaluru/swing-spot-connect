@@ -49,10 +49,11 @@ Advance deposits (₹10,000), vendor payments (₹13,500), credit-note credits (
 
 ### Step 1 — GST registration becomes a first-class per-city flag
 
-- Add `gst_profiles.is_gst_registered` (boolean, default true). Set Chennai to **false** and clear its borrowed GSTIN/state/state code.
-- Invoice rendering, `useInvoices`, and `CreateInvoiceDialog` branch on the flag: unregistered city → no GSTIN, no tax breakup, no HSN/SAC block, and the document is titled per your preference (Invoice / Bill of Supply — your call below).
+- Add `gst_profiles.is_gst_registered` (boolean, default true). Set Chennai to **false** and clear its borrowed GSTIN/state/state code and default rate.
+- Invoice rendering, `useInvoices`, and `CreateInvoiceDialog` branch on the flag: unregistered city → document still titled **"Invoice"**, but with no GSTIN, no CGST/SGST breakup, no tax column and no HSN/SAC block. Chennai products carry no GST component at all.
 - `gstr1-export.ts` filters to GST-registered cities only. Chennai simply doesn't appear.
 - Because Chennai products are all 0% anyway, this is mostly *hiding* tax scaffolding rather than changing numbers — the risk is low and the correctness gain is large.
+
 
 ### Step 2 — Every priced thing points at a catalogue product
 
@@ -73,15 +74,15 @@ After this, one lookup answers "what category is this rupee?" for every revenue 
 
 Net effect on the codebase: five bespoke insert sites collapse into one helper.
 
-### Step 4 — Invoice everything
+### Step 4 — Invoice everything, going forward
 
-- Widen the auto-invoice trigger and `backfill_missing_invoices()` to all confirmed, positive, non-refund, non-`hours_deduction` rows.
+- Widen the auto-invoice trigger to all newly confirmed, positive, non-refund, non-`hours_deduction` rows.
 - Tax resolution: registered city → product's own `gst_rate`/HSN/SAC, falling back to the city GST profile default; unregistered city → no tax fields at all.
-- One reviewable backfill migration for the ₹1,10,492 league revenue and the 39 invoice-less rows, dry-run report first.
+- **No retroactive rewrites.** Historic rows (the ₹1,10,492 league fees, the 39 invoice-less rows, the 803 mis-tagged bookings) stay exactly as they are. They surface in a read-only admin "Legacy gaps" report so you can decide case by case; nothing is auto-generated against closed periods.
 
 ### Step 5 — Category reporting driven by General Settings
 
-- `useRevenue.ts`: delete the inference block (lines 256-333) and group by the product's category. Fallback for anything unresolved is **"Uncategorised"**, never "Membership" — and after Step 2 it should read zero, which is itself the health signal.
+- `useRevenue.ts`: delete the inference block (lines 256-333) and group by the product's category. Fallback for anything unresolved is **"Uncategorised"**, never "Membership" — historic rows will land there, which is honest rather than misleading.
 - `AdminRevenueTab`: replace the five hardcoded tiles (`F&B, Equipment, Apparel, Membership, Bay Usage`) with tiles generated from `product_categories`. Add a category to General Settings and it appears in the report with no code change.
 - Add a small **Reconciliation** strip per city/month: ledger total vs invoiced total vs (Bengaluru only) GSTR-1 taxable + tax, with any unmatched row listed. Advances shown separately as receipts. This is what makes it bullet-proof going forward — a new revenue stream that skips the ledger becomes visible immediately instead of at year-end.
 
@@ -90,26 +91,23 @@ Net effect on the codebase: five bespoke insert sites collapse into one helper.
 - Every payment path writes exactly one ledger row with the correct product and category.
 - Replayed webhook → still one row (idempotency).
 - Every `bookings.session_type` value resolves to a `bay_pricing` row in every configured city — this is the test that stops issue #2 recurring.
-- Unregistered city: invoice renders no GSTIN and no tax lines, and is absent from GSTR-1.
+- Unregistered city: invoice renders titled "Invoice" with no GSTIN and no tax lines, and is absent from GSTR-1.
 - Advance deposit and drawdown produce zero ledger rows; a credit note reduces invoiced revenue exactly once.
 
 ## Sequencing
 
 1. Chennai GST correction (Step 1) — smallest change, biggest compliance risk removed.
-2. Catalogue link repair (Step 2) — coaching separates from practice immediately.
+2. Catalogue link repair (Step 2) — coaching separates from practice for all new bookings.
 3. Shared ledger writer, rewiring paths that already work (Step 3, no behaviour change).
-4. Close the holes: league, competition, shop + league backfill.
+4. Close the holes: league, competition, shop.
 5. Widen invoicing (Step 4), then category reporting + reconciliation (Step 5).
 
 Tests ship with each step.
 
-## Two decisions I need from you
-
-- For Chennai, should the document read **"Invoice"** or **"Bill of Supply"**? (Both are acceptable for an unregistered seller; Bill of Supply is the more conventional label.)
-- The 803 already-invoiced practice/coaching bookings: re-tag them retroactively so historic reports split correctly, or apply the fix from now on only?
-
 ## Out of scope
 
+- Any backfill or re-tagging of historic revenue, invoices or bookings — forward-only, surfaced as a report instead.
 - `coaching_sessions` — notes only, no money, no changes.
-- Historic HSN backfill on Bengaluru line items — surfaced as an admin data report, not an automated rewrite of issued invoices.
+- Historic HSN backfill on Bengaluru line items.
 - Any new category taxonomy — General Settings remains the single place categories are defined.
+
