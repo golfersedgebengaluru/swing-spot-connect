@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.trg_auto_create_invoice() FROM PUBLIC, anon, authenticated;

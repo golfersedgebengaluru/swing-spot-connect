@@ -51,9 +51,14 @@ export function useCreateOrder() {
         .single();
       if (error) throw error;
 
-      // Record revenue transaction for product order
+      // Record revenue for the shop order.
+      // `source_ref` makes this idempotent (a retried mutation can't double-count)
+      // and `product_id` is set when the order is a single catalogue product so
+      // the revenue report can categorise it from General Settings. Multi-product
+      // orders are categorised from their invoice line items.
       if (params.total_price > 0) {
         const itemsSummary = params.items.map(i => `${i.quantity}× ${i.name}`).join(", ");
+        const singleProductId = params.items.length === 1 ? params.items[0].id : null;
         await supabase.from("revenue_transactions").insert({
           user_id: user!.id,
           transaction_type: "product_order",
@@ -62,9 +67,12 @@ export function useCreateOrder() {
           city: params.city || null,
           description: `Shop order: ${itemsSummary}`,
           status: "confirmed",
+          source_ref: `shop_order:${data.id}`,
+          product_id: singleProductId,
           metadata: { order_id: data.id, items: params.items },
         } as any);
       }
+
 
       return data;
     },

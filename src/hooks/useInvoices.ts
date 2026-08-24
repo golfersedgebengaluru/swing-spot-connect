@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { CalculatedLineItem } from "@/lib/gst-utils";
-import { isGstRegistered } from "@/lib/gst-utils";
+import { isProfileGstRegistered } from "@/lib/gst-utils";
 
 // ─── GST Profile (per-city) ─────────────────────────────
 export interface GstProfile {
@@ -238,7 +238,7 @@ export function useCreateInvoice() {
       if (!gstProfile) throw new Error(`GST profile not configured for ${params.city}. Please set up the GST profile in Finance → GST Settings.`);
 
 
-      const gstRegistered = isGstRegistered(gstProfile.gstin);
+      const gstRegistered = isProfileGstRegistered(gstProfile as any);
       // Use GSTIN for sequencing if registered, otherwise use city as fallback identifier
       const sequenceGstin = gstRegistered ? gstProfile.gstin : `NOGST-${params.city}`;
 
@@ -827,7 +827,7 @@ export function useReassignInvoiceCity() {
       if (profErr) throw profErr;
       if (!targetProfile) throw new Error(`No GST profile configured for ${targetCity}. Set one up in Finance → GST Settings first.`);
 
-      const targetGstRegistered = isGstRegistered(targetProfile.gstin);
+      const targetGstRegistered = isProfileGstRegistered(targetProfile as any);
       const targetSequenceGstin = targetGstRegistered ? targetProfile.gstin : `NOGST-${targetCity}`;
       const targetPrefix = targetProfile.invoice_prefix || "INV";
 

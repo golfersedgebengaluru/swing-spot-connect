@@ -7,6 +7,8 @@
 //   • Concurrent finalizers serialize on the atomic claim and never duplicate
 //     the player row.
 
+import { recordRevenue } from "./revenue-ledger.ts";
+
 type AnyClient = { from: (t: string) => any };
 
 export interface QcFinalizeResult {
@@ -78,6 +80,34 @@ export async function finalizeQcEntry(
   }
 
   await admin.from("qc_entries").update({ player_id: player.id }).eq("id", entry.id);
+
+  // Revenue ledger — competition entry fees used to never reach the books.
+  // Idempotent on source_ref, best-effort so it can never break finalization.
+  try {
+    const amount = Number(entry.amount ?? 0);
+    if (amount > 0) {
+      const { data: comp } = await admin
+        .from("quick_competitions")
+        .select("name")
+        .eq("id", entry.competition_id)
+        .maybeSingle();
+      await recordRevenue(admin, {
+        sourceRef: `qc_entry:${entry.id}`,
+        transactionType: "qc_entry",
+        amount,
+        currency: entry.currency ?? "INR",
+        city: null,
+        description: `Competition entry — ${(comp as any)?.name ?? "Quick Competition"} — ${entry.player_name}`,
+        userId: null,
+        gatewayName: "razorpay",
+        gatewayOrderRef: entry.razorpay_order_id ?? null,
+        gatewayPaymentRef: razorpayPaymentId ?? entry.razorpay_payment_id ?? null,
+        metadata: { competition_id: entry.competition_id, entry_id: entry.id, player_id: player.id },
+      });
+    }
+  } catch (e) {
+    console.error("[qc-finalize] revenue capture failed:", (e as Error).message);
+  }
   await admin.from("quick_competition_audit").insert({
     competition_id: entry.competition_id,
     action: "paid_entry",

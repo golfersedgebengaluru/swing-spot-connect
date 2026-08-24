@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth } from "date-fns";
+import { isProfileGstRegistered } from "@/lib/gst-utils";
 
 interface Invoice {
   id: string;
@@ -64,7 +65,21 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
     .eq("city", city)
     .maybeSingle();
   if (!gstProfile) throw new Error("GST profile not found for this city.");
-  const gst = gstProfile as unknown as { state_code: string; state: string };
+  const gst = gstProfile as unknown as {
+    state_code: string;
+    state: string;
+    gstin: string | null;
+    is_gst_registered?: boolean | null;
+  };
+  // Only GST-registered cities file GSTR-1. An unregistered city (e.g. Chennai)
+  // issues plain invoices with no tax component and must never appear in a return.
+  if (!isProfileGstRegistered(gst)) {
+    throw new Error(
+      `${city} is not GST registered, so it has no GSTR-1 filing. ` +
+      `Update Finance → GST Settings if this is wrong.`
+    );
+  }
+
 
   // Fetch invoices for the month
   const { data: invoices, error: invErr } = await supabase.from("invoices" as any)

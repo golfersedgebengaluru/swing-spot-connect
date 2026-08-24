@@ -7,6 +7,21 @@ export function isGstRegistered(gstin?: string | null): boolean {
   return true;
 }
 
+/**
+ * Authoritative check for a city's GST registration status.
+ *
+ * `gst_profiles.is_gst_registered` is the explicit flag (set per city in
+ * Finance → GST Settings). A profile is only treated as registered when the
+ * flag allows it AND a real GSTIN is present.
+ */
+export function isProfileGstRegistered(
+  profile?: { gstin?: string | null; is_gst_registered?: boolean | null } | null,
+): boolean {
+  if (!profile) return false;
+  if (profile.is_gst_registered === false) return false;
+  return isGstRegistered(profile.gstin);
+}
+
 // Indian States with GST state codes
 export const INDIAN_STATES = [
   { code: "01", name: "Jammu and Kashmir" },
