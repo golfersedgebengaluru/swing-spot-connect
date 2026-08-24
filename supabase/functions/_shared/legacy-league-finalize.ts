@@ -12,6 +12,8 @@
 // resulted in an "orphan" registration with no roster, no invites, no email,
 // and the captain was shown the Create Team screen again on next login.
 
+import { recordRevenue } from "./revenue-ledger.ts";
+
 type AnyClient = {
   from: (t: string) => any;
   rpc: (fn: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
@@ -190,6 +192,44 @@ export async function finalizeLegacyTeamRegistration(input: LegacyTeamFinalizeIn
     _user_id: input.captainUserId,
   });
   if (promErr) console.error("[legacy-finalize] promote_legacy_team_member failed:", promErr.message);
+
+  // 3b) Revenue ledger — league registration fees used to never reach the books.
+  // Idempotent on source_ref, best-effort so it can never break finalization.
+  try {
+    const { data: revReg } = await admin
+      .from("legacy_league_team_registrations")
+      .select("total_amount, currency, razorpay_order_id, razorpay_payment_id")
+      .eq("id", input.registrationId)
+      .maybeSingle();
+    const amount = Number((revReg as any)?.total_amount ?? 0);
+    if (amount > 0) {
+      const { data: leagueRow } = await admin
+        .from("leagues")
+        .select("name, payment_city, service_product_id")
+        .eq("id", input.leagueId)
+        .maybeSingle();
+      await recordRevenue(admin, {
+        sourceRef: `league_reg:${input.registrationId}`,
+        transactionType: "league_registration",
+        amount,
+        currency: (revReg as any)?.currency ?? "INR",
+        city: (leagueRow as any)?.payment_city ?? null,
+        description: `League registration — ${(leagueRow as any)?.name ?? "League"} — ${input.teamName}`,
+        userId: input.captainUserId,
+        productId: (leagueRow as any)?.service_product_id ?? null,
+        gatewayName: "razorpay",
+        gatewayOrderRef: (revReg as any)?.razorpay_order_id ?? null,
+        gatewayPaymentRef: (revReg as any)?.razorpay_payment_id ?? null,
+        metadata: {
+          league_id: input.leagueId,
+          registration_id: input.registrationId,
+          team_name: input.teamName,
+        },
+      });
+    }
+  } catch (e) {
+    console.error("[legacy-finalize] revenue capture failed:", (e as Error).message);
+  }
 
   // 4) Emails — best-effort, never throw
   try {

@@ -193,7 +193,7 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
     queryFn: async () => {
       let query = supabase
         .from("revenue_transactions")
-        .select("id, transaction_type, amount, status, user_id, guest_name, guest_email, created_at, booking_id, hours_transaction_id")
+        .select("id, transaction_type, amount, status, user_id, guest_name, guest_email, created_at, booking_id, hours_transaction_id, product_id")
         .neq("transaction_type", "hours_deduction");
 
       if (startDate) query = query.gte("created_at", startDate);
@@ -254,42 +254,50 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
       }
 
       // --- Revenue by product category ---
-      // Classification rules (strict, no silent fallbacks):
-      //   • Bay Usage   → transaction_type in (booking, guest_booking) OR booking_id IS NOT NULL
-      //                   (covers `payment`-type online bay payments via Razorpay/Stripe)
-      //   • Membership  → hours_transaction_id IS NOT NULL (hour/coaching/birdie packages)
-      //   • Otherwise   → break down by invoice line-item product category; anything still
-      //                   unclassified goes to "Other" (NEVER to Membership).
+      // Single rule, no inference: the category is the catalogue product's
+      // category (the list defined in General Settings → Product & Service
+      // Categories). `revenue_transactions.product_id` is stamped by the
+      // `resolve_revenue_product` DB trigger for bookings, hour packages and
+      // league fees, and passed explicitly by the shared revenue-ledger writer.
+      //
+      // When a row has no product yet, we fall back to its invoice line items
+      // (which do carry product ids), and only then to "Uncategorised" — never
+      // to a guessed bucket like "Membership".
       const nonRefundConfirmed = confirmed.filter((t) => t.transaction_type !== "refund");
 
       const byCategory: Record<string, number> = {};
+      const addCategory = (cat: string, amount: number) => {
+        if (amount > 0) byCategory[cat] = (byCategory[cat] || 0) + amount;
+      };
 
-      const bayUsageTxns: typeof nonRefundConfirmed = [];
-      const membershipTxns: typeof nonRefundConfirmed = [];
-      const otherTxns: typeof nonRefundConfirmed = [];
-      for (const t of nonRefundConfirmed) {
-        const isBay = t.transaction_type === "booking"
-          || t.transaction_type === "guest_booking"
-          || !!(t as any).booking_id;
-        const isMembership = !!(t as any).hours_transaction_id;
-        if (isBay) bayUsageTxns.push(t);
-        else if (isMembership) membershipTxns.push(t);
-        else otherTxns.push(t);
+      const directTxns = nonRefundConfirmed.filter((t) => !!(t as any).product_id);
+      const unresolvedTxns = nonRefundConfirmed.filter((t) => !(t as any).product_id);
+
+      const categoryByProduct = new Map<string, string>();
+      const loadCategories = async (productIds: string[]) => {
+        const missing = [...new Set(productIds)].filter((id) => id && !categoryByProduct.has(id));
+        if (missing.length === 0) return;
+        const { data: products } = await supabase
+          .from("products")
+          .select("id, category")
+          .in("id", missing);
+        for (const p of products ?? []) {
+          categoryByProduct.set(p.id, p.category || "Uncategorised");
+        }
+      };
+
+      await loadCategories(directTxns.map((t) => (t as any).product_id as string));
+      for (const t of directTxns) {
+        const cat = categoryByProduct.get((t as any).product_id as string) || "Uncategorised";
+        addCategory(cat, Number(t.amount));
       }
 
-      const bayUsageTotal = bayUsageTxns.reduce((s, t) => s + Number(t.amount), 0);
-      if (bayUsageTotal > 0) byCategory["Bay Usage"] = bayUsageTotal;
-
-      const membershipTotal = membershipTxns.reduce((s, t) => s + Number(t.amount), 0);
-      if (membershipTotal > 0) byCategory["Membership"] = membershipTotal;
-
-      // For remaining (purchase invoices etc.), break down by invoice line-item product categories.
-      if (otherTxns.length > 0) {
-        const otherIds = otherTxns.map((t: any) => t.id).filter(Boolean);
+      if (unresolvedTxns.length > 0) {
+        const unresolvedIds = unresolvedTxns.map((t: any) => t.id).filter(Boolean);
         const { data: invoices } = await supabase
           .from("invoices")
           .select("id, revenue_transaction_id")
-          .in("revenue_transaction_id", otherIds);
+          .in("revenue_transaction_id", unresolvedIds);
 
         const invoiceByTxn = new Map<string, string>();
         for (const inv of invoices ?? []) {
@@ -304,33 +312,30 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
             .select("invoice_id, line_total, product_id")
             .in("invoice_id", invoiceIds);
 
-          const productIds = [...new Set((lineItems ?? []).map((li) => li.product_id).filter(Boolean))] as string[];
-          let productCategoryMap: Record<string, string> = {};
-          if (productIds.length > 0) {
-            const { data: products } = await supabase
-              .from("products")
-              .select("id, category")
-              .in("id", productIds);
-            productCategoryMap = Object.fromEntries((products ?? []).map((p) => [p.id, p.category]));
-          }
+          await loadCategories(
+            (lineItems ?? []).map((li) => li.product_id).filter(Boolean) as string[],
+          );
 
           for (const li of lineItems ?? []) {
-            const cat = li.product_id ? (productCategoryMap[li.product_id] || "Other") : "Other";
-            byCategory[cat] = (byCategory[cat] || 0) + Number(li.line_total);
-            lineTotalsByInvoice.set(li.invoice_id, (lineTotalsByInvoice.get(li.invoice_id) ?? 0) + Number(li.line_total));
+            const cat = li.product_id
+              ? (categoryByProduct.get(li.product_id) || "Uncategorised")
+              : "Uncategorised";
+            addCategory(cat, Number(li.line_total));
+            lineTotalsByInvoice.set(
+              li.invoice_id,
+              (lineTotalsByInvoice.get(li.invoice_id) ?? 0) + Number(li.line_total),
+            );
           }
         }
 
-        // Residual (txn amount not covered by line items) → "Other", never Membership.
-        for (const t of otherTxns) {
+        // Residual (txn amount not covered by line items) → Uncategorised.
+        for (const t of unresolvedTxns) {
           const invId = invoiceByTxn.get((t as any).id);
           const lineSum = invId ? (lineTotalsByInvoice.get(invId) ?? 0) : 0;
-          const residual = Number(t.amount) - lineSum;
-          if (residual > 0) {
-            byCategory["Other"] = (byCategory["Other"] || 0) + residual;
-          }
+          addCategory("Uncategorised", Number(t.amount) - lineSum);
         }
       }
+
 
       return { totalRevenue, totalRefunds, netRevenue: totalRevenue - totalRefunds, byType, byCategory, byUser, byGuest, totalCount: transactions.length };
     },

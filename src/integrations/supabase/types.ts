@@ -1633,6 +1633,7 @@ export type Database = {
           id: string
           invoice_prefix: string
           invoice_start_number: number
+          is_gst_registered: boolean
           legal_name: string
           state: string
           state_code: string
@@ -1648,6 +1649,7 @@ export type Database = {
           id?: string
           invoice_prefix?: string
           invoice_start_number?: number
+          is_gst_registered?: boolean
           legal_name?: string
           state?: string
           state_code?: string
@@ -1663,6 +1665,7 @@ export type Database = {
           id?: string
           invoice_prefix?: string
           invoice_start_number?: number
+          is_gst_registered?: boolean
           legal_name?: string
           state?: string
           state_code?: string
@@ -1679,6 +1682,7 @@ export type Database = {
           is_active: boolean
           label: string
           price: number
+          service_product_id: string | null
           sort_order: number
           updated_at: string
         }
@@ -1690,6 +1694,7 @@ export type Database = {
           is_active?: boolean
           label?: string
           price?: number
+          service_product_id?: string | null
           sort_order?: number
           updated_at?: string
         }
@@ -1701,10 +1706,26 @@ export type Database = {
           is_active?: boolean
           label?: string
           price?: number
+          service_product_id?: string | null
           sort_order?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "hour_packages_service_product_id_fkey"
+            columns: ["service_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hour_packages_service_product_id_fkey"
+            columns: ["service_product_id"]
+            isOneToOne: false
+            referencedRelation: "products_public"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hours_transactions: {
         Row: {
@@ -3260,6 +3281,7 @@ export type Database = {
           scoring_holes: number
           season_end: string | null
           season_start: string | null
+          service_product_id: string | null
           show_on_landing: boolean
           stableford_enabled: boolean
           status: Database["public"]["Enums"]["league_status"]
@@ -3289,6 +3311,7 @@ export type Database = {
           scoring_holes?: number
           season_end?: string | null
           season_start?: string | null
+          service_product_id?: string | null
           show_on_landing?: boolean
           stableford_enabled?: boolean
           status?: Database["public"]["Enums"]["league_status"]
@@ -3318,6 +3341,7 @@ export type Database = {
           scoring_holes?: number
           season_end?: string | null
           season_start?: string | null
+          service_product_id?: string | null
           show_on_landing?: boolean
           stableford_enabled?: boolean
           status?: Database["public"]["Enums"]["league_status"]
@@ -3327,6 +3351,20 @@ export type Database = {
           venue_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "leagues_service_product_id_fkey"
+            columns: ["service_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leagues_service_product_id_fkey"
+            columns: ["service_product_id"]
+            isOneToOne: false
+            referencedRelation: "products_public"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leagues_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -5206,6 +5244,8 @@ export type Database = {
           id: string
           metadata: Json | null
           original_transaction_id: string | null
+          product_id: string | null
+          source_ref: string | null
           status: string
           transaction_type: string
           updated_at: string
@@ -5228,6 +5268,8 @@ export type Database = {
           id?: string
           metadata?: Json | null
           original_transaction_id?: string | null
+          product_id?: string | null
+          source_ref?: string | null
           status?: string
           transaction_type: string
           updated_at?: string
@@ -5250,6 +5292,8 @@ export type Database = {
           id?: string
           metadata?: Json | null
           original_transaction_id?: string | null
+          product_id?: string | null
+          source_ref?: string | null
           status?: string
           transaction_type?: string
           updated_at?: string
@@ -5275,6 +5319,20 @@ export type Database = {
             columns: ["original_transaction_id"]
             isOneToOne: false
             referencedRelation: "revenue_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revenue_transactions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revenue_transactions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_public"
             referencedColumns: ["id"]
           },
         ]

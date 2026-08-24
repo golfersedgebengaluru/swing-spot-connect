@@ -280,52 +280,51 @@ export function AdminRevenueTab() {
           </CardContent>
         </Card>
 
-        {/* Category breakdown cards */}
+        {/* Category breakdown cards — driven entirely by the categories defined in
+            General Settings → Product & Service Categories, plus any category that
+            actually carries revenue in the period (so tiles always reconcile with
+            Total Revenue). */}
         {(() => {
-          const displayCategories = [
-            { label: "F&B", key: "Food & Beverage" },
-            { label: "Equipment", key: "Equipment" },
-            { label: "Apparel", key: "Apparel" },
-            { label: "Membership", key: "Membership" },
-            { label: "Bay Usage", key: "Bay Usage" },
-          ];
-          const catColors = [
+          const tileColors = [
             { bg: "bg-green-100", text: "text-green-800" },
             { bg: "bg-amber-100", text: "text-amber-800" },
             { bg: "bg-purple-100", text: "text-purple-800" },
             { bg: "bg-rose-100", text: "text-rose-800" },
             { bg: "bg-blue-100", text: "text-blue-800" },
+            { bg: "bg-teal-100", text: "text-teal-800" },
+            { bg: "bg-orange-100", text: "text-orange-800" },
+            { bg: "bg-indigo-100", text: "text-indigo-800" },
           ];
-          // Append any extra categories present in summary (e.g. "Other", or
-          // product categories beyond the fixed five) so tiles always reconcile
-          // with Total Revenue.
-          const knownKeys = new Set(displayCategories.map((c) => c.key));
-          const extras = Object.keys(summary?.byCategory ?? {})
-            .filter((k) => !knownKeys.has(k) && (summary?.byCategory?.[k] ?? 0) > 0)
-            .sort();
-          const extraColor = { bg: "bg-slate-100", text: "text-slate-800" };
-          const allCats = [
-            ...displayCategories.map((c, i) => ({ ...c, color: catColors[i] })),
-            ...extras.map((k) => ({ label: k, key: k, color: extraColor })),
+          const configured = (categories ?? []).map((c) => c.name);
+          const withRevenue = Object.keys(summary?.byCategory ?? {}).filter(
+            (k) => (summary?.byCategory?.[k] ?? 0) > 0
+          );
+          const keys = [
+            ...configured,
+            ...withRevenue.filter((k) => !configured.includes(k)).sort(),
           ];
-          return allCats.map((cat) => (
-            <Card key={cat.key}>
-              <CardContent className="p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">{cat.label}</p>
-                    <p className="mt-1 font-display text-lg font-bold text-foreground truncate">
-                      {loadingSummary ? "…" : `${currencySymbol}${(summary?.byCategory?.[cat.key] ?? 0).toLocaleString()}`}
-                    </p>
+          return keys.map((key, i) => {
+            const color = tileColors[i % tileColors.length];
+            return (
+              <Card key={key}>
+                <CardContent className="p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted-foreground truncate">{key}</p>
+                      <p className="mt-1 font-display text-lg font-bold text-foreground truncate">
+                        {loadingSummary ? "…" : `${currencySymbol}${(summary?.byCategory?.[key] ?? 0).toLocaleString()}`}
+                      </p>
+                    </div>
+                    <div className={`rounded-lg ${color.bg} p-1.5 shrink-0`}>
+                      <CreditCard className={`h-4 w-4 ${color.text}`} />
+                    </div>
                   </div>
-                  <div className={`rounded-lg ${cat.color.bg} p-1.5 shrink-0`}>
-                    <CreditCard className={`h-4 w-4 ${cat.color.text}`} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ));
+                </CardContent>
+              </Card>
+            );
+          });
         })()}
+
       </div>
 
       {/* User Spend Breakdown */}
