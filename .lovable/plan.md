@@ -14,12 +14,13 @@ Three simplifications from your input:
 
 `gst_profiles` for Chennai currently holds **Bengaluru's GSTIN `29AAJFT3960B1Z3`**, state Karnataka, state code 29, and `default_service_gst_rate = 18`. Chennai has 347 confirmed revenue rows. Any Chennai invoice that rendered a GSTIN or tax line has been showing another entity's registration number, and anything Chennai in GSTR-1 is an over-declaration. There is no "unregistered" concept in the schema at all today — that's the root cause.
 
-### 2. Session-type keys don't match, so 803 bookings have no product
+### 2. Session-type keys mix two different questions, so 803 bookings have no product
 
 `bookings.session_type` uses `practice` (577), `coaching` (226), `individual` (118), `couple` (48), `group` (13).
 `bay_pricing.session_type` uses `individual`, `couple`, `group`, `coaching_60`.
 
-`practice` and `coaching` match nothing, so `service_product_id` never resolves for those 803 bookings. Result: coaching and bay practice can't be separated in the report — both fall through to a generic bucket. Chennai's `couple`/`group`/`individual` rows have `service_product_id` NULL outright.
+These are two different questions crammed into one column: **what was sold** (bay rental vs coaching) and **how it was priced** (individual / couple / group). So `practice` and `coaching` match nothing on the pricing side, `service_product_id` never resolves for those 803 bookings, and coaching can't be separated from bay rental in the report. Chennai's `couple`/`group`/`individual` rows have `service_product_id` NULL outright.
+
 
 ### 3. Hour packages have no catalogue link
 
@@ -55,15 +56,25 @@ Advance deposits (₹10,000), vendor payments (₹13,500), credit-note credits (
 - Because Chennai products are all 0% anyway, this is mostly *hiding* tax scaffolding rather than changing numbers — the risk is low and the correctness gain is large.
 
 
-### Step 2 — Every priced thing points at a catalogue product
+### Step 2 — Split "what was sold" from "how it was priced", then point both at the catalogue
 
-One migration, no new concepts:
+The taxonomy fix, not a rename. Two orthogonal ideas instead of one flat list:
 
-- Align `bay_pricing.session_type` with the values `bookings` actually uses (`practice`, `coaching`, `individual`, `couple`, `group`); add the missing `practice` rows per city/day-type; fill Chennai's NULL `service_product_id`s.
+- **Service** (revenue category): `practice` or `coaching` — this is what resolves to a catalogue product and drives the report.
+- **Rate tier** (pricing only): `individual` / `couple` / `group` — never a category, only a price lookup.
+
+Implementation, forward-only and non-destructive:
+
+- One small pure module `src/lib/session-taxonomy.ts` (mirrored in `_shared/` for edge functions) exposing `resolveService(session_type)` and `resolveTier(session_type)`. Existing stored values keep working: `practice`/`coaching` map to service with tier `individual`; `individual`/`couple`/`group` map to service `practice` with that tier. This is the only place the legacy mapping lives — every call site stops doing its own string matching.
+- New bookings write both fields: `session_type` keeps the service key, and the existing tier is stored in the pricing tier field so the two questions stop colliding.
+- `bay_pricing` is keyed on **(service, tier)** — add the missing `practice` rows per city/day-type and retire `coaching_60` in favour of `(coaching, individual)`.
 - Add `hour_packages.service_product_id` and point each package at a catalogue service product (Bay Usage or Coaching).
 - Add `leagues.service_product_id` and a Competition entry-fee product for QC.
 
-After this, one lookup answers "what category is this rupee?" for every revenue source.
+**On renaming `practice` → "Bay Rental":** display-label only. The stored key stays `practice`; the catalogue product and UI can read "Bay Rental". Rewriting the stored value would touch 577 rows plus every edge-function string comparison for zero functional gain — that would *add* debt, not remove it.
+
+After this, one lookup answers "what category is this rupee?" for every revenue source, and one module answers "what tier priced it?".
+
 
 ### Step 3 — One ledger writer
 
