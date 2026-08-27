@@ -51,25 +51,43 @@ async function attachProfiles(rows: any[]): Promise<any[]> {
   );
   if (!userIds.length) return rows;
 
-  // public_profiles: display_name visible to all (no PII)
+  // public_profiles: display_name visible to all (no PII).
+  // Dual-key lookup: profile-only members (no auth account) store profiles.id
+  // in student_user_id/coach_user_id, so match user_id OR id.
   const { data: publicProfiles } = await supabase
     .from("public_profiles" as any)
     .select("user_id, display_name")
     .in("user_id", userIds);
+  const { data: publicProfilesById } = await supabase
+    .from("public_profiles" as any)
+    .select("id, display_name")
+    .in("id", userIds);
   // profiles: email/phone returned only for rows the caller's RLS allows
   // (own row, admin, or coach-of-student).
   const { data: privateProfiles } = await supabase
     .from("profiles")
     .select("user_id, email")
     .in("user_id", userIds);
+  const { data: privateProfilesById } = await supabase
+    .from("profiles")
+    .select("id, email")
+    .in("id", userIds);
 
   const map = new Map<string, { display_name: string | null; email: string | null }>();
   (publicProfiles ?? []).forEach((p: any) => {
     map.set(p.user_id, { display_name: p.display_name ?? null, email: null });
   });
+  (publicProfilesById ?? []).forEach((p: any) => {
+    const existing = map.get(p.id) ?? { display_name: null, email: null };
+    map.set(p.id, { ...existing, display_name: existing.display_name ?? p.display_name ?? null });
+  });
   (privateProfiles ?? []).forEach((p: any) => {
     const existing = map.get(p.user_id) ?? { display_name: null, email: null };
     map.set(p.user_id, { ...existing, email: p.email ?? null });
+  });
+  (privateProfilesById ?? []).forEach((p: any) => {
+    const existing = map.get(p.id) ?? { display_name: null, email: null };
+    map.set(p.id, { ...existing, email: existing.email ?? p.email ?? null });
   });
 
   return rows.map((r) => ({
