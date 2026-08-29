@@ -33,27 +33,19 @@ export function useCorporateAccounts(includeInactive = false, cityFilter?: strin
       if (error) throw error;
       let accounts = (data ?? []) as CorporateAccount[];
 
-      // If a city is selected, restrict to accounts that have at least one
-      // booking OR coaching session in that city (any time, any status).
+      // If a city is selected, restrict to accounts that have activity in that
+      // city. The dual-key identity rule lives in the corporate_account_cities
+      // view (SQL), so this stays a single small indexed query.
       if (cityFilter) {
-        const [bRes, cRes] = await Promise.all([
-          supabase.from("bookings").select("user_id").eq("city", cityFilter).limit(5000),
-          supabase.from("coaching_sessions").select("student_user_id").eq("city", cityFilter).limit(5000),
-        ]);
-        const userIds = new Set<string>();
-        for (const r of bRes.data ?? []) if (r.user_id) userIds.add(r.user_id);
-        for (const r of cRes.data ?? []) if (r.student_user_id) userIds.add(r.student_user_id);
-        if (userIds.size === 0) return [];
-        const idList = Array.from(userIds).join(",");
-        const { data: profs } = await supabase
-          .from("profiles")
-          .select("corporate_account_id, user_id, id")
-          .not("corporate_account_id", "is", null)
-          .or(`user_id.in.(${idList}),id.in.(${idList})`);
-        const corpIds = new Set<string>();
-        for (const p of profs ?? []) if (p.corporate_account_id) corpIds.add(p.corporate_account_id);
+        const { data: mapping, error: mapErr } = await supabase
+          .from("corporate_account_cities")
+          .select("corporate_account_id")
+          .eq("city", cityFilter);
+        if (mapErr) throw mapErr;
+        const corpIds = new Set((mapping ?? []).map((m) => m.corporate_account_id));
         accounts = accounts.filter((a) => corpIds.has(a.id));
       }
+
       return accounts;
     },
   });
