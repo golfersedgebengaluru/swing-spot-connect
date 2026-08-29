@@ -30,7 +30,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { RefreshCw } from "lucide-react";
-import { calculateLineItems, getGstType, validateGSTIN, INDIAN_STATES } from "@/lib/gst-utils";
+import { calculateLineItems, getGstType, validateGSTIN, INDIAN_STATES, isProfileGstRegistered } from "@/lib/gst-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Package } from "lucide-react";
