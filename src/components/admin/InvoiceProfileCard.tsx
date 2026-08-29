@@ -224,7 +224,7 @@ export function InvoiceProfileCard({ city }: { city: string }) {
     }
   };
 
-  const completeness = computeCompleteness(get, getT, getX);
+  const completeness = computeCompleteness(get, getT, getX, gstRegistered);
 
   return (
     <Card className="max-w-3xl">
