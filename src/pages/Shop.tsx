@@ -7,17 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingCart, Plus, Coffee, Wine, Beer, Loader2, Minus, Trash2, ClipboardList } from "lucide-react";
+import { ShoppingCart, Plus, Coffee, Wine, Beer, Loader2, Minus, Trash2, ClipboardList, Shirt, Package } from "lucide-react";
 import { CouponInput } from "@/components/shop/CouponInput";
 import { ValidateCouponResult, calculateDiscount, useRedeemCoupon } from "@/hooks/useCoupons";
 import { useToast } from "@/hooks/use-toast";
-import { useProducts } from "@/hooks/useProducts";
+import { useSellableProducts, groupByCategory } from "@/hooks/useProducts";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { useCreateOrder, useMyOrders, OrderItem } from "@/hooks/useOrders";
 import { useUserProfile } from "@/hooks/useBookings";
 import { format } from "date-fns";
-
-const iconMap: Record<string, any> = { coffee: Coffee, beer: Beer, wine: Wine };
 
 const ORDER_STATUS_LABEL: Record<string, string> = {
   pending: "🟡 Pending",
@@ -26,10 +24,19 @@ const ORDER_STATUS_LABEL: Record<string, string> = {
   delivered: "✅ Delivered",
 };
 
+// Category icon is derived from the catalogue category name — no extra column needed.
+function categoryIcon(category: string) {
+  const c = category.toLowerCase();
+  if (c.includes("f&b") || c.includes("beverage") || c.includes("food") || c.includes("coffee")) return Coffee;
+  if (c.includes("beer")) return Beer;
+  if (c.includes("wine") || c.includes("bar")) return Wine;
+  if (c.includes("apparel") || c.includes("cloth") || c.includes("merch")) return Shirt;
+  return Package;
+}
+
 export default function Shop() {
   const { toast } = useToast();
-  const { data: beverages, isLoading: loadingBev } = useProducts("beverage");
-  const { data: merchandise, isLoading: loadingMerch } = useProducts("merchandise");
+  const { data: sellable, isLoading } = useSellableProducts();
   const { symbol, format: formatCurrency } = useDefaultCurrency();
   const { data: profile } = useUserProfile();
   const createOrder = useCreateOrder();
@@ -39,6 +46,9 @@ export default function Shop() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<ValidateCouponResult | null>(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
+
+  const groups = groupByCategory((sellable ?? []) as any[]);
+
 
   const addToCart = (item: { id: string; name: string; price: number }) => {
     setCart((prev) => {
@@ -61,7 +71,7 @@ export default function Shop() {
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const isLoading = loadingBev || loadingMerch;
+  
 
   const finalTotal = Math.max(0, cartTotal - couponDiscount);
 
@@ -126,10 +136,11 @@ export default function Shop() {
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <Tabs defaultValue="beverages" className="space-y-6">
-              <TabsList>
-                <TabsTrigger value="beverages">Beverages</TabsTrigger>
-                <TabsTrigger value="merchandise">Merchandise</TabsTrigger>
+            <Tabs defaultValue={groups[0]?.category ?? "my-orders"} className="space-y-6">
+              <TabsList className="flex-wrap h-auto">
+                {groups.map((g) => (
+                  <TabsTrigger key={g.category} value={g.category}>{g.category}</TabsTrigger>
+                ))}
                 <TabsTrigger value="my-orders" className="gap-2">
                   <ClipboardList className="h-4 w-4" />
                   My Orders
@@ -141,71 +152,52 @@ export default function Shop() {
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="beverages">
-                <p className="mb-6 text-muted-foreground">Pre-order drinks and have them ready when you arrive at your bay</p>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {(beverages ?? []).length === 0 && <p className="text-muted-foreground col-span-3">No beverages available.</p>}
-                  {(beverages ?? []).map((item) => {
-                    const IconComp = iconMap[item.category] || Coffee;
-                    return (
-                      <Card key={item.id} className="shadow-elegant transition-all hover:shadow-lg">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                                <IconComp className="h-6 w-6 text-primary" />
-                              </div>
-                              <div>
-                                <p className="font-medium text-foreground">{item.name}</p>
-                                <p className="text-lg font-bold text-primary">{formatCurrency(Number(item.price))}</p>
-                              </div>
-                            </div>
-                            <Button size="icon" variant="outline" onClick={() => addToCart({ id: item.id, name: item.name, price: Number(item.price) })}>
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </TabsContent>
+              {groups.length === 0 && (
+                <p className="text-muted-foreground">No items available in the shop right now.</p>
+              )}
 
-              <TabsContent value="merchandise">
-                <p className="mb-6 text-muted-foreground">Shop our collection of golf apparel and accessories</p>
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {(merchandise ?? []).length === 0 && <p className="text-muted-foreground col-span-3">No merchandise available.</p>}
-                  {(merchandise ?? []).map((item) => (
-                    <Card key={item.id} className="overflow-hidden shadow-elegant transition-all hover:shadow-lg">
-                      <div className="relative h-48 bg-muted">
-                        <div className="flex h-full items-center justify-center text-muted-foreground">Product Image</div>
-                        {item.badge && <Badge className="absolute right-2 top-2 bg-accent text-accent-foreground">{item.badge}</Badge>}
-                      </div>
-                      <CardContent className="p-4">
-                        <h3 className="font-medium text-foreground">{item.name}</h3>
-                        {item.sizes && (
-                          <div className="mt-2 flex gap-1 flex-wrap">
-                            {item.sizes.map((size: string) => (
-                              <span key={size} className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">{size}</span>
-                            ))}
-                          </div>
-                        )}
-                        {item.colors && (
-                          <div className="mt-2 flex gap-1 flex-wrap">
-                            {item.colors.map((color: string) => (
-                              <span key={color} className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">{color}</span>
-                            ))}
-                          </div>
-                        )}
-                        <div className="mt-4 flex items-center justify-between">
-                          <p className="font-display text-xl font-bold text-primary">{formatCurrency(Number(item.price))}</p>
-                          <Button size="sm" onClick={() => addToCart({ id: item.id, name: item.name, price: Number(item.price) })}>Add to Cart</Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </TabsContent>
+              {groups.map((g) => {
+                const IconComp = categoryIcon(g.category);
+                return (
+                  <TabsContent key={g.category} value={g.category}>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {g.items.map((item: any) => (
+                        <Card key={item.id} className="shadow-elegant transition-all hover:shadow-lg">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                                  <IconComp className="h-6 w-6 text-primary" />
+                                </div>
+                                <div>
+                                  <p className="font-medium text-foreground">{item.name}</p>
+                                  <p className="text-lg font-bold text-primary">{formatCurrency(Number(item.price))}</p>
+                                  {item.sizes && (
+                                    <div className="mt-1 flex gap-1 flex-wrap">
+                                      {item.sizes.map((size: string) => (
+                                        <span key={size} className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">{size}</span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                aria-label={`Add ${item.name} to cart`}
+                                onClick={() => addToCart({ id: item.id, name: item.name, price: Number(item.price) })}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </TabsContent>
+                );
+              })}
+
 
               <TabsContent value="my-orders">
                 <div className="space-y-4">

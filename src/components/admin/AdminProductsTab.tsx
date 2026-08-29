@@ -184,7 +184,6 @@ export function AdminProductsTab() {
         row.in_stock = row.in_stock === undefined || row.in_stock === "" || row.in_stock === "true" || row.in_stock === "TRUE" || row.in_stock === "1";
         row.bookable = row.bookable === "true" || row.bookable === "TRUE" || row.bookable === "1";
         row.item_type = row.item_type === "service" ? "service" : "product";
-        row.type = row.item_type === "service" ? "beverage" : "merchandise";
         row.category = row.category || "Other";
         row.unit_of_measure = row.unit_of_measure || "Each";
         row.hsn_code = row.hsn_code || null;
