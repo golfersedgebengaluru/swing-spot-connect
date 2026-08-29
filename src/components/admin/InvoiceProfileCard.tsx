@@ -242,19 +242,38 @@ export function InvoiceProfileCard({ city }: { city: string }) {
           <AccordionItem value="business">
             <AccordionTrigger>Business Identity & Contact</AccordionTrigger>
             <AccordionContent className="space-y-4 pt-2">
+              <div className="flex items-start justify-between gap-4 rounded border p-3">
+                <div>
+                  <Label>GST Registered</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {gstRegistered
+                      ? "Invoices for this location are issued as GST tax invoices."
+                      : "This location is unregistered — invoices are issued as plain bills with no GST and no GSTIN."}
+                  </p>
+                </div>
+                <Switch checked={gstRegistered} onCheckedChange={handleGstRegistered} />
+              </div>
               <div className="grid sm:grid-cols-2 gap-4">
                 <Field label="Legal Business Name *"><Input value={get("legal_name")} onChange={(e) => setG((f) => ({ ...f, legal_name: e.target.value }))} /></Field>
                 <Field label="Trade Name"><Input value={getX("trade_name")} onChange={(e) => setX((s) => ({ ...s, trade_name: e.target.value }))} /></Field>
-                <Field label="GSTIN *">
+                <Field label={gstRegistered ? "GSTIN *" : "GSTIN (not applicable)"}>
                   <div className="relative">
-                    <Input value={get("gstin")} maxLength={15} onChange={(e) => handleGstin(e.target.value)} placeholder="22AAAAA0000A1Z5" />
-                    {gstinValid !== null && (
+                    <Input
+                      value={gstRegistered ? get("gstin") : ""}
+                      maxLength={15}
+                      disabled={!gstRegistered}
+                      onChange={(e) => handleGstin(e.target.value)}
+                      placeholder={gstRegistered ? "22AAAAA0000A1Z5" : "Not GST registered"}
+                      className={gstRegistered ? "" : "bg-muted"}
+                    />
+                    {gstRegistered && gstinValid !== null && (
                       <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs ${gstinValid ? "text-green-600" : "text-destructive"}`}>
                         {gstinValid ? "✓" : "✗"}
                       </span>
                     )}
                   </div>
                 </Field>
+
                 <Field label="PAN"><Input value={getX("pan")} onChange={(e) => setX((s) => ({ ...s, pan: e.target.value.toUpperCase() }))} placeholder="ABCDE1234F" /></Field>
                 <Field label="CIN"><Input value={getX("cin")} onChange={(e) => setX((s) => ({ ...s, cin: e.target.value.toUpperCase() }))} /></Field>
                 <Field label="MSME / Udyam Reg No."><Input value={getX("msme_no")} onChange={(e) => setX((s) => ({ ...s, msme_no: e.target.value }))} /></Field>
