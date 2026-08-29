@@ -144,8 +144,11 @@ export function InvoiceProfileCard({ city }: { city: string }) {
     const pin = getX("pincode"); if (pin && !pincodeRe.test(pin)) return "Pincode must be 6 digits.";
     const email = getX("email"); if (email && !emailSchema.safeParse(email).success) return "Email is invalid.";
     const web = getX("website"); if (web && !urlSchema.safeParse(web).success) return "Website must start with http(s)://";
-    const gstin = get("gstin");
-    if (gstin && gstin.length === 15 && !validateGSTIN(gstin).valid) return "GSTIN checksum is invalid.";
+    if (gstRegistered) {
+      const gstin = get("gstin");
+      if (!gstin) return "GSTIN is required when this location is GST registered (or switch GST Registered off).";
+      if (gstin.length !== 15 || !validateGSTIN(gstin).valid) return "GSTIN checksum is invalid.";
+    }
     return null;
   };
 
@@ -157,13 +160,15 @@ export function InvoiceProfileCard({ city }: { city: string }) {
       const mergedGst: GstProfile = {
         city,
         legal_name: get("legal_name"),
-        gstin: get("gstin"),
+        gstin: gstRegistered ? get("gstin") : "",
         address: get("address"),
         state: get("state"),
-        state_code: get("state_code"),
+        state_code: gstRegistered ? get("state_code") : "",
         invoice_prefix: get("invoice_prefix") || "INV",
         invoice_start_number: Number(get("invoice_start_number")) || 1,
+        is_gst_registered: gstRegistered,
       };
+
       // 2) Per-city template/logo/footer/terms
       // 3) Extended profile (contact, bank, signature, etc.)
       const mergedX: CityInvoiceProfile = {
