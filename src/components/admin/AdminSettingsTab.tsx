@@ -17,7 +17,7 @@ import { AdminFinancialYearsCard } from "@/components/admin/AdminFinancialYearsC
 import { usePerCityFyToggle, useUpdatePerCityFyToggle } from "@/hooks/useRevenue";
 import { ProductCategoriesCard } from "@/components/admin/ProductCategoriesCard";
 import { UnitOfMeasureCard } from "@/components/admin/UnitOfMeasureCard";
-import { InvoiceSettingsCard } from "@/components/admin/InvoiceSettingsCard";
+
 import { VendorsCard } from "@/components/admin/VendorsCard";
 import { ExpenseCategoriesCard } from "@/components/admin/ExpenseCategoriesCard";
 import { SiteAdminPermissionsCard } from "@/components/admin/SiteAdminPermissionsCard";
