@@ -274,10 +274,21 @@ function logoImg(url: string, maxH = 60) {
   return `<img src="${url}" alt="Logo" style="max-height:${maxH}px;max-width:180px;object-fit:contain;" />`;
 }
 
+/**
+ * Document title. An unregistered supplier must not issue a "Tax Invoice" —
+ * GST law requires a "Bill of Supply" instead. Registration is inferred from
+ * the GSTIN stamped on the invoice at issue time (blank for unregistered
+ * cities), so historic invoices keep the title they were issued under.
+ */
+export function invoiceDocTitle(inv: { invoice_type?: string | null; business_gstin?: string | null }): string {
+  if (inv.invoice_type === "credit_note") return "Credit Note";
+  return isGstRegistered(inv.business_gstin) ? "Tax Invoice" : "Bill of Supply";
+}
+
 // ─── CLASSIC TEMPLATE ──────────────────────
 function classicTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, currency: FormatCurrency) {
   const isIgst = Number(inv.igst_total) > 0;
-  const docType = inv.invoice_type === "credit_note" ? "Credit Note" : "Tax Invoice";
+  const docType = invoiceDocTitle(inv);
   return `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
       <div>
@@ -319,7 +330,7 @@ function classicTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, c
 // ─── MODERN TEMPLATE ───────────────────────
 function modernTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, currency: FormatCurrency) {
   const isIgst = Number(inv.igst_total) > 0;
-  const docType = inv.invoice_type === "credit_note" ? "CREDIT NOTE" : "TAX INVOICE";
+  const docType = invoiceDocTitle(inv).toUpperCase();
   const accent = settings.brand_color ? escapeHtml(settings.brand_color) : "#2563eb";
   return `
     <div style="border-top:4px solid ${accent};padding-top:20px;">
@@ -390,7 +401,7 @@ function modernTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, cu
 // ─── COMPACT TEMPLATE ──────────────────────
 function compactTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, currency: FormatCurrency) {
   const isIgst = Number(inv.igst_total) > 0;
-  const docType = inv.invoice_type === "credit_note" ? "Credit Note" : "Tax Invoice";
+  const docType = invoiceDocTitle(inv);
   return `
     <div style="font-size:11px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #111;">

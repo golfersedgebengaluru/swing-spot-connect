@@ -38,6 +38,7 @@ vi.mock("@/integrations/supabase/client", () => {
     b.in = vi.fn().mockReturnValue(b);
     b.order = vi.fn().mockReturnValue(b);
     b.limit = vi.fn().mockReturnValue(b);
+    b.or = vi.fn().mockReturnValue(b);
     b.maybeSingle = vi.fn(async () => ret(next()));
     b.single = vi.fn(async () => ret(next()));
     b.insert = vi.fn((payload: any) => {

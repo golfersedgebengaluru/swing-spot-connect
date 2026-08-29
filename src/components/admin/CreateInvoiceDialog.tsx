@@ -21,6 +21,7 @@ import { useAdvanceBalance, useDrawdownAdvance } from "@/hooks/useAdvanceAccount
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { validateGSTIN, getGstType, calculateLineItems, type GstLineItem } from "@/lib/gst-utils";
+import { isProfileGstRegistered } from "@/lib/gst-utils";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -200,6 +201,9 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
   };
 
   // GST calculation with discount applied proportionally to each line's inclusive price
+  // An unregistered city (Invoice Profile → GST Registered = off) must not
+  // charge any tax: it issues a Bill of Supply, not a Tax Invoice.
+  const gstRegistered = isProfileGstRegistered(profile);
   const gstType = getGstType(profile?.state_code || "", customerGstin || undefined);
   const grossInclusive = useMemo(
     () => lineItems.reduce((s, li) => s + (Number(li.quantity) || 0) * (Number(li.unitPrice) || 0), 0),
@@ -221,7 +225,11 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
       unitPrice: Math.round(Number(li.unitPrice) * factor * 100) / 100,
     }));
   }, [lineItems, discountAmount, grossInclusive]);
-  const calculated = calculateLineItems(discountedLineItems, gstType);
+  const taxableLineItems = useMemo(
+    () => (gstRegistered ? discountedLineItems : discountedLineItems.map((li) => ({ ...li, gstRate: 0 }))),
+    [discountedLineItems, gstRegistered]
+  );
+  const calculated = calculateLineItems(taxableLineItems, gstType);
 
 
   const handleSubmit = async () => {
@@ -526,11 +534,15 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
                 </div>
               </div>
             </div>
-            {customerGstin && gstinValidation && (
+            {!gstRegistered ? (
+              <Badge variant="outline" className="text-xs">
+                Not GST registered — Bill of Supply, no tax charged
+              </Badge>
+            ) : customerGstin && gstinValidation ? (
               <Badge variant="outline" className="text-xs">
                 {gstType === "igst" ? "IGST (Inter-state)" : "CGST + SGST (Intra-state)"}
               </Badge>
-            )}
+            ) : null}
             {/* Auto-add to user list */}
             {!customerUserId && !customerProfileId && customerName && (
               invoiceCategory === "booking" ? (
@@ -693,7 +705,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
                   </>
                 )}
                 <div className="flex justify-between"><span className="text-muted-foreground">Taxable Amount</span><span>{currency.format(calculated.subtotal)}</span></div>
-                {gstType === "cgst_sgst" ? (
+                {!gstRegistered ? null : gstType === "cgst_sgst" ? (
                   <>
                     <div className="flex justify-between"><span className="text-muted-foreground">CGST</span><span>{currency.format(calculated.cgstTotal)}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">SGST</span><span>{currency.format(calculated.sgstTotal)}</span></div>
@@ -703,7 +715,7 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
                 )}
                 <Separator />
                 <div className="flex justify-between font-semibold text-base">
-                  <span>Total (incl. GST)</span><span>{currency.format(calculated.total)}</span>
+                  <span>{gstRegistered ? "Total (incl. GST)" : "Total"}</span><span>{currency.format(calculated.total)}</span>
                 </div>
               </CardContent>
             </Card>

@@ -30,7 +30,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { RefreshCw } from "lucide-react";
-import { calculateLineItems, getGstType, validateGSTIN, INDIAN_STATES } from "@/lib/gst-utils";
+import { calculateLineItems, getGstType, validateGSTIN, INDIAN_STATES, isProfileGstRegistered } from "@/lib/gst-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Package } from "lucide-react";
@@ -640,22 +640,38 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
       // GST profile of the selected city (franchisee)
       const { data: gstProfile } = await supabase
         .from("gst_profiles")
-        .select("state_code")
+        .select("state_code, is_gst_registered, gstin")
         .eq("city", city)
         .maybeSingle();
 
-      if (!gstProfile?.state_code) {
+      if (!gstProfile) {
         toast({
-          title: "GST profile missing",
-          description: `Set up the GST profile for ${city} in City Settings before invoicing.`,
+          title: "Invoice profile missing",
+          description: `Set up the invoice profile for ${city} in Finance → Invoice Profile before invoicing.`,
           variant: "destructive",
         });
         setGenerating(false);
         return;
       }
 
-      const gstType = getGstType(gstProfile.state_code, account.gstin || undefined);
-      const calc = calculateLineItems([lineItem], gstType);
+      // Unregistered cities have no GSTIN / state code by design — they bill a
+      // Bill of Supply with zero tax, so the state code must not gate them.
+      const cityGstRegistered = isProfileGstRegistered(gstProfile as any);
+      if (cityGstRegistered && !gstProfile.state_code) {
+        toast({
+          title: "GST profile incomplete",
+          description: `Add the GSTIN / state for ${city} in Finance → Invoice Profile before invoicing.`,
+          variant: "destructive",
+        });
+        setGenerating(false);
+        return;
+      }
+
+      const gstType = getGstType(gstProfile.state_code || "", account.gstin || undefined);
+      const calc = calculateLineItems(
+        cityGstRegistered ? [lineItem] : [{ ...lineItem, gstRate: 0 }],
+        gstType
+      );
 
       // Compute due date
       const dueDate = new Date();

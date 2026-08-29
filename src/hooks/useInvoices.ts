@@ -253,13 +253,21 @@ export function useCreateInvoice() {
       // Use GSTIN for sequencing if registered, otherwise use city as fallback identifier
       const sequenceGstin = gstRegistered ? gstProfile.gstin : `NOGST-${params.city}`;
 
-      // 2. Get active financial year
+      // 2. Get the active financial year, preferring the city-specific one and
+      //    falling back to the global (city IS NULL) row. Mirrors the DB
+      //    function `auto_create_invoice_for_revenue` so manual and automatic
+      //    invoices always land in the same FY — and so activating a per-city
+      //    FY alongside the global one can never return multiple rows.
       const { data: fy } = await supabase
         .from("financial_years")
         .select("*")
         .eq("is_active", true)
+        .or(`city.eq.${params.city},city.is.null`)
+        .order("city", { ascending: true, nullsFirst: false })
+        .limit(1)
         .maybeSingle();
       if (!fy) throw new Error("No active financial year configured.");
+
 
       // 3. Get next invoice number
       const { data: seqData, error: seqErr } = await supabase
@@ -678,12 +686,19 @@ export function useCancelInvoice() {
 
       if (!original) throw new Error("Invoice not found");
 
+      // Same city-first FY precedence as manual invoice creation, so a credit
+      // note can never fail (or land in the wrong FY) once a per-city
+      // financial year is activated alongside the global one.
       const { data: fy } = await supabase
         .from("financial_years")
         .select("*")
         .eq("is_active", true)
+        .or(`city.eq.${original.city},city.is.null`)
+        .order("city", { ascending: true, nullsFirst: false })
+        .limit(1)
         .maybeSingle();
       if (!fy) throw new Error("No active financial year");
+
 
       const { data: cnData } = await supabase.rpc("get_next_invoice_number", {
         p_gstin: original.business_gstin,
