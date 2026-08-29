@@ -80,6 +80,19 @@ export function InvoiceProfileCard({ city }: { city: string }) {
   const getXBool = (k: keyof CityInvoiceProfile) =>
     Boolean(x[k] !== undefined ? x[k] : extras?.[k]);
 
+  // GST registration is explicit per city. Default true for new cities.
+  const gstRegistered =
+    g.is_gst_registered !== undefined
+      ? g.is_gst_registered
+      : gst?.is_gst_registered !== false;
+
+  const handleGstRegistered = (checked: boolean) => {
+    setGstinValid(null);
+    setG((f) => (checked
+      ? { ...f, is_gst_registered: true }
+      : { ...f, is_gst_registered: false, gstin: "", state_code: "" }));
+  };
+
   const handleGstin = (v: string) => {
     const upper = v.toUpperCase();
     setG((f) => ({ ...f, gstin: upper }));
@@ -92,6 +105,7 @@ export function InvoiceProfileCard({ city }: { city: string }) {
       }
     } else setGstinValid(null);
   };
+
 
   const handleLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
