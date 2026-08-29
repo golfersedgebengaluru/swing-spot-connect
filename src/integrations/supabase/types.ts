@@ -5528,6 +5528,59 @@ export type Database = {
       }
     }
     Views: {
+      city_invoice_identity: {
+        Row: {
+          address: string | null
+          address_line2: string | null
+          authorised_signatory_name: string | null
+          bank_account_holder: string | null
+          bank_account_no: string | null
+          bank_branch: string | null
+          bank_ifsc: string | null
+          bank_name: string | null
+          bank_swift: string | null
+          brand_color: string | null
+          cin: string | null
+          city: string | null
+          copy_labels: Json | null
+          country: string | null
+          declaration: string | null
+          default_place_of_supply: string | null
+          default_sac_code: string | null
+          default_service_gst_rate: number | null
+          due_date_offset_days: number | null
+          einvoice_enabled: boolean | null
+          email: string | null
+          footer_note: string | null
+          gstin: string | null
+          invoice_prefix: string | null
+          invoice_settings_id: string | null
+          invoice_start_number: number | null
+          is_gst_registered: boolean | null
+          jurisdiction: string | null
+          legal_name: string | null
+          logo_url: string | null
+          msme_no: string | null
+          pan: string | null
+          payment_instructions: string | null
+          payment_terms_label: string | null
+          phone: string | null
+          pincode: string | null
+          reverse_charge_default: boolean | null
+          show_signature: boolean | null
+          show_upi_qr: boolean | null
+          signature_url: string | null
+          state: string | null
+          state_code: string | null
+          template: string | null
+          template_overridden: boolean | null
+          terms: string | null
+          trade_name: string | null
+          upi_id: string | null
+          website: string | null
+        }
+        Relationships: []
+      }
       coach_student_contacts: {
         Row: {
           coach_id: string | null

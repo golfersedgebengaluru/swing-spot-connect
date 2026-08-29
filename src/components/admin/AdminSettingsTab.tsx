@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Mail, Clock, KeyRound, Settings, Save, Loader2, CalendarDays, AlertTriangle } from "lucide-react";
+import { Mail, Clock, KeyRound, Settings, Save, Loader2, CalendarDays, AlertTriangle, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { usePageVisibility, useUpdatePageVisibility } from "@/hooks/usePageVisibility";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,7 +17,7 @@ import { AdminFinancialYearsCard } from "@/components/admin/AdminFinancialYearsC
 import { usePerCityFyToggle, useUpdatePerCityFyToggle } from "@/hooks/useRevenue";
 import { ProductCategoriesCard } from "@/components/admin/ProductCategoriesCard";
 import { UnitOfMeasureCard } from "@/components/admin/UnitOfMeasureCard";
-import { InvoiceSettingsCard } from "@/components/admin/InvoiceSettingsCard";
+
 import { VendorsCard } from "@/components/admin/VendorsCard";
 import { ExpenseCategoriesCard } from "@/components/admin/ExpenseCategoriesCard";
 import { SiteAdminPermissionsCard } from "@/components/admin/SiteAdminPermissionsCard";
@@ -585,6 +585,63 @@ function GlobalAdminBookingEmailsCard() {
   );
 }
 
+/**
+ * Coaching invoice option. Previously lived inside the duplicate global
+ * InvoiceSettingsCard; invoice template/logo/footer/terms are now edited only
+ * in Finance → Invoice Profile (per city), so this global toggle stands alone.
+ */
+function CoachNameRequiredCard() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data: required, isLoading } = useQuery({
+    queryKey: ["admin_config", "coach_name_required"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("admin_config")
+        .select("value")
+        .eq("key", "coach_name_required")
+        .maybeSingle();
+      return data?.value === "true";
+    },
+  });
+
+  if (isLoading) return null;
+
+  return (
+    <Card className="max-w-md">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5" />Coaching Invoice Options</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-1">
+            <Label htmlFor="coach-name-required">Require coach name on coaching invoices</Label>
+            <p className="text-xs text-muted-foreground">
+              Invoice templates, logo, footer and terms are configured per city in Finance → Invoice Profile.
+            </p>
+          </div>
+          <Switch
+            id="coach-name-required"
+            checked={!!required}
+            onCheckedChange={async (checked) => {
+              try {
+                const { error } = await supabase
+                  .from("admin_config")
+                  .upsert({ key: "coach_name_required", value: checked ? "true" : "false" }, { onConflict: "key" });
+                if (error) throw error;
+                qc.invalidateQueries({ queryKey: ["admin_config", "coach_name_required"] });
+                toast({ title: checked ? "Coach name is now required" : "Coach name is now optional" });
+              } catch (err: any) {
+                toast({ title: "Error", description: err.message || "Failed to update", variant: "destructive" });
+              }
+            }}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function AdminSettingsTab() {
   return (
     <div className="space-y-6">
@@ -593,8 +650,9 @@ export function AdminSettingsTab() {
       <CityCostPriceAccessCard />
       <AdminRolesManager />
       <FinancialYearSettingsSection />
-      <InvoiceSettingsCard />
+      <CoachNameRequiredCard />
       <PageVisibilitySettings />
+
       <ProductCategoriesCard />
       <UnitOfMeasureCard />
       <VendorsCard />
