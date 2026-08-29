@@ -14,6 +14,8 @@ export interface GstProfile {
   state_code: string;
   invoice_prefix: string;
   invoice_start_number: number;
+  /** Explicit per-city tax registration state. Single source of truth. */
+  is_gst_registered: boolean;
 }
 
 export function useGstProfile(city?: string) {
@@ -35,6 +37,7 @@ export function useGstProfile(city?: string) {
         state_code: "",
         invoice_prefix: "INV",
         invoice_start_number: 1,
+        is_gst_registered: true,
       };
     },
   });
@@ -44,25 +47,33 @@ export function useSaveGstProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (profile: GstProfile) => {
+      const registered = profile.is_gst_registered !== false;
       const { error } = await supabase.from("gst_profiles")
         .upsert(
           {
             city: profile.city,
             legal_name: profile.legal_name,
-            gstin: profile.gstin,
+            // Unregistered cities must never carry a GSTIN / state code —
+            // that stale data is what leaks another city's tax identity.
+            gstin: registered ? profile.gstin : "",
             address: profile.address,
             state: profile.state,
-            state_code: profile.state_code,
+            state_code: registered ? profile.state_code : "",
             invoice_prefix: profile.invoice_prefix,
             invoice_start_number: profile.invoice_start_number,
+            is_gst_registered: registered,
           },
           { onConflict: "city" }
         );
       if (error) throw error;
     },
-    onSuccess: (_, profile) => qc.invalidateQueries({ queryKey: ["gst_profile", profile.city] }),
+    onSuccess: (_, profile) => {
+      qc.invalidateQueries({ queryKey: ["gst_profile", profile.city] });
+      qc.invalidateQueries({ queryKey: ["invoice_settings"] });
+    },
   });
 }
+
 
 // ─── Invoices ───────────────────────────────────────────
 export interface InvoiceFilters {

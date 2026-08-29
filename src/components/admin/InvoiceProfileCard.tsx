@@ -80,6 +80,19 @@ export function InvoiceProfileCard({ city }: { city: string }) {
   const getXBool = (k: keyof CityInvoiceProfile) =>
     Boolean(x[k] !== undefined ? x[k] : extras?.[k]);
 
+  // GST registration is explicit per city. Default true for new cities.
+  const gstRegistered =
+    g.is_gst_registered !== undefined
+      ? g.is_gst_registered
+      : gst?.is_gst_registered !== false;
+
+  const handleGstRegistered = (checked: boolean) => {
+    setGstinValid(null);
+    setG((f) => (checked
+      ? { ...f, is_gst_registered: true }
+      : { ...f, is_gst_registered: false, gstin: "", state_code: "" }));
+  };
+
   const handleGstin = (v: string) => {
     const upper = v.toUpperCase();
     setG((f) => ({ ...f, gstin: upper }));
@@ -92,6 +105,7 @@ export function InvoiceProfileCard({ city }: { city: string }) {
       }
     } else setGstinValid(null);
   };
+
 
   const handleLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
@@ -130,8 +144,11 @@ export function InvoiceProfileCard({ city }: { city: string }) {
     const pin = getX("pincode"); if (pin && !pincodeRe.test(pin)) return "Pincode must be 6 digits.";
     const email = getX("email"); if (email && !emailSchema.safeParse(email).success) return "Email is invalid.";
     const web = getX("website"); if (web && !urlSchema.safeParse(web).success) return "Website must start with http(s)://";
-    const gstin = get("gstin");
-    if (gstin && gstin.length === 15 && !validateGSTIN(gstin).valid) return "GSTIN checksum is invalid.";
+    if (gstRegistered) {
+      const gstin = get("gstin");
+      if (!gstin) return "GSTIN is required when this location is GST registered (or switch GST Registered off).";
+      if (gstin.length !== 15 || !validateGSTIN(gstin).valid) return "GSTIN checksum is invalid.";
+    }
     return null;
   };
 
@@ -143,13 +160,15 @@ export function InvoiceProfileCard({ city }: { city: string }) {
       const mergedGst: GstProfile = {
         city,
         legal_name: get("legal_name"),
-        gstin: get("gstin"),
+        gstin: gstRegistered ? get("gstin") : "",
         address: get("address"),
         state: get("state"),
-        state_code: get("state_code"),
+        state_code: gstRegistered ? get("state_code") : "",
         invoice_prefix: get("invoice_prefix") || "INV",
         invoice_start_number: Number(get("invoice_start_number")) || 1,
+        is_gst_registered: gstRegistered,
       };
+
       // 2) Per-city template/logo/footer/terms
       // 3) Extended profile (contact, bank, signature, etc.)
       const mergedX: CityInvoiceProfile = {
@@ -205,7 +224,7 @@ export function InvoiceProfileCard({ city }: { city: string }) {
     }
   };
 
-  const completeness = computeCompleteness(get, getT, getX);
+  const completeness = computeCompleteness(get, getT, getX, gstRegistered);
 
   return (
     <Card className="max-w-3xl">
@@ -223,19 +242,38 @@ export function InvoiceProfileCard({ city }: { city: string }) {
           <AccordionItem value="business">
             <AccordionTrigger>Business Identity & Contact</AccordionTrigger>
             <AccordionContent className="space-y-4 pt-2">
+              <div className="flex items-start justify-between gap-4 rounded border p-3">
+                <div>
+                  <Label>GST Registered</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {gstRegistered
+                      ? "Invoices for this location are issued as GST tax invoices."
+                      : "This location is unregistered — invoices are issued as plain bills with no GST and no GSTIN."}
+                  </p>
+                </div>
+                <Switch checked={gstRegistered} onCheckedChange={handleGstRegistered} />
+              </div>
               <div className="grid sm:grid-cols-2 gap-4">
                 <Field label="Legal Business Name *"><Input value={get("legal_name")} onChange={(e) => setG((f) => ({ ...f, legal_name: e.target.value }))} /></Field>
                 <Field label="Trade Name"><Input value={getX("trade_name")} onChange={(e) => setX((s) => ({ ...s, trade_name: e.target.value }))} /></Field>
-                <Field label="GSTIN *">
+                <Field label={gstRegistered ? "GSTIN *" : "GSTIN (not applicable)"}>
                   <div className="relative">
-                    <Input value={get("gstin")} maxLength={15} onChange={(e) => handleGstin(e.target.value)} placeholder="22AAAAA0000A1Z5" />
-                    {gstinValid !== null && (
+                    <Input
+                      value={gstRegistered ? get("gstin") : ""}
+                      maxLength={15}
+                      disabled={!gstRegistered}
+                      onChange={(e) => handleGstin(e.target.value)}
+                      placeholder={gstRegistered ? "22AAAAA0000A1Z5" : "Not GST registered"}
+                      className={gstRegistered ? "" : "bg-muted"}
+                    />
+                    {gstRegistered && gstinValid !== null && (
                       <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs ${gstinValid ? "text-green-600" : "text-destructive"}`}>
                         {gstinValid ? "✓" : "✗"}
                       </span>
                     )}
                   </div>
                 </Field>
+
                 <Field label="PAN"><Input value={getX("pan")} onChange={(e) => setX((s) => ({ ...s, pan: e.target.value.toUpperCase() }))} placeholder="ABCDE1234F" /></Field>
                 <Field label="CIN"><Input value={getX("cin")} onChange={(e) => setX((s) => ({ ...s, cin: e.target.value.toUpperCase() }))} /></Field>
                 <Field label="MSME / Udyam Reg No."><Input value={getX("msme_no")} onChange={(e) => setX((s) => ({ ...s, msme_no: e.target.value }))} /></Field>
@@ -397,17 +435,21 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function computeCompleteness(
+export function computeCompleteness(
   get: (k: keyof GstProfile) => string,
   getT: (k: any) => string,
   getX: (k: keyof CityInvoiceProfile) => string,
+  gstRegistered = true,
 ): number {
   const required = [
-    get("legal_name"), get("gstin"), get("address"), get("state"),
+    get("legal_name"), get("address"), get("state"),
     getT("template"),
     getX("phone"), getX("email"),
     getX("bank_name"), getX("bank_account_no"), getX("bank_ifsc"),
+    // GSTIN only counts toward completeness for registered locations.
+    ...(gstRegistered ? [get("gstin")] : []),
   ];
   const filled = required.filter((v) => String(v || "").trim().length > 0).length;
   return Math.round((filled / required.length) * 100);
 }
+
