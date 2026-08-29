@@ -595,10 +595,8 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
       toast({ title: "Select a city", description: "Pick a city from the top bar — invoices are city-specific.", variant: "destructive" });
       return;
     }
-    if (!city) {
-      toast({ title: "City not resolved", description: "Sessions have no city.", variant: "destructive" });
-      return;
-    }
+
+
 
     setGenerating(true);
     try {
