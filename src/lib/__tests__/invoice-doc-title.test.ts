@@ -42,16 +42,16 @@ const baseInvoice: any = {
   sgst_total: 0,
   igst_total: 0,
   total: 100,
+  line_items: [
+    { item_name: "Bay session", quantity: 1, unit_price: 100, gst_rate: 0, taxable_amount: 100, cgst_amount: 0, sgst_amount: 0, igst_amount: 0, line_total: 100 },
+  ],
 };
-const lineItems: any[] = [
-  { item_name: "Bay session", quantity: 1, unit_price: 100, gst_rate: 0, taxable_amount: 100, cgst_amount: 0, sgst_amount: 0, igst_amount: 0, line_total: 100 },
-];
-const fmt = (n: number) => `₹${n}`;
+const fmt: any = { format: (n: number) => `₹${n}` };
 
 describe("rendered invoice HTML for an unregistered city", () => {
   for (const template of ["classic", "modern", "compact"] as const) {
     it(`${template} template prints Bill of Supply, not Tax Invoice`, () => {
-      const html = renderInvoiceHtml(baseInvoice, lineItems, { template } as any, fmt as any);
+      const html = renderInvoiceHtml(baseInvoice, { template } as any, fmt);
       expect(html.toLowerCase()).toContain("bill of supply");
       expect(html.toLowerCase()).not.toContain("tax invoice");
     });
@@ -59,9 +59,8 @@ describe("rendered invoice HTML for an unregistered city", () => {
     it(`${template} template still prints Tax Invoice when registered`, () => {
       const html = renderInvoiceHtml(
         { ...baseInvoice, business_gstin: "29AAJFT3960B1Z3" },
-        lineItems,
         { template } as any,
-        fmt as any,
+        fmt,
       );
       expect(html.toLowerCase()).toContain("tax invoice");
       expect(html.toLowerCase()).not.toContain("bill of supply");
