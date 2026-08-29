@@ -435,17 +435,21 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function computeCompleteness(
+export function computeCompleteness(
   get: (k: keyof GstProfile) => string,
   getT: (k: any) => string,
   getX: (k: keyof CityInvoiceProfile) => string,
+  gstRegistered = true,
 ): number {
   const required = [
-    get("legal_name"), get("gstin"), get("address"), get("state"),
+    get("legal_name"), get("address"), get("state"),
     getT("template"),
     getX("phone"), getX("email"),
     getX("bank_name"), getX("bank_account_no"), getX("bank_ifsc"),
+    // GSTIN only counts toward completeness for registered locations.
+    ...(gstRegistered ? [get("gstin")] : []),
   ];
   const filled = required.filter((v) => String(v || "").trim().length > 0).length;
   return Math.round((filled / required.length) * 100);
 }
+
