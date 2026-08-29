@@ -7,17 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingCart, Plus, Coffee, Wine, Beer, Loader2, Minus, Trash2, ClipboardList } from "lucide-react";
+import { ShoppingCart, Plus, Coffee, Wine, Beer, Loader2, Minus, Trash2, ClipboardList, Shirt, Package } from "lucide-react";
 import { CouponInput } from "@/components/shop/CouponInput";
 import { ValidateCouponResult, calculateDiscount, useRedeemCoupon } from "@/hooks/useCoupons";
 import { useToast } from "@/hooks/use-toast";
-import { useProducts } from "@/hooks/useProducts";
+import { useSellableProducts, groupByCategory } from "@/hooks/useProducts";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { useCreateOrder, useMyOrders, OrderItem } from "@/hooks/useOrders";
 import { useUserProfile } from "@/hooks/useBookings";
 import { format } from "date-fns";
-
-const iconMap: Record<string, any> = { coffee: Coffee, beer: Beer, wine: Wine };
 
 const ORDER_STATUS_LABEL: Record<string, string> = {
   pending: "🟡 Pending",
@@ -26,10 +24,19 @@ const ORDER_STATUS_LABEL: Record<string, string> = {
   delivered: "✅ Delivered",
 };
 
+// Category icon is derived from the catalogue category name — no extra column needed.
+function categoryIcon(category: string) {
+  const c = category.toLowerCase();
+  if (c.includes("f&b") || c.includes("beverage") || c.includes("food") || c.includes("coffee")) return Coffee;
+  if (c.includes("beer")) return Beer;
+  if (c.includes("wine") || c.includes("bar")) return Wine;
+  if (c.includes("apparel") || c.includes("cloth") || c.includes("merch")) return Shirt;
+  return Package;
+}
+
 export default function Shop() {
   const { toast } = useToast();
-  const { data: beverages, isLoading: loadingBev } = useProducts("beverage");
-  const { data: merchandise, isLoading: loadingMerch } = useProducts("merchandise");
+  const { data: sellable, isLoading } = useSellableProducts();
   const { symbol, format: formatCurrency } = useDefaultCurrency();
   const { data: profile } = useUserProfile();
   const createOrder = useCreateOrder();
@@ -39,6 +46,9 @@ export default function Shop() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<ValidateCouponResult | null>(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
+
+  const groups = groupByCategory((sellable ?? []) as any[]);
+
 
   const addToCart = (item: { id: string; name: string; price: number }) => {
     setCart((prev) => {
