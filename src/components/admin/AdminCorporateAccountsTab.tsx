@@ -535,7 +535,7 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
     `${endDate}T23:59:59`,
     selectedCity || null
   );
-  const { data: corporateProducts } = useCorporateProducts(account.id);
+  const { data: corporateProducts } = useCorporateProducts(account.id, selectedCity || null);
   const createInvoice = useCreateInvoice();
   const deleteInvoice = useDeleteInvoice();
 
