@@ -686,12 +686,19 @@ export function useCancelInvoice() {
 
       if (!original) throw new Error("Invoice not found");
 
+      // Same city-first FY precedence as manual invoice creation, so a credit
+      // note can never fail (or land in the wrong FY) once a per-city
+      // financial year is activated alongside the global one.
       const { data: fy } = await supabase
         .from("financial_years")
         .select("*")
         .eq("is_active", true)
+        .or(`city.eq.${original.city},city.is.null`)
+        .order("city", { ascending: true, nullsFirst: false })
+        .limit(1)
         .maybeSingle();
       if (!fy) throw new Error("No active financial year");
+
 
       const { data: cnData } = await supabase.rpc("get_next_invoice_number", {
         p_gstin: original.business_gstin,
