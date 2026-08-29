@@ -5569,6 +5569,13 @@ export type Database = {
           },
         ]
       }
+      corporate_account_cities: {
+        Row: {
+          city: string | null
+          corporate_account_id: string | null
+        }
+        Relationships: []
+      }
       my_coach_contact: {
         Row: {
           coach_city: string | null
