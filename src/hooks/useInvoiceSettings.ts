@@ -51,27 +51,39 @@ export function useCityInvoiceSettings(city?: string) {
   });
 }
 
-/** 
- * Resolve effective invoice settings for a city:
- * per-city override if exists, otherwise global fallback.
+/**
+ * Resolve effective invoice settings for a city.
+ *
+ * Backed by the `city_invoice_identity` view, which merges the per-city
+ * override, the global fallback and the extended city profile server-side.
+ * Falls back to the global settings row when the city has no rows at all.
  */
 export function useEffectiveInvoiceSettings(city?: string) {
   const { data: global, isLoading: gl } = useGlobalInvoiceSettings();
-  const { data: citySettings, isLoading: cl } = useCityInvoiceSettings(city);
-  const { data: profile, isLoading: pl } = useCityInvoiceProfile(city);
+  const { data: identity, isLoading: il } = useCityInvoiceIdentity(city);
 
-  const base: InvoiceSettings = citySettings ?? global ?? { ...DEFAULTS, city: null };
+  const base: InvoiceSettings = identity
+    ? {
+        city: identity.city,
+        template: (identity.template ?? "classic") as InvoiceTemplate,
+        logo_url: identity.logo_url ?? "",
+        footer_note: identity.footer_note ?? "",
+        terms: identity.terms ?? "",
+      }
+    : global ?? { ...DEFAULTS, city: null };
+
   // Merge in the city invoice profile extras (contact, bank, signature, etc.)
   // for rendering. These are always optional — templates degrade gracefully
   // when absent so legacy invoices remain unchanged.
-  const effective = profile ? { ...base, ...stripUndefined(profile) } : base;
+  const effective = identity ? { ...base, ...stripUndefined(identity) } : base;
 
   return {
     data: effective as InvoiceSettings & Partial<CityInvoiceProfile>,
-    isLoading: gl || cl || pl,
-    isOverridden: !!citySettings,
+    isLoading: gl || il,
+    isOverridden: !!identity?.template_overridden,
   };
 }
+
 
 function stripUndefined<T extends Record<string, any>>(o: T): Partial<T> {
   const out: any = {};
