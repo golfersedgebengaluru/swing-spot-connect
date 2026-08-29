@@ -168,20 +168,26 @@ export function useAssignProfileToCorporate() {
 }
 
 // ─── Products linked to a corporate account ──────────
-export function useCorporateProducts(corporateAccountId?: string | null) {
+// When a city is selected, only that city's rate items (plus global items)
+// are offered, so one franchisee never bills using another city's rates.
+export function useCorporateProducts(corporateAccountId?: string | null, city?: string | null) {
   return useQuery({
-    queryKey: ["corporate_products", corporateAccountId],
+    queryKey: ["corporate_products", corporateAccountId, city || null],
     enabled: !!corporateAccountId,
     queryFn: async () => {
-      const { data, error } = await (supabase.from as any)("products_public")
+      let q = supabase
+        .from("products_public")
         .select("*")
         .eq("corporate_account_id", corporateAccountId!)
         .order("name");
+      if (city) q = q.or(`city.eq.${city},city.is.null`);
+      const { data, error } = await q;
       if (error) throw error;
       return data ?? [];
     },
   });
 }
+
 
 // ─── Profile lookup (for Manual Booking corporate banner) ──
 export function useProfileBillingInfo(profileId?: string | null) {
