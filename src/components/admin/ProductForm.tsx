@@ -137,7 +137,6 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
       description: form.description || null,
       category: form.category,
       item_type: form.item_type,
-      type: isProduct ? "merchandise" : "beverage",
       in_stock: form.in_stock,
       sku: form.sku || null,
       unit_of_measure: form.unit_of_measure,
