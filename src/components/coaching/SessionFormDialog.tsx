@@ -179,14 +179,15 @@ export function SessionFormDialog({
 
   const handleSave = async () => {
     if (!user || !effectiveCoachId) return;
-    await save.mutateAsync({
+    const sessionId = await save.mutateAsync({
       id: session?.id,
       coach_user_id: effectiveCoachId,
       student_user_id: studentId,
       city,
       session_date: date,
       notes: notes || null,
-      drills: drills || null,
+      // Legacy field is preserved on existing sessions but never written for new ones.
+      drills: session ? drills || null : null,
       progress_summary: progress || null,
       onform_links: cleanLinks(onformLinks),
       sportsbox_links: cleanLinks(sportsboxLinks),
@@ -194,6 +195,10 @@ export function SessionFormDialog({
       other_links: cleanLinks(otherLinks),
       booking_id: linkBooking && bookingId ? bookingId : null,
     });
+    // Focuses/drills are insert-only history: written once, on creation.
+    if (!session && sessionId && (selection.focusIds.length || selection.drills.length)) {
+      await persistSessionSelection(sessionId, selection, focusLibrary ?? []);
+    }
     onOpenChange(false);
   };
 
