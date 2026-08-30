@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { useSessionLibraryEntries } from "@/hooks/useCoachingLibrary";
 
 /**
@@ -8,9 +9,12 @@ import { useSessionLibraryEntries } from "@/hooks/useCoachingLibrary";
 export function SessionLibrarySummary({
   sessionId,
   compact,
+  heading,
 }: {
   sessionId: string;
   compact?: boolean;
+  /** When set (and there is content), wraps the summary in a titled card. */
+  heading?: string;
 }) {
   const { data } = useSessionLibraryEntries(sessionId);
   const focuses = data?.focuses ?? [];
@@ -34,7 +38,7 @@ export function SessionLibrarySummary({
     );
   }
 
-  return (
+  const body = (
     <div className="space-y-4">
       {focuses.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
@@ -67,5 +71,13 @@ export function SessionLibrarySummary({
         );
       })}
     </div>
+  );
+
+  if (!heading) return body;
+  return (
+    <Card className="p-5">
+      <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3">{heading}</h2>
+      {body}
+    </Card>
   );
 }
