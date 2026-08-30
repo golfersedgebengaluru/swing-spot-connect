@@ -106,7 +106,11 @@ export function buildSessionRows(
 ): { focusRows: SessionFocusRow[]; drillRows: SessionDrillRow[] } {
   const focusById = new Map(library.map((f) => [f.id, f]));
   const drillById = new Map<string, DrillRef>();
-  library.forEach((f) => f.drills.forEach((d) => drillById.set(d.id, d)));
+  library.forEach((f) =>
+    f.drills.forEach((d) => {
+      if (!drillById.has(d.id)) drillById.set(d.id, d);
+    })
+  );
 
   const focusRows: SessionFocusRow[] = [];
   const seenFocus = new Set<string>();
