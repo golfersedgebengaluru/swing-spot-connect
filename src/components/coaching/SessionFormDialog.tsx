@@ -140,6 +140,7 @@ export function SessionFormDialog({
       setDate(format(new Date(), "yyyy-MM-dd"));
       setNotes("");
       setDrills("");
+      setSelection({ focusIds: [], drills: [] });
       setProgress("");
       setOnformLinks([]);
       setSportsboxLinks([]);
