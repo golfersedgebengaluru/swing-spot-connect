@@ -116,6 +116,7 @@ export function SessionFormDialog({
       setDate(session.session_date);
       setNotes(session.notes ?? "");
       setDrills(session.drills ?? "");
+      setSelection({ focusIds: [], drills: [] });
       setProgress(session.progress_summary ?? "");
       // Prefer new array fields; fall back to legacy single-URL fields
       const fromArrayOrLegacy = (arr: any, url?: string | null, label?: string | null): ToolLink[] => {
