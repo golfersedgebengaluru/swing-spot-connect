@@ -28,6 +28,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Search, Trash2, Pencil, GraduationCap, ChevronDown, ChevronRight, Users } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { SessionFormDialog } from "@/components/coaching/SessionFormDialog";
+import { CoachingLibraryCard } from "@/components/admin/CoachingLibraryCard";
 import { ManageCoachStudents } from "@/components/coaching/ManageCoachStudents";
 import { useAllCities } from "@/hooks/useBookings";
 
@@ -506,6 +507,7 @@ export function AdminCoachingTab() {
           {showCoachView && <TabsTrigger value="my-students">My Students</TabsTrigger>}
           {showAdminView && <TabsTrigger value="all-sessions">All Sessions</TabsTrigger>}
           {showAdminView && <TabsTrigger value="coaches">Coaches</TabsTrigger>}
+          {showAdminView && <TabsTrigger value="library">Library</TabsTrigger>}
         </TabsList>
 
         {showCoachView && (
@@ -533,6 +535,12 @@ export function AdminCoachingTab() {
         {showAdminView && (
           <TabsContent value="coaches" className="mt-4">
             <CoachesManager city={selectedCity} />
+          </TabsContent>
+        )}
+
+        {showAdminView && (
+          <TabsContent value="library" className="mt-4">
+            <CoachingLibraryCard />
           </TabsContent>
         )}
       </Tabs>

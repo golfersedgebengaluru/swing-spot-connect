@@ -3,6 +3,7 @@ import { Calendar, User } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import type { CoachingSession } from "@/hooks/useCoaching";
 import { ExternalToolLinks } from "./ExternalToolLinks";
+import { SessionLibrarySummary } from "./SessionLibrarySummary";
 
 interface Props {
   session: CoachingSession;
@@ -35,6 +36,10 @@ export function SessionCard({ session, perspective, onClick }: Props) {
             </span>
           </div>
         </div>
+      </div>
+
+      <div className="mb-3">
+        <SessionLibrarySummary sessionId={session.id} compact />
       </div>
 
       {session.progress_summary && (

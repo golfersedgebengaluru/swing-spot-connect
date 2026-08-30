@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Calendar, User } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ExternalToolLinks } from "@/components/coaching/ExternalToolLinks";
+import { SessionLibrarySummary } from "@/components/coaching/SessionLibrarySummary";
 
 export default function CoachingSessionDetail() {
   const { sessionId } = useParams();
@@ -75,9 +76,10 @@ export default function CoachingSessionDetail() {
                 <p className="text-sm whitespace-pre-wrap">{session.notes}</p>
               </Card>
             )}
+            <SessionLibrarySummary sessionId={session.id} heading="Focus & Drills" />
             {session.drills && (
               <Card className="p-5">
-                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-2">Drills</h2>
+                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-2">Drills (legacy notes)</h2>
                 <p className="text-sm whitespace-pre-wrap">{session.drills}</p>
               </Card>
             )}

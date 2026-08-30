@@ -738,6 +738,112 @@ export type Database = {
         }
         Relationships: []
       }
+      coaching_categories: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      coaching_drills: {
+        Row: {
+          active: boolean
+          category_id: string | null
+          created_at: string
+          id: string
+          instructions: string | null
+          name: string
+          objective: string | null
+          recommended_reps: string | null
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          active?: boolean
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          instructions?: string | null
+          name: string
+          objective?: string | null
+          recommended_reps?: string | null
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          active?: boolean
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          instructions?: string | null
+          name?: string
+          objective?: string | null
+          recommended_reps?: string | null
+          updated_at?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coaching_drills_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coaching_focuses: {
+        Row: {
+          active: boolean
+          category_id: string | null
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coaching_focuses_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coaching_sessions: {
         Row: {
           billing_status: string
@@ -1525,6 +1631,39 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      focus_drills: {
+        Row: {
+          created_at: string
+          drill_id: string
+          focus_id: string
+        }
+        Insert: {
+          created_at?: string
+          drill_id: string
+          focus_id: string
+        }
+        Update: {
+          created_at?: string
+          drill_id?: string
+          focus_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "focus_drills_drill_id_fkey"
+            columns: ["drill_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_drills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "focus_drills_focus_id_fkey"
+            columns: ["focus_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_focuses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       gifted_rewards: {
         Row: {
@@ -5379,6 +5518,97 @@ export type Database = {
         }
         Relationships: []
       }
+      session_drills: {
+        Row: {
+          coach_note: string | null
+          created_at: string
+          drill_id: string | null
+          focus_id: string | null
+          id: string
+          session_id: string
+          snapshot: Json
+        }
+        Insert: {
+          coach_note?: string | null
+          created_at?: string
+          drill_id?: string | null
+          focus_id?: string | null
+          id?: string
+          session_id: string
+          snapshot?: Json
+        }
+        Update: {
+          coach_note?: string | null
+          created_at?: string
+          drill_id?: string | null
+          focus_id?: string | null
+          id?: string
+          session_id?: string
+          snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_drills_drill_id_fkey"
+            columns: ["drill_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_drills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_drills_focus_id_fkey"
+            columns: ["focus_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_focuses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_drills_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_focuses: {
+        Row: {
+          created_at: string
+          focus_id: string | null
+          id: string
+          session_id: string
+          snapshot: Json
+        }
+        Insert: {
+          created_at?: string
+          focus_id?: string | null
+          id?: string
+          session_id: string
+          snapshot?: Json
+        }
+        Update: {
+          created_at?: string
+          focus_id?: string | null
+          id?: string
+          session_id?: string
+          snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_focuses_focus_id_fkey"
+            columns: ["focus_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_focuses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_focuses_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       site_admin_cities: {
         Row: {
           city: string
@@ -5900,6 +6130,14 @@ export type Database = {
           invoice_id: string
           revenue_id: string
         }[]
+      }
+      can_read_coaching_session: {
+        Args: { _session_id: string }
+        Returns: boolean
+      }
+      can_write_coaching_session: {
+        Args: { _session_id: string }
+        Returns: boolean
       }
       cancel_booking_with_clawback: {
         Args: { p_booking_id: string; p_cancelled_by?: string }

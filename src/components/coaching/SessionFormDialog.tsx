@@ -21,6 +21,10 @@ import { useAdmin } from "@/hooks/useAdmin";
 import { useAllCities } from "@/hooks/useBookings";
 import { Trash2, Search, Link2, Plus, X } from "lucide-react";
 import { VoiceTextarea } from "./VoiceTextarea";
+import { FocusDrillPicker } from "./FocusDrillPicker";
+import { SessionLibrarySummary } from "./SessionLibrarySummary";
+import { useFocusLibrary, persistSessionSelection } from "@/hooks/useCoachingLibrary";
+import type { SessionSelection } from "@/lib/coaching-library";
 import { format, parseISO } from "date-fns";
 
 interface Props {
@@ -72,7 +76,10 @@ export function SessionFormDialog({
   const [city, setCity] = useState("");
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [notes, setNotes] = useState("");
+  // Legacy free-text drills: still shown on historic sessions, never written again.
   const [drills, setDrills] = useState("");
+  const [selection, setSelection] = useState<SessionSelection>({ focusIds: [], drills: [] });
+  const { data: focusLibrary } = useFocusLibrary();
   const [progress, setProgress] = useState("");
   const [onformLinks, setOnformLinks] = useState<ToolLink[]>([]);
   const [sportsboxLinks, setSportsboxLinks] = useState<ToolLink[]>([]);
@@ -109,6 +116,7 @@ export function SessionFormDialog({
       setDate(session.session_date);
       setNotes(session.notes ?? "");
       setDrills(session.drills ?? "");
+      setSelection({ focusIds: [], drills: [] });
       setProgress(session.progress_summary ?? "");
       // Prefer new array fields; fall back to legacy single-URL fields
       const fromArrayOrLegacy = (arr: any, url?: string | null, label?: string | null): ToolLink[] => {
@@ -132,6 +140,7 @@ export function SessionFormDialog({
       setDate(format(new Date(), "yyyy-MM-dd"));
       setNotes("");
       setDrills("");
+      setSelection({ focusIds: [], drills: [] });
       setProgress("");
       setOnformLinks([]);
       setSportsboxLinks([]);
@@ -170,14 +179,15 @@ export function SessionFormDialog({
 
   const handleSave = async () => {
     if (!user || !effectiveCoachId) return;
-    await save.mutateAsync({
+    const sessionId = await save.mutateAsync({
       id: session?.id,
       coach_user_id: effectiveCoachId,
       student_user_id: studentId,
       city,
       session_date: date,
       notes: notes || null,
-      drills: drills || null,
+      // Legacy field is preserved on existing sessions but never written for new ones.
+      drills: session ? drills || null : null,
       progress_summary: progress || null,
       onform_links: cleanLinks(onformLinks),
       sportsbox_links: cleanLinks(sportsboxLinks),
@@ -185,6 +195,10 @@ export function SessionFormDialog({
       other_links: cleanLinks(otherLinks),
       booking_id: linkBooking && bookingId ? bookingId : null,
     });
+    // Focuses/drills are insert-only history: written once, on creation.
+    if (!session && sessionId && (selection.focusIds.length || selection.drills.length)) {
+      await persistSessionSelection(sessionId, selection, focusLibrary ?? []);
+    }
     onOpenChange(false);
   };
 
@@ -402,9 +416,27 @@ export function SessionFormDialog({
             </div>
           </div>
 
-          {/* Notes / drills / progress */}
+          {/* Structured focus + drills */}
+          {session ? (
+            <div className="space-y-2">
+              <Label>Focus &amp; Drills</Label>
+              <SessionLibrarySummary sessionId={session.id} />
+              <p className="text-xs text-muted-foreground">
+                Recorded focuses and drills are part of the session history and cannot be changed.
+              </p>
+              {drills && (
+                <div className="rounded-md border bg-muted/30 p-3">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Legacy notes</div>
+                  <p className="text-sm whitespace-pre-wrap">{drills}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <FocusDrillPicker library={focusLibrary ?? []} value={selection} onChange={setSelection} />
+          )}
+
+          {/* Notes / progress */}
           <VoiceTextarea label="Notes" field="notes" value={notes} onChange={setNotes} rows={3} placeholder="What you worked on… (tap Dictate to speak)" />
-          <VoiceTextarea label="Drills" field="drills" value={drills} onChange={setDrills} rows={3} placeholder="Drills assigned… (tap Dictate to speak)" />
           <VoiceTextarea label="Progress Summary" field="progress" value={progress} onChange={setProgress} rows={2} placeholder="Summary visible on the card… (tap Dictate to speak)" />
 
           {/* External tools — multi-link */}
