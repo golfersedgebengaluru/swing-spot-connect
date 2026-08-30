@@ -536,6 +536,12 @@ export function AdminCoachingTab() {
             <CoachesManager city={selectedCity} />
           </TabsContent>
         )}
+
+        {showAdminView && (
+          <TabsContent value="library" className="mt-4">
+            <CoachingLibraryCard />
+          </TabsContent>
+        )}
       </Tabs>
 
       <SessionFormDialog
