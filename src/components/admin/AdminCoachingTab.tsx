@@ -28,6 +28,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Search, Trash2, Pencil, GraduationCap, ChevronDown, ChevronRight, Users } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { SessionFormDialog } from "@/components/coaching/SessionFormDialog";
+import { CoachingLibraryCard } from "@/components/admin/CoachingLibraryCard";
 import { ManageCoachStudents } from "@/components/coaching/ManageCoachStudents";
 import { useAllCities } from "@/hooks/useBookings";
 
