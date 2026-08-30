@@ -76,7 +76,10 @@ export function SessionFormDialog({
   const [city, setCity] = useState("");
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [notes, setNotes] = useState("");
+  // Legacy free-text drills: still shown on historic sessions, never written again.
   const [drills, setDrills] = useState("");
+  const [selection, setSelection] = useState<SessionSelection>({ focusIds: [], drills: [] });
+  const { data: focusLibrary } = useFocusLibrary();
   const [progress, setProgress] = useState("");
   const [onformLinks, setOnformLinks] = useState<ToolLink[]>([]);
   const [sportsboxLinks, setSportsboxLinks] = useState<ToolLink[]>([]);
