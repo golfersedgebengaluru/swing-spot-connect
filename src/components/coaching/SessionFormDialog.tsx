@@ -416,9 +416,27 @@ export function SessionFormDialog({
             </div>
           </div>
 
-          {/* Notes / drills / progress */}
+          {/* Structured focus + drills */}
+          {session ? (
+            <div className="space-y-2">
+              <Label>Focus &amp; Drills</Label>
+              <SessionLibrarySummary sessionId={session.id} />
+              <p className="text-xs text-muted-foreground">
+                Recorded focuses and drills are part of the session history and cannot be changed.
+              </p>
+              {drills && (
+                <div className="rounded-md border bg-muted/30 p-3">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Legacy notes</div>
+                  <p className="text-sm whitespace-pre-wrap">{drills}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <FocusDrillPicker library={focusLibrary ?? []} value={selection} onChange={setSelection} />
+          )}
+
+          {/* Notes / progress */}
           <VoiceTextarea label="Notes" field="notes" value={notes} onChange={setNotes} rows={3} placeholder="What you worked on… (tap Dictate to speak)" />
-          <VoiceTextarea label="Drills" field="drills" value={drills} onChange={setDrills} rows={3} placeholder="Drills assigned… (tap Dictate to speak)" />
           <VoiceTextarea label="Progress Summary" field="progress" value={progress} onChange={setProgress} rows={2} placeholder="Summary visible on the card… (tap Dictate to speak)" />
 
           {/* External tools — multi-link */}
