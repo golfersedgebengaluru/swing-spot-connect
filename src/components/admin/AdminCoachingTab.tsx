@@ -506,6 +506,7 @@ export function AdminCoachingTab() {
           {showCoachView && <TabsTrigger value="my-students">My Students</TabsTrigger>}
           {showAdminView && <TabsTrigger value="all-sessions">All Sessions</TabsTrigger>}
           {showAdminView && <TabsTrigger value="coaches">Coaches</TabsTrigger>}
+          {showAdminView && <TabsTrigger value="library">Library</TabsTrigger>}
         </TabsList>
 
         {showCoachView && (
