@@ -75,9 +75,13 @@ export default function CoachingSessionDetail() {
                 <p className="text-sm whitespace-pre-wrap">{session.notes}</p>
               </Card>
             )}
+            <Card className="p-5">
+              <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3">Focus &amp; Drills</h2>
+              <SessionLibrarySummary sessionId={session.id} />
+            </Card>
             {session.drills && (
               <Card className="p-5">
-                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-2">Drills</h2>
+                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-2">Drills (legacy notes)</h2>
                 <p className="text-sm whitespace-pre-wrap">{session.drills}</p>
               </Card>
             )}
