@@ -21,6 +21,10 @@ import { useAdmin } from "@/hooks/useAdmin";
 import { useAllCities } from "@/hooks/useBookings";
 import { Trash2, Search, Link2, Plus, X } from "lucide-react";
 import { VoiceTextarea } from "./VoiceTextarea";
+import { FocusDrillPicker } from "./FocusDrillPicker";
+import { SessionLibrarySummary } from "./SessionLibrarySummary";
+import { useFocusLibrary, persistSessionSelection } from "@/hooks/useCoachingLibrary";
+import type { SessionSelection } from "@/lib/coaching-library";
 import { format, parseISO } from "date-fns";
 
 interface Props {
