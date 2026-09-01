@@ -4748,6 +4748,7 @@ export type Database = {
           image_url: string | null
           in_stock: boolean | null
           item_type: string
+          legacy_sku: string | null
           name: string
           opening_stock: number | null
           price: number
@@ -4777,6 +4778,7 @@ export type Database = {
           image_url?: string | null
           in_stock?: boolean | null
           item_type?: string
+          legacy_sku?: string | null
           name: string
           opening_stock?: number | null
           price?: number
@@ -4806,6 +4808,7 @@ export type Database = {
           image_url?: string | null
           in_stock?: boolean | null
           item_type?: string
+          legacy_sku?: string | null
           name?: string
           opening_stock?: number | null
           price?: number
@@ -5916,6 +5919,7 @@ export type Database = {
           image_url: string | null
           in_stock: boolean | null
           item_type: string | null
+          legacy_sku: string | null
           name: string | null
           opening_stock: number | null
           price: number | null
@@ -5944,6 +5948,7 @@ export type Database = {
           image_url?: string | null
           in_stock?: boolean | null
           item_type?: string | null
+          legacy_sku?: string | null
           name?: string | null
           opening_stock?: number | null
           price?: number | null
@@ -5972,6 +5977,7 @@ export type Database = {
           image_url?: string | null
           in_stock?: boolean | null
           item_type?: string | null
+          legacy_sku?: string | null
           name?: string | null
           opening_stock?: number | null
           price?: number | null
@@ -6213,6 +6219,15 @@ export type Database = {
       decrement_user_points_safe: {
         Args: { p_delta: number; p_user_id: string }
         Returns: number
+      }
+      generate_product_sku: {
+        Args: {
+          _category: string
+          _city: string
+          _item_type: string
+          _name: string
+        }
+        Returns: string
       }
       get_advance_balance: { Args: { p_customer_id: string }; Returns: number }
       get_hours_balance: { Args: { p_user_id: string }; Returns: number }
