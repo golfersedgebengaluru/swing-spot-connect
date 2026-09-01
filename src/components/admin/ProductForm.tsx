@@ -72,19 +72,15 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const [priceInclusive, setPriceInclusive] = useState(true);
   const [displayPrice, setDisplayPrice] = useState(String(product?.price ?? 0));
 
-  // Auto-generate SKU for new items
-  useEffect(() => {
-    if (!product?.id && !form.sku) {
-      setForm((f) => ({ ...f, sku: generateSKU(f.item_type) }));
-    }
-  }, []);
+  // SKU is assigned by the database on insert; blanking it regenerates one.
+  const [regenerateSku, setRegenerateSku] = useState(false);
+  const skuPreview = previewSkuBase({
+    item_type: form.item_type,
+    city: form.city || null,
+    category: form.category,
+    name: form.name,
+  });
 
-  // Regenerate SKU prefix when type changes for new items
-  useEffect(() => {
-    if (!product?.id) {
-      setForm((f) => ({ ...f, sku: generateSKU(f.item_type) }));
-    }
-  }, [form.item_type]);
 
   // Recalc display price when toggle or gst_rate changes
   useEffect(() => {
