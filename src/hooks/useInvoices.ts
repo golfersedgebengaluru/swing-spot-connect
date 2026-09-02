@@ -282,7 +282,11 @@ export function useCreateInvoice() {
       const invoiceNumber = (typeof seqData === "string" ? seqData : (seqData as any)) as string;
       if (!invoiceNumber) throw new Error("Failed to generate invoice number");
 
-      // 4. Create revenue transaction first (so we can link it)
+      // 4. Create revenue transaction first (so we can link it).
+      //    `manual_invoice` tells the DB trigger `trg_auto_create_invoice` to
+      //    stand down: this flow inserts its own fully itemised invoice below.
+      //    Without the flag both writers race and produce two invoices for the
+      //    same payment (each burning an invoice number).
       const { data: revTxn, error: revErr } = await supabase.from("revenue_transactions")
         .insert({
           amount: params.total,
@@ -292,10 +296,12 @@ export function useCreateInvoice() {
           status: "confirmed",
           city: params.city,
           gateway_name: params.paymentMethod || null,
+          metadata: { manual_invoice: true },
         })
         .select()
         .single();
       if (revErr) throw revErr;
+
 
       // 5. Insert invoice
       const invoicePayload = {
