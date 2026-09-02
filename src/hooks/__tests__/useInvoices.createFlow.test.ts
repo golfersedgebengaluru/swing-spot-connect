@@ -226,4 +226,20 @@ describe("useCreateInvoice — manual invoice happy path", () => {
       status: "confirmed",
     });
   });
+
+  // Regression: the manual flow must flag its revenue row so the DB trigger
+  // `trg_auto_create_invoice` stands down. Without the flag the trigger and this
+  // hook both insert an invoice for the same payment (duplicate invoices,
+  // two invoice numbers burned) — observed for Vikram Lodha / Akshath & Vilvaa.
+  it("flags the revenue transaction as manual_invoice so the DB trigger stands down", async () => {
+    primeHappyPath();
+    const { result } = renderHook(() => useCreateInvoice(), { wrapper });
+
+    await result.current.mutateAsync(baseParams as any);
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    const rev = captured.find((c) => c.table === "revenue_transactions" && c.op === "insert")!.payload;
+    expect(rev.metadata).toEqual({ manual_invoice: true });
+  });
 });
+
