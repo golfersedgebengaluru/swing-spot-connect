@@ -123,8 +123,9 @@ function InvoiceListSection({ city }: { city: string }) {
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> Create Invoice
         </Button>
-        <Button variant="outline" onClick={handleCsvExport} disabled={!invoices.length}>
-          <Download className="mr-2 h-4 w-4" /> Export CSV
+        <Button variant="outline" onClick={handleCsvExport} disabled={exporting || totalCount === 0}>
+          {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+          {exporting ? `Exporting ${totalCount} invoices…` : "Export CSV"}
         </Button>
       </div>
 
