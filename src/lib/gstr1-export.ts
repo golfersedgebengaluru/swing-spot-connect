@@ -392,3 +392,13 @@ function normalizeUqc(unit: string | null | undefined): string {
   };
   return map[u] || "NOS";
 }
+
+/**
+ * HSN/SAC codes are typed by hand and often carry stray whitespace
+ * (" 999652" vs "999652 "), which used to split one code into several
+ * rows in the HSN summary. Normalise before grouping.
+ */
+export function normalizeHsnCode(hsn?: string | null, sac?: string | null): string {
+  const raw = (hsn ?? "").trim() || (sac ?? "").trim();
+  return raw ? raw.replace(/\s+/g, "") : "N/A";
+}

@@ -46,3 +46,19 @@ describe("groupLinesByRate", () => {
     expect(m.get(18)!.igst).toBeCloseTo(180, 2);
   });
 });
+
+import { normalizeHsnCode } from "../gstr1-export";
+
+describe("normalizeHsnCode", () => {
+  it("collapses whitespace variants of the same code", () => {
+    expect(normalizeHsnCode(" 999652")).toBe("999652");
+    expect(normalizeHsnCode("999652 ")).toBe("999652");
+    expect(normalizeHsnCode("99 9652")).toBe("999652");
+  });
+
+  it("falls back to the SAC code, then N/A", () => {
+    expect(normalizeHsnCode(null, " 9956 ")).toBe("9956");
+    expect(normalizeHsnCode("", "")).toBe("N/A");
+    expect(normalizeHsnCode(null, null)).toBe("N/A");
+  });
+});
