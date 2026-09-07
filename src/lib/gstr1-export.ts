@@ -81,16 +81,25 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
   }
 
 
-  // Fetch invoices for the month
-  const { data: invoices, error: invErr } = await supabase.from("invoices" as any)
-    .select("*")
-    .eq("city", city)
-    .gte("invoice_date", monthStart)
-    .lte("invoice_date", monthEnd)
-    .in("status", ["issued", "paid"])
-    .order("invoice_date");
-  if (invErr) throw invErr;
-  const allInvoices: Invoice[] = (invoices ?? []) as unknown as Invoice[];
+  // Fetch invoices for the month. Paged explicitly: a bare select is capped at
+  // 1000 rows by the API, which would silently drop invoices in a busy month.
+  const allInvoices: Invoice[] = [];
+  const invChunk = 1000;
+  for (let from = 0; ; from += invChunk) {
+    const { data: invoices, error: invErr } = await supabase.from("invoices" as any)
+      .select("*")
+      .eq("city", city)
+      .gte("invoice_date", monthStart)
+      .lte("invoice_date", monthEnd)
+      .in("status", ["issued", "paid"])
+      .order("invoice_date")
+      .range(from, from + invChunk - 1);
+    if (invErr) throw invErr;
+    const batch = (invoices ?? []) as unknown as Invoice[];
+    allInvoices.push(...batch);
+    if (batch.length < invChunk) break;
+  }
+
 
   // Fetch line items
   const invoiceIds = allInvoices.map((i) => i.id);
