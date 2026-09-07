@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Download, Search, Loader2, Eye, FileX, Trash2, ChevronLeft, ChevronRight, MapPin, Wallet, ArrowUpRight, MoveRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useInvoices, useCancelInvoice, useDeleteInvoice } from "@/hooks/useInvoices";
+import { useInvoices, useCancelInvoice, useDeleteInvoice, fetchAllInvoices } from "@/hooks/useInvoices";
+import { buildInvoiceCsv, invoiceCsvFileName, downloadCsv } from "@/lib/invoice-csv";
 import type { CancelInvoiceParams } from "@/hooks/useInvoices";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { CreateInvoiceDialog } from "@/components/admin/CreateInvoiceDialog";
@@ -40,6 +41,8 @@ function InvoiceListSection({ city }: { city: string }) {
 
   const [page, setPage] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
   const [viewId, setViewId] = useState<string | null>(null);
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
