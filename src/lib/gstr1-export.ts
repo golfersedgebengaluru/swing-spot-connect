@@ -266,7 +266,7 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
   };
   const hsnMap = new Map<string, HsnAgg>();
   allLineItems.forEach((li) => {
-    const code = li.hsn_code || li.sac_code || "N/A";
+    const code = normalizeHsnCode(li.hsn_code, li.sac_code);
     const rate = Number(li.gst_rate) || 0;
     const key = `${code}|${rate}`;
     const uqc = (li.product_id && uqcByProduct.get(li.product_id)) || "NOS";
