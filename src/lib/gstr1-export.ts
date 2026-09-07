@@ -101,18 +101,26 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
   }
 
 
-  // Fetch line items
+  // Fetch line items (chunked by invoice, and paged inside each chunk so a
+  // chunk with many lines is never truncated at the API row cap).
   const invoiceIds = allInvoices.map((i) => i.id);
   let allLineItems: LineItem[] = [];
-  if (invoiceIds.length > 0) {
-    for (let i = 0; i < invoiceIds.length; i += 50) {
-      const chunk = invoiceIds.slice(i, i + 50);
-      const { data: items } = await supabase.from("invoice_line_items" as any)
+  const liPage = 1000;
+  for (let i = 0; i < invoiceIds.length; i += 50) {
+    const chunk = invoiceIds.slice(i, i + 50);
+    for (let from = 0; ; from += liPage) {
+      const { data: items, error: liErr } = await supabase.from("invoice_line_items" as any)
         .select("*")
-        .in("invoice_id", chunk);
-      if (items) allLineItems = allLineItems.concat(items as unknown as LineItem[]);
+        .in("invoice_id", chunk)
+        .order("invoice_id")
+        .range(from, from + liPage - 1);
+      if (liErr) throw liErr;
+      const batch = (items ?? []) as unknown as LineItem[];
+      allLineItems = allLineItems.concat(batch);
+      if (batch.length < liPage) break;
     }
   }
+
 
   // Fetch UQC (unit_of_measure) for all referenced products in one shot
   const productIds = Array.from(
