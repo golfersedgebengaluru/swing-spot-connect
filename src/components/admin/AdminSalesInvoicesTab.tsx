@@ -65,22 +65,31 @@ function InvoiceListSection({ city }: { city: string }) {
   const totalCount = data?.count ?? 0;
   const totalPages = Math.ceil(totalCount / 25);
 
-  const handleCsvExport = () => {
-    if (!invoices.length) return;
-    const headers = ["Invoice #", "Date", "Customer", "Type", "B2B/B2C", "Subtotal", "CGST", "SGST", "IGST", "Total", "Status"];
-    const rows = invoices.map((inv: any) => [
-      inv.invoice_number, inv.invoice_date, inv.customer_name, inv.invoice_type,
-      inv.customer_gstin ? "B2B" : "B2C", inv.subtotal, inv.cgst_total, inv.sgst_total, inv.igst_total, inv.total, inv.status,
-    ]);
-    const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `invoices_${city}_${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleCsvExport = async () => {
+    setExporting(true);
+    try {
+      const all = await fetchAllInvoices({
+        city,
+        search: search || undefined,
+        status: statusFilter || undefined,
+        invoiceType: typeFilter || undefined,
+        paymentStatus: paymentFilter || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      });
+      if (!all.length) {
+        toast({ title: "Nothing to export", description: "No invoices match the current filters." });
+        return;
+      }
+      downloadCsv(invoiceCsvFileName({ city, startDate, endDate }), buildInvoiceCsv(all));
+      toast({ title: "Export ready", description: `${all.length} documents exported.` });
+    } catch (err: any) {
+      toast({ title: "Export failed", description: err.message, variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
   };
+
 
   const handleCancel = async (id: string, disposition: "external_refund" | "advance_credit") => {
     setCancelConfirmId(null);
