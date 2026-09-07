@@ -81,29 +81,46 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
   }
 
 
-  // Fetch invoices for the month
-  const { data: invoices, error: invErr } = await supabase.from("invoices" as any)
-    .select("*")
-    .eq("city", city)
-    .gte("invoice_date", monthStart)
-    .lte("invoice_date", monthEnd)
-    .in("status", ["issued", "paid"])
-    .order("invoice_date");
-  if (invErr) throw invErr;
-  const allInvoices: Invoice[] = (invoices ?? []) as unknown as Invoice[];
+  // Fetch invoices for the month. Paged explicitly: a bare select is capped at
+  // 1000 rows by the API, which would silently drop invoices in a busy month.
+  const allInvoices: Invoice[] = [];
+  const invChunk = 1000;
+  for (let from = 0; ; from += invChunk) {
+    const { data: invoices, error: invErr } = await supabase.from("invoices" as any)
+      .select("*")
+      .eq("city", city)
+      .gte("invoice_date", monthStart)
+      .lte("invoice_date", monthEnd)
+      .in("status", ["issued", "paid"])
+      .order("invoice_date")
+      .range(from, from + invChunk - 1);
+    if (invErr) throw invErr;
+    const batch = (invoices ?? []) as unknown as Invoice[];
+    allInvoices.push(...batch);
+    if (batch.length < invChunk) break;
+  }
 
-  // Fetch line items
+
+  // Fetch line items (chunked by invoice, and paged inside each chunk so a
+  // chunk with many lines is never truncated at the API row cap).
   const invoiceIds = allInvoices.map((i) => i.id);
   let allLineItems: LineItem[] = [];
-  if (invoiceIds.length > 0) {
-    for (let i = 0; i < invoiceIds.length; i += 50) {
-      const chunk = invoiceIds.slice(i, i + 50);
-      const { data: items } = await supabase.from("invoice_line_items" as any)
+  const liPage = 1000;
+  for (let i = 0; i < invoiceIds.length; i += 50) {
+    const chunk = invoiceIds.slice(i, i + 50);
+    for (let from = 0; ; from += liPage) {
+      const { data: items, error: liErr } = await supabase.from("invoice_line_items" as any)
         .select("*")
-        .in("invoice_id", chunk);
-      if (items) allLineItems = allLineItems.concat(items as unknown as LineItem[]);
+        .in("invoice_id", chunk)
+        .order("invoice_id")
+        .range(from, from + liPage - 1);
+      if (liErr) throw liErr;
+      const batch = (items ?? []) as unknown as LineItem[];
+      allLineItems = allLineItems.concat(batch);
+      if (batch.length < liPage) break;
     }
   }
+
 
   // Fetch UQC (unit_of_measure) for all referenced products in one shot
   const productIds = Array.from(
@@ -249,7 +266,7 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
   };
   const hsnMap = new Map<string, HsnAgg>();
   allLineItems.forEach((li) => {
-    const code = li.hsn_code || li.sac_code || "N/A";
+    const code = normalizeHsnCode(li.hsn_code, li.sac_code);
     const rate = Number(li.gst_rate) || 0;
     const key = `${code}|${rate}`;
     const uqc = (li.product_id && uqcByProduct.get(li.product_id)) || "NOS";
@@ -374,4 +391,14 @@ function normalizeUqc(unit: string | null | undefined): string {
     "box": "BOX", "pack": "PAC", "set": "SET", "dozen": "DOZ",
   };
   return map[u] || "NOS";
+}
+
+/**
+ * HSN/SAC codes are typed by hand and often carry stray whitespace
+ * (" 999652" vs "999652 "), which used to split one code into several
+ * rows in the HSN summary. Normalise before grouping.
+ */
+export function normalizeHsnCode(hsn?: string | null, sac?: string | null): string {
+  const raw = (hsn ?? "").trim() || (sac ?? "").trim();
+  return raw ? raw.replace(/\s+/g, "") : "N/A";
 }

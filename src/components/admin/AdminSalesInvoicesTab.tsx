@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Download, Search, Loader2, Eye, FileX, Trash2, ChevronLeft, ChevronRight, MapPin, Wallet, ArrowUpRight, MoveRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useInvoices, useCancelInvoice, useDeleteInvoice } from "@/hooks/useInvoices";
+import { useInvoices, useCancelInvoice, useDeleteInvoice, fetchAllInvoices } from "@/hooks/useInvoices";
+import { buildInvoiceCsv, invoiceCsvFileName, downloadCsv } from "@/lib/invoice-csv";
 import type { CancelInvoiceParams } from "@/hooks/useInvoices";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { CreateInvoiceDialog } from "@/components/admin/CreateInvoiceDialog";
@@ -40,6 +41,8 @@ function InvoiceListSection({ city }: { city: string }) {
 
   const [page, setPage] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
   const [viewId, setViewId] = useState<string | null>(null);
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -65,22 +68,31 @@ function InvoiceListSection({ city }: { city: string }) {
   const totalCount = data?.count ?? 0;
   const totalPages = Math.ceil(totalCount / 25);
 
-  const handleCsvExport = () => {
-    if (!invoices.length) return;
-    const headers = ["Invoice #", "Date", "Customer", "Type", "B2B/B2C", "Subtotal", "CGST", "SGST", "IGST", "Total", "Status"];
-    const rows = invoices.map((inv: any) => [
-      inv.invoice_number, inv.invoice_date, inv.customer_name, inv.invoice_type,
-      inv.customer_gstin ? "B2B" : "B2C", inv.subtotal, inv.cgst_total, inv.sgst_total, inv.igst_total, inv.total, inv.status,
-    ]);
-    const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `invoices_${city}_${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleCsvExport = async () => {
+    setExporting(true);
+    try {
+      const all = await fetchAllInvoices({
+        city,
+        search: search || undefined,
+        status: statusFilter || undefined,
+        invoiceType: typeFilter || undefined,
+        paymentStatus: paymentFilter || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      });
+      if (!all.length) {
+        toast({ title: "Nothing to export", description: "No invoices match the current filters." });
+        return;
+      }
+      downloadCsv(invoiceCsvFileName({ city, startDate, endDate }), buildInvoiceCsv(all));
+      toast({ title: "Export ready", description: `${all.length} documents exported.` });
+    } catch (err: any) {
+      toast({ title: "Export failed", description: err.message, variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
   };
+
 
   const handleCancel = async (id: string, disposition: "external_refund" | "advance_credit") => {
     setCancelConfirmId(null);
@@ -111,8 +123,9 @@ function InvoiceListSection({ city }: { city: string }) {
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> Create Invoice
         </Button>
-        <Button variant="outline" onClick={handleCsvExport} disabled={!invoices.length}>
-          <Download className="mr-2 h-4 w-4" /> Export CSV
+        <Button variant="outline" onClick={handleCsvExport} disabled={exporting || totalCount === 0}>
+          {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+          {exporting ? `Exporting ${totalCount} invoices…` : "Export CSV"}
         </Button>
       </div>
 

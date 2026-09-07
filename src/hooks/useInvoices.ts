@@ -88,6 +88,23 @@ export interface InvoiceFilters {
   pageSize?: number;
 }
 
+/** Shared filter application so the paged list and the full export never drift. */
+function applyInvoiceFilters<T>(query: T, filters?: InvoiceFilters): T {
+  let q = query as any;
+  if (filters?.city) q = q.eq("city", filters.city);
+  if (filters?.startDate) q = q.gte("invoice_date", filters.startDate);
+  if (filters?.endDate) q = q.lte("invoice_date", filters.endDate);
+  if (filters?.status) q = q.eq("status", filters.status);
+  if (filters?.invoiceType) q = q.eq("invoice_type", filters.invoiceType);
+  if (filters?.paymentStatus === "due") q = q.neq("payment_status", "paid");
+  else if (filters?.paymentStatus) q = q.eq("payment_status", filters.paymentStatus);
+  if (filters?.search) {
+    q = q.or(
+      `invoice_number.ilike.%${filters.search}%,customer_name.ilike.%${filters.search}%,customer_email.ilike.%${filters.search}%,customer_gstin.ilike.%${filters.search}%`
+    );
+  }
+  return q as T;
+}
 
 export function useInvoices(filters?: InvoiceFilters) {
   const page = filters?.page ?? 0;
@@ -96,24 +113,12 @@ export function useInvoices(filters?: InvoiceFilters) {
   return useQuery({
     queryKey: ["invoices", filters],
     queryFn: async () => {
-      let query = supabase.from("invoices")
-        .select("*", { count: "exact" })
-        .order("created_at", { ascending: false });
-
-      if (filters?.city) query = query.eq("city", filters.city);
-      if (filters?.startDate) query = query.gte("invoice_date", filters.startDate);
-      if (filters?.endDate) query = query.lte("invoice_date", filters.endDate);
-      if (filters?.status) query = query.eq("status", filters.status);
-      if (filters?.invoiceType) query = query.eq("invoice_type", filters.invoiceType);
-      if (filters?.paymentStatus === "due") query = query.neq("payment_status", "paid");
-      else if (filters?.paymentStatus) query = query.eq("payment_status", filters.paymentStatus);
-
-
-      if (filters?.search) {
-        query = query.or(
-          `invoice_number.ilike.%${filters.search}%,customer_name.ilike.%${filters.search}%,customer_email.ilike.%${filters.search}%,customer_gstin.ilike.%${filters.search}%`
-        );
-      }
+      let query = applyInvoiceFilters(
+        supabase.from("invoices")
+          .select("*", { count: "exact" })
+          .order("created_at", { ascending: false }),
+        filters,
+      );
 
       query = query.range(page * pageSize, (page + 1) * pageSize - 1);
 
@@ -123,6 +128,29 @@ export function useInvoices(filters?: InvoiceFilters) {
     },
   });
 }
+
+/**
+ * Fetch EVERY invoice matching the given filters (ignores page/pageSize),
+ * paging server-side so we are never capped by PostgREST's row limit.
+ * Used by the CSV export, which must not be limited to the visible page.
+ */
+export async function fetchAllInvoices(filters?: InvoiceFilters) {
+  const chunk = 1000;
+  const rows: any[] = [];
+  for (let from = 0; ; from += chunk) {
+    const query = applyInvoiceFilters(
+      supabase.from("invoices").select("*").order("invoice_number", { ascending: true }),
+      filters,
+    ).range(from, from + chunk - 1);
+    const { data, error } = await query;
+    if (error) throw error;
+    rows.push(...(data ?? []));
+    if (!data || data.length < chunk) break;
+  }
+  return rows;
+}
+
+
 
 export function useInvoiceWithItems(invoiceId: string | null) {
   return useQuery({
