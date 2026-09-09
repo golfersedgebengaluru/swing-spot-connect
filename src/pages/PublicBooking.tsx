@@ -199,57 +199,59 @@ export default function PublicBooking() {
 
         const { order_id, key_id, currency: rzpCurrency } = orderRes.data;
 
-        // 1b. Stash a pending row server-side BEFORE opening checkout, so the
-        // razorpay-webhook can finalize even if the browser handler never fires
-        // (e.g., user closes the tab, network drops, or phone locks after payment).
-        // Both guest AND signed-in flows use this — signed-in stashes into
-        // pending_bookings, guests into pending_guest_bookings.
+        // 1b. Stash a pending row server-side BEFORE opening checkout. The
+        // Razorpay webhook (with the cron reconciler as backstop) is the ONLY
+        // thing that creates the booking, revenue row, calendar event and
+        // emails — for guests AND signed-in members alike. The browser just
+        // waits. If this stash fails we must NOT take a payment, because
+        // nothing would finalize it, so the failure is fatal here.
         if (!user) {
-          try {
-            await supabase.from("pending_guest_bookings").insert({
-              razorpay_order_id: order_id,
-              city: selectedCity,
-              bay_id: currentBay.id,
-              bay_name: currentBay.name,
-              start_time: selectedSlot,
-              end_time: endTime,
-              duration_minutes: duration,
-              session_type: sessionType,
-              guest_name: guestName,
-              guest_email: guestEmail,
-              guest_phone: guestPhone,
-              amount: amountToCharge,
-              currency: currentPrice?.currency || "INR",
-              coupon_code: appliedCoupon?.code || null,
-              discount_amount: couponDiscount || 0,
-              original_amount: totalCost,
-            });
-          } catch (e) {
-            console.error("Failed to stash pending guest booking (non-fatal):", e);
+          const { error: stashErr } = await supabase.from("pending_guest_bookings").insert({
+            razorpay_order_id: order_id,
+            city: selectedCity,
+            bay_id: currentBay.id,
+            bay_name: currentBay.name,
+            start_time: selectedSlot,
+            end_time: endTime,
+            duration_minutes: duration,
+            session_type: sessionType,
+            guest_name: guestName,
+            guest_email: guestEmail,
+            guest_phone: guestPhone,
+            amount: amountToCharge,
+            currency: currentPrice?.currency || "INR",
+            coupon_code: appliedCoupon?.code || null,
+            discount_amount: couponDiscount || 0,
+            original_amount: totalCost,
+          });
+          if (stashErr) {
+            console.error("Failed to stash pending guest booking:", stashErr);
+            throw new Error("Could not start payment. Please try again.");
           }
         } else {
-          try {
-            await supabase.from("pending_bookings").insert({
-              razorpay_order_id: order_id,
-              user_id: user.id,
-              city: selectedCity,
-              bay_id: currentBay.id,
-              bay_name: currentBay.name,
-              start_time: selectedSlot,
-              end_time: endTime,
-              duration_minutes: duration,
-              session_type: sessionType,
-              display_name: user.user_metadata?.display_name || user.email,
-              amount: amountToCharge,
-              currency: currentPrice?.currency || "INR",
-              coupon_code: appliedCoupon?.code || null,
-              discount_amount: couponDiscount || 0,
-              original_amount: totalCost,
-            });
-          } catch (e) {
-            console.error("Failed to stash pending member booking (non-fatal):", e);
+          const { error: stashErr } = await supabase.from("pending_bookings").insert({
+            razorpay_order_id: order_id,
+            user_id: user.id,
+            city: selectedCity,
+            bay_id: currentBay.id,
+            bay_name: currentBay.name,
+            start_time: selectedSlot,
+            end_time: endTime,
+            duration_minutes: duration,
+            session_type: sessionType,
+            display_name: user.user_metadata?.display_name || user.email,
+            amount: amountToCharge,
+            currency: currentPrice?.currency || "INR",
+            coupon_code: appliedCoupon?.code || null,
+            discount_amount: couponDiscount || 0,
+            original_amount: totalCost,
+          });
+          if (stashErr) {
+            console.error("Failed to stash pending member booking:", stashErr);
+            throw new Error("Could not start payment. Please try again.");
           }
         }
+
 
         // 2. Load Razorpay checkout script
         const loaded = await loadRazorpayScript();
