@@ -166,14 +166,20 @@ export function useRevenueTransactions(filters?: {
   return useQuery({
     queryKey: ["revenue_transactions", filters],
     queryFn: async () => {
+      const period =
+        filters?.startDate && filters?.endDate
+          ? reportRangeToUtc(filters.startDate, filters.endDate)
+          : null;
+
       let query = supabase
         .from("revenue_transactions")
         .select("*", { count: "exact" })
         .neq("transaction_type", "hours_deduction")
         .order("created_at", { ascending: false });
 
-      if (filters?.startDate) query = query.gte("created_at", filters.startDate);
-      if (filters?.endDate) query = query.lte("created_at", filters.endDate + "T23:59:59.999Z");
+      if (period) {
+        query = query.gte("created_at", period.fromUtc).lt("created_at", period.toExclusiveUtc);
+      }
       if (filters?.type) query = query.eq("transaction_type", filters.type);
       if (filters?.city) query = query.eq("city", filters.city);
       if (filters?.search) {
@@ -193,17 +199,23 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
   return useQuery({
     queryKey: ["revenue_summary", startDate, endDate, city],
     queryFn: async () => {
-      let query = supabase
-        .from("revenue_transactions")
-        .select("id, transaction_type, amount, status, user_id, guest_name, guest_email, created_at, booking_id, hours_transaction_id, product_id")
-        .neq("transaction_type", "hours_deduction");
+      const { fromUtc, toExclusiveUtc } = reportRangeToUtc(startDate!, endDate!);
 
-      if (startDate) query = query.gte("created_at", startDate);
-      if (endDate) query = query.lte("created_at", endDate + "T23:59:59.999Z");
-      if (city) query = query.eq("city", city);
+      // Paged: totals must cover every row in the period, not the first 1000.
+      const transactions = await fetchAllPaged<any>((from, to) => {
+        let q = supabase
+          .from("revenue_transactions")
+          .select("id, transaction_type, amount, status, user_id, guest_name, guest_email, created_at, booking_id, hours_transaction_id, product_id")
+          .neq("transaction_type", "hours_deduction")
+          .gte("created_at", fromUtc)
+          .lt("created_at", toExclusiveUtc)
+          .order("created_at", { ascending: true });
+        if (city) q = q.eq("city", city);
+        return q.range(from, to);
+      });
 
-      const { data, error } = await query;
-      if (error) throw error;
+      const confirmed = transactions.filter((t) => t.status === "confirmed");
+
 
       const transactions = data ?? [];
       const confirmed = transactions.filter((t) => t.status === "confirmed");
