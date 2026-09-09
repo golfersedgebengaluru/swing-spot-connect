@@ -289,20 +289,28 @@ export function AdminMembersTab() {
       created_by: user?.id,
     }).select("id").single();
 
-    // Create revenue transaction for purchase-type adjustments
-    if (data.type === "purchase") {
+    // Record the sale for offline hours purchases. This used to insert a ₹0 row,
+    // so cash top-ups never appeared in the revenue report. The amount and city
+    // are now captured, and the ledger stamps the city's currency.
+    if (data.type === "purchase" && Number(data.amount) > 0 && htxn?.id) {
       try {
-        await supabase.from("revenue_transactions").insert({
-          transaction_type: "payment" as any,
-          amount: 0,
-          currency: "INR",
-          user_id: member.user_id,
-          hours_transaction_id: htxn?.id || null,
+        await recordRevenue({
+          sourceRef: `hours_purchase:${htxn.id}`,
+          transactionType: "purchase",
+          amount: Number(data.amount),
           description: `Prepaid hours purchase - ${data.hours}h${data.note ? ` (${data.note})` : ""}`,
-          status: "confirmed",
+          city: member.preferred_city || selectedCity || null,
+          userId: member.user_id,
+          hoursTransactionId: htxn.id,
+          gatewayName: data.payment_method || "Offline",
+          metadata: { offline: true, hours: data.hours, payment_method: data.payment_method || null },
         });
-      } catch (e) {
-        console.error("Failed to create revenue transaction:", e);
+      } catch (e: any) {
+        toast({
+          title: "Hours added, but the sale wasn't recorded",
+          description: e?.message || "Please record this payment again from Finance.",
+          variant: "destructive",
+        });
       }
     }
 
