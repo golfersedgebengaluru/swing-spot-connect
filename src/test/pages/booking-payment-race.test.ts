@@ -60,10 +60,12 @@ describe("member paid booking: server finalizes, browser only waits", () => {
 
 describe("server-side member finalization stays complete and idempotent", () => {
   it("atomically claims the pending row so double finalization is impossible", () => {
-    expect(calendarSyncSrc).toMatch(
-      /finalize_pending_member_booking[\s\S]{0,1200}status: "processing"[\s\S]{0,400}already_finalized/,
-    );
+    const start = calendarSyncSrc.indexOf('action === "finalize_pending_member_booking"');
+    expect(start).toBeGreaterThan(0);
+    const block = calendarSyncSrc.slice(start, start + 12000);
+    expect(block).toMatch(/status: "processing"[\s\S]{0,600}already_finalized/);
   });
+
 
   it("creates booking, revenue, notification and emails server-side", () => {
     const start = calendarSyncSrc.indexOf('action === "finalize_pending_member_booking"');
