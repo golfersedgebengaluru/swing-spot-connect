@@ -9,6 +9,8 @@ import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useExpenseCategories } from "@/hooks/useExpenseCategories";
 import { supabase } from "@/integrations/supabase/client";
+import { reportRangeToUtc } from "@/lib/report-period";
+import { fetchAllPaged } from "@/lib/supabase-paging";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from "date-fns";
 
