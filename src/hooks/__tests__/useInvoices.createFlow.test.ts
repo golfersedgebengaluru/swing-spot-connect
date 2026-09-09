@@ -239,8 +239,22 @@ describe("useCreateInvoice — manual invoice happy path", () => {
     await result.current.mutateAsync(baseParams as any);
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    const rev = captured.find((c) => c.table === "revenue_transactions" && c.op === "insert")!.payload;
-    expect(rev.metadata).toEqual({ manual_invoice: true });
+    const rev = rpcCalls.find((c) => c.name === "record_revenue")!.args;
+    expect(rev.p_metadata).toEqual({ manual_invoice: true });
+  });
+
+  // The invoice date decides which month the sale is reported in, so a
+  // back-dated invoice lands in the month it is dated for.
+  it("reports the sale on the invoice date", async () => {
+    primeHappyPath();
+    const { result } = renderHook(() => useCreateInvoice(), { wrapper });
+
+    await result.current.mutateAsync({ ...baseParams, invoiceDate: "2026-08-08" } as any);
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    const rev = rpcCalls.find((c) => c.name === "record_revenue")!.args;
+    expect(rev.p_revenue_date).toBe("2026-08-08");
+    expect(rev.p_source_ref).toMatch(/^manual_invoice:/);
   });
 });
 
