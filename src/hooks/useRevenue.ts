@@ -247,11 +247,17 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
 
       const userIds = Object.keys(byUser);
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, user_id, display_name, email, user_type");
+        // Paged: a capped profiles read left customer names blank once the
+        // member list passed 1000 rows.
+        const profiles = await fetchAllPaged<any>((from, to) =>
+          supabase
+            .from("profiles")
+            .select("id, user_id, display_name, email, user_type")
+            .order("id", { ascending: true })
+            .range(from, to),
+        );
         const dualMap = new Map<string, string>();
-        for (const p of profiles ?? []) {
+        for (const p of profiles) {
           const name = p.display_name || p.email || "";
           if (p.user_id) dualMap.set(p.user_id, name);
           dualMap.set(p.id, name);
@@ -262,6 +268,7 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
           }
         }
       }
+
 
       // --- Revenue by product category ---
       // Single rule, no inference: the category is the catalogue product's
