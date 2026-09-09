@@ -11,7 +11,7 @@ Checked against live data (1,409 revenue rows):
 3. **Refunds have no unique key.** All 22 real refunds have a blank source reference, so a repeated cancellation or a retried background job can record the same refund twice. Sales are protected against this; refunds are not.
 4. **Cancellation currency is hard-coded to rupees** on the hours-refund line instead of following the city.
 5. **Two different cancellation paths** (member cancel, admin cancel) each write their own refund lines with duplicated logic, so they can drift apart.
-6. **Credit notes and customer advances are recorded separately** from the reversal, and if the customer cannot be identified the credit is silently skipped with only a log line.
+6. **Store credit can be silently dropped for walk-in and guest sales.** A refund always follows a real sale, so the customer is known by name and email — but store credit can only be held against an account, and guest sales have none. Live data shows 20 paid sales in that position (6 guest bookings, 13 league entries, 1 booking), plus 21 older manual purchase entries with no name at all. Today the credit note is simply skipped with a log line.
 7. **Reports treat refunds inconsistently.** Some views subtract them, the profit-and-loss view and category breakdown handle them differently, and a refund never reduces the category it originally belonged to.
 
 ## What I will do
@@ -29,7 +29,7 @@ Checked against live data (1,409 revenue rows):
 
 **Unify the two cancellation paths** into one shared routine used by both member and admin cancellation, covering all three outcomes: credit note / advance, external refund with the city's cancellation charge, and hours-only.
 
-**Make credit notes explicit.** When a cancellation is parked as customer credit, the reversal and the credit entry are written together; if the customer cannot be identified the cancellation reports a clear failure instead of quietly dropping the credit.
+**Make credit notes explicit.** The reversal and the credit entry are written together, never one without the other. Because store credit needs an account to sit in, a walk-in or guest sale can only be refunded to the original payment method — the credit option is disabled for those with a clear reason shown, rather than accepted and silently dropped. If the guest should keep credit, the staff member creates an account for them first.
 
 **Simplify the reports.** With signed amounts, income becomes a plain sum, refunds are shown separately as a negative line, and refunds reduce their own category rather than sitting outside the breakdown.
 
