@@ -5,7 +5,7 @@ import { CalendarDays, Users, IndianRupee, Clock, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { zonedMonthRangeUtc } from "@/lib/report-period";
+import { zonedMonthRangeUtc, zonedMonthDays } from "@/lib/report-period";
 import { fetchAllPaged } from "@/lib/supabase-paging";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
@@ -23,6 +23,9 @@ function useAdminDashboardStats(cityFilter: string) {
       // Business-month boundaries (half-open) shared with the revenue reports,
       // so the MTD tiles agree with the revenue tab to the rupee.
       const { fromUtc: monthStart, toExclusiveUtc: monthEndExclusive } = zonedMonthRangeUtc(now);
+      // Revenue is counted on its business date (invoice date when invoiced),
+      // so the MTD money tile filters the `revenue_date` column, not created_at.
+      const { fromDay: monthFromDay, toDay: monthToDay } = zonedMonthDays(now);
 
       // Build all independent queries
       let totalBookingsQuery = supabase
@@ -45,9 +48,9 @@ function useAdminDashboardStats(cityFilter: string) {
           .from("revenue_transactions")
           .select("amount, transaction_type")
           .eq("status", "confirmed")
-          .gte("created_at", monthStart)
-          .lt("created_at", monthEndExclusive)
-          .order("created_at", { ascending: true });
+          .gte("revenue_date", monthFromDay)
+          .lte("revenue_date", monthToDay)
+          .order("revenue_date", { ascending: true });
         if (cityFilter) q = q.eq("city", cityFilter);
         return q.range(from, to);
       });
