@@ -124,8 +124,7 @@ function primeHappyPath() {
   });
   // 2. financial_years
   s.__queue("financial_years", { id: "fy-1", label: "2025-26", is_active: true });
-  // 3. revenue_transactions insert returns
-  s.__queue("revenue_transactions", { id: "rtx-1" });
+  // 3. revenue is recorded through the record_revenue RPC (returns "rtx-1")
   // 4. invoices insert returns
   s.__queue("invoices", { id: "inv-1", invoice_number: "INV/2025-26/0042" });
   // 5. profiles lookup (auto-profile branch) — return null so we skip
