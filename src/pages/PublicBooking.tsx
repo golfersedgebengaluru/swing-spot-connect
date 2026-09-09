@@ -260,6 +260,7 @@ export default function PublicBooking() {
         }
 
         // 3. Open Razorpay Checkout
+        let finalizationTimedOut = false;
         await new Promise<void>((resolve, reject) => {
           let settled = false;
 
@@ -287,67 +288,27 @@ export default function PublicBooking() {
                 setIsProcessing(true);
                 setIsFinalizing(true);
 
-                if (user) {
-                  const bookingResult = await createBooking.mutateAsync({
-                    start_time: selectedSlot,
-                    end_time: endTime!,
-                    duration_minutes: duration,
-                    city: selectedCity,
-                    bay_id: currentBay.id,
-                    bay_name: currentBay.name,
-                    session_type: sessionType,
-                    payment_method: "razorpay",
-                  });
-                  // Create revenue transaction for registered user payment
-                  try {
-                     await supabase.from("revenue_transactions").insert({
-                      transaction_type: "payment" as any,
-                      amount: amountToCharge,
-                      currency: currentPrice?.currency || "INR",
-                      user_id: user.id,
-                      gateway_name: "razorpay",
-                      gateway_order_ref: response.razorpay_order_id,
-                      gateway_payment_ref: response.razorpay_payment_id,
-                      booking_id: (bookingResult as any)?.booking?.id || null,
-                      description: `Payment - ${currentBay.name} · ${duration / 60}h ${sessionType}`,
-                      status: "confirmed",
-                      city: selectedCity,
-                    });
-                  } catch (e) {
-                    console.error("Failed to create revenue transaction:", e);
-                  }
-                  // Mark pending_bookings row completed so the webhook does not
-                  // try to re-finalize this order.
-                  try {
-                    await supabase
-                      .from("pending_bookings")
-                      .update({
-                        status: "completed",
-                        booking_id: (bookingResult as any)?.booking?.id || null,
-                        finalized_at: new Date().toISOString(),
-                      })
-                      .eq("razorpay_order_id", response.razorpay_order_id);
-                  } catch (e) {
-                    console.error("Failed to mark pending_bookings completed (non-fatal):", e);
-                  }
-                } else {
-                  // Webhook (authoritative) finalizes via pending_guest_bookings.
-                  // Browser only polls — never calls calendar-sync directly.
-                  const result = await waitForPaymentFinalization(
-                    "pending_guest_bookings",
-                    response.razorpay_order_id,
-                  );
-                  if (result.status === "failed") {
-                    throw new Error(result.error_message || "Booking failed");
-                  }
-                  // 'timeout' is OK: webhook/cron will finalize within a few minutes.
+                // The webhook (authoritative) finalizes the booking, revenue row,
+                // calendar event and emails for BOTH guests and signed-in members.
+                // The browser only polls the pending row — it never creates the
+                // booking itself. This removes the browser-vs-webhook race that
+                // used to show "Booking Failed" on an already-confirmed booking.
+                const result = await waitForPaymentFinalization(
+                  user ? "pending_bookings" : "pending_guest_bookings",
+                  response.razorpay_order_id,
+                );
+                if (result.status === "failed") {
+                  throw new Error(result.error_message || "Booking failed");
                 }
+                // 'timeout' is OK: webhook/cron will finalize within a few minutes.
+                if (result.status === "timeout") finalizationTimedOut = true;
 
                 finishResolve();
               } catch (err) {
                 finishReject(err instanceof Error ? err : new Error("Booking failed"));
               }
             },
+
             prefill: {
               name: user ? undefined : guestName,
               email: user ? undefined : guestEmail,
