@@ -23,9 +23,30 @@ describe("revenue reads use one period helper", () => {
     expect(src).not.toMatch(/23:59/);
   });
 
-  it.each(readers)("%s bounds the period with an exclusive upper limit", (_name, src) => {
-    expect(src).toMatch(/\.lt\("(created_at|start_time)"/);
+  it.each(readers)("%s never bounds a timestamp period inclusively", (_name, src) => {
+    // Timestamp columns must use a half-open upper bound; only the plain
+    // `revenue_date` DATE column may be filtered inclusively.
     expect(src).not.toMatch(/\.lte\("(created_at|start_time)"/);
+  });
+});
+
+describe("revenue is counted on its business date", () => {
+  it.each(readers)("%s filters revenue on revenue_date", (_name, src) => {
+    const idx = src.indexOf('.from("revenue_transactions"');
+    expect(idx).toBeGreaterThan(0);
+    const window = src.slice(idx, idx + 900);
+    expect(window).toMatch(/gte\("revenue_date"/);
+    expect(window).toMatch(/lte\("revenue_date"/);
+    expect(window).not.toMatch(/gte\("created_at"/);
+  });
+
+  it.each(readers)("%s uses the shared business-day range helper", (_name, src) => {
+    expect(src).toMatch(/reportDayRange|zonedMonthDays/);
+  });
+
+  it("manual invoices stamp the revenue date from the invoice date", () => {
+    const invoices = read("src/hooks/useInvoices.ts");
+    expect(invoices).toMatch(/revenue_date: invoiceDate/);
   });
 });
 
