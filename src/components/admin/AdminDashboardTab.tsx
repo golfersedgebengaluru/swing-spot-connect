@@ -4,7 +4,9 @@ import { cn } from "@/lib/utils";
 import { CalendarDays, Users, IndianRupee, Clock, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format } from "date-fns";
+import { zonedMonthRangeUtc } from "@/lib/report-period";
+import { fetchAllPaged } from "@/lib/supabase-paging";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -28,7 +30,7 @@ function useAdminDashboardStats(cityFilter: string) {
         .select("id", { count: "exact", head: true })
         .eq("status", "confirmed")
         .gte("start_time", monthStart)
-        .lte("start_time", monthEnd);
+        .lt("start_time", monthEndExclusive);
       if (cityFilter) totalBookingsQuery = totalBookingsQuery.eq("city", cityFilter);
 
       let membersQuery = supabase
@@ -42,7 +44,7 @@ function useAdminDashboardStats(cityFilter: string) {
         .select("amount, transaction_type")
         .eq("status", "confirmed")
         .gte("created_at", monthStart)
-        .lte("created_at", monthEnd);
+        .lt("created_at", monthEndExclusive);
       if (cityFilter) revenueQuery = revenueQuery.eq("city", cityFilter);
 
       let hoursQuery = supabase
@@ -50,7 +52,7 @@ function useAdminDashboardStats(cityFilter: string) {
         .select("duration_minutes")
         .eq("status", "confirmed")
         .gte("start_time", monthStart)
-        .lte("start_time", monthEnd);
+        .lt("start_time", monthEndExclusive);
       if (cityFilter) hoursQuery = hoursQuery.eq("city", cityFilter);
 
       let upcomingQuery = supabase
