@@ -423,9 +423,15 @@ export function AdminRevenueTab() {
                         <TableCell className="text-sm">
                           {t.guest_name || (t.user_id ? (profileNameMap?.[t.user_id] || t.user_id.substring(0, 8) + "…") : "—")}
                         </TableCell>
-                        <TableCell className="text-right font-medium whitespace-nowrap">
+                        <TableCell
+                          className={`text-right font-medium whitespace-nowrap ${
+                            t.transaction_type === "refund" ? "text-destructive" : ""
+                          }`}
+                        >
+                          {/* Refunds are stored negative; show one minus sign, never two. */}
                           {t.transaction_type === "refund" ? "-" : ""}
-                          {t.amount > 0 ? `${currencySymbol}${Number(t.amount).toLocaleString()}` : `${currencySymbol}0`}
+                          {currencySymbol}
+                          {Math.abs(Number(t.amount ?? 0)).toLocaleString()}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {t.gateway_name || "—"}

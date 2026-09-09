@@ -102,9 +102,13 @@ function useAdminDashboardStats(cityFilter: string) {
         topQuery,
       ]);
 
+      // Net revenue. Refunds are stored negative, so they subtract themselves;
+      // legacy rows stored positive are normalised here so old months still net
+      // out correctly.
       const revenue = revData.reduce((sum: number, t: any) => {
-        if (t.transaction_type === "refund") return sum - (t.amount ?? 0);
-        return sum + (t.amount ?? 0);
+        const amount = Number(t.amount ?? 0);
+        if (t.transaction_type === "refund") return sum - Math.abs(amount);
+        return sum + amount;
       }, 0);
 
       const hoursSold = hoursData.reduce(

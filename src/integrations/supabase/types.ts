@@ -6334,6 +6334,18 @@ export type Database = {
         }
         Returns: string
       }
+      record_refund: {
+        Args: {
+          p_amount: number
+          p_description: string
+          p_gateway_name?: string
+          p_metadata?: Json
+          p_original_transaction_id: string
+          p_revenue_date?: string
+          p_source_ref: string
+        }
+        Returns: string
+      }
       record_revenue: {
         Args: {
           p_amount: number

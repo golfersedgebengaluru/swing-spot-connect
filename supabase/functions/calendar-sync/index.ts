@@ -5,6 +5,7 @@ import {
   sendBookingConfirmedNotifications,
   type BookingNotificationHelpers,
 } from "../_shared/booking-notifications.ts";
+import { recordRefund } from "../_shared/revenue-ledger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") || "*",
@@ -356,12 +357,33 @@ const bookingNotifyHelpers: BookingNotificationHelpers = {
 
 
 
-// Disposition-aware cancellation: advance_credit (park as customer advance) or external_refund (record net refund after fee).
+// ─── Cancellation of a PAID booking ──────────────────────────────────────────
+//
+// One routine for both member and admin cancellation, so the two paths can
+// never drift apart financially. Three outcomes:
+//
+//   • hours          — no money moved; the hours ledger already records it.
+//   • external_refund — money returned to the original payment method, less the
+//                       city's cancellation charge.
+//   • advance_credit  — full reversal, invoice cancelled, credit note issued and
+//                       the amount parked as customer advance. Store credit
+//                       needs an account to sit in, so a walk-in/guest sale
+//                       cannot use this outcome — it fails loudly instead of
+//                       silently dropping the customer's money.
+//
+// Every reversal is written by the shared `record_refund` writer: negative
+// amount, keyed on the booking so a retry cannot refund twice, capped at the
+// original sale.
+export interface CancellationDispositionResult {
+  reversed: boolean;
+  error?: string;
+}
+
 async function handleCancellationDisposition(
   adminClient: any,
   booking: any,
   disposition: "advance_credit" | "external_refund" | "hours",
-) {
+): Promise<CancellationDispositionResult> {
   // Detect paid revenue for this booking (gateway/guest payments only).
   const { data: paidTx } = await adminClient
     .from("revenue_transactions")
@@ -373,12 +395,14 @@ async function handleCancellationDisposition(
     .maybeSingle();
 
   if (!paidTx) {
-    // Hours-only booking — nothing to reverse here.
-    return;
+    // Hours-only booking — no money to reverse. The hours refund is recorded in
+    // hours_transactions; a zero-value revenue row would be pure noise.
+    return { reversed: false };
   }
 
+  const paid = Number(paidTx.amount);
+
   if (disposition === "external_refund") {
-    // Read per-city fee
     let feePct = 10;
     const { data: bc } = await adminClient
       .from("bay_config")
@@ -387,93 +411,86 @@ async function handleCancellationDisposition(
       .maybeSingle();
     if (bc?.cancellation_fee_pct != null) feePct = Number(bc.cancellation_fee_pct);
 
-    const paid = Number(paidTx.amount);
     const refundAmount = Math.max(0, +(paid * (1 - feePct / 100)).toFixed(2));
 
-    await adminClient.from("revenue_transactions").insert({
-      transaction_type: "refund",
+    const res = await recordRefund(adminClient, {
+      sourceRef: `booking_cancel_refund:${booking.id}`,
+      originalTransactionId: paidTx.id,
       amount: refundAmount,
-      currency: paidTx.currency,
-      user_id: paidTx.user_id || null,
-      booking_id: booking.id,
-      original_transaction_id: paidTx.id,
-      guest_name: paidTx.guest_name,
-      guest_email: paidTx.guest_email,
-      guest_phone: paidTx.guest_phone,
-      gateway_name: paidTx.gateway_name,
       description: `Refund (${(100 - feePct).toFixed(0)}% after ${feePct}% cancellation charge) — ${paidTx.description || "Booking cancelled"}`,
-      status: "confirmed",
-      city: paidTx.city,
+      metadata: { disposition: "external_refund", cancellation_fee_pct: feePct, booking_id: booking.id },
     });
-    return;
+    if (res.error) return { reversed: false, error: res.error };
+    return { reversed: refundAmount > 0 };
   }
 
-  // Default: advance_credit — full reversal + park as customer advance
-  await reverseRevenueAndInvoice(adminClient, booking.id);
-
+  // ── advance_credit: full reversal parked as customer credit ──
   const customerId = paidTx.user_id;
   if (!customerId) {
-    console.warn(`advance_credit: no customer_id resolvable for booking ${booking.id}; skipping advance credit insert`);
-    return;
+    return {
+      reversed: false,
+      error:
+        "This booking was paid as a walk-in/guest sale with no member account, so store credit cannot be held. Refund to the original payment method instead, or create an account for this guest first.",
+    };
   }
+
+  const res = await recordRefund(adminClient, {
+    sourceRef: `booking_cancel_credit:${booking.id}`,
+    originalTransactionId: paidTx.id,
+    amount: paid,
+    description: `Refund - ${paidTx.description || "Booking cancelled"}`,
+    metadata: { disposition: "advance_credit", booking_id: booking.id },
+  });
+  if (res.error) return { reversed: false, error: res.error };
+
+  // Cancel the linked invoice and issue the credit note document.
+  await cancelInvoiceAndIssueCreditNote(adminClient, paidTx, booking.id);
+
+  // Park the money as customer advance — written together with the reversal,
+  // never one without the other. Keyed on the booking so a retry cannot
+  // double-credit.
   try {
-    await adminClient.from("advance_transactions").insert({
-      customer_id: customerId,
-      amount: Number(paidTx.amount),
-      transaction_type: "credit",
-      source_type: "credit_note",
-      source_id: booking.id,
-      description: `Booking cancellation credit — ${paidTx.description || booking.city}`,
-      city: booking.city,
-      created_by: null,
-    });
+    const { data: existingCredit } = await adminClient
+      .from("advance_transactions")
+      .select("id")
+      .eq("source_type", "credit_note")
+      .eq("source_id", booking.id)
+      .maybeSingle();
+
+    if (!existingCredit) {
+      const { error: advErr } = await adminClient.from("advance_transactions").insert({
+        customer_id: customerId,
+        amount: paid,
+        transaction_type: "credit",
+        source_type: "credit_note",
+        source_id: booking.id,
+        description: `Booking cancellation credit — ${paidTx.description || booking.city}`,
+        city: booking.city,
+        created_by: null,
+      });
+      if (advErr) return { reversed: true, error: `Credit note recorded but store credit failed: ${advErr.message}` };
+    }
   } catch (e) {
-    console.error("Failed to insert advance_transactions credit:", (e as Error).message);
+    return { reversed: true, error: `Credit note recorded but store credit failed: ${(e as Error).message}` };
   }
+
+  return { reversed: true };
 }
 
 
-// Called when a confirmed booking with paid revenue (amount > 0) is cancelled.
-// Returns the matched paid revenue row (for downstream disposition logic) or null.
-async function reverseRevenueAndInvoice(adminClient: any, bookingId: string) {
+// Cancels the tax invoice raised for a paid booking and issues the matching
+// credit note. The money reversal itself is written by the caller through the
+// shared refund writer — this function only handles the documents.
+async function cancelInvoiceAndIssueCreditNote(adminClient: any, revTx: any, bookingId: string) {
   try {
-    // 1. Find the original revenue transaction with actual payment (amount > 0)
-    const { data: revTx } = await adminClient
-      .from("revenue_transactions")
-      .select("*")
-      .eq("booking_id", bookingId)
-      .gt("amount", 0)
-      .eq("status", "confirmed")
-      .neq("transaction_type", "refund")
-      .maybeSingle();
-
-    if (!revTx) return; // No paid revenue to reverse (hour-based booking)
-
-    // GUARD: Only auto-reverse for gateway-originated transactions (guest_booking, payment).
-    // Manual invoice transactions (booking, purchase) are managed by admins directly.
+    // Manual invoice transactions (booking, purchase) are managed by admins
+    // directly, so never auto-cancel their documents.
     if (revTx.transaction_type === "booking" || revTx.transaction_type === "purchase") {
-      console.log(`Skipping auto-reversal for manual invoice transaction (type: ${revTx.transaction_type}) on booking ${bookingId}`);
+      console.log(`Skipping auto credit note for manual invoice transaction (type: ${revTx.transaction_type}) on booking ${bookingId}`);
       return;
     }
 
-    // 2. Create a refund revenue transaction (reversal)
-    await adminClient.from("revenue_transactions").insert({
-      transaction_type: "refund",
-      amount: revTx.amount,
-      currency: revTx.currency,
-      user_id: revTx.user_id || null,
-      booking_id: bookingId,
-      original_transaction_id: revTx.id,
-      guest_name: revTx.guest_name,
-      guest_email: revTx.guest_email,
-      guest_phone: revTx.guest_phone,
-      gateway_name: revTx.gateway_name,
-      description: `Refund - ${revTx.description || "Booking cancelled"}`,
-      status: "confirmed",
-      city: revTx.city,
-    });
-
-    // 3. Find the linked invoice
+    // Find the linked invoice
     const { data: invoice } = await adminClient
       .from("invoices")
       .select("*")
@@ -599,9 +616,9 @@ async function reverseRevenueAndInvoice(adminClient: any, bookingId: string) {
       );
     }
 
-    console.log(`Revenue reversed and credit note ${cnNumber} generated for booking ${bookingId}`);
+    console.log(`Invoice cancelled and credit note ${cnNumber} generated for booking ${bookingId}`);
   } catch (e) {
-    console.error("reverseRevenueAndInvoice failed:", (e as Error).message);
+    console.error("cancelInvoiceAndIssueCreditNote failed:", (e as Error).message);
   }
 }
 
@@ -2290,25 +2307,20 @@ Deno.serve(async (req) => {
         }).select("id").single();
         if (txError) console.error("Failed to insert refund transaction:", txError);
 
-        // Revenue refund transaction
-        try {
-          await adminClient.from("revenue_transactions").insert({
-            transaction_type: "refund",
-            amount: 0,
-            currency: "INR",
-            user_id: userId,
-            booking_id: booking.id,
-            hours_transaction_id: refundTxn?.id || null,
-            description: `Cancellation refund (${hoursToRefund}h) - ${bayName}`,
-            status: "confirmed",
-          });
-        } catch (e) {
-          console.error("Failed to create revenue refund transaction:", (e as Error).message);
-        }
+        // No revenue row for an hours refund: no money moved. The hours ledger
+        // above is the record. Zero-value refund rows only added noise to the
+        // revenue reports.
       }
 
       // Reverse paid revenue with disposition handling (advance_credit vs external_refund)
-      await handleCancellationDisposition(adminClient, booking, disposition || "advance_credit");
+      const dispositionResult = await handleCancellationDisposition(
+        adminClient,
+        booking,
+        disposition || "advance_credit",
+      );
+      if (dispositionResult.error) {
+        console.error(`Cancellation disposition issue for booking ${booking.id}: ${dispositionResult.error}`);
+      }
 
       // Loyalty clawback is handled atomically in cancel_booking_with_clawback RPC above
       const pointsClawedBack = (cancelResult as any)?.points_clawed_back ?? 0;
@@ -2471,25 +2483,20 @@ Deno.serve(async (req) => {
           created_by: userId,
         }).select("id").single();
 
-        // Revenue refund transaction
-        try {
-          await adminClient.from("revenue_transactions").insert({
-            transaction_type: "refund",
-            amount: 0,
-            currency: "INR",
-            user_id: booking.user_id,
-            booking_id: booking_id,
-            hours_transaction_id: refundTxn?.id || null,
-            description: `Admin cancellation refund (${hoursToRefund}h) - ${bayName}`,
-            status: "confirmed",
-          });
-        } catch (e) {
-          console.error("Failed to create revenue refund transaction:", (e as Error).message);
-        }
+        // No revenue row for an hours refund: no money moved. The hours ledger
+        // above is the record. Zero-value refund rows only added noise to the
+        // revenue reports.
       }
 
       // Reverse paid revenue and auto-generate credit note for guest/walk-in bookings
-      await handleCancellationDisposition(adminClient, booking, disposition || "advance_credit");
+      const adminDispositionResult = await handleCancellationDisposition(
+        adminClient,
+        booking,
+        disposition || "advance_credit",
+      );
+      if (adminDispositionResult.error) {
+        console.error(`Cancellation disposition issue for booking ${booking_id}: ${adminDispositionResult.error}`);
+      }
 
       // Claw back loyalty points awarded for this booking
       const pointsClawedBack = await clawbackLoyaltyPoints(adminClient, booking_id, booking.user_id, userId);
@@ -2573,9 +2580,14 @@ Deno.serve(async (req) => {
         });
       } catch (e) { console.error("Failed to notify admins about admin cancellation:", (e as Error).message); }
 
-      return new Response(JSON.stringify({ success: true, calendar_warning: calendarCancelError }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          calendar_warning: calendarCancelError,
+          refund_warning: adminDispositionResult.error || null,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     // Cancel coaching session — deletes the coaching_sessions row AND cancels

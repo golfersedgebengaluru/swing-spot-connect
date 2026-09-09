@@ -119,3 +119,67 @@ export async function recordRevenue(
 
   return { recorded: true, duplicate: false, revenueId: data?.id ?? null };
 }
+
+// ─── Money out ───────────────────────────────────────────────────────────────
+//
+// Refunds used to be inserted ad hoc by each cancellation path as POSITIVE
+// amounts with no unique key, so any report that forgot to special-case
+// `transaction_type = 'refund'` overstated income, and a retried cancellation
+// could refund the same sale twice. All reversals now go through the
+// `record_refund` RPC, which stores them negative, inherits the original
+// sale's city/currency/customer/product, refuses to exceed the refundable
+// balance and de-duplicates on `sourceRef`.
+
+type RpcClient = AnyClient & { rpc: (fn: string, args: Record<string, unknown>) => Promise<any> };
+
+export interface RecordRefundInput {
+  /** Stable, unique key, e.g. `booking_cancel_refund:<booking id>`. */
+  sourceRef: string;
+  /** The sale being reversed. */
+  originalTransactionId: string;
+  /** Positive magnitude; it is stored as a negative amount. */
+  amount: number;
+  description: string;
+  gatewayName?: string | null;
+  /** Business date (yyyy-MM-dd). Omit for live reversals. */
+  revenueDate?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface RecordRefundResult {
+  recorded: boolean;
+  revenueId: string | null;
+  error?: string;
+}
+
+export async function recordRefund(
+  admin: RpcClient,
+  input: RecordRefundInput,
+): Promise<RecordRefundResult> {
+  if (!input.sourceRef) {
+    return { recorded: false, revenueId: null, error: "sourceRef is required" };
+  }
+  if (!input.originalTransactionId) {
+    return { recorded: false, revenueId: null, error: "originalTransactionId is required" };
+  }
+  if (!(input.amount > 0)) {
+    // Nothing moved (fully-charged cancellation, complimentary booking).
+    return { recorded: false, revenueId: null };
+  }
+
+  const { data, error } = await admin.rpc("record_refund", {
+    p_source_ref: input.sourceRef,
+    p_original_transaction_id: input.originalTransactionId,
+    p_amount: input.amount,
+    p_description: input.description,
+    p_gateway_name: input.gatewayName ?? null,
+    p_revenue_date: input.revenueDate ?? null,
+    p_metadata: input.metadata ?? {},
+  });
+
+  if (error) {
+    console.error(`[revenue-ledger] refund failed source_ref=${input.sourceRef}: ${error.message}`);
+    return { recorded: false, revenueId: null, error: error.message };
+  }
+  return { recorded: true, revenueId: (data as string | null) ?? null };
+}

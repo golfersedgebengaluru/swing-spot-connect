@@ -220,13 +220,17 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
 
       const confirmed = transactions.filter((t) => t.status === "confirmed");
 
+      // Refunds are stored as negative amounts. `totalRefunds` is still reported
+      // as a positive magnitude (that is what the screens display), and legacy
+      // rows that were stored positive are read through Math.abs so historical
+      // months keep the same net figure.
       const totalRevenue = confirmed
         .filter((t) => t.transaction_type !== "refund")
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
       const totalRefunds = confirmed
         .filter((t) => t.transaction_type === "refund")
-        .reduce((sum, t) => sum + Number(t.amount), 0);
+        .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
 
       const byType: Record<string, number> = {};
       for (const t of confirmed) {
@@ -284,15 +288,21 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
       // When a row has no product yet, we fall back to its invoice line items
       // (which do carry product ids), and only then to "Uncategorised" — never
       // to a guessed bucket like "Membership".
-      const nonRefundConfirmed = confirmed.filter((t) => t.transaction_type !== "refund");
+      // Refunds carry the original sale's product, so a reversal reduces the very
+      // category it was earned in instead of being dropped from the breakdown.
+      // Signed amounts throughout: refunds are negative rows.
+      const signedConfirmed = confirmed.map((t) => ({
+        ...t,
+        amount: t.transaction_type === "refund" ? -Math.abs(Number(t.amount)) : Number(t.amount),
+      }));
 
       const byCategory: Record<string, number> = {};
       const addCategory = (cat: string, amount: number) => {
-        if (amount > 0) byCategory[cat] = (byCategory[cat] || 0) + amount;
+        if (amount !== 0) byCategory[cat] = (byCategory[cat] || 0) + amount;
       };
 
-      const directTxns = nonRefundConfirmed.filter((t) => !!(t as any).product_id);
-      const unresolvedTxns = nonRefundConfirmed.filter((t) => !(t as any).product_id);
+      const directTxns = signedConfirmed.filter((t) => !!(t as any).product_id);
+      const unresolvedTxns = signedConfirmed.filter((t) => !(t as any).product_id);
 
       const categoryByProduct = new Map<string, string>();
       const loadCategories = async (productIds: string[]) => {
