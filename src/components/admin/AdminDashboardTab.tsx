@@ -86,28 +86,29 @@ function useAdminDashboardStats(cityFilter: string) {
       const [
         { count: totalBookings },
         { count: memberCount },
-        { data: revData },
-        { data: hoursData },
+        revData,
+        hoursData,
         { data: bookingsData },
         { data: topMembers },
       ] = await Promise.all([
         totalBookingsQuery,
         membersQuery,
-        revenueQuery,
-        hoursQuery,
+        revenueRows,
+        hoursRows,
         upcomingQuery,
         topQuery,
       ]);
 
-      const revenue = (revData ?? []).reduce((sum, t) => {
+      const revenue = revData.reduce((sum: number, t: any) => {
         if (t.transaction_type === "refund") return sum - (t.amount ?? 0);
         return sum + (t.amount ?? 0);
       }, 0);
 
-      const hoursSold = (hoursData ?? []).reduce(
-        (sum, b) => sum + (b.duration_minutes ?? 0),
+      const hoursSold = hoursData.reduce(
+        (sum: number, b: any) => sum + (b.duration_minutes ?? 0),
         0
       ) / 60;
+
 
       // Resolve bay names and user profiles (dependent on bookingsData).
       // NOTE: bookings.user_id may hold either profiles.user_id (auth members)
