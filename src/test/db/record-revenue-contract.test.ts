@@ -26,10 +26,22 @@ describe("record_revenue (migration contract)", () => {
     );
   });
 
+  // Regression: Postgres grants EXECUTE to PUBLIC by default, so revoking from
+  // `anon` alone left signed-out visitors able to record a sale.
   it("is not callable by signed-out visitors", () => {
-    const norm = sql.replace(/\s+/g, " ");
-    expect(norm).toMatch(/REVOKE ALL ON FUNCTION public\.record_revenue\([^)]*\) FROM anon/);
+    const norm = latestSqlDefining("FROM PUBLIC, anon").replace(/\s+/g, " ");
+    expect(norm).toMatch(/REVOKE ALL ON FUNCTION public\.record_revenue\([^)]*\) FROM PUBLIC, anon/);
     expect(norm).toMatch(/GRANT EXECUTE ON FUNCTION public\.record_revenue\([^)]*\) TO authenticated, service_role/);
+  });
+
+  // Regression: `ON CONFLICT (source_ref)` needs a plain unique index; the first
+  // attempt used a partial one, which Postgres refuses to match.
+  it("has a unique index backing the de-duplication", () => {
+    const norm = latestSqlDefining("revenue_transactions_source_ref_key").replace(/\s+/g, " ");
+    expect(norm).toMatch(
+      /CREATE UNIQUE INDEX IF NOT EXISTS revenue_transactions_source_ref_key ON public\.revenue_transactions \(source_ref\);/,
+    );
+    expect(norm).not.toMatch(/revenue_transactions_source_ref_key ON public\.revenue_transactions \(source_ref\) WHERE/);
   });
 
   it("runs with a fixed search path", () => {
