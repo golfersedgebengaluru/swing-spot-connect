@@ -63,6 +63,10 @@ export default function PublicBooking() {
   const [guestPhone, setGuestPhone] = useState("");
 
   const [bookingComplete, setBookingComplete] = useState(false);
+  // True when payment succeeded but server confirmation took longer than the
+  // polling window — the webhook/cron finishes it and emails the member.
+  const [confirmationPending, setConfirmationPending] = useState(false);
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
