@@ -64,3 +64,40 @@ export async function recordRevenue(params: RecordRevenueParams): Promise<string
   if (error) throw error;
   return (data as string | null) ?? null;
 }
+
+export interface RecordRefundParams {
+  /** Stable unique key, e.g. `invoice_cancel:<invoice id>`. Replays are ignored. */
+  sourceRef: string;
+  /** The sale being reversed. */
+  originalTransactionId: string;
+  /** Positive magnitude; stored as a negative amount. */
+  amount: number;
+  description: string;
+  gatewayName?: string | null;
+  /** Business date (yyyy-MM-dd). Pass the credit note date for back-dated documents. */
+  revenueDate?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * The only way the app records money going back out.
+ *
+ * Refunds are stored as negative amounts so every report total is a plain sum,
+ * they inherit the original sale's city, currency, customer and product, they
+ * cannot exceed the refundable balance and a replay resolves to the row that
+ * already exists.
+ */
+export async function recordRefund(params: RecordRefundParams): Promise<string | null> {
+  if (!(params.amount > 0)) return null;
+  const { data, error } = await supabase.rpc("record_refund", {
+    p_source_ref: params.sourceRef,
+    p_original_transaction_id: params.originalTransactionId,
+    p_amount: params.amount,
+    p_description: params.description,
+    p_gateway_name: params.gatewayName ?? null,
+    p_revenue_date: params.revenueDate ?? null,
+    p_metadata: (params.metadata ?? {}) as never,
+  });
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}

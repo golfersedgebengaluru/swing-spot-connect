@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { recordRevenue } from "@/lib/revenue";
+import { recordRefund, recordRevenue } from "@/lib/revenue";
 import type { CalculatedLineItem } from "@/lib/gst-utils";
 import { isProfileGstRegistered } from "@/lib/gst-utils";
 
@@ -709,20 +709,32 @@ export function useCancelInvoice() {
     mutationFn: async (params: CancelInvoiceParams) => {
       const { invoiceId, disposition } = params;
 
-      await supabase.from("invoices")
-        .update({ status: "cancelled" })
-        .eq("id", invoiceId);
-
       const { data: original } = await supabase.from("invoices")
         .select("*")
         .eq("id", invoiceId)
         .single();
 
+      if (!original) throw new Error("Invoice not found");
+
+      // Store credit needs an account to sit in. A walk-in/guest sale has a name
+      // but no member account, so we refuse the choice up front instead of
+      // cancelling the invoice and silently dropping the customer's money.
+      if (disposition === "advance_credit" && !original.customer_user_id) {
+        throw new Error(
+          "This sale has no member account, so the amount cannot be held as store credit. Refund it to the original payment method, or create an account for this customer first.",
+        );
+      }
+      if (disposition === "advance_credit" && !original.city) {
+        throw new Error("This invoice has no city, so store credit cannot be held against it.");
+      }
+
       const { data: items } = await supabase.from("invoice_line_items")
         .select("*")
         .eq("invoice_id", invoiceId);
 
-      if (!original) throw new Error("Invoice not found");
+      await supabase.from("invoices")
+        .update({ status: "cancelled" })
+        .eq("id", invoiceId);
 
       // Same city-first FY precedence as manual invoice creation, so a credit
       // note can never fail (or land in the wrong FY) once a per-city
@@ -802,10 +814,25 @@ export function useCancelInvoice() {
         );
       }
 
+      // Reverse the money too. A cancelled invoice used to leave its revenue row
+      // untouched, so the month still counted income for a sale that no longer
+      // existed. The refund is dated to the credit note and keyed on it, so a
+      // retry cannot reverse the same sale twice.
+      if (original.revenue_transaction_id && Number(original.total) > 0) {
+        await recordRefund({
+          sourceRef: `invoice_cancel:${invoiceId}`,
+          originalTransactionId: original.revenue_transaction_id,
+          amount: Number(original.total),
+          description: `Credit note ${cnNumber} — invoice ${original.invoice_number} cancelled`,
+          revenueDate: creditNote.invoice_date,
+          metadata: { disposition, invoice_id: invoiceId, credit_note_id: creditNote.id },
+        });
+      }
+
       // If parking as advance credit, create advance transaction
-      if (disposition === "advance_credit" && original.customer_user_id && original.city) {
+      if (disposition === "advance_credit") {
         const { data: userData } = await supabase.auth.getUser();
-        await supabase.from("advance_transactions")
+        const { error: advErr } = await supabase.from("advance_transactions")
           .insert({
             customer_id: original.customer_user_id,
             amount: Number(original.total),
@@ -816,6 +843,7 @@ export function useCancelInvoice() {
             city: original.city,
             created_by: userData.user?.id || null,
           });
+        if (advErr) throw advErr;
       }
 
       return creditNote;
@@ -825,6 +853,9 @@ export function useCancelInvoice() {
       qc.invalidateQueries({ queryKey: ["advance_balance"] });
       qc.invalidateQueries({ queryKey: ["advance_transactions"] });
       qc.invalidateQueries({ queryKey: ["advance_balances_all"] });
+      qc.invalidateQueries({ queryKey: ["revenue_transactions"] });
+      qc.invalidateQueries({ queryKey: ["revenue_summary"] });
+      qc.invalidateQueries({ queryKey: ["revenue_for_pl"] });
     },
   });
 }

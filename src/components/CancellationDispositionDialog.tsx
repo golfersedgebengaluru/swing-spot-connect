@@ -28,7 +28,7 @@ export function CancellationDispositionDialog({ booking, onOpenChange, onConfirm
       const [{ data: rev }, { data: bc }] = await Promise.all([
         supabase
           .from("revenue_transactions")
-          .select("amount, currency")
+          .select("amount, currency, user_id")
           .eq("booking_id", booking!.id)
           .in("transaction_type", ["payment", "guest_booking"])
           .gt("amount", 0)
@@ -42,6 +42,9 @@ export function CancellationDispositionDialog({ booking, onOpenChange, onConfirm
       return {
         paidAmount: rev?.amount ? Number(rev.amount) : 0,
         currency: rev?.currency || "INR",
+        // Store credit has to sit in an account. Walk-in/guest sales have no
+        // member account, so that option is not offered for them.
+        hasAccount: !!rev?.user_id,
         feePct: Number((bc as any)?.cancellation_fee_pct ?? 10),
       };
     },
@@ -59,6 +62,12 @@ export function CancellationDispositionDialog({ booking, onOpenChange, onConfirm
   const refundAmount = Math.max(0, paid * (1 - feePct / 100));
   const feeAmount = paid - refundAmount;
   const currencySym = paymentInfo?.currency === "INR" ? "₹" : (paymentInfo?.currency || "");
+  const canHoldCredit = paymentInfo?.hasAccount ?? false;
+
+  // Guest sale: only the external refund makes sense, so preselect it.
+  useEffect(() => {
+    if (open && isPaid && !canHoldCredit) setChoice("external_refund");
+  }, [open, isPaid, canHoldCredit]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -82,9 +91,14 @@ export function CancellationDispositionDialog({ booking, onOpenChange, onConfirm
           <div className="space-y-3">
             <button
               type="button"
-              onClick={() => setChoice("advance_credit")}
+              onClick={() => canHoldCredit && setChoice("advance_credit")}
+              disabled={!canHoldCredit}
               className={`w-full text-left rounded-lg border p-3 transition ${
-                choice === "advance_credit" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+                !canHoldCredit
+                  ? "border-border opacity-60 cursor-not-allowed"
+                  : choice === "advance_credit"
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:bg-muted/50"
               }`}
             >
               <div className="flex items-start gap-2">
@@ -92,7 +106,9 @@ export function CancellationDispositionDialog({ booking, onOpenChange, onConfirm
                 <div className="flex-1">
                   <p className="font-medium">Credit note / Customer advance</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Full amount {currencySym}{paid.toFixed(2)} parked as credit for future use. No cancellation charge.
+                    {canHoldCredit
+                      ? `Full amount ${currencySym}${paid.toFixed(2)} parked as credit for future use. No cancellation charge.`
+                      : "Not available: this was paid as a walk-in/guest sale with no member account, so credit cannot be held. Refund it to the original payment method, or create an account for this customer first."}
                   </p>
                 </div>
               </div>
