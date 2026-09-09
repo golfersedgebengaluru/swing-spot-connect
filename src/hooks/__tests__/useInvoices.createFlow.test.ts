@@ -59,6 +59,10 @@ vi.mock("@/integrations/supabase/client", () => {
       if (name === "get_next_invoice_number") {
         return { data: "INV/2025-26/0042", error: null };
       }
+      // Revenue is recorded through the single ledger entry point.
+      if (name === "record_revenue") {
+        return { data: "rtx-1", error: null };
+      }
       return { data: null, error: null };
     }),
     __queue: (table: string, ...rows: any[]) => {
