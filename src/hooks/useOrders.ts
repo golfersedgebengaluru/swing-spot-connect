@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { recordRevenue } from "@/lib/revenue";
 
 export interface OrderItem {
   id: string;
@@ -51,26 +52,27 @@ export function useCreateOrder() {
         .single();
       if (error) throw error;
 
-      // Record revenue for the shop order.
-      // `source_ref` makes this idempotent (a retried mutation can't double-count)
-      // and `product_id` is set when the order is a single catalogue product so
-      // the revenue report can categorise it from General Settings. Multi-product
-      // orders are categorised from their invoice line items.
+      // Record revenue for the shop order through the single ledger entry point.
+      // `sourceRef` makes this idempotent (a retried mutation can't double-count),
+      // the currency follows the order's city instead of always being rupees, and
+      // `productId` is set for single-product orders so the revenue report can
+      // categorise them from General Settings. Multi-product orders are
+      // categorised from their invoice line items.
       if (params.total_price > 0) {
         const itemsSummary = params.items.map(i => `${i.quantity}× ${i.name}`).join(", ");
         const singleProductId = params.items.length === 1 ? params.items[0].id : null;
-        await supabase.from("revenue_transactions").insert({
-          user_id: user!.id,
-          transaction_type: "product_order",
+        // A failure here must be visible: a sale we didn't book is a hole in the
+        // revenue report, so it surfaces instead of being swallowed.
+        await recordRevenue({
+          sourceRef: `shop_order:${data.id}`,
+          transactionType: "product_order",
           amount: params.total_price,
-          currency: "INR",
-          city: params.city || null,
           description: `Shop order: ${itemsSummary}`,
-          status: "confirmed",
-          source_ref: `shop_order:${data.id}`,
-          product_id: singleProductId,
+          city: params.city || null,
+          userId: user!.id,
+          productId: singleProductId,
           metadata: { order_id: data.id, items: params.items },
-        } as any);
+        });
       }
 
 

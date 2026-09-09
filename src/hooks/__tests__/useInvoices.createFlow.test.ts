@@ -59,6 +59,10 @@ vi.mock("@/integrations/supabase/client", () => {
       if (name === "get_next_invoice_number") {
         return { data: "INV/2025-26/0042", error: null };
       }
+      // Revenue is recorded through the single ledger entry point.
+      if (name === "record_revenue") {
+        return { data: "rtx-1", error: null };
+      }
       return { data: null, error: null };
     }),
     __queue: (table: string, ...rows: any[]) => {
@@ -120,8 +124,7 @@ function primeHappyPath() {
   });
   // 2. financial_years
   s.__queue("financial_years", { id: "fy-1", label: "2025-26", is_active: true });
-  // 3. revenue_transactions insert returns
-  s.__queue("revenue_transactions", { id: "rtx-1" });
+  // 3. revenue is recorded through the record_revenue RPC (returns "rtx-1")
   // 4. invoices insert returns
   s.__queue("invoices", { id: "inv-1", invoice_number: "INV/2025-26/0042" });
   // 5. profiles lookup (auto-profile branch) — return null so we skip
@@ -152,12 +155,10 @@ describe("useCreateInvoice — manual invoice happy path", () => {
       p_doc_type: "tax_invoice", // post-migration value (was wrongly "INV")
     });
 
+    // Revenue no longer goes in as a direct insert; it goes through the ledger.
     const insertedTables = captured.filter((c) => c.op === "insert").map((c) => c.table);
-    expect(insertedTables).toEqual([
-      "revenue_transactions",
-      "invoices",
-      "invoice_line_items",
-    ]);
+    expect(insertedTables).toEqual(["invoices", "invoice_line_items"]);
+    expect(rpcCalls.some((c) => c.name === "record_revenue")).toBe(true);
 
     const inv = captured.find((c) => c.table === "invoices")!.payload;
     expect(inv.invoice_number).toBe("INV/2025-26/0042");
@@ -211,8 +212,8 @@ describe("useCreateInvoice — manual invoice happy path", () => {
     } as any);
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    const rev = captured.find((c) => c.table === "revenue_transactions" && c.op === "insert")!.payload;
-    expect(rev.transaction_type).toBe("booking");
+    const rev = rpcCalls.find((c) => c.name === "record_revenue")!.args;
+    expect(rev.p_transaction_type).toBe("booking");
 
     const inv = captured.find((c) => c.table === "invoices")!.payload;
     expect(inv.invoice_category).toBe("booking");
@@ -238,8 +239,22 @@ describe("useCreateInvoice — manual invoice happy path", () => {
     await result.current.mutateAsync(baseParams as any);
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    const rev = captured.find((c) => c.table === "revenue_transactions" && c.op === "insert")!.payload;
-    expect(rev.metadata).toEqual({ manual_invoice: true });
+    const rev = rpcCalls.find((c) => c.name === "record_revenue")!.args;
+    expect(rev.p_metadata).toEqual({ manual_invoice: true });
+  });
+
+  // The invoice date decides which month the sale is reported in, so a
+  // back-dated invoice lands in the month it is dated for.
+  it("reports the sale on the invoice date", async () => {
+    primeHappyPath();
+    const { result } = renderHook(() => useCreateInvoice(), { wrapper });
+
+    await result.current.mutateAsync({ ...baseParams, invoiceDate: "2026-08-08" } as any);
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    const rev = rpcCalls.find((c) => c.name === "record_revenue")!.args;
+    expect(rev.p_revenue_date).toBe("2026-08-08");
+    expect(rev.p_source_ref).toMatch(/^manual_invoice:/);
   });
 });
 

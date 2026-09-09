@@ -6334,6 +6334,26 @@ export type Database = {
         }
         Returns: string
       }
+      record_revenue: {
+        Args: {
+          p_amount: number
+          p_booking_id?: string
+          p_city?: string
+          p_currency?: string
+          p_description: string
+          p_gateway_name?: string
+          p_guest_email?: string
+          p_guest_name?: string
+          p_hours_transaction_id?: string
+          p_metadata?: Json
+          p_product_id?: string
+          p_revenue_date?: string
+          p_source_ref: string
+          p_transaction_type: string
+          p_user_id?: string
+        }
+        Returns: string
+      }
       release_pending_guest_booking: {
         Args: { _error?: string; _order_id: string }
         Returns: undefined

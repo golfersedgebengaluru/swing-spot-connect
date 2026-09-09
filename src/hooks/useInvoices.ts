@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { recordRevenue } from "@/lib/revenue";
 import type { CalculatedLineItem } from "@/lib/gst-utils";
 import { isProfileGstRegistered } from "@/lib/gst-utils";
 
@@ -316,24 +317,20 @@ export function useCreateInvoice() {
       //    Without the flag both writers race and produce two invoices for the
       //    same payment (each burning an invoice number).
       const invoiceDate = params.invoiceDate || new Date().toISOString().split("T")[0];
-      const { data: revTxn, error: revErr } = await supabase.from("revenue_transactions")
-        .insert({
-          amount: params.total,
-          user_id: params.customerUserId || null,
-          transaction_type: params.invoiceCategory === "booking" ? "booking" : "purchase",
-          description: `Invoice for ${params.customerName}`,
-          status: "confirmed",
-          city: params.city,
-          gateway_name: params.paymentMethod || null,
-          // Back-dated invoices must report in the month they are dated for, not
-          // the month they were typed in. The `sync_revenue_date_from_invoice`
-          // trigger keeps this in step if the invoice date is edited later.
-          revenue_date: invoiceDate,
-          metadata: { manual_invoice: true },
-        })
-        .select()
-        .single();
-      if (revErr) throw revErr;
+      // Recorded through the single ledger entry point, which stamps the city's
+      // currency. `revenueDate` is the invoice date, so a back-dated invoice
+      // reports in the month it is dated for, not the month it was typed in.
+      const revenueId = await recordRevenue({
+        sourceRef: `manual_invoice:${crypto.randomUUID()}`,
+        transactionType: params.invoiceCategory === "booking" ? "booking" : "purchase",
+        amount: params.total,
+        description: `Invoice for ${params.customerName}`,
+        city: params.city,
+        userId: params.customerUserId || null,
+        gatewayName: params.paymentMethod || null,
+        revenueDate: invoiceDate,
+        metadata: { manual_invoice: true },
+      });
 
 
       // 5. Insert invoice
@@ -362,7 +359,7 @@ export function useCreateInvoice() {
         invoice_type: params.invoiceType || "invoice",
         credit_note_for: params.creditNoteFor || null,
         payment_method: params.paymentMethod || null,
-        revenue_transaction_id: revTxn.id,
+        revenue_transaction_id: revenueId,
         city: params.city,
         notes: params.notes || null,
         due_date: params.dueDate || new Date().toISOString().split("T")[0],
@@ -449,12 +446,12 @@ export function useCreateInvoice() {
 
           // Link invoice and revenue to the new profile
           await supabase.from("invoices").update({ customer_user_id: newProfile.id }).eq("id", invoice.id);
-          await supabase.from("revenue_transactions").update({ user_id: newProfile.id }).eq("id", revTxn.id);
+          if (revenueId) await supabase.from("revenue_transactions").update({ user_id: newProfile.id }).eq("id", revenueId);
         } else {
           createdProfileId = existingProfile.id;
           const linkId = existingProfile.user_id || existingProfile.id;
           await supabase.from("invoices").update({ customer_user_id: linkId }).eq("id", invoice.id);
-          await supabase.from("revenue_transactions").update({ user_id: linkId }).eq("id", revTxn.id);
+          if (revenueId) await supabase.from("revenue_transactions").update({ user_id: linkId }).eq("id", revenueId);
         }
       }
 
@@ -527,10 +524,12 @@ export function useCreateInvoice() {
           .single();
         if (bookErr) throw bookErr;
 
-        // Link booking to revenue transaction
-        await supabase.from("revenue_transactions")
-          .update({ booking_id: booking.id })
-          .eq("id", revTxn.id);
+        // Link booking to revenue transaction (a zero-total invoice has none)
+        if (revenueId) {
+          await supabase.from("revenue_transactions")
+            .update({ booking_id: booking.id })
+            .eq("id", revenueId);
+        }
       }
 
 

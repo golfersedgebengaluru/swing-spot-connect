@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAdminCity } from "@/contexts/AdminCityContext";
+import { recordRevenue } from "@/lib/revenue";
 
 function TransactionHistory({ userId }: { userId: string }) {
   const { data: transactions, isLoading } = useHoursTransactions(userId);
@@ -44,18 +45,35 @@ function TransactionHistory({ userId }: { userId: string }) {
 
 const ADJUST_REASONS = ["Correction", "Comp", "Refund", "Walk-in", "Missed booking", "Other"] as const;
 
+/** How an offline hours purchase was paid for. "Complimentary" records no sale. */
+const PURCHASE_PAYMENT_METHODS = ["Cash", "UPI", "Card", "Bank Transfer", "Cheque", "Complimentary"] as const;
+
 function AdjustHoursForm({ member, onSave, onCancel }: { member: any; onSave: (data: any) => void; onCancel: () => void }) {
   const todayISO = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState({ type: "deduction" as string, hours: 0, note: "", reason: "" as string, service_date: todayISO });
+  const [form, setForm] = useState({
+    type: "deduction" as string,
+    hours: 0,
+    note: "",
+    reason: "" as string,
+    service_date: todayISO,
+    amount: 0,
+    payment_method: "" as string,
+  });
   const remaining = member.hours_purchased - member.hours_used;
   const isDeduction = form.type === "deduction";
+  const isPurchase = form.type === "purchase";
+  const isComplimentary = form.payment_method === "Complimentary";
   const nudgeManualBooking = isDeduction && (form.reason === "Walk-in" || form.reason === "Missed booking");
   const noteTrimmed = form.note.trim();
   const canConfirm =
     form.hours > 0 &&
     !!form.reason &&
     noteTrimmed.length > 0 &&
-    (!isDeduction || !!form.service_date);
+    (!isDeduction || !!form.service_date) &&
+    // An offline hours sale must say what was collected, or be marked
+    // complimentary. Without this the sale used to be recorded as zero and
+    // never appeared in the revenue report.
+    (!isPurchase || (!!form.payment_method && (isComplimentary || form.amount > 0)));
   return (
     <div className="space-y-4">
       <div className="rounded-lg bg-muted p-3">
@@ -86,6 +104,33 @@ function AdjustHoursForm({ member, onSave, onCancel }: { member: any; onSave: (d
       {nudgeManualBooking && (
         <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
           For walk-ins or missed entries, prefer <strong>Manual Booking</strong> with a back-dated date — it creates a proper booking record, invoice, and "My Bookings" entry. Use this form only if no booking row is needed.
+        </div>
+      )}
+      {isPurchase && (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Paid By <span className="text-destructive">*</span></Label>
+            <Select value={form.payment_method} onValueChange={(v) => setForm({ ...form, payment_method: v, amount: v === "Complimentary" ? 0 : form.amount })}>
+              <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+              <SelectContent>
+                {PURCHASE_PAYMENT_METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Amount Collected {!isComplimentary && <span className="text-destructive">*</span>}</Label>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              disabled={isComplimentary}
+              value={form.amount || ""}
+              onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              {isComplimentary ? "Complimentary hours — no sale recorded." : "Shows in the revenue report for this city."}
+            </p>
+          </div>
         </div>
       )}
       {isDeduction && (
@@ -245,20 +290,28 @@ export function AdminMembersTab() {
       created_by: user?.id,
     }).select("id").single();
 
-    // Create revenue transaction for purchase-type adjustments
-    if (data.type === "purchase") {
+    // Record the sale for offline hours purchases. This used to insert a ₹0 row,
+    // so cash top-ups never appeared in the revenue report. The amount and city
+    // are now captured, and the ledger stamps the city's currency.
+    if (data.type === "purchase" && Number(data.amount) > 0 && htxn?.id) {
       try {
-        await supabase.from("revenue_transactions").insert({
-          transaction_type: "payment" as any,
-          amount: 0,
-          currency: "INR",
-          user_id: member.user_id,
-          hours_transaction_id: htxn?.id || null,
+        await recordRevenue({
+          sourceRef: `hours_purchase:${htxn.id}`,
+          transactionType: "purchase",
+          amount: Number(data.amount),
           description: `Prepaid hours purchase - ${data.hours}h${data.note ? ` (${data.note})` : ""}`,
-          status: "confirmed",
+          city: member.preferred_city || selectedCity || null,
+          userId: member.user_id,
+          hoursTransactionId: htxn.id,
+          gatewayName: data.payment_method || "Offline",
+          metadata: { offline: true, hours: data.hours, payment_method: data.payment_method || null },
         });
-      } catch (e) {
-        console.error("Failed to create revenue transaction:", e);
+      } catch (e: any) {
+        toast({
+          title: "Hours added, but the sale wasn't recorded",
+          description: e?.message || "Please record this payment again from Finance.",
+          variant: "destructive",
+        });
       }
     }
 

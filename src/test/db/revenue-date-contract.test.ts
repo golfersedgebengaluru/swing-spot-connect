@@ -33,7 +33,7 @@ const norm = (s: string) => s.replace(/\s+/g, " ").toLowerCase();
 
 describe("revenue business date (migration contract)", () => {
   it("adds a revenue_date column", () => {
-    const sql = norm(latestSqlDefining("revenue_date date"));
+    const sql = norm(latestSqlDefining("ADD COLUMN IF NOT EXISTS revenue_date date"));
     expect(sql).toContain("alter table public.revenue_transactions add column if not exists revenue_date date");
   });
 
