@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { reportRangeToUtc } from "@/lib/report-period";
+import { fetchAllPaged, fetchAllByIds } from "@/lib/supabase-paging";
 
 // ─── Admin config toggle ────────────────────────────────
 export function usePerCityFyToggle() {
