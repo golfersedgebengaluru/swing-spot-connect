@@ -4,7 +4,9 @@ import { cn } from "@/lib/utils";
 import { CalendarDays, Users, IndianRupee, Clock, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format } from "date-fns";
+import { zonedMonthRangeUtc } from "@/lib/report-period";
+import { fetchAllPaged } from "@/lib/supabase-paging";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -18,8 +20,9 @@ function useAdminDashboardStats(cityFilter: string) {
     queryKey: ["admin-dashboard-stats", cityFilter],
     queryFn: async () => {
       const now = new Date();
-      const monthStart = startOfMonth(now).toISOString();
-      const monthEnd = endOfMonth(now).toISOString();
+      // Business-month boundaries (half-open) shared with the revenue reports,
+      // so the MTD tiles agree with the revenue tab to the rupee.
+      const { fromUtc: monthStart, toExclusiveUtc: monthEndExclusive } = zonedMonthRangeUtc(now);
 
       // Build all independent queries
       let totalBookingsQuery = supabase
@@ -27,7 +30,7 @@ function useAdminDashboardStats(cityFilter: string) {
         .select("id", { count: "exact", head: true })
         .eq("status", "confirmed")
         .gte("start_time", monthStart)
-        .lte("start_time", monthEnd);
+        .lt("start_time", monthEndExclusive);
       if (cityFilter) totalBookingsQuery = totalBookingsQuery.eq("city", cityFilter);
 
       let membersQuery = supabase
@@ -36,21 +39,31 @@ function useAdminDashboardStats(cityFilter: string) {
         .in("user_type", ["birdie", "coaching"]);
       if (cityFilter) membersQuery = membersQuery.eq("preferred_city", cityFilter);
 
-      let revenueQuery = supabase
-        .from("revenue_transactions")
-        .select("amount, transaction_type")
-        .eq("status", "confirmed")
-        .gte("created_at", monthStart)
-        .lte("created_at", monthEnd);
-      if (cityFilter) revenueQuery = revenueQuery.eq("city", cityFilter);
+      // Paged: MTD totals must cover every row, not the first 1000.
+      const revenueRows = fetchAllPaged<any>((from, to) => {
+        let q = supabase
+          .from("revenue_transactions")
+          .select("amount, transaction_type")
+          .eq("status", "confirmed")
+          .gte("created_at", monthStart)
+          .lt("created_at", monthEndExclusive)
+          .order("created_at", { ascending: true });
+        if (cityFilter) q = q.eq("city", cityFilter);
+        return q.range(from, to);
+      });
 
-      let hoursQuery = supabase
-        .from("bookings")
-        .select("duration_minutes")
-        .eq("status", "confirmed")
-        .gte("start_time", monthStart)
-        .lte("start_time", monthEnd);
-      if (cityFilter) hoursQuery = hoursQuery.eq("city", cityFilter);
+      const hoursRows = fetchAllPaged<any>((from, to) => {
+        let q = supabase
+          .from("bookings")
+          .select("duration_minutes")
+          .eq("status", "confirmed")
+          .gte("start_time", monthStart)
+          .lt("start_time", monthEndExclusive)
+          .order("start_time", { ascending: true });
+        if (cityFilter) q = q.eq("city", cityFilter);
+        return q.range(from, to);
+      });
+
 
       let upcomingQuery = supabase
         .from("bookings")
@@ -73,28 +86,29 @@ function useAdminDashboardStats(cityFilter: string) {
       const [
         { count: totalBookings },
         { count: memberCount },
-        { data: revData },
-        { data: hoursData },
+        revData,
+        hoursData,
         { data: bookingsData },
         { data: topMembers },
       ] = await Promise.all([
         totalBookingsQuery,
         membersQuery,
-        revenueQuery,
-        hoursQuery,
+        revenueRows,
+        hoursRows,
         upcomingQuery,
         topQuery,
       ]);
 
-      const revenue = (revData ?? []).reduce((sum, t) => {
+      const revenue = revData.reduce((sum: number, t: any) => {
         if (t.transaction_type === "refund") return sum - (t.amount ?? 0);
         return sum + (t.amount ?? 0);
       }, 0);
 
-      const hoursSold = (hoursData ?? []).reduce(
-        (sum, b) => sum + (b.duration_minutes ?? 0),
+      const hoursSold = hoursData.reduce(
+        (sum: number, b: any) => sum + (b.duration_minutes ?? 0),
         0
       ) / 60;
+
 
       // Resolve bay names and user profiles (dependent on bookingsData).
       // NOTE: bookings.user_id may hold either profiles.user_id (auth members)

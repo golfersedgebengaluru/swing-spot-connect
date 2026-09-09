@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { reportRangeToUtc } from "@/lib/report-period";
+import { fetchAllPaged, fetchAllByIds } from "@/lib/supabase-paging";
 
 // ─── Admin config toggle ────────────────────────────────
 export function usePerCityFyToggle() {
@@ -164,14 +166,20 @@ export function useRevenueTransactions(filters?: {
   return useQuery({
     queryKey: ["revenue_transactions", filters],
     queryFn: async () => {
+      const period =
+        filters?.startDate && filters?.endDate
+          ? reportRangeToUtc(filters.startDate, filters.endDate)
+          : null;
+
       let query = supabase
         .from("revenue_transactions")
         .select("*", { count: "exact" })
         .neq("transaction_type", "hours_deduction")
         .order("created_at", { ascending: false });
 
-      if (filters?.startDate) query = query.gte("created_at", filters.startDate);
-      if (filters?.endDate) query = query.lte("created_at", filters.endDate + "T23:59:59.999Z");
+      if (period) {
+        query = query.gte("created_at", period.fromUtc).lt("created_at", period.toExclusiveUtc);
+      }
       if (filters?.type) query = query.eq("transaction_type", filters.type);
       if (filters?.city) query = query.eq("city", filters.city);
       if (filters?.search) {
@@ -191,19 +199,21 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
   return useQuery({
     queryKey: ["revenue_summary", startDate, endDate, city],
     queryFn: async () => {
-      let query = supabase
-        .from("revenue_transactions")
-        .select("id, transaction_type, amount, status, user_id, guest_name, guest_email, created_at, booking_id, hours_transaction_id, product_id")
-        .neq("transaction_type", "hours_deduction");
+      const { fromUtc, toExclusiveUtc } = reportRangeToUtc(startDate!, endDate!);
 
-      if (startDate) query = query.gte("created_at", startDate);
-      if (endDate) query = query.lte("created_at", endDate + "T23:59:59.999Z");
-      if (city) query = query.eq("city", city);
+      // Paged: totals must cover every row in the period, not the first 1000.
+      const transactions = await fetchAllPaged<any>((from, to) => {
+        let q = supabase
+          .from("revenue_transactions")
+          .select("id, transaction_type, amount, status, user_id, guest_name, guest_email, created_at, booking_id, hours_transaction_id, product_id")
+          .neq("transaction_type", "hours_deduction")
+          .gte("created_at", fromUtc)
+          .lt("created_at", toExclusiveUtc)
+          .order("created_at", { ascending: true });
+        if (city) q = q.eq("city", city);
+        return q.range(from, to);
+      });
 
-      const { data, error } = await query;
-      if (error) throw error;
-
-      const transactions = data ?? [];
       const confirmed = transactions.filter((t) => t.status === "confirmed");
 
       const totalRevenue = confirmed
@@ -237,11 +247,17 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
 
       const userIds = Object.keys(byUser);
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, user_id, display_name, email, user_type");
+        // Paged: a capped profiles read left customer names blank once the
+        // member list passed 1000 rows.
+        const profiles = await fetchAllPaged<any>((from, to) =>
+          supabase
+            .from("profiles")
+            .select("id, user_id, display_name, email, user_type")
+            .order("id", { ascending: true })
+            .range(from, to),
+        );
         const dualMap = new Map<string, string>();
-        for (const p of profiles ?? []) {
+        for (const p of profiles) {
           const name = p.display_name || p.email || "";
           if (p.user_id) dualMap.set(p.user_id, name);
           dualMap.set(p.id, name);
@@ -252,6 +268,7 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
           }
         }
       }
+
 
       // --- Revenue by product category ---
       // Single rule, no inference: the category is the catalogue product's
@@ -277,14 +294,15 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
       const loadCategories = async (productIds: string[]) => {
         const missing = [...new Set(productIds)].filter((id) => id && !categoryByProduct.has(id));
         if (missing.length === 0) return;
-        const { data: products } = await supabase
-          .from("products")
-          .select("id, category")
-          .in("id", missing);
-        for (const p of products ?? []) {
+        // Batched: a single `.in()` with thousands of ids exceeds URL limits.
+        const products = await fetchAllByIds<any>(missing, (batch) =>
+          supabase.from("products").select("id, category").in("id", batch),
+        );
+        for (const p of products) {
           categoryByProduct.set(p.id, p.category || "Uncategorised");
         }
       };
+
 
       await loadCategories(directTxns.map((t) => (t as any).product_id as string));
       for (const t of directTxns) {
@@ -294,29 +312,33 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
 
       if (unresolvedTxns.length > 0) {
         const unresolvedIds = unresolvedTxns.map((t: any) => t.id).filter(Boolean);
-        const { data: invoices } = await supabase
-          .from("invoices")
-          .select("id, revenue_transaction_id")
-          .in("revenue_transaction_id", unresolvedIds);
+        const invoices = await fetchAllByIds<any>(unresolvedIds, (batch) =>
+          supabase
+            .from("invoices")
+            .select("id, revenue_transaction_id")
+            .in("revenue_transaction_id", batch),
+        );
 
         const invoiceByTxn = new Map<string, string>();
-        for (const inv of invoices ?? []) {
+        for (const inv of invoices) {
           if (inv.revenue_transaction_id) invoiceByTxn.set(inv.revenue_transaction_id, inv.id);
         }
 
-        const invoiceIds = (invoices ?? []).map((inv) => inv.id);
+        const invoiceIds = invoices.map((inv) => inv.id);
         const lineTotalsByInvoice = new Map<string, number>();
         if (invoiceIds.length > 0) {
-          const { data: lineItems } = await supabase
-            .from("invoice_line_items")
-            .select("invoice_id, line_total, product_id")
-            .in("invoice_id", invoiceIds);
-
-          await loadCategories(
-            (lineItems ?? []).map((li) => li.product_id).filter(Boolean) as string[],
+          const lineItems = await fetchAllByIds<any>(invoiceIds, (batch) =>
+            supabase
+              .from("invoice_line_items")
+              .select("invoice_id, line_total, product_id")
+              .in("invoice_id", batch),
           );
 
-          for (const li of lineItems ?? []) {
+          await loadCategories(
+            lineItems.map((li) => li.product_id).filter(Boolean) as string[],
+          );
+
+          for (const li of lineItems) {
             const cat = li.product_id
               ? (categoryByProduct.get(li.product_id) || "Uncategorised")
               : "Uncategorised";
@@ -327,6 +349,7 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
             );
           }
         }
+
 
         // Residual (txn amount not covered by line items) → Uncategorised.
         for (const t of unresolvedTxns) {
