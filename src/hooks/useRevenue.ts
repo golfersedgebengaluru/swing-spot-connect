@@ -312,29 +312,33 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
 
       if (unresolvedTxns.length > 0) {
         const unresolvedIds = unresolvedTxns.map((t: any) => t.id).filter(Boolean);
-        const { data: invoices } = await supabase
-          .from("invoices")
-          .select("id, revenue_transaction_id")
-          .in("revenue_transaction_id", unresolvedIds);
+        const invoices = await fetchAllByIds<any>(unresolvedIds, (batch) =>
+          supabase
+            .from("invoices")
+            .select("id, revenue_transaction_id")
+            .in("revenue_transaction_id", batch),
+        );
 
         const invoiceByTxn = new Map<string, string>();
-        for (const inv of invoices ?? []) {
+        for (const inv of invoices) {
           if (inv.revenue_transaction_id) invoiceByTxn.set(inv.revenue_transaction_id, inv.id);
         }
 
-        const invoiceIds = (invoices ?? []).map((inv) => inv.id);
+        const invoiceIds = invoices.map((inv) => inv.id);
         const lineTotalsByInvoice = new Map<string, number>();
         if (invoiceIds.length > 0) {
-          const { data: lineItems } = await supabase
-            .from("invoice_line_items")
-            .select("invoice_id, line_total, product_id")
-            .in("invoice_id", invoiceIds);
-
-          await loadCategories(
-            (lineItems ?? []).map((li) => li.product_id).filter(Boolean) as string[],
+          const lineItems = await fetchAllByIds<any>(invoiceIds, (batch) =>
+            supabase
+              .from("invoice_line_items")
+              .select("invoice_id, line_total, product_id")
+              .in("invoice_id", batch),
           );
 
-          for (const li of lineItems ?? []) {
+          await loadCategories(
+            lineItems.map((li) => li.product_id).filter(Boolean) as string[],
+          );
+
+          for (const li of lineItems) {
             const cat = li.product_id
               ? (categoryByProduct.get(li.product_id) || "Uncategorised")
               : "Uncategorised";
@@ -345,6 +349,7 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
             );
           }
         }
+
 
         // Residual (txn amount not covered by line items) → Uncategorised.
         for (const t of unresolvedTxns) {
