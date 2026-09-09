@@ -216,10 +216,6 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
 
       const confirmed = transactions.filter((t) => t.status === "confirmed");
 
-
-      const transactions = data ?? [];
-      const confirmed = transactions.filter((t) => t.status === "confirmed");
-
       const totalRevenue = confirmed
         .filter((t) => t.transaction_type !== "refund")
         .reduce((sum, t) => sum + Number(t.amount), 0);
