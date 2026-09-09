@@ -148,7 +148,14 @@ describe("browser is no longer load-bearing for payment finalization", () => {
   it("guest checkout no longer calls calendar-sync from the Razorpay handler", () => {
     // The browser handler must not invoke calendar-sync; the webhook owns finalization.
     expect(publicBookingSrc).not.toMatch(/invoke\("calendar-sync",\s*\{\s*body:\s*\{\s*action:\s*"guest_booking"/);
-    expect(publicBookingSrc).toMatch(/waitForPaymentFinalization\(\s*"pending_guest_bookings"/);
+    // One poller for both flows: members poll pending_bookings, guests poll
+    // pending_guest_bookings — the server finalises either way.
+    expect(publicBookingSrc).toMatch(
+      /waitForPaymentFinalization\([\s\S]{0,160}"pending_guest_bookings"/,
+    );
+    expect(publicBookingSrc).toMatch(
+      /waitForPaymentFinalization\([\s\S]{0,160}"pending_bookings"/,
+    );
   });
 
   it("hour purchase no longer calls confirm-hour-purchase from the Razorpay handler", () => {
