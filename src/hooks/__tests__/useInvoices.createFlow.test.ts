@@ -212,8 +212,8 @@ describe("useCreateInvoice — manual invoice happy path", () => {
     } as any);
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    const rev = captured.find((c) => c.table === "revenue_transactions" && c.op === "insert")!.payload;
-    expect(rev.transaction_type).toBe("booking");
+    const rev = rpcCalls.find((c) => c.name === "record_revenue")!.args;
+    expect(rev.p_transaction_type).toBe("booking");
 
     const inv = captured.find((c) => c.table === "invoices")!.payload;
     expect(inv.invoice_category).toBe("booking");
