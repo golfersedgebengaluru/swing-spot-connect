@@ -316,24 +316,20 @@ export function useCreateInvoice() {
       //    Without the flag both writers race and produce two invoices for the
       //    same payment (each burning an invoice number).
       const invoiceDate = params.invoiceDate || new Date().toISOString().split("T")[0];
-      const { data: revTxn, error: revErr } = await supabase.from("revenue_transactions")
-        .insert({
-          amount: params.total,
-          user_id: params.customerUserId || null,
-          transaction_type: params.invoiceCategory === "booking" ? "booking" : "purchase",
-          description: `Invoice for ${params.customerName}`,
-          status: "confirmed",
-          city: params.city,
-          gateway_name: params.paymentMethod || null,
-          // Back-dated invoices must report in the month they are dated for, not
-          // the month they were typed in. The `sync_revenue_date_from_invoice`
-          // trigger keeps this in step if the invoice date is edited later.
-          revenue_date: invoiceDate,
-          metadata: { manual_invoice: true },
-        })
-        .select()
-        .single();
-      if (revErr) throw revErr;
+      // Recorded through the single ledger entry point, which stamps the city's
+      // currency. `revenueDate` is the invoice date, so a back-dated invoice
+      // reports in the month it is dated for, not the month it was typed in.
+      const revenueId = await recordRevenue({
+        sourceRef: `manual_invoice:${crypto.randomUUID()}`,
+        transactionType: params.invoiceCategory === "booking" ? "booking" : "purchase",
+        amount: params.total,
+        description: `Invoice for ${params.customerName}`,
+        city: params.city,
+        userId: params.customerUserId || null,
+        gatewayName: params.paymentMethod || null,
+        revenueDate: invoiceDate,
+        metadata: { manual_invoice: true },
+      });
 
 
       // 5. Insert invoice
