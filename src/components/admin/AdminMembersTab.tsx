@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAdminCity } from "@/contexts/AdminCityContext";
+import { recordRevenue } from "@/lib/revenue";
 
 function TransactionHistory({ userId }: { userId: string }) {
   const { data: transactions, isLoading } = useHoursTransactions(userId);
