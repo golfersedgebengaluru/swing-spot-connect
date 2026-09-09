@@ -155,12 +155,10 @@ describe("useCreateInvoice — manual invoice happy path", () => {
       p_doc_type: "tax_invoice", // post-migration value (was wrongly "INV")
     });
 
+    // Revenue no longer goes in as a direct insert; it goes through the ledger.
     const insertedTables = captured.filter((c) => c.op === "insert").map((c) => c.table);
-    expect(insertedTables).toEqual([
-      "revenue_transactions",
-      "invoices",
-      "invoice_line_items",
-    ]);
+    expect(insertedTables).toEqual(["invoices", "invoice_line_items"]);
+    expect(rpcCalls.some((c) => c.name === "record_revenue")).toBe(true);
 
     const inv = captured.find((c) => c.table === "invoices")!.payload;
     expect(inv.invoice_number).toBe("INV/2025-26/0042");
