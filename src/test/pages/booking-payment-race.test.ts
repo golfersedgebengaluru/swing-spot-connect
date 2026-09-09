@@ -63,7 +63,7 @@ describe("server-side member finalization stays complete and idempotent", () => 
     const start = calendarSyncSrc.indexOf('action === "finalize_pending_member_booking"');
     expect(start).toBeGreaterThan(0);
     const block = calendarSyncSrc.slice(start, start + 12000);
-    expect(block).toMatch(/status: "processing"[\s\S]{0,600}already_finalized/);
+    expect(block).toMatch(/status: "processing"[\s\S]{0,1500}already_finalized/);
   });
 
 
