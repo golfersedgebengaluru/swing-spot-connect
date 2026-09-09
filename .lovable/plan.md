@@ -29,7 +29,7 @@ Checked against live data (1,409 revenue rows):
 
 **Unify the two cancellation paths** into one shared routine used by both member and admin cancellation, covering all three outcomes: credit note / advance, external refund with the city's cancellation charge, and hours-only.
 
-**Make credit notes explicit.** When a cancellation is parked as customer credit, the reversal and the credit entry are written together; if the customer cannot be identified the cancellation reports a clear failure instead of quietly dropping the credit.
+**Make credit notes explicit.** The reversal and the credit entry are written together, never one without the other. Because store credit needs an account to sit in, a walk-in or guest sale can only be refunded to the original payment method — the credit option is disabled for those with a clear reason shown, rather than accepted and silently dropped. If the guest should keep credit, the staff member creates an account for them first.
 
 **Simplify the reports.** With signed amounts, income becomes a plain sum, refunds are shown separately as a negative line, and refunds reduce their own category rather than sitting outside the breakdown.
 
