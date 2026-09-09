@@ -18,8 +18,9 @@ function useAdminDashboardStats(cityFilter: string) {
     queryKey: ["admin-dashboard-stats", cityFilter],
     queryFn: async () => {
       const now = new Date();
-      const monthStart = startOfMonth(now).toISOString();
-      const monthEnd = endOfMonth(now).toISOString();
+      // Business-month boundaries (half-open) shared with the revenue reports,
+      // so the MTD tiles agree with the revenue tab to the rupee.
+      const { fromUtc: monthStart, toExclusiveUtc: monthEndExclusive } = zonedMonthRangeUtc(now);
 
       // Build all independent queries
       let totalBookingsQuery = supabase
