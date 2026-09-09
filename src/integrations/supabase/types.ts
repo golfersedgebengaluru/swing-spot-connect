@@ -5384,7 +5384,7 @@ export type Database = {
           metadata: Json | null
           original_transaction_id: string | null
           product_id: string | null
-          revenue_date: string | null
+          revenue_date: string
           source_ref: string | null
           status: string
           transaction_type: string
@@ -5409,7 +5409,7 @@ export type Database = {
           metadata?: Json | null
           original_transaction_id?: string | null
           product_id?: string | null
-          revenue_date?: string | null
+          revenue_date?: string
           source_ref?: string | null
           status?: string
           transaction_type: string
@@ -5434,7 +5434,7 @@ export type Database = {
           metadata?: Json | null
           original_transaction_id?: string | null
           product_id?: string | null
-          revenue_date?: string | null
+          revenue_date?: string
           source_ref?: string | null
           status?: string
           transaction_type?: string
