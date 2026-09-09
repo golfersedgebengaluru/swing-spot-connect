@@ -63,6 +63,10 @@ export default function PublicBooking() {
   const [guestPhone, setGuestPhone] = useState("");
 
   const [bookingComplete, setBookingComplete] = useState(false);
+  // True when payment succeeded but server confirmation took longer than the
+  // polling window — the webhook/cron finishes it and emails the member.
+  const [confirmationPending, setConfirmationPending] = useState(false);
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -199,57 +203,59 @@ export default function PublicBooking() {
 
         const { order_id, key_id, currency: rzpCurrency } = orderRes.data;
 
-        // 1b. Stash a pending row server-side BEFORE opening checkout, so the
-        // razorpay-webhook can finalize even if the browser handler never fires
-        // (e.g., user closes the tab, network drops, or phone locks after payment).
-        // Both guest AND signed-in flows use this — signed-in stashes into
-        // pending_bookings, guests into pending_guest_bookings.
+        // 1b. Stash a pending row server-side BEFORE opening checkout. The
+        // Razorpay webhook (with the cron reconciler as backstop) is the ONLY
+        // thing that creates the booking, revenue row, calendar event and
+        // emails — for guests AND signed-in members alike. The browser just
+        // waits. If this stash fails we must NOT take a payment, because
+        // nothing would finalize it, so the failure is fatal here.
         if (!user) {
-          try {
-            await supabase.from("pending_guest_bookings").insert({
-              razorpay_order_id: order_id,
-              city: selectedCity,
-              bay_id: currentBay.id,
-              bay_name: currentBay.name,
-              start_time: selectedSlot,
-              end_time: endTime,
-              duration_minutes: duration,
-              session_type: sessionType,
-              guest_name: guestName,
-              guest_email: guestEmail,
-              guest_phone: guestPhone,
-              amount: amountToCharge,
-              currency: currentPrice?.currency || "INR",
-              coupon_code: appliedCoupon?.code || null,
-              discount_amount: couponDiscount || 0,
-              original_amount: totalCost,
-            });
-          } catch (e) {
-            console.error("Failed to stash pending guest booking (non-fatal):", e);
+          const { error: stashErr } = await supabase.from("pending_guest_bookings").insert({
+            razorpay_order_id: order_id,
+            city: selectedCity,
+            bay_id: currentBay.id,
+            bay_name: currentBay.name,
+            start_time: selectedSlot,
+            end_time: endTime,
+            duration_minutes: duration,
+            session_type: sessionType,
+            guest_name: guestName,
+            guest_email: guestEmail,
+            guest_phone: guestPhone,
+            amount: amountToCharge,
+            currency: currentPrice?.currency || "INR",
+            coupon_code: appliedCoupon?.code || null,
+            discount_amount: couponDiscount || 0,
+            original_amount: totalCost,
+          });
+          if (stashErr) {
+            console.error("Failed to stash pending guest booking:", stashErr);
+            throw new Error("Could not start payment. Please try again.");
           }
         } else {
-          try {
-            await supabase.from("pending_bookings").insert({
-              razorpay_order_id: order_id,
-              user_id: user.id,
-              city: selectedCity,
-              bay_id: currentBay.id,
-              bay_name: currentBay.name,
-              start_time: selectedSlot,
-              end_time: endTime,
-              duration_minutes: duration,
-              session_type: sessionType,
-              display_name: user.user_metadata?.display_name || user.email,
-              amount: amountToCharge,
-              currency: currentPrice?.currency || "INR",
-              coupon_code: appliedCoupon?.code || null,
-              discount_amount: couponDiscount || 0,
-              original_amount: totalCost,
-            });
-          } catch (e) {
-            console.error("Failed to stash pending member booking (non-fatal):", e);
+          const { error: stashErr } = await supabase.from("pending_bookings").insert({
+            razorpay_order_id: order_id,
+            user_id: user.id,
+            city: selectedCity,
+            bay_id: currentBay.id,
+            bay_name: currentBay.name,
+            start_time: selectedSlot,
+            end_time: endTime,
+            duration_minutes: duration,
+            session_type: sessionType,
+            display_name: user.user_metadata?.display_name || user.email,
+            amount: amountToCharge,
+            currency: currentPrice?.currency || "INR",
+            coupon_code: appliedCoupon?.code || null,
+            discount_amount: couponDiscount || 0,
+            original_amount: totalCost,
+          });
+          if (stashErr) {
+            console.error("Failed to stash pending member booking:", stashErr);
+            throw new Error("Could not start payment. Please try again.");
           }
         }
+
 
         // 2. Load Razorpay checkout script
         const loaded = await loadRazorpayScript();
@@ -258,6 +264,7 @@ export default function PublicBooking() {
         }
 
         // 3. Open Razorpay Checkout
+        let finalizationTimedOut = false;
         await new Promise<void>((resolve, reject) => {
           let settled = false;
 
@@ -285,67 +292,27 @@ export default function PublicBooking() {
                 setIsProcessing(true);
                 setIsFinalizing(true);
 
-                if (user) {
-                  const bookingResult = await createBooking.mutateAsync({
-                    start_time: selectedSlot,
-                    end_time: endTime!,
-                    duration_minutes: duration,
-                    city: selectedCity,
-                    bay_id: currentBay.id,
-                    bay_name: currentBay.name,
-                    session_type: sessionType,
-                    payment_method: "razorpay",
-                  });
-                  // Create revenue transaction for registered user payment
-                  try {
-                     await supabase.from("revenue_transactions").insert({
-                      transaction_type: "payment" as any,
-                      amount: amountToCharge,
-                      currency: currentPrice?.currency || "INR",
-                      user_id: user.id,
-                      gateway_name: "razorpay",
-                      gateway_order_ref: response.razorpay_order_id,
-                      gateway_payment_ref: response.razorpay_payment_id,
-                      booking_id: (bookingResult as any)?.booking?.id || null,
-                      description: `Payment - ${currentBay.name} · ${duration / 60}h ${sessionType}`,
-                      status: "confirmed",
-                      city: selectedCity,
-                    });
-                  } catch (e) {
-                    console.error("Failed to create revenue transaction:", e);
-                  }
-                  // Mark pending_bookings row completed so the webhook does not
-                  // try to re-finalize this order.
-                  try {
-                    await supabase
-                      .from("pending_bookings")
-                      .update({
-                        status: "completed",
-                        booking_id: (bookingResult as any)?.booking?.id || null,
-                        finalized_at: new Date().toISOString(),
-                      })
-                      .eq("razorpay_order_id", response.razorpay_order_id);
-                  } catch (e) {
-                    console.error("Failed to mark pending_bookings completed (non-fatal):", e);
-                  }
-                } else {
-                  // Webhook (authoritative) finalizes via pending_guest_bookings.
-                  // Browser only polls — never calls calendar-sync directly.
-                  const result = await waitForPaymentFinalization(
-                    "pending_guest_bookings",
-                    response.razorpay_order_id,
-                  );
-                  if (result.status === "failed") {
-                    throw new Error(result.error_message || "Booking failed");
-                  }
-                  // 'timeout' is OK: webhook/cron will finalize within a few minutes.
+                // The webhook (authoritative) finalizes the booking, revenue row,
+                // calendar event and emails for BOTH guests and signed-in members.
+                // The browser only polls the pending row — it never creates the
+                // booking itself. This removes the browser-vs-webhook race that
+                // used to show "Booking Failed" on an already-confirmed booking.
+                const result = await waitForPaymentFinalization(
+                  user ? "pending_bookings" : "pending_guest_bookings",
+                  response.razorpay_order_id,
+                );
+                if (result.status === "failed") {
+                  throw new Error(result.error_message || "Booking failed");
                 }
+                // 'timeout' is OK: webhook/cron will finalize within a few minutes.
+                if (result.status === "timeout") finalizationTimedOut = true;
 
                 finishResolve();
               } catch (err) {
                 finishReject(err instanceof Error ? err : new Error("Booking failed"));
               }
             },
+
             prefill: {
               name: user ? undefined : guestName,
               email: user ? undefined : guestEmail,
@@ -383,8 +350,17 @@ export default function PublicBooking() {
 
         setAppliedCoupon(null);
         setCouponDiscount(0);
+        setConfirmationPending(finalizationTimedOut);
         setBookingComplete(true);
-        toast({ title: "Booking Confirmed!", description: "Payment processed successfully." });
+        if (finalizationTimedOut) {
+          toast({
+            title: "Payment received",
+            description: "Your booking is being confirmed — you'll get an email shortly.",
+          });
+        } else {
+          toast({ title: "Booking Confirmed!", description: "Payment processed successfully." });
+        }
+
       }
     } catch (err: any) {
       if (err.message !== "Payment cancelled") {
@@ -407,10 +383,15 @@ export default function PublicBooking() {
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
                 <CheckCircle2 className="h-8 w-8 text-primary" />
               </div>
-              <h2 className="font-display text-2xl font-bold text-foreground">Booking Confirmed!</h2>
+              <h2 className="font-display text-2xl font-bold text-foreground">
+                {confirmationPending ? "Payment received" : "Booking Confirmed!"}
+              </h2>
               <p className="mt-2 text-muted-foreground">
-                Your session at {currentBay?.name} on {selectedDate && format(selectedDate, "PPP")} has been confirmed.
+                {confirmationPending
+                  ? `We've received your payment. Your session at ${currentBay?.name ?? "the bay"} is being confirmed — you'll get a confirmation email shortly.`
+                  : `Your session at ${currentBay?.name} on ${selectedDate ? format(selectedDate, "PPP") : ""} has been confirmed.`}
               </p>
+
               <div className="mt-6 space-y-2 text-sm text-left rounded-lg bg-muted/50 p-4">
                 <p><span className="font-medium">City:</span> {selectedCity}</p>
                 <p><span className="font-medium">Bay:</span> {currentBay?.name}</p>
