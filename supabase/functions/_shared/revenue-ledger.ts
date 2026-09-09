@@ -39,6 +39,12 @@ export interface RecordRevenueInput {
   gatewayName?: string | null;
   gatewayOrderRef?: string | null;
   gatewayPaymentRef?: string | null;
+  /**
+   * Business date (yyyy-MM-dd) this revenue belongs to. Omit for live payments —
+   * the DB stamps today's IST date. Pass it only for back-dated documents, where
+   * the invoice date decides the reporting month.
+   */
+  revenueDate?: string | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -92,6 +98,7 @@ export async function recordRevenue(
       gateway_name: input.gatewayName ?? null,
       gateway_order_ref: input.gatewayOrderRef ?? null,
       gateway_payment_ref: input.gatewayPaymentRef ?? null,
+      ...(input.revenueDate ? { revenue_date: input.revenueDate } : {}),
       metadata: input.metadata ?? {},
     })
     .select("id")
