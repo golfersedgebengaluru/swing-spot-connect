@@ -105,6 +105,33 @@ function AdjustHoursForm({ member, onSave, onCancel }: { member: any; onSave: (d
           For walk-ins or missed entries, prefer <strong>Manual Booking</strong> with a back-dated date — it creates a proper booking record, invoice, and "My Bookings" entry. Use this form only if no booking row is needed.
         </div>
       )}
+      {isPurchase && (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Paid By <span className="text-destructive">*</span></Label>
+            <Select value={form.payment_method} onValueChange={(v) => setForm({ ...form, payment_method: v, amount: v === "Complimentary" ? 0 : form.amount })}>
+              <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+              <SelectContent>
+                {PURCHASE_PAYMENT_METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Amount Collected {!isComplimentary && <span className="text-destructive">*</span>}</Label>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              disabled={isComplimentary}
+              value={form.amount || ""}
+              onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              {isComplimentary ? "Complimentary hours — no sale recorded." : "Shows in the revenue report for this city."}
+            </p>
+          </div>
+        </div>
+      )}
       {isDeduction && (
         <div>
           <Label>Service Date <span className="text-destructive">*</span></Label>
