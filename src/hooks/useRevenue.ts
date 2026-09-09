@@ -294,14 +294,15 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
       const loadCategories = async (productIds: string[]) => {
         const missing = [...new Set(productIds)].filter((id) => id && !categoryByProduct.has(id));
         if (missing.length === 0) return;
-        const { data: products } = await supabase
-          .from("products")
-          .select("id, category")
-          .in("id", missing);
-        for (const p of products ?? []) {
+        // Batched: a single `.in()` with thousands of ids exceeds URL limits.
+        const products = await fetchAllByIds<any>(missing, (batch) =>
+          supabase.from("products").select("id, category").in("id", batch),
+        );
+        for (const p of products) {
           categoryByProduct.set(p.id, p.category || "Uncategorised");
         }
       };
+
 
       await loadCategories(directTxns.map((t) => (t as any).product_id as string));
       for (const t of directTxns) {
