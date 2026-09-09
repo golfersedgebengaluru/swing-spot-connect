@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { recordRevenue } from "@/lib/revenue";
 import type { CalculatedLineItem } from "@/lib/gst-utils";
 import { isProfileGstRegistered } from "@/lib/gst-utils";
 
@@ -358,7 +359,7 @@ export function useCreateInvoice() {
         invoice_type: params.invoiceType || "invoice",
         credit_note_for: params.creditNoteFor || null,
         payment_method: params.paymentMethod || null,
-        revenue_transaction_id: revTxn.id,
+        revenue_transaction_id: revenueId,
         city: params.city,
         notes: params.notes || null,
         due_date: params.dueDate || new Date().toISOString().split("T")[0],
@@ -445,12 +446,12 @@ export function useCreateInvoice() {
 
           // Link invoice and revenue to the new profile
           await supabase.from("invoices").update({ customer_user_id: newProfile.id }).eq("id", invoice.id);
-          await supabase.from("revenue_transactions").update({ user_id: newProfile.id }).eq("id", revTxn.id);
+          await supabase.from("revenue_transactions").update({ user_id: newProfile.id }).eq("id", revenueId!);
         } else {
           createdProfileId = existingProfile.id;
           const linkId = existingProfile.user_id || existingProfile.id;
           await supabase.from("invoices").update({ customer_user_id: linkId }).eq("id", invoice.id);
-          await supabase.from("revenue_transactions").update({ user_id: linkId }).eq("id", revTxn.id);
+          await supabase.from("revenue_transactions").update({ user_id: linkId }).eq("id", revenueId!);
         }
       }
 
@@ -526,7 +527,7 @@ export function useCreateInvoice() {
         // Link booking to revenue transaction
         await supabase.from("revenue_transactions")
           .update({ booking_id: booking.id })
-          .eq("id", revTxn.id);
+          .eq("id", revenueId!);
       }
 
 
