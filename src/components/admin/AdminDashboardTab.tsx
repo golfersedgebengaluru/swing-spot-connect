@@ -39,21 +39,31 @@ function useAdminDashboardStats(cityFilter: string) {
         .in("user_type", ["birdie", "coaching"]);
       if (cityFilter) membersQuery = membersQuery.eq("preferred_city", cityFilter);
 
-      let revenueQuery = supabase
-        .from("revenue_transactions")
-        .select("amount, transaction_type")
-        .eq("status", "confirmed")
-        .gte("created_at", monthStart)
-        .lt("created_at", monthEndExclusive);
-      if (cityFilter) revenueQuery = revenueQuery.eq("city", cityFilter);
+      // Paged: MTD totals must cover every row, not the first 1000.
+      const revenueRows = fetchAllPaged<any>((from, to) => {
+        let q = supabase
+          .from("revenue_transactions")
+          .select("amount, transaction_type")
+          .eq("status", "confirmed")
+          .gte("created_at", monthStart)
+          .lt("created_at", monthEndExclusive)
+          .order("created_at", { ascending: true });
+        if (cityFilter) q = q.eq("city", cityFilter);
+        return q.range(from, to);
+      });
 
-      let hoursQuery = supabase
-        .from("bookings")
-        .select("duration_minutes")
-        .eq("status", "confirmed")
-        .gte("start_time", monthStart)
-        .lt("start_time", monthEndExclusive);
-      if (cityFilter) hoursQuery = hoursQuery.eq("city", cityFilter);
+      const hoursRows = fetchAllPaged<any>((from, to) => {
+        let q = supabase
+          .from("bookings")
+          .select("duration_minutes")
+          .eq("status", "confirmed")
+          .gte("start_time", monthStart)
+          .lt("start_time", monthEndExclusive)
+          .order("start_time", { ascending: true });
+        if (cityFilter) q = q.eq("city", cityFilter);
+        return q.range(from, to);
+      });
+
 
       let upcomingQuery = supabase
         .from("bookings")
