@@ -44,18 +44,35 @@ function TransactionHistory({ userId }: { userId: string }) {
 
 const ADJUST_REASONS = ["Correction", "Comp", "Refund", "Walk-in", "Missed booking", "Other"] as const;
 
+/** How an offline hours purchase was paid for. "Complimentary" records no sale. */
+const PURCHASE_PAYMENT_METHODS = ["Cash", "UPI", "Card", "Bank Transfer", "Cheque", "Complimentary"] as const;
+
 function AdjustHoursForm({ member, onSave, onCancel }: { member: any; onSave: (data: any) => void; onCancel: () => void }) {
   const todayISO = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState({ type: "deduction" as string, hours: 0, note: "", reason: "" as string, service_date: todayISO });
+  const [form, setForm] = useState({
+    type: "deduction" as string,
+    hours: 0,
+    note: "",
+    reason: "" as string,
+    service_date: todayISO,
+    amount: 0,
+    payment_method: "" as string,
+  });
   const remaining = member.hours_purchased - member.hours_used;
   const isDeduction = form.type === "deduction";
+  const isPurchase = form.type === "purchase";
+  const isComplimentary = form.payment_method === "Complimentary";
   const nudgeManualBooking = isDeduction && (form.reason === "Walk-in" || form.reason === "Missed booking");
   const noteTrimmed = form.note.trim();
   const canConfirm =
     form.hours > 0 &&
     !!form.reason &&
     noteTrimmed.length > 0 &&
-    (!isDeduction || !!form.service_date);
+    (!isDeduction || !!form.service_date) &&
+    // An offline hours sale must say what was collected, or be marked
+    // complimentary. Without this the sale used to be recorded as zero and
+    // never appeared in the revenue report.
+    (!isPurchase || (!!form.payment_method && (isComplimentary || form.amount > 0)));
   return (
     <div className="space-y-4">
       <div className="rounded-lg bg-muted p-3">
