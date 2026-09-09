@@ -346,8 +346,17 @@ export default function PublicBooking() {
 
         setAppliedCoupon(null);
         setCouponDiscount(0);
+        setConfirmationPending(finalizationTimedOut);
         setBookingComplete(true);
-        toast({ title: "Booking Confirmed!", description: "Payment processed successfully." });
+        if (finalizationTimedOut) {
+          toast({
+            title: "Payment received",
+            description: "Your booking is being confirmed — you'll get an email shortly.",
+          });
+        } else {
+          toast({ title: "Booking Confirmed!", description: "Payment processed successfully." });
+        }
+
       }
     } catch (err: any) {
       if (err.message !== "Payment cancelled") {
