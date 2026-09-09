@@ -44,7 +44,7 @@ describe("revenue business date (migration contract)", () => {
   });
 
   it("stamps the date and back-fills a missing city on insert", () => {
-    const sql = latestSqlDefining("FUNCTION public.stamp_revenue_defaults()");
+    const sql = latestSqlDefining("CREATE OR REPLACE FUNCTION public.stamp_revenue_defaults()");
     const body = sql.slice(sql.indexOf("FUNCTION public.stamp_revenue_defaults()"));
     expect(body).toContain("NEW.revenue_date IS NULL");
     expect(body).toContain("AT TIME ZONE 'Asia/Kolkata')::date");
@@ -56,7 +56,7 @@ describe("revenue business date (migration contract)", () => {
   });
 
   it("keeps the revenue date in step with the invoice date", () => {
-    const sql = latestSqlDefining("FUNCTION public.sync_revenue_date_from_invoice()");
+    const sql = latestSqlDefining("CREATE OR REPLACE FUNCTION public.sync_revenue_date_from_invoice()");
     const body = norm(sql.slice(sql.indexOf("FUNCTION public.sync_revenue_date_from_invoice()")));
     expect(body).toContain("set revenue_date = new.invoice_date");
     expect(body).toContain("where id = new.revenue_transaction_id");
