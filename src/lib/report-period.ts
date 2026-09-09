@@ -80,6 +80,37 @@ export function reportRangeToUtc(
   return { fromUtc: from.toISOString(), toExclusiveUtc: to.toISOString() };
 }
 
+/**
+ * Inclusive business-day range for reads on a DATE column
+ * (`revenue_transactions.revenue_date`).
+ *
+ * Revenue is counted on its business date — the invoice date when an invoice
+ * exists — not on the instant the row was written. A back-dated invoice entered
+ * in September for 8 August therefore belongs to August. Because the column is
+ * a plain date there is no timezone to fudge: the filter is `[from, to]`.
+ */
+export function reportDayRange(
+  startDate: string,
+  endDate: string,
+): { fromDay: string; toDay: string } {
+  parseDay(startDate);
+  parseDay(endDate);
+  return { fromDay: startDate.trim(), toDay: endDate.trim() };
+}
+
+/** Inclusive business-day range for the month containing `instant`. */
+export function zonedMonthDays(
+  instant: Date,
+  tz: string = REPORT_TIME_ZONE,
+): { fromDay: string; toDay: string } {
+  const [y, m] = zonedDayString(instant, tz).split("-");
+  const lastDay = new Date(Date.UTC(Number(y), Number(m), 0)).getUTCDate();
+  return {
+    fromDay: `${y}-${m}-01`,
+    toDay: `${y}-${m}-${String(lastDay).padStart(2, "0")}`,
+  };
+}
+
 /** `yyyy-MM-dd` for an instant, as seen in `tz`. */
 export function zonedDayString(instant: Date, tz: string = REPORT_TIME_ZONE): string {
   const dtf = new Intl.DateTimeFormat("en-CA", {

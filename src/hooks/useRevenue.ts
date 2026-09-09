@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { reportRangeToUtc } from "@/lib/report-period";
+import { reportDayRange } from "@/lib/report-period";
 import { fetchAllPaged, fetchAllByIds } from "@/lib/supabase-paging";
 
 // ─── Admin config toggle ────────────────────────────────
@@ -168,17 +168,18 @@ export function useRevenueTransactions(filters?: {
     queryFn: async () => {
       const period =
         filters?.startDate && filters?.endDate
-          ? reportRangeToUtc(filters.startDate, filters.endDate)
+          ? reportDayRange(filters.startDate, filters.endDate)
           : null;
 
       let query = supabase
         .from("revenue_transactions")
         .select("*", { count: "exact" })
         .neq("transaction_type", "hours_deduction")
+        .order("revenue_date", { ascending: false })
         .order("created_at", { ascending: false });
 
       if (period) {
-        query = query.gte("created_at", period.fromUtc).lt("created_at", period.toExclusiveUtc);
+        query = query.gte("revenue_date", period.fromDay).lte("revenue_date", period.toDay);
       }
       if (filters?.type) query = query.eq("transaction_type", filters.type);
       if (filters?.city) query = query.eq("city", filters.city);
@@ -199,17 +200,20 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
   return useQuery({
     queryKey: ["revenue_summary", startDate, endDate, city],
     queryFn: async () => {
-      const { fromUtc, toExclusiveUtc } = reportRangeToUtc(startDate!, endDate!);
+      // Revenue belongs to its business date: the invoice date when an invoice
+      // exists, else the IST day it was captured. A back-dated invoice entered
+      // today therefore lands in the month it is dated for.
+      const { fromDay, toDay } = reportDayRange(startDate!, endDate!);
 
       // Paged: totals must cover every row in the period, not the first 1000.
       const transactions = await fetchAllPaged<any>((from, to) => {
         let q = supabase
           .from("revenue_transactions")
-          .select("id, transaction_type, amount, status, user_id, guest_name, guest_email, created_at, booking_id, hours_transaction_id, product_id")
+          .select("id, transaction_type, amount, status, user_id, guest_name, guest_email, created_at, revenue_date, booking_id, hours_transaction_id, product_id")
           .neq("transaction_type", "hours_deduction")
-          .gte("created_at", fromUtc)
-          .lt("created_at", toExclusiveUtc)
-          .order("created_at", { ascending: true });
+          .gte("revenue_date", fromDay)
+          .lte("revenue_date", toDay)
+          .order("revenue_date", { ascending: true });
         if (city) q = q.eq("city", city);
         return q.range(from, to);
       });

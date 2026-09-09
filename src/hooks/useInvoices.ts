@@ -315,6 +315,7 @@ export function useCreateInvoice() {
       //    stand down: this flow inserts its own fully itemised invoice below.
       //    Without the flag both writers race and produce two invoices for the
       //    same payment (each burning an invoice number).
+      const invoiceDate = params.invoiceDate || new Date().toISOString().split("T")[0];
       const { data: revTxn, error: revErr } = await supabase.from("revenue_transactions")
         .insert({
           amount: params.total,
@@ -324,6 +325,10 @@ export function useCreateInvoice() {
           status: "confirmed",
           city: params.city,
           gateway_name: params.paymentMethod || null,
+          // Back-dated invoices must report in the month they are dated for, not
+          // the month they were typed in. The `sync_revenue_date_from_invoice`
+          // trigger keeps this in step if the invoice date is edited later.
+          revenue_date: invoiceDate,
           metadata: { manual_invoice: true },
         })
         .select()
@@ -334,7 +339,7 @@ export function useCreateInvoice() {
       // 5. Insert invoice
       const invoicePayload = {
         invoice_number: invoiceNumber,
-        invoice_date: params.invoiceDate || new Date().toISOString().split("T")[0],
+        invoice_date: invoiceDate,
         financial_year_id: fy.id,
         customer_user_id: params.customerUserId || null,
         customer_name: params.customerName,

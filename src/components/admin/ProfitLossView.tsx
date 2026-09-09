@@ -9,7 +9,7 @@ import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useExpenseCategories } from "@/hooks/useExpenseCategories";
 import { supabase } from "@/integrations/supabase/client";
-import { reportRangeToUtc } from "@/lib/report-period";
+import { reportDayRange } from "@/lib/report-period";
 import { fetchAllPaged } from "@/lib/supabase-paging";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from "date-fns";
@@ -36,18 +36,18 @@ function useRevenueForPeriod(city: string, startDate?: string, endDate?: string)
     queryKey: ["revenue_for_pl", city, startDate, endDate],
     enabled: !!city && !!startDate && !!endDate,
     queryFn: async () => {
-      // Same period boundaries and full paging as the revenue summary, so P&L
-      // and the revenue report can never disagree.
-      const { fromUtc, toExclusiveUtc } = reportRangeToUtc(startDate!, endDate!);
+      // Same business-date period and full paging as the revenue summary, so
+      // P&L and the revenue report can never disagree.
+      const { fromDay, toDay } = reportDayRange(startDate!, endDate!);
       const data = await fetchAllPaged<any>((from, to) =>
         supabase
           .from("revenue_transactions" as any)
           .select("amount, transaction_type")
           .eq("city", city)
           .eq("status", "confirmed")
-          .gte("created_at", fromUtc)
-          .lt("created_at", toExclusiveUtc)
-          .order("created_at", { ascending: true })
+          .gte("revenue_date", fromDay)
+          .lte("revenue_date", toDay)
+          .order("revenue_date", { ascending: true })
           .range(from, to),
       );
 
