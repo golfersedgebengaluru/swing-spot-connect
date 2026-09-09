@@ -446,12 +446,12 @@ export function useCreateInvoice() {
 
           // Link invoice and revenue to the new profile
           await supabase.from("invoices").update({ customer_user_id: newProfile.id }).eq("id", invoice.id);
-          await supabase.from("revenue_transactions").update({ user_id: newProfile.id }).eq("id", revenueId!);
+          if (revenueId) await supabase.from("revenue_transactions").update({ user_id: newProfile.id }).eq("id", revenueId);
         } else {
           createdProfileId = existingProfile.id;
           const linkId = existingProfile.user_id || existingProfile.id;
           await supabase.from("invoices").update({ customer_user_id: linkId }).eq("id", invoice.id);
-          await supabase.from("revenue_transactions").update({ user_id: linkId }).eq("id", revenueId!);
+          if (revenueId) await supabase.from("revenue_transactions").update({ user_id: linkId }).eq("id", revenueId);
         }
       }
 
@@ -524,10 +524,12 @@ export function useCreateInvoice() {
           .single();
         if (bookErr) throw bookErr;
 
-        // Link booking to revenue transaction
-        await supabase.from("revenue_transactions")
-          .update({ booking_id: booking.id })
-          .eq("id", revenueId!);
+        // Link booking to revenue transaction (a zero-total invoice has none)
+        if (revenueId) {
+          await supabase.from("revenue_transactions")
+            .update({ booking_id: booking.id })
+            .eq("id", revenueId);
+        }
       }
 
 
