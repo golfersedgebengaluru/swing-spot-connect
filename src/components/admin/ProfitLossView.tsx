@@ -34,20 +34,24 @@ function useRevenueForPeriod(city: string, startDate?: string, endDate?: string)
     queryKey: ["revenue_for_pl", city, startDate, endDate],
     enabled: !!city && !!startDate && !!endDate,
     queryFn: async () => {
-      let query = supabase.from("revenue_transactions" as any)
-        .select("amount, transaction_type")
-        .eq("city", city)
-        .eq("status", "confirmed");
-
-      if (startDate) query = query.gte("created_at", `${startDate}T00:00:00`);
-      if (endDate) query = query.lte("created_at", `${endDate}T23:59:59`);
-
-      const { data, error } = await query;
-      if (error) throw error;
+      // Same period boundaries and full paging as the revenue summary, so P&L
+      // and the revenue report can never disagree.
+      const { fromUtc, toExclusiveUtc } = reportRangeToUtc(startDate!, endDate!);
+      const data = await fetchAllPaged<any>((from, to) =>
+        supabase
+          .from("revenue_transactions" as any)
+          .select("amount, transaction_type")
+          .eq("city", city)
+          .eq("status", "confirmed")
+          .gte("created_at", fromUtc)
+          .lt("created_at", toExclusiveUtc)
+          .order("created_at", { ascending: true })
+          .range(from, to),
+      );
 
       let revenue = 0;
       let refunds = 0;
-      (data ?? []).forEach((t: any) => {
+      data.forEach((t: any) => {
         if (t.transaction_type === "refund" || t.amount < 0) {
           refunds += Math.abs(t.amount);
         } else {
@@ -58,6 +62,7 @@ function useRevenueForPeriod(city: string, startDate?: string, endDate?: string)
     },
   });
 }
+
 
 export function ProfitLossView({ city }: Props) {
   const currency = useDefaultCurrency();
