@@ -383,10 +383,15 @@ export default function PublicBooking() {
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
                 <CheckCircle2 className="h-8 w-8 text-primary" />
               </div>
-              <h2 className="font-display text-2xl font-bold text-foreground">Booking Confirmed!</h2>
+              <h2 className="font-display text-2xl font-bold text-foreground">
+                {confirmationPending ? "Payment received" : "Booking Confirmed!"}
+              </h2>
               <p className="mt-2 text-muted-foreground">
-                Your session at {currentBay?.name} on {selectedDate && format(selectedDate, "PPP")} has been confirmed.
+                {confirmationPending
+                  ? `We've received your payment. Your session at ${currentBay?.name ?? "the bay"} is being confirmed — you'll get a confirmation email shortly.`
+                  : `Your session at ${currentBay?.name} on ${selectedDate ? format(selectedDate, "PPP") : ""} has been confirmed.`}
               </p>
+
               <div className="mt-6 space-y-2 text-sm text-left rounded-lg bg-muted/50 p-4">
                 <p><span className="font-medium">City:</span> {selectedCity}</p>
                 <p><span className="font-medium">Bay:</span> {currentBay?.name}</p>
