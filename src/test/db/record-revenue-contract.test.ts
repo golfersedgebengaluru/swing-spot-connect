@@ -75,10 +75,11 @@ describe("record_revenue (migration contract)", () => {
     expect(body).toMatch(/IF p_amount = 0 THEN\s+RETURN NULL;/);
   });
 
-  it("takes the currency from the city, never a hardcoded rupee", () => {
+  it("takes the currency from the resolved city, never a hardcoded rupee", () => {
     expect(body).toContain("SELECT b.currency FROM public.bays b");
-    expect(body).toContain("WHERE b.city = p_city");
+    expect(body).toContain("WHERE b.city = v_city");
   });
+
 
   it("always writes a confirmed row", () => {
     expect(body).toContain("'confirmed'");
