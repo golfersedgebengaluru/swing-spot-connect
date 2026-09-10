@@ -32,8 +32,8 @@ export function isValidTaxCodeFormat(
 }
 
 export interface TaxCodeSubject {
-  itemType: TaxItemType | string | null | undefined;
-  gstRate: number | string | null | undefined;
+  itemType?: TaxItemType | string | null;
+  gstRate?: number | string | null;
   hsnCode?: string | null;
   sacCode?: string | null;
   name?: string | null;
