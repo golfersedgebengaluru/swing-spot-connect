@@ -30,7 +30,9 @@ describe("record_revenue (migration contract)", () => {
   // `anon` alone left signed-out visitors able to record a sale.
   it("is not callable by signed-out visitors", () => {
     const norm = latestSqlDefining("ON FUNCTION public.record_revenue").replace(/\s+/g, " ");
-    expect(norm).toMatch(/REVOKE ALL ON FUNCTION public\.record_revenue\([^)]*\) FROM PUBLIC, anon/);
+    // The revokes may be written together or as one statement per role.
+    expect(norm).toMatch(/REVOKE ALL ON FUNCTION public\.record_revenue\([^)]*\) FROM PUBLIC/);
+    expect(norm).toMatch(/REVOKE ALL ON FUNCTION public\.record_revenue\([^)]*\) FROM (PUBLIC, )?anon/);
     expect(norm).toMatch(/GRANT EXECUTE ON FUNCTION public\.record_revenue\([^)]*\) TO authenticated, service_role/);
   });
 
