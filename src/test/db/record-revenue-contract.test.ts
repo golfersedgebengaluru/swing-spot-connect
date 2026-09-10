@@ -29,7 +29,7 @@ describe("record_revenue (migration contract)", () => {
   // Regression: Postgres grants EXECUTE to PUBLIC by default, so revoking from
   // `anon` alone left signed-out visitors able to record a sale.
   it("is not callable by signed-out visitors", () => {
-    const norm = latestSqlDefining("FROM PUBLIC, anon").replace(/\s+/g, " ");
+    const norm = latestSqlDefining("ON FUNCTION public.record_revenue").replace(/\s+/g, " ");
     expect(norm).toMatch(/REVOKE ALL ON FUNCTION public\.record_revenue\([^)]*\) FROM PUBLIC, anon/);
     expect(norm).toMatch(/GRANT EXECUTE ON FUNCTION public\.record_revenue\([^)]*\) TO authenticated, service_role/);
   });

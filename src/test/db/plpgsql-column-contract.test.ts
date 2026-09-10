@@ -87,10 +87,14 @@ describe("plpgsql functions reference real columns", () => {
     expect(bodies.has("resolve_revenue_product")).toBe(true);
   });
 
-  it("resolve_revenue_product uses hours_transactions.note, not .description", () => {
-    const body = bodies.get("resolve_revenue_product")!;
-    expect(body).not.toMatch(/ht\.description/i);
-    expect(body).toMatch(/ht\.note/i);
+  // The hour-package lookup moved into the shared resolver, which the stamping
+  // trigger now calls; the column it reads must still be `note`.
+  it("the hour-package lookup uses hours_transactions.note, not .description", () => {
+    const resolver = bodies.get("resolve_product_for_revenue")!;
+    expect(resolver).toBeDefined();
+    expect(resolver).not.toMatch(/ht\.description/i);
+    expect(resolver).toMatch(/ht\.note/i);
+    expect(bodies.get("resolve_revenue_product")!).not.toMatch(/ht\.description/i);
   });
 
   it("no function references an unknown column on the audited tables", () => {
