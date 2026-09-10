@@ -6370,6 +6370,17 @@ export type Database = {
         Args: { _error?: string; _order_id: string }
         Returns: undefined
       }
+      resolve_product_for_revenue: {
+        Args: {
+          p_booking_id: string
+          p_city: string
+          p_hours_transaction_id: string
+          p_metadata: Json
+          p_revenue_id: string
+          p_transaction_type: string
+        }
+        Returns: string
+      }
       site_admin_has_city: {
         Args: { _city: string; _user_id: string }
         Returns: boolean
