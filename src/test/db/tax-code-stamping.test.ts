@@ -23,9 +23,12 @@ function latestSqlDefining(marker: string): string {
   throw new Error(`No migration defines ${marker}`);
 }
 
+/** Just the function body, so later statements in the file can't satisfy an assertion. */
 function bodyOf(marker: string): string {
   const sql = latestSqlDefining(marker);
-  return sql.slice(sql.indexOf(marker));
+  const start = sql.indexOf(marker);
+  const end = sql.indexOf("\n$$;", start);
+  return sql.slice(start, end === -1 ? undefined : end);
 }
 
 const RESOLVER = "CREATE OR REPLACE FUNCTION public.resolve_product_for_revenue(";

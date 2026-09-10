@@ -249,6 +249,18 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
       });
       return;
     }
+    // A taxable line with no HSN/SAC code cannot be reported in GSTR-1.
+    if (gstRegistered) {
+      const uncoded = invoiceLinesMissingTaxCode(lineItems);
+      if (uncoded.length > 0) {
+        toast({
+          title: "Missing HSN/SAC code",
+          description: `Add a tax code to these items in the catalogue first: ${uncoded.join(", ")}.`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     if (!paymentMethod) {
       toast({ title: "Select a payment method", variant: "destructive" });
       return;
