@@ -486,21 +486,33 @@ describe("League query staleTime optimisation", () => {
   it("all useQuery hooks should include staleTime", async () => {
     const source = await import("../useLeagues?raw");
     const code = (source as any).default ?? source;
-    // Match useQuery<...>({ ... }) blocks – each should contain staleTime
+    // Extract each useQuery<...>({ ... }) options object with balanced braces,
+    // so nested queryFn bodies don't cut the block short.
     const pattern = /useQuery<[^>]*>\(\{/g;
-    let match;
+    let match: RegExpExecArray | null;
     let count = 0;
     while ((match = pattern.exec(code)) !== null) {
       count++;
-      const start = match.index;
-      const configEnd = code.indexOf("});", start);
-      if (configEnd === -1) continue;
-      const config = code.slice(start, configEnd);
+      let depth = 0;
+      let end = -1;
+      for (let i = match.index + match[0].length - 1; i < code.length; i++) {
+        const ch = code[i];
+        if (ch === "{") depth++;
+        else if (ch === "}") {
+          depth--;
+          if (depth === 0) {
+            end = i;
+            break;
+          }
+        }
+      }
+      const config = end === -1 ? code.slice(match.index) : code.slice(match.index, end);
       expect(config).toContain("staleTime");
     }
     // Ensure we actually checked some queries
     expect(count).toBeGreaterThanOrEqual(10);
   });
+
 });
 
 describe("BaySchedulingPanel hides empty bays", () => {
@@ -545,6 +557,9 @@ describe("Leaderboard handicap_active flag", () => {
     const code = source.default ?? source;
     expect(code).toContain("!leaderboard?.handicap_active && <TableHead");
     expect(code).toContain("!leaderboard?.handicap_active && <TableCell");
-    expect(code).toContain("colSpan={leaderboard?.handicap_active ? 6 : 7}");
+    // Detail row spans the visible columns, so it grows when Gross/Points show.
+    expect(code).toContain("const colSpanForDetail = baseCols + (showPts ? 1 : 0) + (!leaderboard?.handicap_active ? 1 : 0)");
+    expect(code).toContain("colSpan={colSpanForDetail}");
   });
+
 });

@@ -143,10 +143,18 @@ describe("revenue capture wiring", () => {
   });
 
   it("shop orders write an idempotent product_order revenue row", () => {
+    // Shop orders go through the single client-side ledger wrapper (src/lib/revenue.ts),
+    // which forwards to the guarded record_revenue RPC.
     const src = read("src/hooks/useOrders.ts");
+    expect(src).toContain('from "@/lib/revenue"');
     expect(src).toContain("shop_order:${data.id}");
-    expect(src).toContain('transaction_type: "product_order"');
+    expect(src).toContain('transactionType: "product_order"');
+
+    const ledger = read("src/lib/revenue.ts");
+    expect(ledger).toContain("record_revenue");
+    expect(ledger).toContain("sourceRef");
   });
+
 
   it("GSTR-1 export refuses to file for a city that is not GST registered", () => {
     const src = read("src/lib/gstr1-export.ts");

@@ -79,7 +79,7 @@ function renderAt(path: string) {
 }
 
 describe("LeagueScreen (public bay screen)", () => {
-  it("renders league name, logos, city pills, and leaderboard", async () => {
+  it("renders league name, logos and city pills", async () => {
     renderAt("/leagues/lg1/screen");
     await waitFor(() => expect(screen.getByText("GE Nationals 2026")).toBeInTheDocument());
     expect(screen.getByAltText("League logo")).toHaveAttribute("src", META.branding.logo_url);
@@ -87,7 +87,12 @@ describe("LeagueScreen (public bay screen)", () => {
     expect(screen.getByText("All Locations")).toBeInTheDocument();
     expect(screen.getByText("Bengaluru")).toBeInTheDocument();
     expect(screen.getByText("Vizag")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getAllByText("Alice").length).toBeGreaterThan(0));
+  });
+
+  it("shows the empty state when only individual entries exist (teams-only screen)", async () => {
+    renderAt("/leagues/lg1/screen");
+    await waitFor(() => expect(screen.getByText("No teams registered yet.")).toBeInTheDocument());
+    expect(screen.queryByText("Alice")).not.toBeInTheDocument();
   });
 
   it("defaults to national scope (no city query param)", async () => {
@@ -110,7 +115,7 @@ describe("LeagueScreen (public bay screen)", () => {
   });
 });
 
-describe("LeagueScreen team-first view", () => {
+describe("LeagueScreen teams-only view", () => {
   beforeEach(() => {
     localStorage.clear();
     fetchMock.mockImplementation(async (url: string) => {
@@ -124,21 +129,12 @@ describe("LeagueScreen team-first view", () => {
     });
   });
 
-  it("hides individuals by default and shows teams only", async () => {
+  it("shows teams only — individuals and member breakdowns are never listed", async () => {
     renderAt("/leagues/lg1/screen");
     await waitFor(() => expect(screen.getAllByText("Eagles").length).toBeGreaterThan(0));
+    expect(screen.getAllByText("Hawks").length).toBeGreaterThan(0);
     expect(screen.queryByText("Solo Sam")).not.toBeInTheDocument();
     expect(screen.queryByText("Alice Kumar")).not.toBeInTheDocument();
   });
-
-  // Note: the PGA-style bay screen leaderboard does not expose per-team member
-  // drill-down. Member breakdowns live in the members-only leaderboard views.
-
-
-  it("toggling to All view shows individuals again", async () => {
-    renderAt("/leagues/lg1/screen");
-    await waitFor(() => screen.getAllByText("Eagles"));
-    fireEvent.click(screen.getByTestId("view-all"));
-    await waitFor(() => expect(screen.getAllByText("Solo Sam").length).toBeGreaterThan(0));
-  });
 });
+

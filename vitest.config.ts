@@ -9,6 +9,11 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    // Heavy module-graph tests (App smoke, ProductForm render) exceed the 5s
+    // default when the whole suite runs in parallel; they pass in isolation.
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
+
   },
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },
