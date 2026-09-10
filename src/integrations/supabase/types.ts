@@ -6133,6 +6133,10 @@ export type Database = {
         Args: { p_revenue_id: string }
         Returns: string
       }
+      backfill_invoice_line_tax_codes: {
+        Args: { _city?: string; _from_date: string; _to_date: string }
+        Returns: number
+      }
       backfill_missing_invoices: {
         Args: never
         Returns: {
