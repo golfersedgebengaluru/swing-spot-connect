@@ -21,10 +21,10 @@ const body = sql.slice(sql.indexOf(MARKER));
 
 describe("record_revenue (migration contract)", () => {
   it("is the only way the browser can record revenue", () => {
-    expect(sql.replace(/\s+/g, " ")).toContain(
-      "REVOKE INSERT ON public.revenue_transactions FROM anon, authenticated",
-    );
+    const norm = latestSqlDefining("REVOKE INSERT ON public.revenue_transactions").replace(/\s+/g, " ");
+    expect(norm).toContain("REVOKE INSERT ON public.revenue_transactions FROM anon, authenticated");
   });
+
 
   // Regression: Postgres grants EXECUTE to PUBLIC by default, so revoking from
   // `anon` alone left signed-out visitors able to record a sale.
