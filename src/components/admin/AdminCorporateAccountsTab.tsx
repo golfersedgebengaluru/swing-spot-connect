@@ -635,6 +635,9 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
         quantity: sessionCount,
         unitPrice: Number(billingProduct.price ?? 0),
         gstRate: Number(billingProduct.gst_rate ?? 0),
+        // Carry the catalogue identity through so SKU/category reporting links
+        // this line without relying on exact name matching.
+        productId: billingProduct.id as string,
       };
 
       // GST profile of the selected city (franchisee)
