@@ -17,7 +17,19 @@
 - [x] 11 legacy zero-value blank-city rows deleted; 0 remain
 - [x] Tests: writer + trigger contract, live rejection/recovery checks
 
+## Pass 4 — product & tax-code stamping (done)
+- [x] HSN/SAC codes trimmed on products and invoice lines; a normaliser keeps them clean (no more " 999652" phantom GSTR-1 row)
+- [x] One shared resolver decides which product a sale was for (metadata → bay pricing → hour package → league → itemised invoice)
+- [x] Revenue rows stamped with the product on insert and when a booking/hours link appears later
+- [x] Invoice lines inherit HSN/SAC and item type from their product
+- [x] New taxable products must carry a code; an existing code cannot be cleared (form check + database guard)
+- [x] Manual invoice refuses to save a taxable line with no code
+- [x] Backfill: sales without a product 649 → 42, uncoded invoice lines 390 → 231 (only 26 of them taxable); amounts, cities and dates untouched
+- [x] Tests: pure tax-code helpers, migration contract (resolver, triggers, backfill, revokes)
+
 ## Later
-- [ ] Pass 4 — product/category/HSN stamping at capture + catalogue backfill
+- [ ] 124 catalogue items still have no HSN/SAC (all zero-rated bar one) — codes need to be confirmed per item, not guessed
+- [ ] 26 historical taxable invoice lines have no code — needs manual classification
+- [ ] 3 hour packages have no linked catalogue item, so those purchases stay untagged
 - [ ] Decision needed: should coaching be taxed at 18%?
 

@@ -18,6 +18,7 @@ import { useCreateInvoice, useGstProfile } from "@/hooks/useInvoices";
 import { useOfflinePaymentMethods } from "@/hooks/useOfflinePaymentMethods";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { useAdvanceBalance, useDrawdownAdvance } from "@/hooks/useAdvanceAccount";
+import { invoiceLinesMissingTaxCode } from "@/lib/tax-codes";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { validateGSTIN, getGstType, calculateLineItems, type GstLineItem } from "@/lib/gst-utils";
@@ -248,6 +249,18 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
         variant: "destructive",
       });
       return;
+    }
+    // A taxable line with no HSN/SAC code cannot be reported in GSTR-1.
+    if (gstRegistered) {
+      const uncoded = invoiceLinesMissingTaxCode(lineItems);
+      if (uncoded.length > 0) {
+        toast({
+          title: "Missing HSN/SAC code",
+          description: `Add a tax code to these items in the catalogue first: ${uncoded.join(", ")}.`,
+          variant: "destructive",
+        });
+        return;
+      }
     }
     if (!paymentMethod) {
       toast({ title: "Select a payment method", variant: "destructive" });

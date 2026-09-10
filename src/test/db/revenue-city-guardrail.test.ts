@@ -83,7 +83,9 @@ describe("revenue_transactions city trigger (last defence)", () => {
   // Regression: a SECURITY DEFINER trigger function tripped the security
   // linter (callable by signed-in users); a trigger needs no elevation.
   it("is not an API surface", () => {
-    const norm = latestSqlDefining("SECURITY INVOKER").replace(/\s+/g, " ");
+    const norm = latestSqlDefining(
+      "ON FUNCTION public.validate_revenue_city_before_insert()",
+    ).replace(/\s+/g, " ");
     expect(norm).toContain("SECURITY INVOKER");
     expect(norm).toMatch(
       /REVOKE ALL ON FUNCTION public\.validate_revenue_city_before_insert\(\) FROM authenticated/,
