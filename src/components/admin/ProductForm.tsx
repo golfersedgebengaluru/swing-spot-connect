@@ -34,6 +34,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const { data: cityCostAccess } = useCityCostPriceAccess();
   const { data: costPriceMap } = useProductCostPrices(product?.id ? [product.id] : undefined);
   const setCostPrice = useSetProductCostPrice();
+  const { toast } = useToast();
 
   const [form, setForm] = useState({
     name: product?.name ?? "",
@@ -123,6 +124,24 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const isProduct = form.item_type === "product";
 
   const handleSave = async () => {
+    // Without a tax code the item cannot appear correctly in a GST return, so
+    // catch it here rather than letting the database reject the save.
+    const taxCheck = checkProductTaxCode({
+      itemType: isProduct ? "product" : "service",
+      gstRate: form.gst_rate,
+      hsnCode: form.hsn_code,
+      sacCode: form.sac_code,
+      name: form.name,
+    });
+    if (!taxCheck.valid) {
+      toast({
+        title: isProduct ? "HSN code needed" : "SAC code needed",
+        description: taxCheck.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Determine city value
     const cityValue = isAdmin
       ? (form.city === "" || form.city === "all" ? null : form.city)
