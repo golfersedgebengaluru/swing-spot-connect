@@ -39,6 +39,11 @@ function getInputByLabel(text: string): HTMLInputElement {
   return wrap.querySelector("input") as HTMLInputElement;
 }
 
+/** Taxable items require a tax code before they can be saved. */
+function fillHsnCode(value = "6110") {
+  fireEvent.change(screen.getByPlaceholderText("e.g. 6110"), { target: { value } });
+}
+
 describe("ProductForm GST inclusivity invariant", () => {
   it("stores price as GST-inclusive even when entered as Excl. GST", async () => {
     const onSave = vi.fn();
@@ -48,9 +53,10 @@ describe("ProductForm GST inclusivity invariant", () => {
     const nameInput = getInputByLabel("Name") as HTMLInputElement;
     fireEvent.change(nameInput, { target: { value: "Test SKU" } });
 
-    // 2. Set GST rate to 18
+    // 2. Set GST rate to 18 and give the taxable item its HSN code
     const gstInput = screen.getByPlaceholderText("18") as HTMLInputElement;
     fireEvent.change(gstInput, { target: { value: "18" } });
+    fillHsnCode();
 
     // 3. Flip to Excl. GST — pick the switch inside the Selling Price block.
     const priceBlock = screen.getByText("Selling Price").closest("div.rounded-lg") as HTMLElement;
@@ -76,11 +82,13 @@ describe("ProductForm GST inclusivity invariant", () => {
     render(<ProductForm onSave={onSave} onCancel={() => {}} />);
     fireEvent.change(getInputByLabel("Name"), { target: { value: "X" } });
     fireEvent.change(screen.getByPlaceholderText("18"), { target: { value: "18" } });
+    fillHsnCode();
     fireEvent.change(getPriceInput(), { target: { value: "118" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect(onSave.mock.calls[0][0].price).toBe(118);
   });
+
 
   it("stores price unchanged when GST rate is 0 regardless of toggle", async () => {
     const onSave = vi.fn();

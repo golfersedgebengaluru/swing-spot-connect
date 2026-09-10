@@ -34,49 +34,70 @@ function createWrapper() {
     React.createElement(QueryClientProvider, { client: queryClient }, children);
 }
 
+/**
+ * Table-aware `from()` stub. `leagues_only_admins` is read with
+ * .maybeSingle(); `site_admin_cities` resolves to a list of rows.
+ */
+function mockTables(cities: Array<{ city: string }> = []) {
+  mockFrom.mockImplementation((table: string) => {
+    if (table === "site_admin_cities") {
+      return {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockResolvedValue({ data: cities, error: null }),
+      };
+    }
+    // leagues_only_admins (and any other single-row lookup)
+    return {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    };
+  });
+}
+
 describe("useAdmin", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockTables();
   });
 
+  // roles are resolved with three parallel RPCs: admin, site_admin, is_coach
+  const mockRoles = (opts: { admin: boolean; siteAdmin: boolean; coach?: boolean }) => {
+    mockRpc.mockImplementation(async (fn: string, args: Record<string, unknown>) => {
+      if (fn === "is_coach") return { data: !!opts.coach, error: null };
+      if (fn === "has_role" && args._role === "admin") return { data: opts.admin, error: null };
+      if (fn === "has_role" && args._role === "site_admin") return { data: opts.siteAdmin, error: null };
+      return { data: false, error: null };
+    });
+  };
+
   it("sets isAdmin=true when user has admin role", async () => {
-    mockRpc
-      .mockResolvedValueOnce({ data: true, error: null })  // admin check
-      .mockResolvedValueOnce({ data: false, error: null }); // site_admin check
+    mockRoles({ admin: true, siteAdmin: false });
 
     const { result } = renderHook(() => useAdmin(), { wrapper: createWrapper() });
 
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.isAdmin).toBe(true);
+    await waitFor(() => expect(result.current.isAdmin).toBe(true));
     expect(result.current.isSiteAdmin).toBe(false);
     expect(result.current.role).toBe("admin");
     expect(result.current.hasAdminAccess).toBe(true);
   });
 
   it("sets isSiteAdmin=true and fetches cities when user is site_admin", async () => {
-    mockRpc
-      .mockResolvedValueOnce({ data: false, error: null })  // admin check
-      .mockResolvedValueOnce({ data: true, error: null });   // site_admin check
-
-    const cityChain = {
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockResolvedValue({ data: [{ city: "Mumbai" }, { city: "Delhi" }], error: null }),
-    };
-    mockFrom.mockReturnValue(cityChain);
+    mockRoles({ admin: false, siteAdmin: true });
+    mockTables([{ city: "Mumbai" }, { city: "Delhi" }]);
 
     const { result } = renderHook(() => useAdmin(), { wrapper: createWrapper() });
 
     await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(result.current.isSiteAdmin).toBe(true));
     expect(result.current.isAdmin).toBe(false);
-    expect(result.current.isSiteAdmin).toBe(true);
     expect(result.current.role).toBe("site_admin");
     expect(result.current.assignedCities).toEqual(["Mumbai", "Delhi"]);
   });
 
   it("sets no admin access when user has no roles", async () => {
-    mockRpc
-      .mockResolvedValueOnce({ data: false, error: null })
-      .mockResolvedValueOnce({ data: false, error: null });
+    mockRoles({ admin: false, siteAdmin: false });
 
     const { result } = renderHook(() => useAdmin(), { wrapper: createWrapper() });
 
@@ -85,3 +106,4 @@ describe("useAdmin", () => {
     expect(result.current.role).toBeNull();
   });
 });
+

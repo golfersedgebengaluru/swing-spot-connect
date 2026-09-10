@@ -10,6 +10,12 @@ const leagueSrc = readFileSync(
   resolve(__dirname, "../../../supabase/functions/league-service/index.ts"),
   "utf-8"
 );
+// The paid finalize path lives in the shared legacy finalize module.
+const paidFinalizeSrc = readFileSync(
+  resolve(__dirname, "../../../supabase/functions/_shared/legacy-league-finalize.ts"),
+  "utf-8"
+);
+
 
 describe("league team creation email wiring", () => {
   it("send-notification-email registers league_team_invite + league_team_created templates", () => {
@@ -32,9 +38,12 @@ describe("league team creation email wiring", () => {
     expect(leagueSrc).toMatch(/league-team-join\//);
   });
 
-  it("league-service invokes sendTeamCreationEmails from BOTH free and paid finalize paths", () => {
-    const matches = leagueSrc.match(/await sendTeamCreationEmails\(/g) || [];
-    expect(matches.length).toBeGreaterThanOrEqual(2);
+  it("both the free and the paid finalize paths send team creation emails", () => {
+    // Free path: league-service invokes the local helper.
+    expect(leagueSrc).toMatch(/await sendTeamCreationEmails\(/);
+    // Paid path: the shared legacy finalize module sends the same templates.
+    expect(paidFinalizeSrc).toContain('template: "league_team_created"');
+    expect(paidFinalizeSrc).toContain('template: "league_team_invite"');
   });
 
   it("league-service uses 'origin' header for branded join link", () => {
@@ -42,10 +51,11 @@ describe("league team creation email wiring", () => {
   });
 
   it("email send failures are best-effort and don't block team creation", () => {
-    // Helper uses Promise.allSettled — failures are swallowed/logged
+    // Both paths fan out with Promise.allSettled and swallow/log failures.
     expect(leagueSrc).toMatch(/Promise\.allSettled/);
-    // Finalize paths wrap email sending in try/catch
+    expect(paidFinalizeSrc).toMatch(/Promise\.allSettled/);
     expect(leagueSrc).toMatch(/\[league email\] finalize \(free\) failed/);
-    expect(leagueSrc).toMatch(/\[league email\] finalize \(paid\) failed/);
+    expect(paidFinalizeSrc).toMatch(/\[legacy-finalize\] email block failed/);
   });
+
 });
