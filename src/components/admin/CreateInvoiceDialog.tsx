@@ -18,6 +18,7 @@ import { useCreateInvoice, useGstProfile } from "@/hooks/useInvoices";
 import { useOfflinePaymentMethods } from "@/hooks/useOfflinePaymentMethods";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { useAdvanceBalance, useDrawdownAdvance } from "@/hooks/useAdvanceAccount";
+import { invoiceLinesMissingTaxCode } from "@/lib/tax-codes";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { validateGSTIN, getGstType, calculateLineItems, type GstLineItem } from "@/lib/gst-utils";
