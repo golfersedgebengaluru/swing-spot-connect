@@ -73,11 +73,12 @@ describe("revenue_transactions city trigger (last defence)", () => {
   });
 
   it("fires before every insert", () => {
-    const norm = triggerSql.replace(/\s+/g, " ");
+    const norm = latestSqlDefining("CREATE TRIGGER validate_revenue_city_before_insert").replace(/\s+/g, " ");
     expect(norm).toMatch(
       /CREATE TRIGGER validate_revenue_city_before_insert BEFORE INSERT ON public\.revenue_transactions FOR EACH ROW EXECUTE FUNCTION public\.validate_revenue_city_before_insert\(\)/,
     );
   });
+
 
   // Regression: a SECURITY DEFINER trigger function tripped the security
   // linter (callable by signed-in users); a trigger needs no elevation.
