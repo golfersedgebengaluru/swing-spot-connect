@@ -11,6 +11,13 @@
 - [x] Reports: signed refunds in summary, dashboard, P&L, revenue list
 - [x] Tests: RPC contract, shared writer, cancellation paths, invoice cancellation, report arithmetic
 
+## City guardrail (done)
+- [x] `record_revenue` resolves the city from the booking/bay, then the member's preferred city, and refuses a paid sale if it still can't
+- [x] Table trigger blocks any non-zero row with a blank city (last defence, zero-value rows unaffected)
+- [x] 11 legacy zero-value blank-city rows deleted; 0 remain
+- [x] Tests: writer + trigger contract, live rejection/recovery checks
+
 ## Later
 - [ ] Pass 4 — product/category/HSN stamping at capture + catalogue backfill
-- [ ] Blank-city revenue rows (11 remaining, all zero-value)
+- [ ] Decision needed: should coaching be taxed at 18%?
+
