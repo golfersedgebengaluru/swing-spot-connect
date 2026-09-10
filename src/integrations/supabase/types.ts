@@ -6134,7 +6134,7 @@ export type Database = {
         Returns: string
       }
       backfill_invoice_line_tax_codes: {
-        Args: { _from_date: string; _to_date: string }
+        Args: { _city?: string; _from_date: string; _to_date: string }
         Returns: number
       }
       backfill_missing_invoices: {
