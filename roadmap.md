@@ -27,9 +27,17 @@
 - [x] Backfill: sales without a product 649 → 42, uncoded invoice lines 390 → 231 (only 26 of them taxable); amounts, cities and dates untouched
 - [x] Tests: pure tax-code helpers, migration contract (resolver, triggers, backfill, revokes)
 
+## August 2026 code fill — Bengaluru only (done)
+- [x] Bengaluru is the only GST-registered city and August is the only unfiled GSTR-1, so the fill is scoped to that city and month
+- [x] Re-runnable, date + city scoped `backfill_invoice_line_tax_codes(from, to, city)` — codes only, never amounts/dates/numbers
+- [x] "500 coaching" catalogue item given the standard coaching code; its Bengaluru August line filled
+- [x] Chennai lines that were briefly filled have been reverted (not GST registered)
+- [x] Bengaluru August: 0 of 48 invoice lines now missing a code
+- [x] Tests: scope, idempotency, code-only guarantee, browser revoke
+
 ## Later
 - [ ] 124 catalogue items still have no HSN/SAC (all zero-rated bar one) — codes need to be confirmed per item, not guessed
-- [ ] 26 historical taxable invoice lines have no code — needs manual classification
+- [ ] Chennai historical lines left uncoded on purpose (city not GST registered)
 - [ ] 3 hour packages have no linked catalogue item, so those purchases stay untagged
 - [ ] Decision needed: should coaching be taxed at 18%?
 
