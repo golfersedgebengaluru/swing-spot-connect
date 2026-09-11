@@ -1,50 +1,88 @@
-# Pass 3 — Make refunds and cancellations trustworthy
+# Sales by SKU / Vendor Report + Product Vendor Field
 
-Right now money coming *back* out of the business is recorded inconsistently. Sales are clean after passes 1 and 2; refunds are not. This pass makes every reversal a single, signed, traceable record.
+## Goal
+Inside Revenue Reports, add a "Sales by SKU" view: category → SKU drill-down
+(units sold, net revenue, signed refunds) so you can see exactly which product is
+selling. Add an optional vendor field on **products only**, and a vendor filter on
+the same report so you can report merchandise sales back to each vendor.
 
-## What is wrong today
+## Scope decisions
+- Vendor field is **optional** and **products-only** (services keep their own
+  delivery model: coaches table, internal bay, leagues). No mandatory field yet.
+- One reporting source — the existing `revenue_transactions` ledger. No second
+  data store, no materialized view.
+- Unlinked sales stay visible as an explicit "Unlinked" row so totals always tie
+  back to the dashboard.
+- Refunds are signed negative (a reversal reduces the SKU/category it was earned in).
 
-Checked against live data (1,409 revenue rows):
+---
 
-1. **Refunds are stored as positive numbers.** 22 refunds carry a positive amount and are only excluded from income because reports check the word "refund". Any report that forgets that check overstates income.
-2. **154 refund rows are worth zero.** Every hours-based cancellation writes a ₹0 "refund" line. They are noise: they inflate transaction counts and mean nothing financially. Roughly 20-32 per month since March.
-3. **Refunds have no unique key.** All 22 real refunds have a blank source reference, so a repeated cancellation or a retried background job can record the same refund twice. Sales are protected against this; refunds are not.
-4. **Cancellation currency is hard-coded to rupees** on the hours-refund line instead of following the city.
-5. **Two different cancellation paths** (member cancel, admin cancel) each write their own refund lines with duplicated logic, so they can drift apart.
-6. **Store credit can be silently dropped for walk-in and guest sales.** A refund always follows a real sale, so the customer is known by name and email — but store credit can only be held against an account, and guest sales have none. Live data shows 20 paid sales in that position (6 guest bookings, 13 league entries, 1 booking), plus 21 older manual purchase entries with no name at all. Today the credit note is simply skipped with a log line.
-7. **Reports treat refunds inconsistently.** Some views subtract them, the profit-and-loss view and category breakdown handle them differently, and a refund never reduces the category it originally belonged to.
+## 1. Schema: add `vendor_id` to products (migration)
 
-## What I will do
+```sql
+ALTER TABLE public.products
+  ADD COLUMN vendor_id UUID REFERENCES public.vendors(id) ON DELETE SET NULL;
 
-**One writer for reversals.** Add a `record_refund` counterpart to the existing single sales writer. It will:
-- store refunds as negative amounts, so any total is simply a sum;
-- require a stable unique key (`refund:<original transaction>:<reason>`) so a replay can never double-refund;
-- inherit city, currency, product/category and customer from the original sale;
-- date the refund on the day it happens (invoice date for credit notes);
-- refuse a refund larger than what remains refundable on the original sale.
+CREATE INDEX IF NOT EXISTS products_vendor_id_idx ON public.products (vendor_id)
+  WHERE vendor_id IS NOT NULL;
+```
 
-**Stop writing zero-value refunds.** Hours-only cancellations move their record to the hours ledger, where they already exist. No money moved, so no money row.
+- Nullable, optional. Existing rows stay null.
+- `products` already has GRANTs + RLS; ALTER COLUMN needs no new grants.
+- Regenerated types will pick up the column.
 
-**Clean up history.** A one-time backfill flips the 22 positive refunds to negative and deletes (or archives) the 154 zero-value rows. Reported totals will not change — the same money in, the same money out — but every report becomes correct by arithmetic rather than by remembering a rule.
+## 2. ProductForm: optional vendor dropdown (products only)
 
-**Unify the two cancellation paths** into one shared routine used by both member and admin cancellation, covering all three outcomes: credit note / advance, external refund with the city's cancellation charge, and hours-only.
+- In `src/components/admin/ProductForm.tsx`, add a "Vendor" `<Select>` that is
+  **shown only when `item_type === "product"`**.
+- Options come from `useVendors` (city-scoped). For a global product (no city),
+  show all vendors with the city in the label; for a city-scoped product, show
+  that city's vendors first. "None" is always selectable and is the default.
+- Saves `vendor_id` (or `null`) alongside the other fields.
 
-**Make credit notes explicit.** The reversal and the credit entry are written together, never one without the other. Because store credit needs an account to sit in, a walk-in or guest sale can only be refunded to the original payment method — the credit option is disabled for those with a clear reason shown, rather than accepted and silently dropped. If the guest should keep credit, the staff member creates an account for them first.
+## 3. New hook: `useSalesByProduct` (read-side, no new capture)
 
-**Simplify the reports.** With signed amounts, income becomes a plain sum, refunds are shown separately as a negative line, and refunds reduce their own category rather than sitting outside the breakdown.
+`src/hooks/useSalesByProduct.ts` — reuses the same paged-fetch + product-link
+resolution pattern as `useRevenueSummary`:
 
-## Tests
+- Fetches all confirmed `revenue_transactions` in the business-date range + city
+  filter (via `fetchAllPaged` + `reportDayRange`).
+- For each row: resolve `product_id` → `{ sku, name, category, vendor_id, vendor_name }`
+  via batched `products` reads (and `vendors` for vendor names).
+- Rows without `product_id` fall back to their `invoice_line_items` (same rule as
+  the summary); residual unlinked amount → one "Unlinked" bucket.
+- Refunds carry the original sale's product, so a reversal reduces that SKU.
+- Returns two groupings:
+  - `byCategory`: `{ category → [{ sku, name, units, net }] }` for drill-down.
+  - `byVendor`: `{ vendorName → { units, net, items: [...] } }` for the vendor view.
+  - Plus a flat `bySku` array and an `unlinked` total for export/reconciliation.
 
-- Refund writer: negative amount, replay is ignored, over-refund rejected, city/currency/category inherited, business date correct.
-- Cancellation: hours-only writes no money row; external refund charges the city's cancellation percentage; credit note writes reversal plus advance atomically; missing customer fails loudly.
-- Both member and admin cancellation produce identical financial results.
-- Backfill: totals before and after are identical for every city and month; no zero rows remain; no positive refunds remain.
-- Reports: income, refunds, net, category breakdown and profit-and-loss agree with a hand-computed figure on live August data for Bengaluru and Chennai.
+## 4. AdminRevenueTab: "Sales by SKU" report section
 
-## Verification before I call it done
+In `src/components/admin/AdminRevenueTab.tsx`, add a new collapsible section below
+the existing category tiles:
 
-Re-run the August and September city reports and confirm each city's net revenue matches the pre-change figure to the rupee.
+- A view toggle: **By Category** (drill-down) / **By Vendor**.
+- **By Category**: category rows (units, net). Click a category → expands to SKU
+  rows (SKU code, product name, units, net revenue). "Unlinked" shown as its own row.
+- **By Vendor**: vendor rows (units, net) → expand to SKU rows. Products with no
+  vendor grouped under "No vendor".
+- Reuses the existing period + city filters (no separate filter UI).
+- **Export CSV**: pages through the full dataset (not just the visible page),
+  RFC-4180 escaping, columns: Category, SKU, Product, Vendor, Units, Net Revenue.
+  Filter-aware filename.
+- Totals row reconciles with the period's net revenue.
 
-## Not in this pass
+## 5. Tests
 
-Product / category / HSN stamping at capture and the historical catalogue backfill — that is pass 4.
+- `src/hooks/__tests__/useSalesByProduct.test.ts` — unit tests with the Supabase
+  mock: grouping by category/SKU, vendor grouping, refund sign reversal, unlinked
+  bucket, invoice-line fallback, pagination across >1000 rows.
+- `src/components/admin/__tests__/salesBySkuReport.test.tsx` — render drill-down
+  (category expand → SKU rows), vendor view, CSV export wiring, totals reconcile.
+- `src/test/db/` contract test for the `vendor_id` FK + null behaviour.
+
+## Out of scope (later CRM phases)
+- Customer-level views (lifetime spend, last visit, favourite categories) — read
+  from the same ledger, no new capture, built in a later pass.
+- Mandatory vendor — stays optional until data entry habits settle.
