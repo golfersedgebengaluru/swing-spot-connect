@@ -327,12 +327,24 @@ export function AdminRevenueTab() {
 
       </div>
 
+      {/* Sales by SKU (category / vendor drill-down) */}
+      <SalesByProductReport
+        byCategoryRows={summary?.byCategoryRows ?? []}
+        byVendor={summary?.byVendor ?? []}
+        bySku={summary?.bySku ?? []}
+        currencySymbol={currencySymbol}
+        periodLabel={`${dates.start}_${dates.end}`}
+        cityLabel={selectedCity}
+        isLoading={loadingSummary}
+      />
+
       {/* User Spend Breakdown */}
       <RevenueUserBreakdown
         byUser={summary?.byUser ?? {}}
         byGuest={summary?.byGuest ?? {}}
         isLoading={loadingSummary}
       />
+
 
       {/* Filters + Export */}
       <div className="flex flex-wrap items-center gap-3">
