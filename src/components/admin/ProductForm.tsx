@@ -10,6 +10,7 @@ import { useUnitsOfMeasure } from "@/hooks/useUnitsOfMeasure";
 import { useCities } from "@/hooks/useBookings";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useCorporateAccounts } from "@/hooks/useCorporateAccounts";
+import { useVendors } from "@/hooks/useVendors";
 import { useProductCostPrices, useSetProductCostPrice, useCityCostPriceAccess } from "@/hooks/useCostPrice";
 import { previewSkuBase } from "@/lib/product-sku";
 import { checkProductTaxCode } from "@/lib/tax-codes";
@@ -31,6 +32,8 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const { data: cities } = useCities();
   const { isAdmin, isSiteAdmin, assignedCities } = useAdmin();
   const { data: corporateAccounts } = useCorporateAccounts(false);
+  // Vendors apply to physical products only (coaching has coaches; bays are internal).
+  const { data: vendors } = useVendors(undefined, { allCities: true });
   const { data: cityCostAccess } = useCityCostPriceAccess();
   const { data: costPriceMap } = useProductCostPrices(product?.id ? [product.id] : undefined);
   const setCostPrice = useSetProductCostPrice();
@@ -56,6 +59,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     bookable: product?.bookable ?? false,
     city: product?.city ?? (isSiteAdmin && assignedCities.length === 1 ? assignedCities[0] : ""),
     corporate_account_id: product?.corporate_account_id ?? null,
+    vendor_id: product?.vendor_id ?? null,
   });
 
   // Cost-price visibility: admin always; site admin only if their city has access enabled
@@ -169,6 +173,8 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
       bookable: !isProduct ? form.bookable : false,
       city: cityValue,
       corporate_account_id: form.corporate_account_id || null,
+      // Optional, and only meaningful for physical products.
+      vendor_id: isProduct ? (form.vendor_id || null) : null,
       badge: null,
       sizes: null,
       colors: null,
@@ -370,6 +376,26 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
       {isProduct && (
         <div className="rounded-lg border border-border p-4 space-y-4 bg-muted/30">
           <h4 className="text-sm font-medium text-foreground">Inventory</h4>
+          <div>
+            <Label>Vendor (optional)</Label>
+            <Select
+              value={form.vendor_id ?? "none"}
+              onValueChange={(v) => setForm({ ...form, vendor_id: v === "none" ? null : v })}
+            >
+              <SelectTrigger><SelectValue placeholder="No vendor" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No vendor</SelectItem>
+                {(vendors ?? []).map((v) => (
+                  <SelectItem key={v.id} value={v.id}>
+                    {v.name}{v.city ? ` — ${v.city}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Used to report sales back to the supplier. Leave blank if not applicable.
+            </p>
+          </div>
           <div className="grid grid-cols-3 gap-4">
             <div>
               <Label>Opening Stock</Label>
