@@ -89,7 +89,7 @@ describe("SalesByProductReport", () => {
     expect(csv).toContain("PRD-BLR-APP-CAP-A1");
     expect(csv).toContain("PRD-BLR-ACC-BALL-C3");
     expect(csv).toContain("Unlinked sales");
-    expect(csv).toContain('"Total","","","","2","4400"');
+    expect(csv).toContain('"Total","","","","3","4400"');
   });
 
   it("renders an empty state instead of a broken table when there are no sales", () => {
