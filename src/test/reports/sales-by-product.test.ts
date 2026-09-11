@@ -78,12 +78,14 @@ describe("aggregateSales — refunds", () => {
     expect(signedAmount({ id: "a", amount: 500, transaction_type: "purchase" })).toBe(500);
   });
 
-  it("drops buckets that net to zero after a full refund", () => {
+  it("keeps a fully refunded SKU visible at zero net, with the unit it sold", () => {
     const r = run([
       txn({ id: "t1", amount: 1000, product_id: "p-tee" }),
       txn({ id: "t2", amount: 1000, transaction_type: "refund", product_id: "p-tee" }),
     ]);
-    expect(r.bySku.find((s) => s.sku === "PRD-BLR-APP-TEE-B2")).toBeUndefined();
+    const tee = r.bySku.find((s) => s.sku === "PRD-BLR-APP-TEE-B2")!;
+    expect(tee.net).toBe(0);
+    expect(tee.units).toBe(1);
     expect(r.net).toBe(0);
   });
 });
