@@ -57,11 +57,22 @@ describe("report totals treat refunds as money out", () => {
   });
 
   it("the category breakdown lets a refund reduce its own category", () => {
+    // Executed, not grepped: the breakdown arithmetic lives in one shared module.
+    const { byCategory, net } = aggregateSales({
+      transactions: [
+        { id: "t1", amount: 3000, transaction_type: "purchase", product_id: "p-cap" },
+        { id: "t2", amount: 500, transaction_type: "refund", product_id: "p-cap" },
+      ],
+      products: [{ id: "p-cap", category: "Apparel", sku: "SKU-CAP", name: "Cap" }],
+    });
+    expect(byCategory).toEqual({ Apparel: 2500 });
+    expect(net).toBe(2500);
+  });
+
+  it("the summary hook feeds its buckets through that shared module", () => {
     const src = read("hooks/useRevenue.ts");
-    expect(src).toContain("const signedConfirmed = confirmed.map(");
-    // A refund must not be filtered out of the breakdown any more.
-    expect(src).not.toContain('const nonRefundConfirmed = confirmed.filter((t) => t.transaction_type !== "refund");');
-    expect(src).toContain("if (amount !== 0) byCategory[cat]");
+    expect(src).toContain("aggregateSales(");
+    expect(src).toContain("byCategory: sales.byCategory");
   });
 
   it("the dashboard subtracts the magnitude, never the signed value", () => {
