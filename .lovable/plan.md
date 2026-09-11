@@ -64,10 +64,13 @@ Net effect: the category tiles, the SKU drill-down, and the vendor view all read
 from the **same single fetch** — no extra network request, no second resolver,
 totals reconcile by construction.
 
-## 4. AdminRevenueTab: "Sales by SKU" report section
+## 4. New component `SalesByProductReport.tsx`, mounted in AdminRevenueTab
 
-In `src/components/admin/AdminRevenueTab.tsx`, add a new collapsible section below
-the existing category tiles:
+To stop `AdminRevenueTab.tsx` (already ~470 lines) from growing, the report is its
+own component at `src/components/admin/SalesByProductReport.tsx`. It receives the
+already-computed `summary.bySku` / `summary.byVendor` / currency / period label as
+props (same pattern as the existing `RevenueUserBreakdown`). The tab just mounts
+it below the category tiles — no new fetch, no new filter state.
 
 - A view toggle: **By Category** (drill-down) / **By Vendor**.
 - **By Category**: category rows (units, net). Click a category → expands to SKU
@@ -75,16 +78,16 @@ the existing category tiles:
 - **By Vendor**: vendor rows (units, net) → expand to SKU rows. Products with no
   vendor grouped under "No vendor".
 - Reuses the existing period + city filters (no separate filter UI).
-- **Export CSV**: pages through the full dataset (not just the visible page),
-  RFC-4180 escaping, columns: Category, SKU, Product, Vendor, Units, Net Revenue.
-  Filter-aware filename.
+- **Export CSV**: serialises the already-complete `bySku` data (the summary read
+  every row, so no extra pagination is needed). RFC-4180 escaping; columns:
+  Category, SKU, Product, Vendor, Units, Net Revenue. Filter-aware filename.
 - Totals row reconciles with the period's net revenue.
 
 ## 5. Tests
 
-- `src/hooks/__tests__/useSalesByProduct.test.ts` — unit tests with the Supabase
-  mock: grouping by category/SKU, vendor grouping, refund sign reversal, unlinked
-  bucket, invoice-line fallback, pagination across >1000 rows.
+- `src/hooks/__tests__/useRevenue.salesByProduct.test.ts` — the extended summary:
+  category/SKU grouping, vendor grouping, refund sign reversal, unlinked bucket,
+  invoice-line fallback, pagination across >1000 rows.
 - `src/components/admin/__tests__/salesBySkuReport.test.tsx` — render drill-down
   (category expand → SKU rows), vendor view, CSV export wiring, totals reconcile.
 - `src/test/db/` contract test for the `vendor_id` FK + null behaviour.
