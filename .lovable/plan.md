@@ -40,22 +40,29 @@ CREATE INDEX IF NOT EXISTS products_vendor_id_idx ON public.products (vendor_id)
   that city's vendors first. "None" is always selectable and is the default.
 - Saves `vendor_id` (or `null`) alongside the other fields.
 
-## 3. New hook: `useSalesByProduct` (read-side, no new capture)
+## 3. Extend `useRevenueSummary` (no second hook, no duplicated logic)
 
-`src/hooks/useSalesByProduct.ts` — reuses the same paged-fetch + product-link
-resolution pattern as `useRevenueSummary`:
+The summary already pages through **every** confirmed transaction in the period,
+already resolves `product_id → category` (with the `invoice_line_items` fallback
+for unresolved rows), and already signs refunds. A separate `useSalesByProduct`
+would re-implement all of that — a second copy of the "how does a revenue row
+find its product" rule, which is exactly the duplication that caused past bugs.
 
-- Fetches all confirmed `revenue_transactions` in the business-date range + city
-  filter (via `fetchAllPaged` + `reportDayRange`).
-- For each row: resolve `product_id` → `{ sku, name, category, vendor_id, vendor_name }`
-  via batched `products` reads (and `vendors` for vendor names).
-- Rows without `product_id` fall back to their `invoice_line_items` (same rule as
-  the summary); residual unlinked amount → one "Unlinked" bucket.
-- Refunds carry the original sale's product, so a reversal reduces that SKU.
-- Returns two groupings:
-  - `byCategory`: `{ category → [{ sku, name, units, net }] }` for drill-down.
-  - `byVendor`: `{ vendorName → { units, net, items: [...] } }` for the vendor view.
-  - Plus a flat `bySku` array and an `unlinked` total for export/reconciliation.
+So instead, extend the one existing computation in `src/hooks/useRevenue.ts`:
+
+- Widen the existing products read from `.select("id, category")` to
+  `.select("id, category, sku, name, vendor_id")`, plus a batched `vendors` read
+  for vendor names.
+- In the same bucket loop that builds `byCategory`, also build:
+  - `bySku`: per-product `{ productId, sku, name, category, vendorId, vendorName, units, net }`
+    (units = count of confirmed non-refund rows; net signed so refunds reduce the SKU).
+  - `byVendor`: aggregate of the same rows by `vendorName` ("No vendor" for nulls).
+- Unlinked sales still surface in the existing "Uncategorised" bucket and also as
+  a `bySku` "Unlinked" row, so totals always reconcile with the tiles.
+
+Net effect: the category tiles, the SKU drill-down, and the vendor view all read
+from the **same single fetch** — no extra network request, no second resolver,
+totals reconcile by construction.
 
 ## 4. AdminRevenueTab: "Sales by SKU" report section
 
