@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -122,9 +122,8 @@ export function SalesByProductReport({
               </TableHeader>
               <TableBody>
                 {groups.map((g) => (
-                  <>
+                  <Fragment key={g.key}>
                     <TableRow
-                      key={g.key}
                       className="cursor-pointer"
                       onClick={() => toggle(g.key)}
                       data-testid={`group-${g.key}`}
@@ -153,7 +152,7 @@ export function SalesByProductReport({
                           <TableCell className="text-right text-sm">{money(s.net)}</TableCell>
                         </TableRow>
                       ))}
-                  </>
+                  </Fragment>
                 ))}
                 <TableRow>
                   <TableCell className="font-semibold text-sm">Total</TableCell>
