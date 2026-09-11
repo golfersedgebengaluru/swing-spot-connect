@@ -18,6 +18,9 @@ vi.mock("@/hooks/useAdmin", () => ({
 vi.mock("@/hooks/useCorporateAccounts", () => ({
   useCorporateAccounts: () => ({ data: [] }),
 }));
+vi.mock("@/hooks/useVendors", () => ({
+  useVendors: () => ({ data: [{ id: "v-1", name: "Acme Apparel", city: "Bengaluru" }] }),
+}));
 vi.mock("@/hooks/useCostPrice", () => ({
   useProductCostPrices: () => ({ data: new Map() }),
   useSetProductCostPrice: () => ({ mutateAsync: vi.fn() }),
