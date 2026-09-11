@@ -1,0 +1,2 @@
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS vendor_id UUID REFERENCES public.vendors(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS products_vendor_id_idx ON public.products (vendor_id) WHERE vendor_id IS NOT NULL;

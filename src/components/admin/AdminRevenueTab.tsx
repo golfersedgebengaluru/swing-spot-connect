@@ -21,6 +21,7 @@ import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useProductCategories } from "@/hooks/useProductCategories";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, subYears, addMonths } from "date-fns";
 import { RevenueUserBreakdown } from "./RevenueUserBreakdown";
+import { SalesByProductReport } from "./SalesByProductReport";
 
 type Period = "week" | "month" | "quarter" | "year" | "custom";
 
@@ -327,12 +328,24 @@ export function AdminRevenueTab() {
 
       </div>
 
+      {/* Sales by SKU (category / vendor drill-down) */}
+      <SalesByProductReport
+        byCategoryRows={summary?.byCategoryRows ?? []}
+        byVendor={summary?.byVendor ?? []}
+        bySku={summary?.bySku ?? []}
+        currencySymbol={currencySymbol}
+        periodLabel={`${dates.start}_${dates.end}`}
+        cityLabel={selectedCity}
+        isLoading={loadingSummary}
+      />
+
       {/* User Spend Breakdown */}
       <RevenueUserBreakdown
         byUser={summary?.byUser ?? {}}
         byGuest={summary?.byGuest ?? {}}
         isLoading={loadingSummary}
       />
+
 
       {/* Filters + Export */}
       <div className="flex flex-wrap items-center gap-3">

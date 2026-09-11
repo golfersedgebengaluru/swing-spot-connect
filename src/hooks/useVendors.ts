@@ -16,15 +16,20 @@ export interface Vendor {
   updated_at: string;
 }
 
-export function useVendors(city?: string) {
+/**
+ * Vendors, optionally scoped to a city.
+ * `city` omitted (or "all") returns every vendor — global catalogue items belong
+ * to no city, so they still need a vendor list to choose from.
+ */
+export function useVendors(city?: string, options?: { allCities?: boolean }) {
+  const allCities = options?.allCities === true;
   return useQuery({
-    queryKey: ["vendors", city],
-    enabled: !!city,
+    queryKey: ["vendors", allCities ? "all" : city],
+    enabled: allCities || !!city,
     queryFn: async () => {
-      const { data, error } = await supabase.from("vendors" as any)
-        .select("*")
-        .eq("city", city)
-        .order("name");
+      let query = supabase.from("vendors" as any).select("*");
+      if (!allCities && city) query = query.eq("city", city);
+      const { data, error } = await query.order("name");
       if (error) throw error;
       return (data ?? []) as unknown as Vendor[];
     },

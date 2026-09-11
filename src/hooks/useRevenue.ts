@@ -2,6 +2,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { reportDayRange } from "@/lib/report-period";
 import { fetchAllPaged, fetchAllByIds } from "@/lib/supabase-paging";
+import {
+  aggregateSales,
+  type SalesInvoiceLine,
+  type SalesProduct,
+  type SalesTransaction,
+} from "@/lib/sales-by-product";
 
 // ─── Admin config toggle ────────────────────────────────
 export function usePerCityFyToggle() {
@@ -278,68 +284,40 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
       }
 
 
-      // --- Revenue by product category ---
-      // Single rule, no inference: the category is the catalogue product's
+      // --- Revenue by category / SKU / vendor ---
+      // Single rule, no inference: the bucket is the catalogue product's
       // category (the list defined in General Settings → Product & Service
       // Categories). `revenue_transactions.product_id` is stamped by the
       // `resolve_revenue_product` DB trigger for bookings, hour packages and
       // league fees, and passed explicitly by the shared revenue-ledger writer.
       //
       // When a row has no product yet, we fall back to its invoice line items
-      // (which do carry product ids), and only then to "Uncategorised" — never
-      // to a guessed bucket like "Membership".
+      // (which do carry product ids), and only the residual lands in "Unlinked".
       // Refunds carry the original sale's product, so a reversal reduces the very
-      // category it was earned in instead of being dropped from the breakdown.
-      // Signed amounts throughout: refunds are negative rows.
-      const signedConfirmed = confirmed.map((t) => ({
-        ...t,
-        amount: t.transaction_type === "refund" ? -Math.abs(Number(t.amount)) : Number(t.amount),
-      }));
+      // SKU it was earned in. All of that arithmetic lives in one place —
+      // `@/lib/sales-by-product` — so the tiles, the SKU drill-down and the
+      // vendor view can never drift apart.
+      const unresolvedTxns = confirmed.filter((t) => !(t as any).product_id);
 
-      const byCategory: Record<string, number> = {};
-      const addCategory = (cat: string, amount: number) => {
-        if (amount !== 0) byCategory[cat] = (byCategory[cat] || 0) + amount;
-      };
-
-      const directTxns = signedConfirmed.filter((t) => !!(t as any).product_id);
-      const unresolvedTxns = signedConfirmed.filter((t) => !(t as any).product_id);
-
-      const categoryByProduct = new Map<string, string>();
-      const loadCategories = async (productIds: string[]) => {
-        const missing = [...new Set(productIds)].filter((id) => id && !categoryByProduct.has(id));
-        if (missing.length === 0) return;
-        // Batched: a single `.in()` with thousands of ids exceeds URL limits.
-        const products = await fetchAllByIds<any>(missing, (batch) =>
-          supabase.from("products").select("id, category").in("id", batch),
-        );
-        for (const p of products) {
-          categoryByProduct.set(p.id, p.category || "Uncategorised");
-        }
-      };
-
-
-      await loadCategories(directTxns.map((t) => (t as any).product_id as string));
-      for (const t of directTxns) {
-        const cat = categoryByProduct.get((t as any).product_id as string) || "Uncategorised";
-        addCategory(cat, Number(t.amount));
-      }
-
+      // Invoice line fallback for rows with no product of their own.
+      const linesByTransaction = new Map<string, SalesInvoiceLine[]>();
+      const fallbackProductIds: string[] = [];
       if (unresolvedTxns.length > 0) {
-        const unresolvedIds = unresolvedTxns.map((t: any) => t.id).filter(Boolean);
-        const invoices = await fetchAllByIds<any>(unresolvedIds, (batch) =>
-          supabase
-            .from("invoices")
-            .select("id, revenue_transaction_id")
-            .in("revenue_transaction_id", batch),
+        const invoices = await fetchAllByIds<any>(
+          unresolvedTxns.map((t: any) => t.id).filter(Boolean),
+          (batch) =>
+            supabase
+              .from("invoices")
+              .select("id, revenue_transaction_id")
+              .in("revenue_transaction_id", batch),
         );
 
-        const invoiceByTxn = new Map<string, string>();
+        const txnByInvoice = new Map<string, string>();
         for (const inv of invoices) {
-          if (inv.revenue_transaction_id) invoiceByTxn.set(inv.revenue_transaction_id, inv.id);
+          if (inv.revenue_transaction_id) txnByInvoice.set(inv.id, inv.revenue_transaction_id);
         }
 
-        const invoiceIds = invoices.map((inv) => inv.id);
-        const lineTotalsByInvoice = new Map<string, number>();
+        const invoiceIds = [...txnByInvoice.keys()];
         if (invoiceIds.length > 0) {
           const lineItems = await fetchAllByIds<any>(invoiceIds, (batch) =>
             supabase
@@ -347,34 +325,54 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
               .select("invoice_id, line_total, product_id")
               .in("invoice_id", batch),
           );
-
-          await loadCategories(
-            lineItems.map((li) => li.product_id).filter(Boolean) as string[],
-          );
-
           for (const li of lineItems) {
-            const cat = li.product_id
-              ? (categoryByProduct.get(li.product_id) || "Uncategorised")
-              : "Uncategorised";
-            addCategory(cat, Number(li.line_total));
-            lineTotalsByInvoice.set(
-              li.invoice_id,
-              (lineTotalsByInvoice.get(li.invoice_id) ?? 0) + Number(li.line_total),
-            );
+            const txnId = txnByInvoice.get(li.invoice_id);
+            if (!txnId) continue;
+            linesByTransaction.set(txnId, [...(linesByTransaction.get(txnId) ?? []), li]);
+            if (li.product_id) fallbackProductIds.push(li.product_id);
           }
-        }
-
-
-        // Residual (txn amount not covered by line items) → Uncategorised.
-        for (const t of unresolvedTxns) {
-          const invId = invoiceByTxn.get((t as any).id);
-          const lineSum = invId ? (lineTotalsByInvoice.get(invId) ?? 0) : 0;
-          addCategory("Uncategorised", Number(t.amount) - lineSum);
         }
       }
 
+      // One catalogue read for every product referenced, direct or via a line.
+      const productIds = [
+        ...confirmed.map((t: any) => t.product_id).filter(Boolean),
+        ...fallbackProductIds,
+      ] as string[];
+      // Batched: a single `.in()` with thousands of ids exceeds URL limits.
+      const productRows = await fetchAllByIds<SalesProduct>(productIds, (batch) =>
+        supabase.from("products").select("id, category, sku, name, vendor_id").in("id", batch),
+      );
 
-      return { totalRevenue, totalRefunds, netRevenue: totalRevenue - totalRefunds, byType, byCategory, byUser, byGuest, totalCount: transactions.length };
+      const vendorIds = productRows.map((p) => p.vendor_id).filter(Boolean) as string[];
+      const vendorNames = new Map<string, string>();
+      if (vendorIds.length > 0) {
+        const vendorRows = await fetchAllByIds<any>(vendorIds, (batch) =>
+          supabase.from("vendors").select("id, name").in("id", batch),
+        );
+        for (const v of vendorRows) vendorNames.set(v.id, v.name || "Unnamed vendor");
+      }
+
+      const sales = aggregateSales({
+        transactions: confirmed as unknown as SalesTransaction[],
+        products: productRows,
+        linesByTransaction,
+        vendorNames,
+      });
+
+      return {
+        totalRevenue,
+        totalRefunds,
+        netRevenue: totalRevenue - totalRefunds,
+        byType,
+        byCategory: sales.byCategory,
+        byCategoryRows: sales.byCategoryRows,
+        bySku: sales.bySku,
+        byVendor: sales.byVendor,
+        byUser,
+        byGuest,
+        totalCount: transactions.length,
+      };
     },
     enabled: !!startDate && !!endDate,
   });
