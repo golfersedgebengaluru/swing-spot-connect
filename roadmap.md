@@ -41,3 +41,7 @@
 - [ ] 3 hour packages have no linked catalogue item, so those purchases stay untagged
 - [ ] Decision needed: should coaching be taxed at 18%?
 
+
+- [x] Sales by SKU report (category + vendor drill-down, complete CSV export)
+- [x] products.vendor_id (optional, physical products only)
+- [ ] CRM features derived from the same revenue ledger (later)
