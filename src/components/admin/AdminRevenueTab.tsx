@@ -21,6 +21,7 @@ import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useProductCategories } from "@/hooks/useProductCategories";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, subYears, addMonths } from "date-fns";
 import { RevenueUserBreakdown } from "./RevenueUserBreakdown";
+import { SalesByProductReport } from "./SalesByProductReport";
 
 type Period = "week" | "month" | "quarter" | "year" | "custom";
 
