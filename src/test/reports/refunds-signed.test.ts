@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
+import { aggregateSales } from "@/lib/sales-by-product";
 
 /**
  * Pass 3: refunds are stored as negative amounts.
