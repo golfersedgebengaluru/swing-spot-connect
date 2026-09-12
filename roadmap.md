@@ -47,11 +47,11 @@
 - [ ] CRM features derived from the same revenue ledger (later)
 
 ## Gateway credential isolation (in progress)
-- [ ] Deploy authenticated server-only gateway status and credential-management operation
-- [ ] Move platform, city, and QC admin payment screens to the server-only operation
-- [ ] Regression-test role boundaries, secret-free responses, sanitized errors, and unchanged live/test settings
-- [ ] Re-authorize the target gateway scope on every update before blank-retain credential merging
-- [ ] Treat omitted is_test_mode as unchanged; only an explicitly supplied boolean may change it
+- [x] Deploy authenticated server-only gateway status and credential-management operation
+- [x] Move platform, city, and QC admin payment screens to the server-only operation
+- [x] Regression-test role boundaries, secret-free responses, sanitized errors, and unchanged live/test settings
+- [x] Re-authorize the target gateway scope on every update before blank-retain credential merging
+- [x] Treat omitted is_test_mode as unchanged; only an explicitly supplied boolean may change it
 - [ ] Verify preview admin flows; await owner-led real-user live payment and webhook verification
 - [ ] Only after confirmation: isolated revocation of api_key/api_secret/webhook_secret from anon and authenticated
 - [ ] Separately isolate admin_config.admin_password after its replacement path is verified

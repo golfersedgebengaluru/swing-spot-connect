@@ -55,6 +55,24 @@ describe("payment gateway management security", () => {
   it("does not log caught provider or database errors", () => {
     expect(functionSource).toContain("catch {");
     expect(functionSource).not.toMatch(/console\.error\([^\n]*err/i);
-    expect(functionSource).not.toContain("request body");
+    expect(functionSource).not.toMatch(/console\.(log|error|warn)\([^\n]*(api_key|api_secret|webhook_secret|requestBody)/i);
+  });
+
+  it("requires authorization for all scopes and checks disabled QC memberships", () => {
+    expect(functionSource).toContain('if (target.scope === "all") return false');
+    expect(functionSource).toContain('.eq("disabled", false)');
+    expect(functionSource).toContain('client.rpc("has_city_access"');
+  });
+
+  it("keeps browser screens away from direct gateway table access", () => {
+    for (const file of [
+      "src/components/admin/AdminPaymentsTab.tsx",
+      "src/components/admin/CityPaymentsSection.tsx",
+      "src/pages/QcAdmin.tsx",
+    ]) {
+      const source = readFileSync(join(process.cwd(), file), "utf8");
+      expect(source).not.toContain('.from("payment_gateways")');
+      expect(source).not.toContain("select(\"*\")");
+    }
   });
 });

@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CreditCard, Loader2, Save, MapPin, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useAllCities } from "@/hooks/useBookings";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAdminCity } from "@/contexts/AdminCityContext";
@@ -35,19 +34,24 @@ export function AdminPaymentsTab() {
   const queryClient = useQueryClient();
   const [edits, setEdits] = useState<Record<string, GatewayChanges>>({});
 
-  const { data: gateways, isLoading } = useQuery({
-    queryKey: ["payment_gateways"],
-    queryFn: async () => {
-      return listPaymentGateways({ scope: "all" });
-    },
-  });
-
   const { data: allCitiesData } = useAllCities();
   const { isAdmin, assignedCities } = useAdmin();
   const { selectedCity: globalCity } = useAdminCity();
   const cities = isAdmin
     ? allCitiesData
     : (allCitiesData ?? []).filter((c) => assignedCities.includes(c));
+
+  const { data: gateways, isLoading } = useQuery({
+    queryKey: ["payment_gateways", isAdmin ? "all" : assignedCities],
+    queryFn: async () => {
+      if (isAdmin) return listPaymentGateways({ scope: "all" });
+      const scoped = await Promise.all(
+        assignedCities.map((city) => listPaymentGateways({ scope: "city", scope_id: city })),
+      );
+      return scoped.flat();
+    },
+    enabled: isAdmin || assignedCities.length > 0,
+  });
 
   const updateGateway = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: GatewayChanges }) => updatePaymentGateway(id, updates),
