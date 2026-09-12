@@ -45,3 +45,11 @@
 - [x] Sales by SKU report (category + vendor drill-down, complete CSV export)
 - [x] products.vendor_id (optional, physical products only)
 - [ ] CRM features derived from the same revenue ledger (later)
+
+## Gateway credential isolation (in progress)
+- [ ] Deploy authenticated server-only gateway status and credential-management operation
+- [ ] Move platform, city, and QC admin payment screens to the server-only operation
+- [ ] Regression-test role boundaries, secret-free responses, sanitized errors, and unchanged live/test settings
+- [ ] Verify preview admin flows; await owner-led real-user live payment and webhook verification
+- [ ] Only after confirmation: isolated revocation of api_key/api_secret/webhook_secret from anon and authenticated
+- [ ] Separately isolate admin_config.admin_password after its replacement path is verified
