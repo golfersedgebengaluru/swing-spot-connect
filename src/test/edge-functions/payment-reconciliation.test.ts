@@ -14,6 +14,10 @@ const adminTabSrc = readFileSync(
   resolve(__dirname, "../../components/admin/AdminPaymentsTab.tsx"),
   "utf-8",
 );
+const gatewayClientSrc = readFileSync(
+  resolve(__dirname, "../../lib/payment-gateways.ts"),
+  "utf-8",
+);
 
 describe("razorpay-webhook always returns 200 (prevents Razorpay auto-disable)", () => {
   it("does NOT return 4xx/5xx on missing signature", () => {
@@ -116,8 +120,9 @@ describe("reconcile-pending-payments cron job", () => {
 });
 
 describe("AdminPaymentsTab webhook_secret field", () => {
-  it("Gateway interface includes webhook_secret", () => {
-    expect(adminTabSrc).toMatch(/webhook_secret:\s*string\s*\|\s*null/);
+  it("exposes only webhook configured status to the browser", () => {
+    expect(gatewayClientSrc).toMatch(/has_webhook_secret:\s*boolean/);
+    expect(gatewayClientSrc).not.toMatch(/webhook_secret:\s*string\s*\|\s*null/);
   });
 
   it("renders the Webhook Secret input only for razorpay gateways", () => {
