@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Trophy, KeyRound, ListChecks, LogOut, ChevronDown } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +16,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { createPaymentGateway, listPaymentGateways, updatePaymentGateway } from "@/lib/payment-gateways";
 
 export default function QcAdmin() {
   const { signOut, user } = useAuth();
@@ -165,44 +166,37 @@ function PaymentsTab({ tenantId }: { tenantId: string }) {
   const { data: gw, isLoading } = useQuery({
     queryKey: ["qc-tenant-gateway", tenantId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("payment_gateways")
-        .select("id, name, api_key, api_secret, webhook_secret, is_active, is_test_mode")
-        .eq("tenant_id", tenantId).maybeSingle();
-      if (error) throw error;
-      return data;
+      const gateways = await listPaymentGateways({ scope: "tenant", scope_id: tenantId });
+      return gateways[0] ?? null;
     },
   });
 
   const [form, setForm] = useState({ api_key: "", api_secret: "", webhook_secret: "", is_test_mode: true });
-  useMemo(() => {
+  useEffect(() => {
     if (gw) setForm({
-      api_key: gw.api_key ?? "",
-      api_secret: gw.api_secret ?? "",
-      webhook_secret: gw.webhook_secret ?? "",
+      api_key: "",
+      api_secret: "",
+      webhook_secret: "",
       is_test_mode: gw.is_test_mode ?? true,
     });
   }, [gw]);
 
   const save = useMutation({
     mutationFn: async () => {
-      const payload = {
-        tenant_id: tenantId,
-        name: "razorpay",
-        display_name: "Razorpay",
-        api_key: form.api_key.trim() || null,
-        api_secret: form.api_secret.trim() || null,
-        webhook_secret: form.webhook_secret.trim() || null,
+      const updates = {
+        api_key: form.api_key,
+        api_secret: form.api_secret,
+        webhook_secret: form.webhook_secret,
         is_active: true,
         is_test_mode: form.is_test_mode,
-        city: null as unknown as string,
       };
       if (gw?.id) {
-        const { error } = await supabase.from("payment_gateways").update(payload).eq("id", gw.id);
-        if (error) throw error;
+        await updatePaymentGateway(gw.id, updates);
       } else {
-        const { error } = await supabase.from("payment_gateways").insert(payload);
-        if (error) throw error;
+        await createPaymentGateway(
+          { scope: "tenant", scope_id: tenantId },
+          { name: "razorpay", display_name: "Razorpay", ...updates },
+        );
       }
     },
     onSuccess: () => {
@@ -230,16 +224,16 @@ function PaymentsTab({ tenantId }: { tenantId: string }) {
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="k">Key ID</Label>
-            <Input id="k" value={form.api_key} onChange={(e) => setForm((f) => ({ ...f, api_key: e.target.value }))} placeholder="rzp_test_…" />
+            <Input id="k" type="password" value={form.api_key} onChange={(e) => setForm((f) => ({ ...f, api_key: e.target.value }))} placeholder={gw?.has_api_key ? "Configured — enter a replacement" : "Enter Key ID"} />
           </div>
           <div>
             <Label htmlFor="s">Key Secret</Label>
-            <Input id="s" type="password" value={form.api_secret} onChange={(e) => setForm((f) => ({ ...f, api_secret: e.target.value }))} />
+            <Input id="s" type="password" value={form.api_secret} onChange={(e) => setForm((f) => ({ ...f, api_secret: e.target.value }))} placeholder={gw?.has_api_secret ? "Configured — enter a replacement" : "Enter Key Secret"} />
           </div>
         </div>
         <div>
           <Label htmlFor="w">Webhook Secret</Label>
-          <Input id="w" type="password" value={form.webhook_secret} onChange={(e) => setForm((f) => ({ ...f, webhook_secret: e.target.value }))} />
+          <Input id="w" type="password" value={form.webhook_secret} onChange={(e) => setForm((f) => ({ ...f, webhook_secret: e.target.value }))} placeholder={gw?.has_webhook_secret ? "Configured — enter a replacement" : "Enter Webhook Secret"} />
           <p className="mt-1 text-xs text-muted-foreground">Webhook URL: <code className="bg-muted px-1 rounded">https://epcuyrjsrbrybznqcfvl.supabase.co/functions/v1/razorpay-webhook</code></p>
         </div>
         <label className="flex items-center gap-2 text-sm">

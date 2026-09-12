@@ -7,10 +7,9 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CreditCard, Eye, EyeOff, Loader2, Save, Plus, Trash2, Banknote } from "lucide-react";
+import { CreditCard, Loader2, Save, Plus, Trash2, Banknote } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import {
   useAllOfflinePaymentMethods,
   useCityOfflinePaymentMethods,
@@ -20,21 +19,17 @@ import {
   useDeleteCityOfflinePaymentMethods,
   type OfflinePaymentMethod,
 } from "@/hooks/useOfflinePaymentMethods";
-import type { Json } from "@/integrations/supabase/types";
+import {
+  createPaymentGateway,
+  deletePaymentGateway,
+  listPaymentGateways,
+  updatePaymentGateway,
+  type GatewayChanges,
+  type SafePaymentGateway,
+} from "@/lib/payment-gateways";
 
 // ─── Types ──────────────────────────────────────────────
-interface Gateway {
-  id: string;
-  name: string;
-  display_name: string;
-  api_key: string | null;
-  api_secret: string | null;
-  is_active: boolean;
-  is_test_mode: boolean;
-  config: Json;
-  sort_order: number;
-  city: string;
-}
+type Gateway = SafePaymentGateway;
 
 const GATEWAY_TEMPLATES = [
   { name: "razorpay", display_name: "Razorpay" },
@@ -46,72 +41,52 @@ const GATEWAY_TEMPLATES = [
 function CityGatewaysCard({ city }: { city: string }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
-  const [edits, setEdits] = useState<Record<string, Partial<Gateway>>>({});
+  const [edits, setEdits] = useState<Record<string, GatewayChanges>>({});
 
   const { data: gateways, isLoading } = useQuery({
     queryKey: ["payment_gateways", city],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("payment_gateways")
-        .select("*")
-        .eq("city", city)
-        .order("sort_order");
-      if (error) throw error;
-      return data as Gateway[];
+      return listPaymentGateways({ scope: "city", scope_id: city });
     },
   });
 
   const updateGateway = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Gateway> }) => {
-      const { error } = await supabase
-        .from("payment_gateways")
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: ({ id, updates }: { id: string; updates: GatewayChanges }) => updatePaymentGateway(id, updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payment_gateways"] });
       toast({ title: "Gateway Updated" });
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const addGateway = useMutation({
     mutationFn: async (gw: { name: string; display_name: string }) => {
-      const { error } = await supabase.from("payment_gateways").insert({
-        name: gw.name,
-        display_name: gw.display_name,
-        city,
-        is_active: false,
-        is_test_mode: true,
-        config: {},
-        sort_order: (gateways?.length ?? 0),
-      });
-      if (error) throw error;
+      await createPaymentGateway(
+        { scope: "city", scope_id: city },
+        { ...gw, is_active: false, is_test_mode: true, sort_order: gateways?.length ?? 0 },
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payment_gateways"] });
       toast({ title: "Gateway Added" });
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const deleteGateway = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("payment_gateways").delete().eq("id", id);
-      if (error) throw error;
+      await deletePaymentGateway(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payment_gateways"] });
       toast({ title: "Gateway Removed" });
     },
-    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const getEdit = (gw: Gateway) => ({ ...gw, ...edits[gw.id] });
 
-  const handleFieldChange = (id: string, field: string, value: string | boolean) => {
+  const handleFieldChange = (id: string, field: keyof GatewayChanges, value: string | boolean) => {
     setEdits((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
   };
 
@@ -120,12 +95,6 @@ function CityGatewaysCard({ city }: { city: string }) {
     if (!changes) return;
     updateGateway.mutate({ id: gw.id, updates: changes });
     setEdits((prev) => { const n = { ...prev }; delete n[gw.id]; return n; });
-  };
-
-  const maskValue = (val: string | null) => {
-    if (!val) return "";
-    if (val.length <= 8) return "••••••••";
-    return val.slice(0, 4) + "••••" + val.slice(-4);
   };
 
   if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
@@ -166,8 +135,6 @@ function CityGatewaysCard({ city }: { city: string }) {
         {(gateways ?? []).map((gw) => {
           const merged = getEdit(gw);
           const hasChanges = !!edits[gw.id];
-          const isVisible = showSecrets[gw.id];
-
           return (
             <div key={gw.id} className="rounded-lg border border-border p-4 space-y-4">
               <div className="flex items-center justify-between">
@@ -187,27 +154,20 @@ function CityGatewaysCard({ city }: { city: string }) {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>API Key {gw.name === "razorpay" && "(Key ID)"}</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type={isVisible ? "text" : "password"}
-                      placeholder={`Enter ${gw.display_name} API key`}
-                      value={edits[gw.id]?.api_key ?? (isVisible ? gw.api_key ?? "" : maskValue(gw.api_key))}
-                      onChange={(e) => handleFieldChange(gw.id, "api_key", e.target.value)}
-                      onFocus={() => { if (!edits[gw.id]?.api_key && gw.api_key) handleFieldChange(gw.id, "api_key", gw.api_key); }}
-                    />
-                    <Button variant="outline" size="icon" onClick={() => setShowSecrets((p) => ({ ...p, [gw.id]: !p[gw.id] }))}>
-                      {isVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
+                  <Input
+                    type="password"
+                    placeholder={gw.has_api_key ? "Configured — enter a replacement" : `Enter ${gw.display_name} API key`}
+                    value={edits[gw.id]?.api_key ?? ""}
+                    onChange={(e) => handleFieldChange(gw.id, "api_key", e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>API Secret {gw.name === "razorpay" && "(Key Secret)"}</Label>
                   <Input
-                    type={isVisible ? "text" : "password"}
-                    placeholder={`Enter ${gw.display_name} API secret`}
-                    value={edits[gw.id]?.api_secret ?? (isVisible ? gw.api_secret ?? "" : maskValue(gw.api_secret))}
+                    type="password"
+                    placeholder={gw.has_api_secret ? "Configured — enter a replacement" : `Enter ${gw.display_name} API secret`}
+                    value={edits[gw.id]?.api_secret ?? ""}
                     onChange={(e) => handleFieldChange(gw.id, "api_secret", e.target.value)}
-                    onFocus={() => { if (!edits[gw.id]?.api_secret && gw.api_secret) handleFieldChange(gw.id, "api_secret", gw.api_secret); }}
                   />
                 </div>
               </div>
