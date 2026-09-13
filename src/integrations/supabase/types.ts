@@ -6216,6 +6216,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      claim_rate_limit_attempt: {
+        Args: {
+          p_action: string
+          p_identifier: string
+          p_max_attempts: number
+          p_window_seconds: number
+        }
+        Returns: boolean
+      }
       complete_hour_purchase: {
         Args: {
           p_amount: number
