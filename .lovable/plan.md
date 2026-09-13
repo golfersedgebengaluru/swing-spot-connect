@@ -12,5 +12,5 @@
 - Apply and deploy the database/function changes, run focused checks, then run the complete test suite and report its pass count.
 
 ## Technical details
-- The database function will use transaction-scoped advisory locks keyed by the hashed identifier, then count and insert against `rate_limit_attempts` atomically.
+- The database function will use `pg_advisory_xact_lock` keyed by the hashed identifier inside the same transaction as count-and-insert. PostgreSQL releases this lock automatically at transaction end, including errors; session-scoped `pg_advisory_lock` will not be used.
 - Browser roles will not receive direct access to the limiter table or function; only the server-side operation will use it.
