@@ -68,3 +68,4 @@
 - [ ] Reuse only the existing `rate_limit_attempts` table for hashed-email cooldown and hashed-IP limiting
 - [ ] Suppress reset emails for OAuth-only accounts, preserve uniform HTTP 200 success responses, redact logs, and allowlist redirects
 - [ ] Add and run the six approved regression cases, then run the full test suite
+- [ ] Deploy the database function and password-reset endpoint, then verify no `anon` or `authenticated` table/function grant exists
