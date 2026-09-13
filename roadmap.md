@@ -52,6 +52,6 @@
 - [x] Regression-test role boundaries, secret-free responses, sanitized errors, and unchanged live/test settings
 - [x] Re-authorize the target gateway scope on every update before blank-retain credential merging
 - [x] Treat omitted is_test_mode as unchanged; only an explicitly supplied boolean may change it
-- [ ] Verify preview admin flows; await owner-led real-user live payment and webhook verification
-- [ ] Only after confirmation: isolated revocation of api_key/api_secret/webhook_secret from anon and authenticated
+- [ ] Verify preview admin flows; available test account is not an admin; await authorized platform/city/QC accounts and owner-led real-user live payment and webhook verification
+- [x] Isolated revocation: all direct payment_gateways privileges removed from anon and authenticated; direct reads return 401/403
 - [ ] Separately isolate admin_config.admin_password after its replacement path is verified
