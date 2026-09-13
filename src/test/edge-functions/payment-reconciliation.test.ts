@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { hasValidReconcileSecret } from "../../../supabase/functions/_shared/reconcile-auth";
 
 const webhookSrc = readFileSync(
   resolve(__dirname, "../../../supabase/functions/razorpay-webhook/index.ts"),
@@ -80,6 +81,40 @@ describe("razorpay-webhook signature & reconciliation wiring", () => {
 });
 
 describe("reconcile-pending-payments cron job", () => {
+  it("requires the dedicated secret before backend setup or reconciliation", () => {
+    const authCheck = reconcilerSrc.indexOf("hasValidReconcileSecret(");
+    const unauthorizedReturn = reconcilerSrc.indexOf('status: 401');
+    const backendSetup = reconcilerSrc.indexOf('Deno.env.get("SUPABASE_URL")');
+    const firstPendingQuery = reconcilerSrc.indexOf('.from("pending_guest_bookings")');
+
+    expect(authCheck).toBeGreaterThan(0);
+    expect(unauthorizedReturn).toBeGreaterThan(authCheck);
+    expect(backendSetup).toBeGreaterThan(unauthorizedReturn);
+    expect(firstPendingQuery).toBeGreaterThan(backendSetup);
+    expect(reconcilerSrc).toMatch(/headers\.get\("x-reconcile-secret"\)/);
+    expect(reconcilerSrc).toMatch(/Deno\.env\.get\("RECONCILE_SECRET"\)/);
+  });
+
+  it("rejects missing and incorrect secrets while accepting an exact match", () => {
+    expect(hasValidReconcileSecret(null, "correct-secret")).toBe(false);
+    expect(hasValidReconcileSecret("", "correct-secret")).toBe(false);
+    expect(hasValidReconcileSecret("wrong-secret", "correct-secret")).toBe(false);
+    expect(hasValidReconcileSecret("correct-secret-extra", "correct-secret")).toBe(false);
+    expect(hasValidReconcileSecret("correct-secret", undefined)).toBe(false);
+    expect(hasValidReconcileSecret("correct-secret", "correct-secret")).toBe(true);
+  });
+
+  it("compares the full secret without logging either value", () => {
+    const authHelperSrc = readFileSync(
+      resolve(__dirname, "../../../supabase/functions/_shared/reconcile-auth.ts"),
+      "utf-8",
+    );
+    expect(authHelperSrc).toMatch(/comparisonLength/);
+    expect(authHelperSrc).toMatch(/difference \|=/);
+    expect(authHelperSrc).not.toMatch(/console\.(log|error|warn)/);
+    expect(reconcilerSrc).not.toMatch(/console\.(log|error|warn)\([^\n]*(RECONCILE_SECRET|x-reconcile-secret)/);
+  });
+
   it("queries Razorpay Orders API for pending bookings", () => {
     expect(reconcilerSrc).toMatch(/api\.razorpay\.com\/v1\/orders\//);
   });

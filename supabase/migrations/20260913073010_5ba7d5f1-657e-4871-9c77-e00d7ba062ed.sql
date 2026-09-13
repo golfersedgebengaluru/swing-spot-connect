@@ -1,0 +1,1 @@
+DROP FUNCTION public.configure_reconcile_cron_secret(text);
