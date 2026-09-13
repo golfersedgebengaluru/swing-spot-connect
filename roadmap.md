@@ -65,8 +65,8 @@
 
 ## Password reset abuse protection (approved)
 - [x] Use `pg_advisory_xact_lock` inside the atomic limiter function transaction; never use session-scoped `pg_advisory_lock`
-- [ ] Reuse only the existing `rate_limit_attempts` table for hashed-email cooldown and hashed-IP limiting
+- [ ] Reuse only the restored `rate_limit_attempts` table for hashed-email cooldown and hashed-IP limiting
 - [ ] Suppress reset emails for OAuth-only accounts, preserve uniform HTTP 200 success responses, redact logs, and allowlist redirects
 - [ ] Add and run the six approved regression cases, then run the full test suite
 - [ ] Deploy the database function and password-reset endpoint, then verify no `anon` or `authenticated` table/function grant exists
-- [ ] Blocker: `rate_limit_attempts` exists in repository migration history but is absent from production; approval required before creating it there
+- [x] Restore the originally designed `rate_limit_attempts` table in production with service-only access
