@@ -55,3 +55,10 @@
 - [ ] Verify preview admin flows; available test account is not an admin; await authorized platform/city/QC accounts and owner-led real-user live payment and webhook verification
 - [x] Isolated revocation: all direct payment_gateways privileges removed from anon and authenticated; direct reads return 401/403
 - [ ] Separately isolate admin_config.admin_password after its replacement path is verified
+
+## Reconciliation endpoint authentication (in progress)
+- [ ] Require a dedicated shared-secret header before any payment reconciliation logic runs
+- [ ] Update both active five-minute production schedules to send the secret
+- [ ] Add CI-suite regression tests for missing, incorrect, and valid authentication
+- [ ] Verify deployed missing/wrong-secret calls return 401 and authenticated cron calls succeed
+- [ ] Follow-up decision: keep or consolidate the duplicate cron jobs `reconcile-pending-payments-every-5-min` and `reconcile-pending-payments-every-5min` after stability is confirmed
