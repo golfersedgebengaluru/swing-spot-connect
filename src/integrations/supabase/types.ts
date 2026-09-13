@@ -6229,6 +6229,10 @@ export type Database = {
         }
         Returns: Json
       }
+      configure_reconcile_cron_secret: {
+        Args: { p_secret: string }
+        Returns: number
+      }
       confirm_parental_consent: {
         Args: { _approve: boolean; _token: string }
         Returns: boolean
