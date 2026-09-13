@@ -64,8 +64,9 @@
 - [ ] Follow-up decision: keep or consolidate the duplicate cron jobs `reconcile-pending-payments-every-5-min` and `reconcile-pending-payments-every-5min` after stability is confirmed
 
 ## Password reset abuse protection (approved)
-- [ ] Use `pg_advisory_xact_lock` inside the atomic limiter function transaction; never use session-scoped `pg_advisory_lock`
+- [x] Use `pg_advisory_xact_lock` inside the atomic limiter function transaction; never use session-scoped `pg_advisory_lock`
 - [ ] Reuse only the existing `rate_limit_attempts` table for hashed-email cooldown and hashed-IP limiting
 - [ ] Suppress reset emails for OAuth-only accounts, preserve uniform HTTP 200 success responses, redact logs, and allowlist redirects
 - [ ] Add and run the six approved regression cases, then run the full test suite
 - [ ] Deploy the database function and password-reset endpoint, then verify no `anon` or `authenticated` table/function grant exists
+- [ ] Blocker: `rate_limit_attempts` exists in repository migration history but is absent from production; approval required before creating it there
