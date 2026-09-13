@@ -1,28 +1,39 @@
-# Server-only Payment Gateway Management — Phase 1
+# Authenticate scheduled payment reconciliation
 
-## Goal
-Move all payment-gateway viewing and credential updates out of the browser and behind one authenticated server operation. Preserve every gateway’s existing live/test setting. Do not revoke database access yet; that remains a separate phase after real-user verification.
+## Confirmed production invocation
 
-## Build
-1. Add one server-only gateway management operation with validated actions for list, create, update, and delete.
-2. Authorize each request by the signed-in user:
-   - Platform admins may manage city gateways.
-   - City admins may manage only assigned cities.
-   - QC admins may manage only their assigned tenant.
-3. Return only safe gateway metadata and booleans indicating whether `api_key`, `api_secret`, and `webhook_secret` are configured. Never return stored credential values.
-4. Accept credential replacements without requiring existing values. Blank fields retain existing credentials; an explicit clear action is required to remove one.
-5. Catch internal/provider/database failures, log only non-secret context, and return generic browser-safe errors. Never log request bodies or credential values.
-6. Update the platform, city, and QC payment screens to use this operation. Remove browser reads/writes of gateway credentials and replace “show secret” behavior with configured/not-configured status.
-7. Keep `is_test_mode` exactly as stored unless an authorized admin deliberately changes it. No test-mode conversion or credential replacement is included.
+This function is **not manual-only**. Production has `pg_cron` and `pg_net` enabled and two active jobs invoking it:
 
-## Verification before permission revocation
-- Regression tests in `npm test` for platform/city/QC role boundaries, cross-city/cross-tenant denial, safe response shape, credential retention/replacement, generic errors, and no secret logging.
-- Run the complete test suite and verify the app build.
-- Verify available authenticated admin paths in preview.
-- Deploy the server operation automatically; publish the updated screens for production verification.
-- Owner then performs controlled real-user live payments, confirming order creation, booking completion, webhook processing, emails, invoice, and revenue.
+1. `reconcile-pending-payments-every-5-min`
+   - Schedule: `*/5 * * * *`
+   - Method: `net.http_post`
+   - Headers: `Content-Type` and project API key
+   - Body: `{}`
+2. `reconcile-pending-payments-every-5min`
+   - Schedule: `*/5 * * * *`
+   - Method: `net.http_post`
+   - Headers: `Content-Type`, project API key, and bearer authorization
+   - Body: `{}`
 
-## Explicitly deferred
-- Do not yet revoke `api_key`, `api_secret`, or `webhook_secret` from `anon` or `authenticated`. After the real-user verification succeeds, apply that as a separate isolated migration for both roles.
-- Do not yet change `admin_config.admin_password`. Verify its server-only replacement path, then isolate it separately.
-- Do not change payment mode, payment credentials, prices, bookings, or financial data.
+Production logs confirm two successful calls at each five-minute interval. Neither job currently sends a dedicated reconciliation secret. The endpoint therefore runs twice every five minutes today.
+
+## Planned change
+
+1. Create one strong, dedicated runtime secret for reconciliation authentication. Keep it out of source control, responses, and logs.
+2. Add an authentication gate at the very start of `reconcile-pending-payments`:
+   - Require `x-reconcile-secret`.
+   - Compare it safely with the server-only secret.
+   - Return a generic `401` immediately when missing or incorrect.
+   - Do not create the backend client, read pending rows, contact Razorpay, or perform any reconciliation before this check passes.
+3. Update both existing cron job commands to send the required header so this security-only change does not silently disable either current production invocation.
+4. Do **not** remove or consolidate the duplicate schedules in this change. Their duplicate execution is now documented and should be handled only as a separately approved cleanup.
+5. Add regression coverage for missing, incorrect, and correct secrets, including proof that rejected requests cannot enter reconciliation logic. Do not add rate limiting, replay protection, or other behavior.
+6. Deploy the function and update the scheduler configuration, then call the deployed endpoint without the header and with a wrong value. Both must return `401`.
+7. Confirm the next authenticated scheduled invocation succeeds, while checking that only safe status information appears in logs.
+
+## Report after implementation
+
+- The two production scheduler configurations before and after the change, with all credential values redacted.
+- Why a dedicated shared secret was selected: the caller is an internal scheduler, not a signed-in administrator.
+- Test results and deployed call evidence showing unauthenticated requests return `401` before reconciliation.
+- Confirmation that no rate limiting, replay protection, admin-JWT flow, or unrelated reconciliation logic changed.
