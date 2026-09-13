@@ -8,6 +8,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { finalizeLegacyTeamRegistration, resolveOrCreateLegacyRegistration } from "../_shared/legacy-league-finalize.ts";
 import { finalizeQcEntry } from "../_shared/qc-finalize.ts";
+import { hasValidReconcileSecret } from "../_shared/reconcile-auth.ts";
 
 const RECONCILE_AGE_MIN = 3; // ignore very-fresh rows (browser may still be finalizing)
 const MAX_AGE_HOURS = 24;    // stop trying after a day
@@ -59,7 +60,17 @@ async function fetchRazorpayOrder(
 }
 
 Deno.serve(async (req) => {
-  // Allow either cron (no auth) or manual admin invocation
+  const isAuthorized = hasValidReconcileSecret(
+    req.headers.get("x-reconcile-secret"),
+    Deno.env.get("RECONCILE_SECRET"),
+  );
+  if (!isAuthorized) {
+    return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const admin = createClient(supabaseUrl, serviceKey);
