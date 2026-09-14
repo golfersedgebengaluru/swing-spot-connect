@@ -81,3 +81,7 @@
 - [ ] If absent, report the proposed role and exact minimal grants before making database or workflow changes
 - [ ] Add push/pull-request test and build checks only after the credential design is approved
 - [ ] Add the separate scheduled read-only migration-ledger comparison only after the restricted role is approved
+
+## Product vendor persistence (awaiting approval)
+- [ ] Review the proposed vendor persistence and CSV design for clean, scalable architecture before implementation
+- [ ] Implement only after final approval
