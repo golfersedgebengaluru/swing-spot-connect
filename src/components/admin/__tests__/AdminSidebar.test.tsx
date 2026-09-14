@@ -15,7 +15,14 @@ vi.mock("@/hooks/useAdmin", () => ({
 }));
 
 vi.mock("@/hooks/useSiteAdminPermissions", () => ({
-  useSiteAdminPermissions: () => ({ data: null, isLoading: false }),
+  useSiteAdminPermissions: () => ({
+    data: {
+      can_manage_users: true,
+      can_manage_members: true,
+      can_manage_corporate_accounts: true,
+    },
+    isLoading: false,
+  }),
 }));
 
 vi.mock("@/hooks/useBranding", () => ({

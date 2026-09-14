@@ -9,6 +9,7 @@ describe("members consolidation", () => {
   const admin = read("pages/Admin.tsx");
   const sidebar = read("components/admin/AdminSidebar.tsx");
   const users = read("components/admin/AdminAllUsersTab.tsx");
+  const hoursManager = read("components/admin/MemberHoursManager.tsx");
 
   it("keeps one users destination and redirects legacy member URLs", () => {
     expect(sidebar).toContain('{ id: "allusers", label: "All Users"');
@@ -31,9 +32,13 @@ describe("members consolidation", () => {
     const viewProfile = users.indexOf("View Profile");
     expect(member360).toBeGreaterThan(-1);
     expect(member360).toBeLessThan(viewProfile);
-    for (const action of ["Edit Profile", "Allocate Points", "Adjust Hours", "Points History", "Hours History", "Booking History", "Finance", "Manage Access", "Extended Hours", "Delete User"]) {
+    for (const action of ["Edit Profile", "Allocate Points", "Points History", "Booking History", "Finance", "Manage Access", "Extended Hours", "Delete User"]) {
       expect(users).toContain(action);
     }
+    expect(users).toContain('<HoursActionLabel mode="adjust" />');
+    expect(users).toContain('<HoursActionLabel mode="history" />');
+    expect(hoursManager).toContain("Adjust Hours");
+    expect(hoursManager).toContain("Hours History");
   });
 });
 
