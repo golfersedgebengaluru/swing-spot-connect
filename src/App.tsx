@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AdminRoute } from "@/components/AdminRoute";
 import { QcAdminRoute } from "@/components/QcAdminRoute";
@@ -22,6 +22,7 @@ const Community = lazy(() => import("./pages/Community"));
 const Shop = lazy(() => import("./pages/Shop"));
 const Rewards = lazy(() => import("./pages/Rewards"));
 const Admin = lazy(() => import("./pages/Admin"));
+const Member360 = lazy(() => import("./pages/Member360"));
 const AdminSetup = lazy(() => import("./pages/AdminSetup"));
 const Bookings = lazy(() => import("./pages/Bookings"));
 const PublicBooking = lazy(() => import("./pages/PublicBooking"));
@@ -87,6 +88,8 @@ const App = () => (
               <Route path="/coaching/:sessionId" element={<ErrorBoundary><CoachingSessionDetail /></ErrorBoundary>} />
               <Route path="/admin/setup" element={<ErrorBoundary><AdminSetup /></ErrorBoundary>} />
               <Route path="/admin" element={<ErrorBoundary><AdminRoute><Admin /></AdminRoute></ErrorBoundary>} />
+              <Route path="/members" element={<Navigate to="/admin?tab=allusers&filter=member" replace />} />
+              <Route path="/members/:id/360" element={<ErrorBoundary><AdminRoute><Member360 /></AdminRoute></ErrorBoundary>} />
               <Route path="/qc/:id" element={<ErrorBoundary><QuickCompetitionPublic /></ErrorBoundary>} />
               <Route path="/qc-admin" element={<ErrorBoundary><QcAdminRoute><QcAdmin /></QcAdminRoute></ErrorBoundary>} />
               <Route path="/qc/:id/join" element={<ErrorBoundary><QuickCompetitionJoin /></ErrorBoundary>} />

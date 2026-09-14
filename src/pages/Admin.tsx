@@ -5,7 +5,6 @@ import { AdminEventsTab } from "@/components/admin/AdminEventsTab";
 import { AdminProductsTab } from "@/components/admin/AdminProductsTab";
 
 import { AdminEdgeRewardsTab } from "@/components/admin/AdminEdgeRewardsTab";
-import { AdminMembersTab } from "@/components/admin/AdminMembersTab";
 import { AdminAllUsersTab } from "@/components/admin/AdminAllUsersTab";
 import { AdminPagesTab } from "@/components/admin/AdminPagesTab";
 import { AdminBookingLogsTab } from "@/components/admin/AdminBookingLogsTab";
@@ -85,7 +84,6 @@ const tabComponents: Record<string, React.ComponentType<any>> = {
   
   coaching: AdminCoachingTab,
   coupons: AdminCouponsTab,
-  members: AdminMembersTab,
   allusers: AdminAllUsersTab,
   corporate: AdminCorporateAccountsTab,
   pages: AdminPagesTab,
@@ -113,6 +111,7 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState(() => {
     const urlTab = searchParams.get("tab");
     if (isLeaguesOnly) return "leagues";
+    if (urlTab === "members") return "allusers";
     if (urlTab && tabComponents[urlTab]) return urlTab;
     return coachOnly ? "coaching" : "dashboard";
   });
@@ -132,6 +131,14 @@ export default function Admin() {
   useEffect(() => {
     if (isLeaguesOnly) return;
     const urlTab = searchParams.get("tab");
+    if (urlTab === "members") {
+      setActiveTab("allusers");
+      const next = new URLSearchParams(searchParams);
+      next.set("tab", "allusers");
+      next.set("filter", "member");
+      setSearchParams(next, { replace: true });
+      return;
+    }
     if (urlTab && tabComponents[urlTab] && urlTab !== activeTab) {
       setActiveTab(urlTab);
     }
