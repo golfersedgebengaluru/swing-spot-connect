@@ -106,4 +106,30 @@ describe("ProductForm GST inclusivity invariant", () => {
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect(onSave.mock.calls[0][0].price).toBe(500);
   });
+
+  it("reopens and resaves a product without losing its saved vendor", async () => {
+    const onSave = vi.fn();
+    render(
+      <ProductForm
+        product={{
+          id: "p-1",
+          name: "Club Shirt",
+          item_type: "product",
+          category: "Other",
+          unit_of_measure: "Each",
+          price: 500,
+          gst_rate: 0,
+          vendor_id: "v-1",
+        }}
+        onSave={onSave}
+        onCancel={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Acme Apparel — Bengaluru")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0][0].vendor_id).toBe("v-1");
+  });
 });

@@ -18,6 +18,11 @@ describe.skipIf(!live)("products.vendor_id", () => {
     expect(error).toBeNull();
   });
 
+  it("is exposed by the safe catalogue view for edit/reopen persistence", async () => {
+    const { error } = await supabase.from("products_public").select("id, vendor_id").limit(1);
+    expect(error).toBeNull();
+  });
+
   it("rejects a vendor id that is not a vendor", async () => {
     const { error } = await supabase
       .from("products")

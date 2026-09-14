@@ -82,6 +82,10 @@
 - [ ] Add push/pull-request test and build checks only after the credential design is approved
 - [ ] Add the separate scheduled read-only migration-ledger comparison only after the restricted role is approved
 
-## Product vendor persistence (awaiting approval)
-- [ ] Review the proposed vendor persistence and CSV design for clean, scalable architecture before implementation
-- [ ] Implement only after final approval
+## Product vendor persistence
+- [x] Review the proposed vendor persistence and CSV design for clean, scalable architecture
+- [x] Expose the existing product vendor link through the safe catalogue view without adding a table
+- [x] Preserve the vendor through save, refresh, reopen, and resave
+- [x] Display the saved vendor in product rows
+- [x] Export vendor ID/name and safely resolve CSV imports by ID or exact name and city
+- [x] Add view, form-persistence, ambiguity, and CSV round-trip regression coverage
