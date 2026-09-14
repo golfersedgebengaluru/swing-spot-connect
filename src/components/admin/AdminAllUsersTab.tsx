@@ -340,13 +340,13 @@ export function AdminAllUsersTab() {
       }
 
       return filtered.map((p: any) => {
-        const uid = p.user_id || p.id;
+        const memberHours = (p.user_id ? hoursMap.get(p.user_id) : undefined) ?? hoursMap.get(p.id);
         return {
           ...p,
-          member_hours_id: hoursMap.get(uid)?.id ?? null,
-          hours_purchased: hoursMap.get(uid)?.hours_purchased ?? 0,
-          hours_used: hoursMap.get(uid)?.hours_used ?? 0,
-          hours_remaining: (hoursMap.get(uid)?.hours_purchased ?? 0) - (hoursMap.get(uid)?.hours_used ?? 0),
+          member_hours_id: memberHours?.id ?? null,
+          hours_purchased: memberHours?.hours_purchased ?? 0,
+          hours_used: memberHours?.hours_used ?? 0,
+          hours_remaining: (memberHours?.hours_purchased ?? 0) - (memberHours?.hours_used ?? 0),
         };
       });
     },

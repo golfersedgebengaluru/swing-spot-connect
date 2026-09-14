@@ -40,6 +40,13 @@ function renderSidebar() {
 }
 
 describe("AdminSidebar – width constraint", () => {
+  it("shows All Users and Corporate Accounts without a separate Members entry", () => {
+    renderSidebar();
+    expect(screen.getByText("All Users")).toBeInTheDocument();
+    expect(screen.getByText("Corporate Accounts")).toBeInTheDocument();
+    expect(screen.queryByText("Members")).not.toBeInTheDocument();
+  });
+
   it("desktop aside has max-w and overflow-hidden to prevent width blow-out", () => {
     const { container } = renderSidebar();
     const aside = container.querySelector("aside");

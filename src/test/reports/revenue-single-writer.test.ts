@@ -73,13 +73,13 @@ describe("offline hours purchases", () => {
 
   it("capture what was collected instead of recording zero", () => {
     expect(src).not.toMatch(/transaction_type: "payment" as any/);
-    expect(src).toMatch(/amount: Number\(data\.amount\)/);
+    expect(src).toMatch(/amount: Number\(adjustment\.amount\)/);
     expect(src).toMatch(/Amount Collected/);
     expect(src).toMatch(/Paid By/);
   });
 
   it("only record a sale when money changed hands", () => {
-    expect(src).toMatch(/Number\(data\.amount\) > 0/);
+    expect(src).toMatch(/adjustment\.amount > 0/);
     expect(src).toMatch(/Complimentary/);
   });
 
@@ -88,7 +88,7 @@ describe("offline hours purchases", () => {
   });
 
   it("are keyed to the hours transaction so a retry can't double-count", () => {
-    expect(src).toMatch(/sourceRef: `hours_purchase:\$\{htxn\.id\}`/);
+    expect(src).toMatch(/sourceRef: `hours_purchase:\$\{transaction\.id\}`/);
   });
 
   it("blocks confirming a purchase with no amount or payment method", () => {
