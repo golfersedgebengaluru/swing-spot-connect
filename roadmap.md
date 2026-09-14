@@ -74,4 +74,4 @@
 ## Razorpay webhook dead writes
 - [x] Remove the four dead `orders`/`bookings` payment-column update attempts
 - [x] Log errors returned by every remaining database update in the webhook
-- [ ] Run the full regression suite and report the pass count
+- [x] Run the full regression suite and report the pass count (88 files, 756 tests)
