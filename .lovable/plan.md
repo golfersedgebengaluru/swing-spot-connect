@@ -1,16 +1,17 @@
-# Harden password reset abuse controls
+# Add GitHub Actions quality gates
 
 ## Build
-- Add one atomic database function over the existing `rate_limit_attempts` table; add no table or infrastructure.
-- Apply a 10-minute hashed-email cooldown and five-attempt, 15-minute hashed-IP cap before account lookup.
-- Send reset mail only for accounts with an email/password identity.
-- Keep every endpoint outcome at HTTP 200 with `{ success: true }` and redact identifiers in logs.
-- Accept reset redirects only from the custom, published, and exact preview origins, always using `/reset-password`.
+- Add `.github/workflows/ci.yml` for pushes and pull requests to `main`, using the repository lockfile to install dependencies, then running `npm test` and `npm run build` as separate required steps.
+- Add a separate nightly/manual migration-drift workflow that reads the production migration ledger through a GitHub Actions secret, compares applied migration versions with every repository migration filename, prints every missing migration, and exits non-zero when drift or configuration errors are found.
+- Keep the drift check strictly read-only and change no application files, migrations, or database state.
 
-## Tests
-- Add permanent regression coverage for OAuth-only suppression, email cooldown, IP cap, unsafe redirect fallback, simultaneous-request atomicity, and uniform success responses.
-- Apply and deploy the database/function changes, run focused checks, then run the complete test suite and report its pass count.
+## Verification
+- Validate both workflow files locally.
+- Run the complete test suite and production build.
+- Prove failure propagation by temporarily introducing a deliberately failing test outside committed project files, running the same test command, recording its non-zero result, and removing it immediately.
 
 ## Technical details
-- The database function will use `pg_advisory_xact_lock` keyed by the hashed identifier inside the same transaction as count-and-insert. PostgreSQL releases this lock automatically at transaction end, including errors; session-scoped `pg_advisory_lock` will not be used.
-- Browser roles will not receive direct access to the limiter table or function; only the server-side operation will use it.
+- The drift workflow will expect a GitHub repository secret named `PRODUCTION_DATABASE_URL` with read access to production PostgreSQL. It will query only `supabase_migrations.schema_migrations` and compare the ledger `version` values to the leading numeric version in each `supabase/migrations/*.sql` filename.
+- If the secret is absent, inaccessible, or the ledger query fails, the scheduled check fails rather than silently passing.
+- Notifications remain GitHub-native only: failed workflow runs and GitHub's standard Actions notifications. No external notification channel will be wired.
+- Branch protection cannot be guaranteed from workflow code. After the first CI run, require the CI job's status check in GitHub's `main` branch protection/ruleset and require branches to be up to date before merging.
