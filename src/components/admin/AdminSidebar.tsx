@@ -52,7 +52,6 @@ const coreItems = [
 
 const usersItems = [
   { id: "allusers", label: "All Users", icon: Users },
-  { id: "members", label: "Members", icon: Users },
   { id: "corporate", label: "Corporate Accounts", icon: Building2 },
 ];
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Loader2, MinusCircle, PlusCircle, Star, Award, UserCheck, ChevronLeft, ChevronRight, Clock, MoreHorizontal, Pencil, History, Trash2, Search, Wallet, Eye, ShieldCheck } from "lucide-react";
+import { Plus, Loader2, MinusCircle, PlusCircle, Star, Award, UserCheck, ChevronLeft, ChevronRight, Clock, MoreHorizontal, Pencil, History, Trash2, Search, Wallet, Eye, ShieldCheck, CircleUserRound } from "lucide-react";
 import { CustomerFinanceDialog } from "@/components/admin/CustomerFinanceDialog";
 import { ViewUserProfileDialog } from "@/components/admin/ViewUserProfileDialog";
 import { UserAccessDialog } from "@/components/admin/UserAccessDialog";
@@ -22,8 +23,9 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAdminCity } from "@/contexts/AdminCityContext";
-import { useHoursTransactions } from "@/hooks/useMemberHours";
-import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
+import { HoursBalanceBadge } from "@/components/admin/HoursBalanceBadge";
+import { HoursActionLabel, MemberHoursManager } from "@/components/admin/MemberHoursManager";
+import { matchesMemberFilter, type MemberFilter } from "@/lib/member-utils";
 
 // ─── Sub-components ──────────────────────────────────────────────
 
@@ -43,31 +45,6 @@ function PointsTransactionHistory({ userId }: { userId: string }) {
           <div className="flex items-center gap-3">
             <span className={t.type === "redemption" ? "text-destructive" : "text-primary"}>
               {t.type === "redemption" ? "-" : "+"}{t.points} pts
-            </span>
-            <span className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function HoursTransactionHistory({ userId }: { userId: string }) {
-  const { data: transactions, isLoading } = useHoursTransactions(userId);
-  if (isLoading) return <Loader2 className="mx-auto h-6 w-6 animate-spin" />;
-  if (!transactions?.length) return <p className="text-sm text-muted-foreground">No hours transactions yet.</p>;
-  return (
-    <div className="space-y-2 max-h-60 overflow-y-auto">
-      {transactions.map((t) => (
-        <div key={t.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
-          <div className="flex items-center gap-2">
-            {t.type === "deduction" ? <MinusCircle className="h-4 w-4 text-destructive" /> : <PlusCircle className="h-4 w-4 text-primary" />}
-            <span className="capitalize">{t.type}</span>
-            {t.note && <span className="text-muted-foreground">— {t.note}</span>}
-          </div>
-          <div className="flex items-center gap-3">
-            <span className={t.type === "deduction" ? "text-destructive" : "text-primary"}>
-              {t.type === "deduction" ? "-" : "+"}{t.hours} hrs
             </span>
             <span className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</span>
           </div>
@@ -261,75 +238,6 @@ function InlineAllocatePointsForm({ displayName, onSave, onCancel }: { displayNa
   );
 }
 
-const INLINE_ADJUST_REASONS = ["Correction", "Comp", "Refund", "Walk-in", "Missed booking", "Other"] as const;
-
-function InlineAdjustHoursForm({ displayName, hoursRemaining, onSave, onCancel }: { displayName: string; hoursRemaining: number; onSave: (data: { type: string; hours: number; note: string; reason: string; service_date: string | null }) => void; onCancel: () => void }) {
-  const todayISO = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState({ type: "purchase", hours: 0, note: "", reason: "", service_date: todayISO });
-  const isDeduction = form.type === "deduction";
-  const nudge = isDeduction && (form.reason === "Walk-in" || form.reason === "Missed booking");
-  const noteTrimmed = form.note.trim();
-  const canConfirm =
-    form.hours > 0 &&
-    !!form.reason &&
-    noteTrimmed.length > 0 &&
-    (!isDeduction || !!form.service_date);
-  return (
-    <div className="space-y-4">
-      <div className="rounded-lg bg-muted p-3">
-        <p className="text-sm text-muted-foreground">User: <span className="font-medium text-foreground">{displayName}</span></p>
-        <p className="text-sm text-muted-foreground">Hours remaining: <span className="font-medium text-foreground">{hoursRemaining} hrs</span></p>
-      </div>
-      <div>
-        <Label>Action</Label>
-        <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="purchase">Add Hours</SelectItem>
-            <SelectItem value="deduction">Deduct Hours</SelectItem>
-            <SelectItem value="adjustment">Adjustment</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div><Label>Hours</Label><Input type="number" step="0.5" min="0" value={form.hours || ""} onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })} /></div>
-      <div>
-        <Label>Reason <span className="text-destructive">*</span></Label>
-        <Select value={form.reason} onValueChange={(v) => setForm({ ...form, reason: v })}>
-          <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
-          <SelectContent>
-            {INLINE_ADJUST_REASONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-      {nudge && (
-        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
-          For walk-ins or missed entries, prefer <strong>Manual Booking</strong> (back-dated) — it creates a proper booking, invoice, and "My Bookings" entry. Use this form only when no booking row is needed.
-        </div>
-      )}
-      {isDeduction && (
-        <div>
-          <Label>Service Date <span className="text-destructive">*</span></Label>
-          <Input type="date" max={todayISO} value={form.service_date} onChange={(e) => setForm({ ...form, service_date: e.target.value })} />
-          <p className="mt-1 text-xs text-muted-foreground">When were the hours actually used?</p>
-        </div>
-      )}
-      <div>
-        <Label>Note <span className="text-destructive">*</span></Label>
-        <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Details for the audit trail" />
-      </div>
-      <div className="flex gap-2 justify-end">
-        <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button
-          onClick={() => onSave({ ...form, note: noteTrimmed, service_date: isDeduction ? form.service_date : null })}
-          disabled={!canConfirm}
-        >
-          Confirm
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 function EditProfileForm({ profile, onSave, onCancel }: { profile: any; onSave: (data: { display_name: string; email: string; phone: string; preferred_city: string }) => void; onCancel: () => void }) {
   const [form, setForm] = useState({
     display_name: profile.display_name || "",
@@ -370,6 +278,8 @@ const USER_TYPES = [
 // ─── Main Component ──────────────────────────────────────────────
 
 export function AdminAllUsersTab() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -378,13 +288,14 @@ export function AdminAllUsersTab() {
   const redeemPoints = useRedeemPoints();
   const [dialogOpen, setDialogOpen] = useState<string | null>(null);
   const [viewingPointsHistory, setViewingPointsHistory] = useState<string | null>(null);
-  const [viewingHoursHistory, setViewingHoursHistory] = useState<string | null>(null);
   const [viewingBookingHistory, setViewingBookingHistory] = useState<{ userId: string; profileId?: string } | null>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(0);
+  const requestedFilter = searchParams.get("filter");
+  const typeFilter: MemberFilter = requestedFilter === "pre-registered" || requestedFilter === "registered" || requestedFilter === "member" ? requestedFilter : "all";
   const PAGE_SIZE = 50;
   const { isAdmin, assignedCities } = useAdmin();
   const { selectedCity } = useAdminCity();
@@ -432,6 +343,7 @@ export function AdminAllUsersTab() {
         const uid = p.user_id || p.id;
         return {
           ...p,
+          member_hours_id: hoursMap.get(uid)?.id ?? null,
           hours_purchased: hoursMap.get(uid)?.hours_purchased ?? 0,
           hours_used: hoursMap.get(uid)?.hours_used ?? 0,
           hours_remaining: (hoursMap.get(uid)?.hours_purchased ?? 0) - (hoursMap.get(uid)?.hours_used ?? 0),
@@ -443,6 +355,7 @@ export function AdminAllUsersTab() {
   // ─── Filtered + paginated data ─────────────────────────────────
 
   const filteredUsers = (allUsers ?? []).filter((u: any) => {
+    if (!matchesMemberFilter(typeFilter, u.user_id, u.member_hours_id)) return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (u.display_name?.toLowerCase().includes(q)) || (u.email?.toLowerCase().includes(q));
@@ -518,60 +431,6 @@ export function AdminAllUsersTab() {
     try {
       await allocatePoints.mutateAsync({ userId, points: data.points, description: data.description, adminId: user?.id!, isProfileId });
       toast({ title: "Points allocated", description: `${data.points} points awarded.` });
-      setDialogOpen(null);
-      setSelectedUser(null);
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    }
-  };
-
-  const handleInlineAdjustHours = async (userId: string, data: { type: string; hours: number; note: string; reason: string; service_date: string | null }) => {
-    try {
-      const { data: existing } = await supabase
-        .from("member_hours")
-        .select("id, hours_purchased, hours_used")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (existing) {
-        const newPurchased = data.type === "purchase" || (data.type === "adjustment" && data.hours > 0)
-          ? existing.hours_purchased + data.hours : existing.hours_purchased;
-        const newUsed = data.type === "deduction" ? existing.hours_used + data.hours : existing.hours_used;
-        const { error } = await supabase.from("member_hours").update({ hours_purchased: newPurchased, hours_used: newUsed }).eq("id", existing.id);
-        if (error) throw error;
-      } else {
-        const hours_purchased = data.type === "purchase" || data.type === "adjustment" ? data.hours : 0;
-        const hours_used = data.type === "deduction" ? data.hours : 0;
-        const { error } = await supabase.from("member_hours").insert({ user_id: userId, hours_purchased, hours_used });
-        if (error) throw error;
-      }
-
-      await supabase.from("hours_transactions").insert({
-        user_id: userId,
-        type: data.type,
-        hours: data.hours,
-        note: data.note || null,
-        reason: data.reason || null,
-        service_date: data.type === "deduction" ? data.service_date : null,
-        created_by: user?.id,
-      });
-
-      if (data.type === "deduction") {
-        const remaining = existing ? existing.hours_purchased - (existing.hours_used + data.hours) : -data.hours;
-        await supabase.from("notifications").insert({
-          user_id: userId, title: "Hours Deducted",
-          message: `${data.hours} hour(s) have been deducted. You have ${Math.max(0, remaining)} hour(s) remaining.${data.note ? ` Note: ${data.note}` : ""}`,
-          type: "usage",
-        });
-        if (remaining <= 2 && remaining > 0) {
-          sendNotificationEmail({ user_id: userId, template: "low_hours_alert", subject: "Low Hours Alert", data: { hours_remaining: remaining, purchase_url: `${window.location.origin}/dashboard` } });
-        }
-      }
-
-      toast({ title: "Hours updated" });
-      queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
-      queryClient.invalidateQueries({ queryKey: ["member_hours"] });
-      queryClient.invalidateQueries({ queryKey: ["hours_transactions", userId] });
       setDialogOpen(null);
       setSelectedUser(null);
     } catch (err: any) {
@@ -670,12 +529,9 @@ export function AdminAllUsersTab() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialogOpen === "hourshistory"} onOpenChange={(open) => { setDialogOpen(open ? "hourshistory" : null); if (!open) setViewingHoursHistory(null); }}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>Hours History</DialogTitle></DialogHeader>
-          {viewingHoursHistory && <HoursTransactionHistory userId={viewingHoursHistory} />}
-        </DialogContent>
-      </Dialog>
+      {dialogOpen === "hourshistory" && selectedUser && (
+        <MemberHoursManager member={selectedUser} mode="history" selectedCity={selectedCity} onClose={() => { setDialogOpen(null); setSelectedUser(null); }} />
+      )}
 
       <Dialog open={dialogOpen === "bookinghistory"} onOpenChange={(open) => { setDialogOpen(open ? "bookinghistory" : null); if (!open) setViewingBookingHistory(null); }}>
         <DialogContent className="sm:max-w-2xl">
@@ -693,12 +549,9 @@ export function AdminAllUsersTab() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialogOpen === "inlineadjusthours"} onOpenChange={(open) => { setDialogOpen(open ? "inlineadjusthours" : null); if (!open) setSelectedUser(null); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Adjust Hours</DialogTitle></DialogHeader>
-          {selectedUser && <InlineAdjustHoursForm displayName={selectedUser.display_name || "User"} hoursRemaining={selectedUser.hours_remaining ?? 0} onSave={(data) => handleInlineAdjustHours(selectedUser.user_id || selectedUser.id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
-        </DialogContent>
-      </Dialog>
+      {dialogOpen === "inlineadjusthours" && selectedUser && (
+        <MemberHoursManager member={selectedUser} mode="adjust" selectedCity={selectedCity} onClose={() => { setDialogOpen(null); setSelectedUser(null); }} />
+      )}
 
       <Dialog open={dialogOpen === "editprofile"} onOpenChange={(open) => { setDialogOpen(open ? "editprofile" : null); if (!open) setSelectedUser(null); }}>
         <DialogContent className="sm:max-w-md">
@@ -749,10 +602,26 @@ export function AdminAllUsersTab() {
         />
       )}
 
-      {/* Search bar */}
-      <div className="relative w-64">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search name or email…" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }} className="pl-9 h-9" />
+      {/* Search and type filter */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative w-full sm:w-64">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search name or email…" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }} className="pl-9 h-9" />
+        </div>
+        <Select value={typeFilter} onValueChange={(value: MemberFilter) => {
+          const next = new URLSearchParams(searchParams);
+          if (value === "all") next.delete("filter"); else next.set("filter", value);
+          setSearchParams(next, { replace: true });
+          setPage(0);
+        }}>
+          <SelectTrigger className="h-9 w-full sm:w-44" aria-label="Type filter"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="pre-registered">Pre-registered</SelectItem>
+            <SelectItem value="registered">Registered</SelectItem>
+            <SelectItem value="member">Member</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Main table */}
@@ -767,7 +636,7 @@ export function AdminAllUsersTab() {
                     <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium w-[35%]"><span className="pl-[44px]">User</span></TableHead>
                     <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Type</TableHead>
                     <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Points</TableHead>
-                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Hours</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Remaining hours</TableHead>
                     <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -784,15 +653,6 @@ export function AdminAllUsersTab() {
                     const avatarClass = avatarColors[idx % avatarColors.length];
 
                     const hoursRemaining = u.hours_remaining ?? 0;
-                    let hoursPillClass = "bg-green-500/15 text-green-400";
-                    let hoursDotClass = "bg-green-400";
-                    if (hoursRemaining <= 1) {
-                      hoursPillClass = "bg-red-500/15 text-red-400";
-                      hoursDotClass = "bg-red-400";
-                    } else if (hoursRemaining <= 3) {
-                      hoursPillClass = "bg-amber-500/15 text-amber-400";
-                      hoursDotClass = "bg-amber-400";
-                    }
 
                     const points = u.points ?? 0;
 
@@ -810,6 +670,7 @@ export function AdminAllUsersTab() {
                                 {!u.user_id && u.user_type === "guest" && (
                                   <span className="inline-flex items-center rounded-full bg-amber-500/15 text-amber-400 border border-amber-400/30 px-1.5 py-0 text-[10px] font-medium shrink-0">Pending</span>
                                 )}
+                                {u.member_hours_id && <Badge variant="secondary" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px]">Member</Badge>}
                               </div>
                               <div className="text-xs text-muted-foreground truncate">{u.email || "—"}</div>
                             </div>
@@ -839,10 +700,7 @@ export function AdminAllUsersTab() {
 
                         {/* Hours */}
                         <TableCell className="py-3 text-center">
-                          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${hoursPillClass}`}>
-                            <span className={`h-1.5 w-1.5 rounded-full ${hoursDotClass}`} />
-                            {hoursRemaining} hrs
-                          </span>
+                          {u.member_hours_id ? <HoursBalanceBadge remaining={hoursRemaining} /> : <span className="text-muted-foreground">—</span>}
                         </TableCell>
 
                         {/* Actions */}
@@ -854,6 +712,10 @@ export function AdminAllUsersTab() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem onClick={() => navigate(`/members/${u.id}/360`)}>
+                                <CircleUserRound className="mr-2 h-4 w-4" />Member360
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("viewprofile"); }}>
                                 <Eye className="mr-2 h-4 w-4" />View Profile
                               </DropdownMenuItem>
@@ -865,14 +727,14 @@ export function AdminAllUsersTab() {
                                 <Star className="mr-2 h-4 w-4" />Allocate Points
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("inlineadjusthours"); }}>
-                                <Clock className="mr-2 h-4 w-4" />Adjust Hours
+                                <HoursActionLabel mode="adjust" />
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => { setViewingPointsHistory(u.user_id || u.id); setDialogOpen("pointshistory"); }}>
                                 <History className="mr-2 h-4 w-4" />Points History
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => { setViewingHoursHistory(u.user_id || u.id); setDialogOpen("hourshistory"); }}>
-                                <History className="mr-2 h-4 w-4" />Hours History
+                              <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("hourshistory"); }}>
+                                <HoursActionLabel mode="history" />
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setViewingBookingHistory({ userId: u.user_id || u.id, profileId: u.id }); setDialogOpen("bookinghistory"); }}>
                                 <History className="mr-2 h-4 w-4" />Booking History
