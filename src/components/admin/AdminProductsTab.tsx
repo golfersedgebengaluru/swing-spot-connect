@@ -17,28 +17,14 @@ import { useAdmin } from "@/hooks/useAdmin";
 import { useCities } from "@/hooks/useBookings";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useProductCostPrices, useSetProductCostPrice } from "@/hooks/useCostPrice";
-
-const CSV_HEADERS = ["name", "description", "price", "cost_price", "category", "item_type", "sku", "unit_of_measure", "hsn_code", "sac_code", "gst_rate", "in_stock", "opening_stock", "reorder_level", "reorder_quantity", "duration_minutes", "bookable", "city"];
-
-function parseCSVLine(line: string): string[] {
-  const result: string[] = [];
-  let current = "";
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') {
-      if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
-      else inQuotes = !inQuotes;
-    } else if (ch === "," && !inQuotes) {
-      result.push(current.trim());
-      current = "";
-    } else {
-      current += ch;
-    }
-  }
-  result.push(current.trim());
-  return result;
-}
+import { useVendors } from "@/hooks/useVendors";
+import {
+  escapeCSVValue,
+  getVendorName,
+  parseCSVLine,
+  PRODUCT_CSV_HEADERS,
+  resolveVendorId,
+} from "@/lib/product-vendor-csv";
 
 export function AdminProductsTab() {
   const { toast } = useToast();
@@ -48,6 +34,7 @@ export function AdminProductsTab() {
   const { isAdmin, isSiteAdmin, assignedCities } = useAdmin();
   const { data: allCities } = useCities();
   const { selectedCity: globalCity } = useAdminCity();
+  const { data: vendors = [] } = useVendors(undefined, { allCities: true });
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -135,18 +122,18 @@ export function AdminProductsTab() {
 
   const handleExport = () => {
     if (!filteredProducts.length) return;
-    const rows = filteredProducts.map((p: any) => CSV_HEADERS.map((h) => {
+    const rows = filteredProducts.map((p: any) => PRODUCT_CSV_HEADERS.map((h) => {
       let val: any;
       if (h === "cost_price") {
         val = costPriceMap?.get(p.id) ?? "";
+      } else if (h === "vendor") {
+        val = getVendorName(p.vendor_id, vendors);
       } else {
         val = p[h];
       }
-      if (val === null || val === undefined) return "";
-      const str = String(val);
-      return str.includes(",") || str.includes('"') || str.includes("\n") ? `"${str.replace(/"/g, '""')}"` : str;
+      return escapeCSVValue(val);
     }).join(","));
-    const csv = [CSV_HEADERS.join(","), ...rows].join("\n");
+    const csv = [PRODUCT_CSV_HEADERS.join(","), ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -173,7 +160,7 @@ export function AdminProductsTab() {
         const values = parseCSVLine(lines[i]);
         const row: any = {};
         headerMap.forEach((col, idx) => {
-          if (CSV_HEADERS.includes(col)) row[col] = values[idx] ?? "";
+          if ((PRODUCT_CSV_HEADERS as readonly string[]).includes(col)) row[col] = values[idx] ?? "";
         });
         if (!row.name) continue;
         row.price = Number(row.price) || 0;
@@ -202,6 +189,8 @@ export function AdminProductsTab() {
         } else {
           row.city = null;
         }
+        row.vendor_id = resolveVendorId(row.vendor_id, row.vendor, row.city, vendors);
+        delete row.vendor;
         rows.push(row);
       }
       if (rows.length === 0) throw new Error("No valid data rows found.");
@@ -330,6 +319,7 @@ export function AdminProductsTab() {
                       {p.sac_code && ` · SAC: ${p.sac_code}`}
                       {isService && p.duration_minutes && ` · ${p.duration_minutes}min`}
                       {isService && p.bookable && ` · Bookable`}
+                      {!isService && p.vendor_id && ` · Vendor: ${getVendorName(p.vendor_id, vendors) || "Unknown vendor"}`}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">

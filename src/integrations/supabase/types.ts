@@ -5965,6 +5965,7 @@ export type Database = {
           sort_order: number | null
           unit_of_measure: string | null
           updated_at: string | null
+          vendor_id: string | null
         }
         Insert: {
           badge?: string | null
@@ -5994,6 +5995,7 @@ export type Database = {
           sort_order?: number | null
           unit_of_measure?: string | null
           updated_at?: string | null
+          vendor_id?: string | null
         }
         Update: {
           badge?: string | null
@@ -6023,6 +6025,7 @@ export type Database = {
           sort_order?: number | null
           unit_of_measure?: string | null
           updated_at?: string | null
+          vendor_id?: string | null
         }
         Relationships: [
           {
@@ -6030,6 +6033,13 @@ export type Database = {
             columns: ["corporate_account_id"]
             isOneToOne: false
             referencedRelation: "corporate_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
             referencedColumns: ["id"]
           },
         ]
