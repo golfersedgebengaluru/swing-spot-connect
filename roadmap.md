@@ -75,3 +75,9 @@
 - [x] Remove the four dead `orders`/`bookings` payment-column update attempts
 - [x] Log errors returned by every remaining database update in the webhook
 - [x] Run the full regression suite and report the pass count (88 files, 756 tests)
+
+## GitHub Actions CI and migration drift detection (paused for audit)
+- [ ] Before creating any production connection secret, identify whether a dedicated read-only migration-ledger role already exists
+- [ ] If absent, report the proposed role and exact minimal grants before making database or workflow changes
+- [ ] Add push/pull-request test and build checks only after the credential design is approved
+- [ ] Add the separate scheduled read-only migration-ledger comparison only after the restricted role is approved
