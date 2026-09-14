@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 vi.mock("@/contexts/AuthContext", () => ({
@@ -15,7 +15,14 @@ vi.mock("@/hooks/useAdmin", () => ({
 }));
 
 vi.mock("@/hooks/useSiteAdminPermissions", () => ({
-  useSiteAdminPermissions: () => ({ data: null, isLoading: false }),
+  useSiteAdminPermissions: () => ({
+    data: {
+      can_manage_users: true,
+      can_manage_members: true,
+      can_manage_corporate_accounts: true,
+    },
+    isLoading: false,
+  }),
 }));
 
 vi.mock("@/hooks/useBranding", () => ({
@@ -40,6 +47,14 @@ function renderSidebar() {
 }
 
 describe("AdminSidebar – width constraint", () => {
+  it("shows All Users and Corporate Accounts without a separate Members entry", () => {
+    renderSidebar();
+    fireEvent.click(screen.getByText("Users"));
+    expect(screen.getByText("All Users")).toBeInTheDocument();
+    expect(screen.getByText("Corporate Accounts")).toBeInTheDocument();
+    expect(screen.queryByText("Members")).not.toBeInTheDocument();
+  });
+
   it("desktop aside has max-w and overflow-hidden to prevent width blow-out", () => {
     const { container } = renderSidebar();
     const aside = container.querySelector("aside");
