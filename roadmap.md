@@ -89,3 +89,9 @@
 - [x] Display the saved vendor in product rows
 - [x] Export vendor ID/name and safely resolve CSV imports by ID or exact name and city
 - [x] Add view, form-persistence, ambiguity, and CSV round-trip regression coverage
+
+## Members consolidation and Member360 (awaiting approval)
+- [ ] Merge Members into All Users with URL-backed type filtering and compatibility redirects
+- [ ] Consolidate hours adjustment/history while preserving offline revenue recording
+- [ ] Add the authorized, dual-key Member360 page using existing data only
+- [ ] Add regression coverage and verify desktop/mobile authenticated flows
