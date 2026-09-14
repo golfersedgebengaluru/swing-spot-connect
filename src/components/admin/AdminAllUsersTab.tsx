@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Loader2, MinusCircle, PlusCircle, Star, Award, UserCheck, ChevronLeft, ChevronRight, Clock, MoreHorizontal, Pencil, History, Trash2, Search, Wallet, Eye, ShieldCheck } from "lucide-react";
+import { Plus, Loader2, MinusCircle, PlusCircle, Star, Award, UserCheck, ChevronLeft, ChevronRight, Clock, MoreHorizontal, Pencil, History, Trash2, Search, Wallet, Eye, ShieldCheck, CircleUserRound } from "lucide-react";
 import { CustomerFinanceDialog } from "@/components/admin/CustomerFinanceDialog";
 import { ViewUserProfileDialog } from "@/components/admin/ViewUserProfileDialog";
 import { UserAccessDialog } from "@/components/admin/UserAccessDialog";
@@ -24,6 +25,9 @@ import { useAdmin } from "@/hooks/useAdmin";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useHoursTransactions } from "@/hooks/useMemberHours";
 import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
+import { HoursBalanceBadge } from "@/components/admin/HoursBalanceBadge";
+import { HoursActionLabel, MemberHoursManager } from "@/components/admin/MemberHoursManager";
+import { matchesMemberFilter, type MemberFilter } from "@/lib/member-utils";
 
 // ─── Sub-components ──────────────────────────────────────────────
 
@@ -370,6 +374,8 @@ const USER_TYPES = [
 // ─── Main Component ──────────────────────────────────────────────
 
 export function AdminAllUsersTab() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -385,6 +391,8 @@ export function AdminAllUsersTab() {
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(0);
+  const requestedFilter = searchParams.get("filter");
+  const typeFilter: MemberFilter = requestedFilter === "pre-registered" || requestedFilter === "registered" || requestedFilter === "member" ? requestedFilter : "all";
   const PAGE_SIZE = 50;
   const { isAdmin, assignedCities } = useAdmin();
   const { selectedCity } = useAdminCity();
@@ -432,6 +440,7 @@ export function AdminAllUsersTab() {
         const uid = p.user_id || p.id;
         return {
           ...p,
+          member_hours_id: hoursMap.get(uid)?.id ?? null,
           hours_purchased: hoursMap.get(uid)?.hours_purchased ?? 0,
           hours_used: hoursMap.get(uid)?.hours_used ?? 0,
           hours_remaining: (hoursMap.get(uid)?.hours_purchased ?? 0) - (hoursMap.get(uid)?.hours_used ?? 0),
@@ -443,6 +452,7 @@ export function AdminAllUsersTab() {
   // ─── Filtered + paginated data ─────────────────────────────────
 
   const filteredUsers = (allUsers ?? []).filter((u: any) => {
+    if (!matchesMemberFilter(typeFilter, u.user_id, u.member_hours_id)) return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (u.display_name?.toLowerCase().includes(q)) || (u.email?.toLowerCase().includes(q));
@@ -749,10 +759,26 @@ export function AdminAllUsersTab() {
         />
       )}
 
-      {/* Search bar */}
-      <div className="relative w-64">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search name or email…" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }} className="pl-9 h-9" />
+      {/* Search and type filter */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative w-full sm:w-64">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search name or email…" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }} className="pl-9 h-9" />
+        </div>
+        <Select value={typeFilter} onValueChange={(value: MemberFilter) => {
+          const next = new URLSearchParams(searchParams);
+          if (value === "all") next.delete("filter"); else next.set("filter", value);
+          setSearchParams(next, { replace: true });
+          setPage(0);
+        }}>
+          <SelectTrigger className="h-9 w-full sm:w-44" aria-label="Type filter"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="pre-registered">Pre-registered</SelectItem>
+            <SelectItem value="registered">Registered</SelectItem>
+            <SelectItem value="member">Member</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Main table */}
@@ -784,15 +810,6 @@ export function AdminAllUsersTab() {
                     const avatarClass = avatarColors[idx % avatarColors.length];
 
                     const hoursRemaining = u.hours_remaining ?? 0;
-                    let hoursPillClass = "bg-green-500/15 text-green-400";
-                    let hoursDotClass = "bg-green-400";
-                    if (hoursRemaining <= 1) {
-                      hoursPillClass = "bg-red-500/15 text-red-400";
-                      hoursDotClass = "bg-red-400";
-                    } else if (hoursRemaining <= 3) {
-                      hoursPillClass = "bg-amber-500/15 text-amber-400";
-                      hoursDotClass = "bg-amber-400";
-                    }
 
                     const points = u.points ?? 0;
 
@@ -810,6 +827,7 @@ export function AdminAllUsersTab() {
                                 {!u.user_id && u.user_type === "guest" && (
                                   <span className="inline-flex items-center rounded-full bg-amber-500/15 text-amber-400 border border-amber-400/30 px-1.5 py-0 text-[10px] font-medium shrink-0">Pending</span>
                                 )}
+                                {u.member_hours_id && <Badge variant="secondary" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px]">Member</Badge>}
                               </div>
                               <div className="text-xs text-muted-foreground truncate">{u.email || "—"}</div>
                             </div>
@@ -839,10 +857,7 @@ export function AdminAllUsersTab() {
 
                         {/* Hours */}
                         <TableCell className="py-3 text-center">
-                          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${hoursPillClass}`}>
-                            <span className={`h-1.5 w-1.5 rounded-full ${hoursDotClass}`} />
-                            {hoursRemaining} hrs
-                          </span>
+                          {u.member_hours_id ? <HoursBalanceBadge remaining={hoursRemaining} /> : <span className="text-muted-foreground">—</span>}
                         </TableCell>
 
                         {/* Actions */}
@@ -854,6 +869,10 @@ export function AdminAllUsersTab() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem onClick={() => navigate(`/members/${u.id}/360`)}>
+                                <CircleUserRound className="mr-2 h-4 w-4" />Member360
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("viewprofile"); }}>
                                 <Eye className="mr-2 h-4 w-4" />View Profile
                               </DropdownMenuItem>
@@ -865,14 +884,14 @@ export function AdminAllUsersTab() {
                                 <Star className="mr-2 h-4 w-4" />Allocate Points
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("inlineadjusthours"); }}>
-                                <Clock className="mr-2 h-4 w-4" />Adjust Hours
+                                <HoursActionLabel mode="adjust" />
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => { setViewingPointsHistory(u.user_id || u.id); setDialogOpen("pointshistory"); }}>
                                 <History className="mr-2 h-4 w-4" />Points History
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setViewingHoursHistory(u.user_id || u.id); setDialogOpen("hourshistory"); }}>
-                                <History className="mr-2 h-4 w-4" />Hours History
+                                <HoursActionLabel mode="history" />
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setViewingBookingHistory({ userId: u.user_id || u.id, profileId: u.id }); setDialogOpen("bookinghistory"); }}>
                                 <History className="mr-2 h-4 w-4" />Booking History
