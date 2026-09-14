@@ -78,6 +78,19 @@ describe("razorpay-webhook signature & reconciliation wiring", () => {
     expect(webhookSrc).not.toMatch(/payment\.failed[\s\S]{0,2000}pending_guest_bookings[\s\S]{0,200}status:\s*"failed"/);
     expect(webhookSrc).toMatch(/payment\.failed[\s\S]+leaving pending_\* rows untouched/);
   });
+
+  it("does not write removed payment columns on orders or bookings", () => {
+    expect(webhookSrc).not.toMatch(/\.from\("(?:orders|bookings)"\)[\s\S]{0,200}\.update\(/);
+    expect(webhookSrc).not.toMatch(/payment_status|razorpay_payment_id/);
+  });
+
+  it("logs failures from every remaining database update", () => {
+    expect(webhookSrc).toMatch(/pendingPurchaseUpdateError[\s\S]{0,300}console\.error/);
+    expect(webhookSrc).toMatch(/pendingGuestUpdateError[\s\S]{0,300}console\.error/);
+    expect(webhookSrc).toMatch(/pendingLegacyErrorUpdateError[\s\S]{0,300}console\.error/);
+    expect(webhookSrc).toMatch(/pendingLegacyCompleteUpdateError[\s\S]{0,300}console\.error/);
+    expect(webhookSrc).toMatch(/processedUpdateError[\s\S]{0,300}console\.error/);
+  });
 });
 
 describe("reconcile-pending-payments cron job", () => {

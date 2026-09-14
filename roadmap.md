@@ -70,3 +70,8 @@
 - [ ] Add and run the six approved regression cases, then run the full test suite
 - [ ] Deploy the database function and password-reset endpoint, then verify no `anon` or `authenticated` table/function grant exists
 - [x] Restore the originally designed `rate_limit_attempts` table in production with service-only access
+
+## Razorpay webhook dead writes
+- [x] Remove the four dead `orders`/`bookings` payment-column update attempts
+- [x] Log errors returned by every remaining database update in the webhook
+- [ ] Run the full regression suite and report the pass count
