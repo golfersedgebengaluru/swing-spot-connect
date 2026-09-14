@@ -23,8 +23,6 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useAdminCity } from "@/contexts/AdminCityContext";
-import { useHoursTransactions } from "@/hooks/useMemberHours";
-import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
 import { HoursBalanceBadge } from "@/components/admin/HoursBalanceBadge";
 import { HoursActionLabel, MemberHoursManager } from "@/components/admin/MemberHoursManager";
 import { matchesMemberFilter, type MemberFilter } from "@/lib/member-utils";
@@ -47,31 +45,6 @@ function PointsTransactionHistory({ userId }: { userId: string }) {
           <div className="flex items-center gap-3">
             <span className={t.type === "redemption" ? "text-destructive" : "text-primary"}>
               {t.type === "redemption" ? "-" : "+"}{t.points} pts
-            </span>
-            <span className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function HoursTransactionHistory({ userId }: { userId: string }) {
-  const { data: transactions, isLoading } = useHoursTransactions(userId);
-  if (isLoading) return <Loader2 className="mx-auto h-6 w-6 animate-spin" />;
-  if (!transactions?.length) return <p className="text-sm text-muted-foreground">No hours transactions yet.</p>;
-  return (
-    <div className="space-y-2 max-h-60 overflow-y-auto">
-      {transactions.map((t) => (
-        <div key={t.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
-          <div className="flex items-center gap-2">
-            {t.type === "deduction" ? <MinusCircle className="h-4 w-4 text-destructive" /> : <PlusCircle className="h-4 w-4 text-primary" />}
-            <span className="capitalize">{t.type}</span>
-            {t.note && <span className="text-muted-foreground">— {t.note}</span>}
-          </div>
-          <div className="flex items-center gap-3">
-            <span className={t.type === "deduction" ? "text-destructive" : "text-primary"}>
-              {t.type === "deduction" ? "-" : "+"}{t.hours} hrs
             </span>
             <span className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</span>
           </div>
@@ -265,75 +238,6 @@ function InlineAllocatePointsForm({ displayName, onSave, onCancel }: { displayNa
   );
 }
 
-const INLINE_ADJUST_REASONS = ["Correction", "Comp", "Refund", "Walk-in", "Missed booking", "Other"] as const;
-
-function InlineAdjustHoursForm({ displayName, hoursRemaining, onSave, onCancel }: { displayName: string; hoursRemaining: number; onSave: (data: { type: string; hours: number; note: string; reason: string; service_date: string | null }) => void; onCancel: () => void }) {
-  const todayISO = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState({ type: "purchase", hours: 0, note: "", reason: "", service_date: todayISO });
-  const isDeduction = form.type === "deduction";
-  const nudge = isDeduction && (form.reason === "Walk-in" || form.reason === "Missed booking");
-  const noteTrimmed = form.note.trim();
-  const canConfirm =
-    form.hours > 0 &&
-    !!form.reason &&
-    noteTrimmed.length > 0 &&
-    (!isDeduction || !!form.service_date);
-  return (
-    <div className="space-y-4">
-      <div className="rounded-lg bg-muted p-3">
-        <p className="text-sm text-muted-foreground">User: <span className="font-medium text-foreground">{displayName}</span></p>
-        <p className="text-sm text-muted-foreground">Hours remaining: <span className="font-medium text-foreground">{hoursRemaining} hrs</span></p>
-      </div>
-      <div>
-        <Label>Action</Label>
-        <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="purchase">Add Hours</SelectItem>
-            <SelectItem value="deduction">Deduct Hours</SelectItem>
-            <SelectItem value="adjustment">Adjustment</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div><Label>Hours</Label><Input type="number" step="0.5" min="0" value={form.hours || ""} onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })} /></div>
-      <div>
-        <Label>Reason <span className="text-destructive">*</span></Label>
-        <Select value={form.reason} onValueChange={(v) => setForm({ ...form, reason: v })}>
-          <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
-          <SelectContent>
-            {INLINE_ADJUST_REASONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-      {nudge && (
-        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
-          For walk-ins or missed entries, prefer <strong>Manual Booking</strong> (back-dated) — it creates a proper booking, invoice, and "My Bookings" entry. Use this form only when no booking row is needed.
-        </div>
-      )}
-      {isDeduction && (
-        <div>
-          <Label>Service Date <span className="text-destructive">*</span></Label>
-          <Input type="date" max={todayISO} value={form.service_date} onChange={(e) => setForm({ ...form, service_date: e.target.value })} />
-          <p className="mt-1 text-xs text-muted-foreground">When were the hours actually used?</p>
-        </div>
-      )}
-      <div>
-        <Label>Note <span className="text-destructive">*</span></Label>
-        <Input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Details for the audit trail" />
-      </div>
-      <div className="flex gap-2 justify-end">
-        <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button
-          onClick={() => onSave({ ...form, note: noteTrimmed, service_date: isDeduction ? form.service_date : null })}
-          disabled={!canConfirm}
-        >
-          Confirm
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 function EditProfileForm({ profile, onSave, onCancel }: { profile: any; onSave: (data: { display_name: string; email: string; phone: string; preferred_city: string }) => void; onCancel: () => void }) {
   const [form, setForm] = useState({
     display_name: profile.display_name || "",
@@ -384,7 +288,6 @@ export function AdminAllUsersTab() {
   const redeemPoints = useRedeemPoints();
   const [dialogOpen, setDialogOpen] = useState<string | null>(null);
   const [viewingPointsHistory, setViewingPointsHistory] = useState<string | null>(null);
-  const [viewingHoursHistory, setViewingHoursHistory] = useState<string | null>(null);
   const [viewingBookingHistory, setViewingBookingHistory] = useState<{ userId: string; profileId?: string } | null>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
@@ -535,60 +438,6 @@ export function AdminAllUsersTab() {
     }
   };
 
-  const handleInlineAdjustHours = async (userId: string, data: { type: string; hours: number; note: string; reason: string; service_date: string | null }) => {
-    try {
-      const { data: existing } = await supabase
-        .from("member_hours")
-        .select("id, hours_purchased, hours_used")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (existing) {
-        const newPurchased = data.type === "purchase" || (data.type === "adjustment" && data.hours > 0)
-          ? existing.hours_purchased + data.hours : existing.hours_purchased;
-        const newUsed = data.type === "deduction" ? existing.hours_used + data.hours : existing.hours_used;
-        const { error } = await supabase.from("member_hours").update({ hours_purchased: newPurchased, hours_used: newUsed }).eq("id", existing.id);
-        if (error) throw error;
-      } else {
-        const hours_purchased = data.type === "purchase" || data.type === "adjustment" ? data.hours : 0;
-        const hours_used = data.type === "deduction" ? data.hours : 0;
-        const { error } = await supabase.from("member_hours").insert({ user_id: userId, hours_purchased, hours_used });
-        if (error) throw error;
-      }
-
-      await supabase.from("hours_transactions").insert({
-        user_id: userId,
-        type: data.type,
-        hours: data.hours,
-        note: data.note || null,
-        reason: data.reason || null,
-        service_date: data.type === "deduction" ? data.service_date : null,
-        created_by: user?.id,
-      });
-
-      if (data.type === "deduction") {
-        const remaining = existing ? existing.hours_purchased - (existing.hours_used + data.hours) : -data.hours;
-        await supabase.from("notifications").insert({
-          user_id: userId, title: "Hours Deducted",
-          message: `${data.hours} hour(s) have been deducted. You have ${Math.max(0, remaining)} hour(s) remaining.${data.note ? ` Note: ${data.note}` : ""}`,
-          type: "usage",
-        });
-        if (remaining <= 2 && remaining > 0) {
-          sendNotificationEmail({ user_id: userId, template: "low_hours_alert", subject: "Low Hours Alert", data: { hours_remaining: remaining, purchase_url: `${window.location.origin}/dashboard` } });
-        }
-      }
-
-      toast({ title: "Hours updated" });
-      queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
-      queryClient.invalidateQueries({ queryKey: ["member_hours"] });
-      queryClient.invalidateQueries({ queryKey: ["hours_transactions", userId] });
-      setDialogOpen(null);
-      setSelectedUser(null);
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    }
-  };
-
   const handleEditProfile = async (profileId: string, data: { display_name: string; email: string; phone: string; preferred_city: string }) => {
     const { error } = await supabase.from("profiles").update({
       display_name: data.display_name.trim() || null,
@@ -681,7 +530,7 @@ export function AdminAllUsersTab() {
       </Dialog>
 
       {dialogOpen === "hourshistory" && selectedUser && (
-        <MemberHoursManager member={selectedUser} mode="history" onClose={() => { setDialogOpen(null); setViewingHoursHistory(null); setSelectedUser(null); }} />
+        <MemberHoursManager member={selectedUser} mode="history" onClose={() => { setDialogOpen(null); setSelectedUser(null); }} />
       )}
 
       <Dialog open={dialogOpen === "bookinghistory"} onOpenChange={(open) => { setDialogOpen(open ? "bookinghistory" : null); if (!open) setViewingBookingHistory(null); }}>
@@ -884,7 +733,7 @@ export function AdminAllUsersTab() {
                               <DropdownMenuItem onClick={() => { setViewingPointsHistory(u.user_id || u.id); setDialogOpen("pointshistory"); }}>
                                 <History className="mr-2 h-4 w-4" />Points History
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => { setSelectedUser(u); setViewingHoursHistory(u.user_id || u.id); setDialogOpen("hourshistory"); }}>
+                              <DropdownMenuItem onClick={() => { setSelectedUser(u); setDialogOpen("hourshistory"); }}>
                                 <HoursActionLabel mode="history" />
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setViewingBookingHistory({ userId: u.user_id || u.id, profileId: u.id }); setDialogOpen("bookinghistory"); }}>
