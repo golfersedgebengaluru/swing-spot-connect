@@ -78,6 +78,20 @@ describe("razorpay-webhook signature & reconciliation wiring", () => {
     expect(webhookSrc).not.toMatch(/payment\.failed[\s\S]{0,2000}pending_guest_bookings[\s\S]{0,200}status:\s*"failed"/);
     expect(webhookSrc).toMatch(/payment\.failed[\s\S]+leaving pending_\* rows untouched/);
   });
+
+  it("does not write removed payment columns on orders or bookings", () => {
+    expect(webhookSrc).not.toMatch(/\.from\("(?:orders|bookings)"\)[\s\S]{0,200}\.update\(/);
+    expect(webhookSrc).not.toMatch(/\.update\(\{[^}]*payment_status/);
+    expect(webhookSrc).not.toMatch(/\.update\(\{[^}]*razorpay_payment_id/);
+  });
+
+  it("logs failures from every remaining database update", () => {
+    expect(webhookSrc).toMatch(/pendingPurchaseUpdateError[\s\S]{0,300}console\.error/);
+    expect(webhookSrc).toMatch(/pendingGuestUpdateError[\s\S]{0,300}console\.error/);
+    expect(webhookSrc).toMatch(/pendingLegacyErrorUpdateError[\s\S]{0,300}console\.error/);
+    expect(webhookSrc).toMatch(/pendingLegacyCompleteUpdateError[\s\S]{0,300}console\.error/);
+    expect(webhookSrc).toMatch(/processedUpdateError[\s\S]{0,300}console\.error/);
+  });
 });
 
 describe("reconcile-pending-payments cron job", () => {
@@ -275,7 +289,7 @@ describe("legacy team finalize is race-safe across browser/webhook/cron", () => 
     expect(webhookSrc).toMatch(/resolveOrCreateLegacyRegistration[\s\S]{0,2000}finalizeLegacyTeamRegistration/);
   });
   it("razorpay-webhook wraps payment_events processed=true in try/catch (always-mark)", () => {
-    expect(webhookSrc).toMatch(/try\s*{[\s\S]{0,200}payment_events[\s\S]{0,200}processed: true[\s\S]{0,200}}\s*catch/);
+    expect(webhookSrc).toMatch(/try\s*{[\s\S]{0,300}payment_events[\s\S]{0,300}processed: true[\s\S]{0,300}}\s*catch/);
   });
 
   it("reconcile-pending-payments uses resolveOrCreateLegacyRegistration", () => {

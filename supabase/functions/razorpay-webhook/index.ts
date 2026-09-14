@@ -253,17 +253,6 @@ Deno.serve(async (req) => {
 
 
 
-    // --- Mark bookings/orders as paid ---
-    await adminClient
-      .from("orders")
-      .update({ payment_status: "paid", razorpay_payment_id: razorpayPaymentId })
-      .eq("razorpay_order_id", razorpayOrderId);
-
-    await adminClient
-      .from("bookings")
-      .update({ payment_status: "paid", razorpay_payment_id: razorpayPaymentId })
-      .eq("razorpay_order_id", razorpayOrderId);
-
     // --- Reconcile hour package purchases ---
     const { data: pendingPurchase } = await adminClient
       .from("pending_purchases")
@@ -289,10 +278,13 @@ Deno.serve(async (req) => {
 
         if (rpcErr) {
           console.error("Webhook complete_hour_purchase failed:", rpcErr.message);
-          await adminClient.from("pending_purchases").update({
+          const { error: pendingPurchaseUpdateError } = await adminClient.from("pending_purchases").update({
             status: "webhook_error",
             error_message: rpcErr.message,
           }).eq("id", pendingPurchase.id);
+          if (pendingPurchaseUpdateError) {
+            console.error("[razorpay-webhook] failed to mark pending purchase as webhook_error:", pendingPurchaseUpdateError.message);
+          }
         } else {
           console.log(`Webhook successfully reconciled purchase for user ${pendingPurchase.user_id}`);
           await adminClient.from("notifications").insert({
@@ -351,10 +343,13 @@ Deno.serve(async (req) => {
         if (!invokeRes.ok) {
           const errBody = await invokeRes.text();
           console.error("Webhook guest_booking invoke failed:", invokeRes.status, errBody);
-          await adminClient.from("pending_guest_bookings").update({
+          const { error: pendingGuestUpdateError } = await adminClient.from("pending_guest_bookings").update({
             status: "webhook_error",
             error_message: `HTTP ${invokeRes.status}: ${errBody.slice(0, 500)}`,
           }).eq("id", pendingGuest.id);
+          if (pendingGuestUpdateError) {
+            console.error("[razorpay-webhook] failed to mark pending guest booking as webhook_error:", pendingGuestUpdateError.message);
+          }
         } else {
           console.log(`Webhook successfully reconciled guest booking for order ${razorpayOrderId}`);
           // calendar-sync will mark pending_guest_bookings.status = 'completed'
@@ -383,19 +378,25 @@ Deno.serve(async (req) => {
 
         if (!resolved.reg) {
           console.error("Webhook legacy team resolve failed:", resolved.error);
-          await adminClient.from("pending_legacy_league_team_registrations").update({
+          const { error: pendingLegacyErrorUpdateError } = await adminClient.from("pending_legacy_league_team_registrations").update({
             status: "webhook_error",
             error_message: resolved.error ?? "resolve failed",
           }).eq("id", pendingLeg.id);
+          if (pendingLegacyErrorUpdateError) {
+            console.error("[razorpay-webhook] failed to mark pending legacy team as webhook_error:", pendingLegacyErrorUpdateError.message);
+          }
         } else {
           // Always mark pending → completed with the resolved registration id,
           // even if another finalizer inserted the row first. This stops the
           // browser/cron from looping on a "duplicate" pending row.
-          await adminClient.from("pending_legacy_league_team_registrations").update({
+          const { error: pendingLegacyCompleteUpdateError } = await adminClient.from("pending_legacy_league_team_registrations").update({
             status: "completed",
             registration_id: resolved.reg.id,
             error_message: null,
           }).eq("id", pendingLeg.id);
+          if (pendingLegacyCompleteUpdateError) {
+            console.error("[razorpay-webhook] failed to mark pending legacy team as completed:", pendingLegacyCompleteUpdateError.message);
+          }
 
           // Finalize is fully idempotent — safe to run from every finalizer.
           await finalizeLegacyTeamRegistration({
@@ -449,7 +450,13 @@ Deno.serve(async (req) => {
     // Wrapping in try/catch ensures one failed reconcile branch can't leave
     // payment_events.processed=false (which would block future replays).
     try {
-      await adminClient.from("payment_events").update({ processed: true }).eq("razorpay_event_id", eventId);
+      const { error: processedUpdateError } = await adminClient
+        .from("payment_events")
+        .update({ processed: true })
+        .eq("razorpay_event_id", eventId);
+      if (processedUpdateError) {
+        console.error("[razorpay-webhook] failed to mark payment event processed:", processedUpdateError.message);
+      }
     } catch (e) {
       console.error("[razorpay-webhook] failed to mark processed:", (e as Error).message);
     }
@@ -464,21 +471,7 @@ Deno.serve(async (req) => {
   // reconcile-pending-payments is responsible for marking truly-dead rows
   // failed (it re-checks the live Razorpay order status before doing so).
   //
-  // We DO still mark already-persisted `bookings` / `orders` rows failed
-  // because those are downstream artifacts that should reflect attempt state.
   if (eventType === "payment.failed" && razorpayOrderId) {
-    await adminClient
-      .from("orders")
-      .update({ payment_status: "failed" })
-      .eq("razorpay_order_id", razorpayOrderId)
-      .eq("payment_status", "pending");
-
-    await adminClient
-      .from("bookings")
-      .update({ payment_status: "failed" })
-      .eq("razorpay_order_id", razorpayOrderId)
-      .eq("payment_status", "pending");
-
     console.log(`[razorpay-webhook] payment.failed for order=${razorpayOrderId} — leaving pending_* rows untouched so retries can finalize; cron will fail them after 30 min if order stays unpaid`);
   }
 
