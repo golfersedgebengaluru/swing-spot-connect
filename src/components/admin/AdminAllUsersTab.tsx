@@ -680,12 +680,9 @@ export function AdminAllUsersTab() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialogOpen === "hourshistory"} onOpenChange={(open) => { setDialogOpen(open ? "hourshistory" : null); if (!open) setViewingHoursHistory(null); }}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader><DialogTitle>Hours History</DialogTitle></DialogHeader>
-          {viewingHoursHistory && <HoursTransactionHistory userId={viewingHoursHistory} />}
-        </DialogContent>
-      </Dialog>
+      {dialogOpen === "hourshistory" && selectedUser && (
+        <MemberHoursManager member={selectedUser} mode="history" onClose={() => { setDialogOpen(null); setViewingHoursHistory(null); setSelectedUser(null); }} />
+      )}
 
       <Dialog open={dialogOpen === "bookinghistory"} onOpenChange={(open) => { setDialogOpen(open ? "bookinghistory" : null); if (!open) setViewingBookingHistory(null); }}>
         <DialogContent className="sm:max-w-2xl">
@@ -703,12 +700,9 @@ export function AdminAllUsersTab() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialogOpen === "inlineadjusthours"} onOpenChange={(open) => { setDialogOpen(open ? "inlineadjusthours" : null); if (!open) setSelectedUser(null); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Adjust Hours</DialogTitle></DialogHeader>
-          {selectedUser && <InlineAdjustHoursForm displayName={selectedUser.display_name || "User"} hoursRemaining={selectedUser.hours_remaining ?? 0} onSave={(data) => handleInlineAdjustHours(selectedUser.user_id || selectedUser.id, data)} onCancel={() => { setDialogOpen(null); setSelectedUser(null); }} />}
-        </DialogContent>
-      </Dialog>
+      {dialogOpen === "inlineadjusthours" && selectedUser && (
+        <MemberHoursManager member={selectedUser} mode="adjust" onClose={() => { setDialogOpen(null); setSelectedUser(null); }} />
+      )}
 
       <Dialog open={dialogOpen === "editprofile"} onOpenChange={(open) => { setDialogOpen(open ? "editprofile" : null); if (!open) setSelectedUser(null); }}>
         <DialogContent className="sm:max-w-md">
@@ -890,7 +884,7 @@ export function AdminAllUsersTab() {
                               <DropdownMenuItem onClick={() => { setViewingPointsHistory(u.user_id || u.id); setDialogOpen("pointshistory"); }}>
                                 <History className="mr-2 h-4 w-4" />Points History
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => { setViewingHoursHistory(u.user_id || u.id); setDialogOpen("hourshistory"); }}>
+                              <DropdownMenuItem onClick={() => { setSelectedUser(u); setViewingHoursHistory(u.user_id || u.id); setDialogOpen("hourshistory"); }}>
                                 <HoursActionLabel mode="history" />
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setViewingBookingHistory({ userId: u.user_id || u.id, profileId: u.id }); setDialogOpen("bookinghistory"); }}>

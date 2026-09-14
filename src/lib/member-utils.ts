@@ -39,10 +39,17 @@ export function isVisitBooking(booking: {
   return booking.billing_status === "deferred" || booking.billing_status === "invoiced" || Boolean(booking.invoice_id);
 }
 
-export function countDistinctVisits(bookings: Array<{ id: string; parent_booking_id?: string | null } & Parameters<typeof isVisitBooking>[0]>) {
+export function countDistinctVisits(
+  bookings: Array<{ id: string; parent_booking_id?: string | null } & Parameters<typeof isVisitBooking>[0]>,
+  paidBookingIds: ReadonlySet<string> = new Set(),
+) {
   return new Set(
     bookings
-      .filter(isVisitBooking)
+      .filter((booking) => isVisitBooking(booking) || (
+        booking.status === "confirmed" &&
+        new Date(booking.start_time).getTime() <= Date.now() &&
+        paidBookingIds.has(booking.id)
+      ))
       .map((booking) => booking.parent_booking_id ?? booking.id),
   ).size;
 }
