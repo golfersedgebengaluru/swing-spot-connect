@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 vi.mock("@/contexts/AuthContext", () => ({
@@ -49,6 +49,7 @@ function renderSidebar() {
 describe("AdminSidebar – width constraint", () => {
   it("shows All Users and Corporate Accounts without a separate Members entry", () => {
     renderSidebar();
+    fireEvent.click(screen.getByText("Users"));
     expect(screen.getByText("All Users")).toBeInTheDocument();
     expect(screen.getByText("Corporate Accounts")).toBeInTheDocument();
     expect(screen.queryByText("Members")).not.toBeInTheDocument();
