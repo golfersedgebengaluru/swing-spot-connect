@@ -69,7 +69,7 @@ describe("shop orders", () => {
 });
 
 describe("offline hours purchases", () => {
-  const src = read("components/admin/AdminMembersTab.tsx");
+  const src = read("components/admin/MemberHoursManager.tsx");
 
   it("capture what was collected instead of recording zero", () => {
     expect(src).not.toMatch(/transaction_type: "payment" as any/);
@@ -92,7 +92,7 @@ describe("offline hours purchases", () => {
   });
 
   it("blocks confirming a purchase with no amount or payment method", () => {
-    expect(src).toMatch(/!isPurchase \|\| \(!!form\.payment_method && \(isComplimentary \|\| form\.amount > 0\)\)/);
+    expect(src).toMatch(/!isPurchase \|\| \(Boolean\(form\.payment_method\) && \(complimentary \|\| form\.amount > 0\)\)/);
   });
 });
 

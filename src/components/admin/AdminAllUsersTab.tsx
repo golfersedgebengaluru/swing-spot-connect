@@ -530,7 +530,7 @@ export function AdminAllUsersTab() {
       </Dialog>
 
       {dialogOpen === "hourshistory" && selectedUser && (
-        <MemberHoursManager member={selectedUser} mode="history" onClose={() => { setDialogOpen(null); setSelectedUser(null); }} />
+        <MemberHoursManager member={selectedUser} mode="history" selectedCity={selectedCity} onClose={() => { setDialogOpen(null); setSelectedUser(null); }} />
       )}
 
       <Dialog open={dialogOpen === "bookinghistory"} onOpenChange={(open) => { setDialogOpen(open ? "bookinghistory" : null); if (!open) setViewingBookingHistory(null); }}>
@@ -550,7 +550,7 @@ export function AdminAllUsersTab() {
       </Dialog>
 
       {dialogOpen === "inlineadjusthours" && selectedUser && (
-        <MemberHoursManager member={selectedUser} mode="adjust" onClose={() => { setDialogOpen(null); setSelectedUser(null); }} />
+        <MemberHoursManager member={selectedUser} mode="adjust" selectedCity={selectedCity} onClose={() => { setDialogOpen(null); setSelectedUser(null); }} />
       )}
 
       <Dialog open={dialogOpen === "editprofile"} onOpenChange={(open) => { setDialogOpen(open ? "editprofile" : null); if (!open) setSelectedUser(null); }}>
@@ -636,7 +636,7 @@ export function AdminAllUsersTab() {
                     <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium w-[35%]"><span className="pl-[44px]">User</span></TableHead>
                     <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Type</TableHead>
                     <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Points</TableHead>
-                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Hours</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Remaining hours</TableHead>
                     <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>

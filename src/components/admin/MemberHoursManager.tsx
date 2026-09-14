@@ -75,7 +75,7 @@ function AdjustHoursForm({ member, onSave, onCancel }: { member: Member; onSave:
   );
 }
 
-export function MemberHoursManager({ member, mode, onClose }: { member: Member; mode: "adjust" | "history"; onClose: () => void }) {
+export function MemberHoursManager({ member, mode, selectedCity, onClose }: { member: Member; mode: "adjust" | "history"; selectedCity?: string | null; onClose: () => void }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -102,13 +102,25 @@ export function MemberHoursManager({ member, mode, onClose }: { member: Member; 
     const { data: transaction, error: transactionError } = await supabase.from("hours_transactions").insert({ user_id: memberId, type: adjustment.type, hours: adjustment.hours, note: adjustment.note, reason: adjustment.reason, service_date: adjustment.type === "deduction" ? adjustment.service_date : null, created_by: user?.id }).select("id").single();
     if (transactionError) throw transactionError;
     if (adjustment.type === "purchase" && adjustment.amount > 0) {
-      await recordRevenue({ sourceRef: `hours_purchase:${transaction.id}`, transactionType: "purchase", amount: adjustment.amount, description: `Prepaid hours purchase - ${adjustment.hours}h (${adjustment.note})`, city: member.preferred_city, userId: memberId, hoursTransactionId: transaction.id, gatewayName: adjustment.payment_method || "Offline", metadata: { offline: true, hours: adjustment.hours, payment_method: adjustment.payment_method || null } });
+      try {
+        await recordRevenue({ sourceRef: `hours_purchase:${transaction.id}`, transactionType: "purchase", amount: Number(adjustment.amount), description: `Prepaid hours purchase - ${adjustment.hours}h (${adjustment.note})`, city: member.preferred_city || selectedCity || null, userId: memberId, hoursTransactionId: transaction.id, gatewayName: adjustment.payment_method || "Offline", metadata: { offline: true, hours: adjustment.hours, payment_method: adjustment.payment_method || null } });
+      } catch (error) {
+        toast({ title: "Hours added, but the sale wasn't recorded", description: error instanceof Error ? error.message : "Please record this payment again from Finance.", variant: "destructive" });
+      }
     }
     if (adjustment.type === "deduction") {
       const remaining = nextPurchased - nextUsed;
       const notification = await supabase.from("notifications").insert({ user_id: memberId, title: "Hours Deducted", message: `${adjustment.hours} hour(s) have been deducted. You have ${remaining} hour(s) remaining.`, type: "usage" });
       if (notification.error) console.error("Hours notification failed:", notification.error.message);
-      if (remaining <= lowHoursThreshold) sendNotificationEmail({ user_id: memberId, template: "low_hours_alert", subject: "Low Hours Alert", data: { hours_remaining: Math.max(0, remaining), purchase_url: `${window.location.origin}/dashboard` } });
+      if (remaining <= lowHoursThreshold && remaining > 0) {
+        const warning = await supabase.from("notifications").insert({ user_id: memberId, title: "⚠️ Low Hours Alert", message: `You only have ${remaining} hour(s) remaining. Please purchase more hours to continue.`, type: "warning" });
+        if (warning.error) console.error("Low-hours notification failed:", warning.error.message);
+        sendNotificationEmail({ user_id: memberId, template: "low_hours_alert", subject: "Low Hours Alert", data: { hours_remaining: remaining, purchase_url: `${window.location.origin}/dashboard` } });
+      } else if (remaining <= 0) {
+        const warning = await supabase.from("notifications").insert({ user_id: memberId, title: "🚨 No Hours Remaining", message: "Your hours balance has been fully used. Please purchase more hours.", type: "critical" });
+        if (warning.error) console.error("No-hours notification failed:", warning.error.message);
+        sendNotificationEmail({ user_id: memberId, template: "low_hours_alert", subject: "Low Hours Alert", data: { hours_remaining: 0, purchase_url: `${window.location.origin}/dashboard` } });
+      }
     }
     await Promise.all([queryClient.invalidateQueries({ queryKey: ["admin_all_users"] }), queryClient.invalidateQueries({ queryKey: ["member_hours"] }), queryClient.invalidateQueries({ queryKey: ["hours_transactions", memberId] })]);
     toast({ title: "Hours updated" });
