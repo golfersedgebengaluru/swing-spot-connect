@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
+import { buildSessionRows, withoutSessionId, type LibraryFocus, type SessionSelection } from "@/lib/coaching-library";
 
 export interface ToolLink {
   url: string;
@@ -13,6 +14,7 @@ export interface CoachingSession {
   id: string;
   coach_user_id: string;
   student_user_id: string;
+  session_type: "self_directed" | "coach_directed";
   city: string;
   session_date: string;
   notes: string | null;
@@ -110,9 +112,28 @@ export function useMyStudentSessions() {
         .from("coaching_sessions")
         .select("*")
         .eq("student_user_id", user!.id)
+        .eq("session_type", "coach_directed")
         .order("session_date", { ascending: false });
       if (error) throw error;
       return (await attachProfiles(data ?? [])) as CoachingSession[];
+    },
+  });
+}
+
+export function useMySelfDirectedSessions() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["coaching", "my-self-directed-sessions", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("coaching_sessions")
+        .select("*")
+        .eq("student_user_id", user?.id ?? "")
+        .eq("session_type", "self_directed")
+        .order("session_date", { ascending: false });
+      if (error) throw error;
+      return data as unknown as CoachingSession[];
     },
   });
 }
@@ -128,6 +149,7 @@ export function useMyCoachSessions() {
         .from("coaching_sessions")
         .select("*")
         .eq("coach_user_id", user!.id)
+        .eq("session_type", "coach_directed")
         .order("session_date", { ascending: false });
       if (error) throw error;
       return (await attachProfiles(data ?? [])) as CoachingSession[];
@@ -140,7 +162,7 @@ export function useAllSessions(city?: string) {
   return useQuery({
     queryKey: ["coaching", "all-sessions", city ?? "all"],
     queryFn: async () => {
-      let q = supabase.from("coaching_sessions").select("*").order("session_date", { ascending: false });
+      let q = supabase.from("coaching_sessions").select("*").eq("session_type", "coach_directed").order("session_date", { ascending: false });
       if (city) q = q.eq("city", city);
       const { data, error } = await q;
       if (error) throw error;
@@ -258,6 +280,91 @@ type SessionInput = {
   booking_id?: string | null;
 };
 
+export interface SelfDirectedTrainingInput {
+  city: string;
+  sessionDate: string;
+  notes?: string;
+  progressSummary?: string;
+  selection: SessionSelection;
+  library: LibraryFocus[];
+}
+
+export function useCompleteSelfDirectedTraining() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (input: SelfDirectedTrainingInput) => {
+      const { focusRows, drillRows } = buildSessionRows("pending", input.selection, input.library);
+      const { data, error } = await supabase.rpc("complete_self_directed_training", {
+        _session: {
+          city: input.city,
+          session_date: input.sessionDate,
+          notes: input.notes?.trim() || null,
+          progress_summary: input.progressSummary?.trim() || null,
+          onform_links: [],
+          sportsbox_links: [],
+          superspeed_links: [],
+          other_links: [],
+        },
+        _focuses: JSON.parse(JSON.stringify(withoutSessionId(focusRows))),
+        _drills: JSON.parse(JSON.stringify(withoutSessionId(drillRows))),
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["coaching"] });
+      toast({ title: "Training completed" });
+    },
+    onError: (error: Error) => toast({ title: "Training could not be saved", description: error.message, variant: "destructive" }),
+  });
+}
+
+export function useDeleteSelfDirectedSession() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("coaching_sessions")
+        .delete()
+        .eq("id", id)
+        .eq("session_type", "self_directed");
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["coaching"] });
+      toast({ title: "Training log deleted" });
+    },
+    onError: (error: Error) => toast({ title: "Delete failed", description: error.message, variant: "destructive" }),
+  });
+}
+
+export function useUpdateSelfDirectedSession() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (input: { id: string; city: string; sessionDate: string; notes: string; progressSummary: string }) => {
+      const { error } = await supabase
+        .from("coaching_sessions")
+        .update({
+          city: input.city,
+          session_date: input.sessionDate,
+          notes: input.notes.trim() || null,
+          progress_summary: input.progressSummary.trim() || null,
+        })
+        .eq("id", input.id)
+        .eq("session_type", "self_directed");
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["coaching"] });
+      toast({ title: "Training log updated" });
+    },
+    onError: (error: Error) => toast({ title: "Update failed", description: error.message, variant: "destructive" }),
+  });
+}
+
 function linksChanged(a: ToolLink[] = [], b: ToolLink[] = []) {
   if (a.length !== b.length) return true;
   return JSON.stringify(a) !== JSON.stringify(b);
@@ -286,7 +393,7 @@ async function notifyStudentOfSession(opts: {
       title: isNew ? "New coaching session added" : "Your coaching session was updated",
       message: `${coachName} ${isNew ? "added" : "updated"} a session for ${sessionDate}.`,
       type: "coaching_session",
-      action_url: `/coaching/${sessionId}`,
+      action_url: `/training/${sessionId}`,
     });
   }
 
@@ -301,7 +408,7 @@ async function notifyStudentOfSession(opts: {
         coach_name: coachName,
         session_date: sessionDate,
         is_new: isNew,
-        session_url: `${window.location.origin}/coaching/${sessionId}`,
+        session_url: `${window.location.origin}/training/${sessionId}`,
       },
     });
   }

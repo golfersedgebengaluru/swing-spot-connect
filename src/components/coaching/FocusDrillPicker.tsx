@@ -15,6 +15,7 @@ interface Props {
   library: LibraryFocus[];
   value: SessionSelection;
   onChange: (next: SessionSelection) => void;
+  showDetails?: boolean;
 }
 
 /**
@@ -22,7 +23,7 @@ interface Props {
  * then add one optional note per drill. A drill mapped to two picked focuses is
  * only ever selected once (the database enforces the same rule).
  */
-export function FocusDrillPicker({ library, value, onChange }: Props) {
+export function FocusDrillPicker({ library, value, onChange, showDetails = false }: Props) {
   const [search, setSearch] = useState("");
 
   const pickedFocuses = useMemo(
@@ -91,7 +92,7 @@ export function FocusDrillPicker({ library, value, onChange }: Props) {
     <div className="space-y-4">
       {/* Focus selection */}
       <div className="space-y-2">
-        <Label>Coaching Focus</Label>
+        <Label>Training Focus</Label>
         {pickedFocuses.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {pickedFocuses.map((f) => (
@@ -118,7 +119,7 @@ export function FocusDrillPicker({ library, value, onChange }: Props) {
         </div>
         {library.length === 0 ? (
           <p className="text-xs text-muted-foreground">
-            No focuses configured yet. An admin can add them under Coaching → Library.
+            No focuses configured yet. An admin can add them under Training → Library.
           </p>
         ) : (
           <div className="max-h-48 overflow-y-auto rounded-md border divide-y">
@@ -168,6 +169,9 @@ export function FocusDrillPicker({ library, value, onChange }: Props) {
                       <span className="block font-medium truncate">{d.name}</span>
                       {d.recommended_reps && (
                         <span className="block text-xs text-muted-foreground">{d.recommended_reps}</span>
+                      )}
+                      {showDetails && on && d.objective && (
+                        <span className="mt-1 block text-xs text-muted-foreground">{d.objective}</span>
                       )}
                     </span>
                     {on && <Check className="h-4 w-4 text-primary shrink-0" />}
