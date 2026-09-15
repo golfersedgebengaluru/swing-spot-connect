@@ -30,7 +30,7 @@ Pre-registered profiles have no linked login and therefore cannot enter or creat
   - `student_user_id = auth.uid()`
   - `coach_user_id = auth.uid()` as the existing owner field
   - no booking, invoice, corporate invoice, billing action, or hours deduction
-- Reuse the existing frozen session-focus and session-drill history rows. If a dependent history write fails, the new session will not be presented as successfully completed; cleanup/error handling will prevent a misleading partial log.
+- Reuse the existing frozen session-focus and session-drill history rows. Complete a self-directed log through one narrow database operation that derives the signed-in identity and writes the session plus its frozen focus/drill history in one transaction. A failure therefore saves nothing rather than leaving a partial log.
 - A completed self-directed log may edit its date, city, notes, progress, and resource links. Focus/drill snapshots remain immutable, matching the existing historical-record design.
 - Self-directed delete directly removes the private log and cascades its history rows. It will not call booking cancellation or calendar-sync logic.
 
@@ -40,9 +40,10 @@ Pre-registered profiles have no linked login and therefore cannot enter or creat
 - Add a database guard that prevents updates to `student_user_id`, `coach_user_id`, or `session_type` after creation. The UI will also omit/disable identity reassignment on edits, but the database remains the authority.
 - Replace the overlapping session policies with explicit type-aware rules:
   - Self-directed: only the signed-in owner, with both identity fields equal to that user, may create, view, update, or delete.
-  - Coach-directed: assigned coach may create/update/delete; student may view; current city-scoped admin access remains only for coach-directed records.
+  - Coach-directed: assigned coach may create/update/delete; student may view; current city-scoped admins remain an explicit operational exception for scheduling and corrections, only for coach-directed records.
   - No coach, admin, site admin, or other member receives access to another user's self-directed records in this version.
 - Update `can_read_coaching_session` and `can_write_coaching_session` so focus/drill history inherits exactly the same separation.
+- The self-directed completion operation will accept training content, but it will derive ownership from `auth.uid()` and reject unauthenticated calls; caller-supplied owner/student IDs will not be accepted.
 - Preserve child history as read/insert only; deletion continues through the parent cascade.
 - Keep service access for operational maintenance, while browser access remains RLS-controlled. No new table, enum type, view, or parallel model will be created.
 
@@ -61,7 +62,7 @@ Pre-registered profiles have no linked login and therefore cannot enter or creat
 ## Technical safeguards and regression coverage
 
 - Migration tests: allowed values/default/backfill, identity/type immutability, exact session and child-row RLS boundaries, admin exclusion from self-directed records, and unchanged coach-directed access.
-- Hook tests: session-type filtering, authenticated identity derived from the session, no caller-supplied reassignment, self-directed save/delete paths, and coach-directed mutation behavior unchanged.
+- Hook/database-operation tests: session-type filtering, authenticated identity derivation, atomic session/history creation, rejection of caller-supplied reassignment, self-directed edit/delete paths, and unchanged coach-directed mutation behavior.
 - Notification tests: no email or in-app notification for self-directed create/update/delete; coach-directed notifications still fire.
 - UI/route tests: Training labels, `/training` primary routes, old-route redirects including detail links, My Training versus Coach Sessions separation, Start Training completion, immutable focus/drill history, and coach workspace preservation.
 - Billing regression tests: self-directed logs never invoke booking, calendar, invoice, revenue, or hours-deduction paths.
