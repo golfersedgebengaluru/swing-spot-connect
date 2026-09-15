@@ -133,7 +133,7 @@ export function useMySelfDirectedSessions() {
         .eq("session_type", "self_directed")
         .order("session_date", { ascending: false });
       if (error) throw error;
-      return data as CoachingSession[];
+      return data as unknown as CoachingSession[];
     },
   });
 }
@@ -306,8 +306,8 @@ export function useCompleteSelfDirectedTraining() {
           superspeed_links: [],
           other_links: [],
         },
-        _focuses: withoutSessionId(focusRows),
-        _drills: withoutSessionId(drillRows),
+        _focuses: JSON.parse(JSON.stringify(withoutSessionId(focusRows))),
+        _drills: JSON.parse(JSON.stringify(withoutSessionId(drillRows))),
       });
       if (error) throw error;
       return data;
