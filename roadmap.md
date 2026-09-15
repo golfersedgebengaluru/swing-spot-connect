@@ -96,10 +96,10 @@
 - [x] Add the authorized, dual-key Member360 page using existing data only
 - [x] Add regression coverage and mobile-layout safeguards (91 files, 778 tests; authenticated preview access correctly denied for the available non-admin account)
 
-## Training and self-directed logs (approved)
-- [ ] Add explicit self-directed/coach-directed session classification and immutable ownership
-- [ ] Enforce private self-directed access while preserving coach, student, and city-admin rules
-- [ ] Add `/training` routes, Training labels, My Training, Coach Sessions, and completed-log flow
-- [ ] Suppress coaching notifications and all billing/booking effects for self-directed logs
-- [ ] Add regression coverage to the existing `npm test` CI command and confirm the test total increases
-- [ ] Run the full suite, production build, and mobile/authenticated browser verification
+## Training and self-directed logs (done)
+- [x] Add explicit self-directed/coach-directed session classification and immutable ownership
+- [x] Enforce private self-directed access while preserving coach, student, and city-admin rules
+- [x] Add `/training` routes, Training labels, My Training, Coach Sessions, and completed-log flow
+- [x] Suppress coaching notifications and all billing/booking effects for self-directed logs
+- [x] Add regression coverage to the existing `npm test` CI command and confirm the test total increases
+- [x] Run the full suite, production build, and mobile/authenticated browser verification (93 files, 783 tests)
