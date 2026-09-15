@@ -86,6 +86,8 @@ const App = () => (
               <Route path="/leagues/:id/screen" element={<ErrorBoundary><LeagueScreen /></ErrorBoundary>} />
               <Route path="/coaching" element={<ErrorBoundary><Coaching /></ErrorBoundary>} />
               <Route path="/coaching/:sessionId" element={<ErrorBoundary><CoachingSessionDetail /></ErrorBoundary>} />
+              <Route path="/training" element={<ErrorBoundary><Coaching /></ErrorBoundary>} />
+              <Route path="/training/:sessionId" element={<ErrorBoundary><CoachingSessionDetail /></ErrorBoundary>} />
               <Route path="/admin/setup" element={<ErrorBoundary><AdminSetup /></ErrorBoundary>} />
               <Route path="/admin" element={<ErrorBoundary><AdminRoute><Admin /></AdminRoute></ErrorBoundary>} />
               <Route path="/members" element={<Navigate to="/admin?tab=allusers&filter=member" replace />} />

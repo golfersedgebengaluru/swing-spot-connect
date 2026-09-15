@@ -94,6 +94,10 @@ export interface SessionDrillRow {
   snapshot: DrillSnapshot;
 }
 
+export function withoutSessionId<T extends { session_id: string }>(rows: T[]): Omit<T, "session_id">[] {
+  return rows.map(({ session_id: _sessionId, ...row }) => row);
+}
+
 /**
  * Turn a picker selection into the exact rows to insert.
  * A drill reachable from two focuses yields ONE row (first pick wins), matching

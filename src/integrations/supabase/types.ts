@@ -863,6 +863,7 @@ export type Database = {
           other_url: string | null
           progress_summary: string | null
           session_date: string
+          session_type: string
           sportsbox_links: Json
           sportsbox_url: string | null
           student_user_id: string
@@ -888,6 +889,7 @@ export type Database = {
           other_url?: string | null
           progress_summary?: string | null
           session_date: string
+          session_type?: string
           sportsbox_links?: Json
           sportsbox_url?: string | null
           student_user_id: string
@@ -913,6 +915,7 @@ export type Database = {
           other_url?: string | null
           progress_summary?: string | null
           session_date?: string
+          session_type?: string
           sportsbox_links?: Json
           sportsbox_url?: string | null
           student_user_id?: string
@@ -6259,6 +6262,10 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      complete_self_directed_training: {
+        Args: { _drills?: Json; _focuses?: Json; _session: Json }
+        Returns: string
       }
       confirm_parental_consent: {
         Args: { _approve: boolean; _token: string }

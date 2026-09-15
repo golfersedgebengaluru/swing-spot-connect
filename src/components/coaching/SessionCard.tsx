@@ -7,16 +7,16 @@ import { SessionLibrarySummary } from "./SessionLibrarySummary";
 
 interface Props {
   session: CoachingSession;
-  perspective: "student" | "coach" | "admin";
+  perspective: "student" | "coach" | "admin" | "self";
   onClick?: () => void;
 }
 
 export function SessionCard({ session, perspective, onClick }: Props) {
   const otherParty =
-    perspective === "student"
+    perspective === "self" ? "Self-directed training" : perspective === "student"
       ? session.coach_profile?.display_name || session.coach_profile?.email || "Coach"
       : session.student_profile?.display_name || session.student_profile?.email || "Student";
-  const otherLabel = perspective === "student" ? "Coach" : "Student";
+  const otherLabel = perspective === "self" ? null : perspective === "student" ? "Coach" : "Student";
 
   return (
     <Card
@@ -32,7 +32,7 @@ export function SessionCard({ session, perspective, onClick }: Props) {
           <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
             <User className="h-3 w-3 shrink-0" />
             <span className="truncate">
-              {otherLabel}: <span className="text-foreground">{otherParty}</span>
+              {otherLabel ? <>{otherLabel}: <span className="text-foreground">{otherParty}</span></> : <span className="text-foreground">{otherParty}</span>}
             </span>
           </div>
         </div>
