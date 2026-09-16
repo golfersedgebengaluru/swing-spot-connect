@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ) {
           autoGiftFiredRef.current.add(nextSession.user.id);
           supabase.functions.invoke("process-auto-gifts", {
-            body: { user_id: nextSession.user.id, trigger_event: "signup" },
+            body: { trigger_event: "signup" },
           }).catch((err) => console.error("Auto-gift error:", err));
         }
 

@@ -74,7 +74,7 @@ describe("AuthContext – auto-gifts gating", () => {
     act(() => { authChangeCallback("SIGNED_IN", fakeSession); });
 
     expect(mockInvoke).toHaveBeenCalledWith("process-auto-gifts", {
-      body: { user_id: "user-123", trigger_event: "signup" },
+      body: { trigger_event: "signup" },
     });
   });
 
@@ -117,7 +117,7 @@ describe("AuthContext – auto-gifts gating", () => {
 
     expect(mockInvoke).toHaveBeenCalledTimes(2);
     expect(mockInvoke).toHaveBeenLastCalledWith("process-auto-gifts", {
-      body: { user_id: "user-456", trigger_event: "signup" },
+      body: { trigger_event: "signup" },
     });
   });
 

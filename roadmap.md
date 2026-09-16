@@ -110,9 +110,9 @@
 - [x] Deny coach accounts at `/training`, `/training/start`, and the underlying self-directed database operation; verified with a real coach account
 - [x] Verify production trusted snapshots against an active focus/drill using an isolated QA account, then delete the QA record
 
-## Auto-gift endpoint authorization (in progress)
-- [ ] Derive the gift recipient only from a validated signed-in user session
-- [ ] Reject missing, anonymous, invalid, service-role, and other non-user tokens before privileged database access
-- [ ] Key both rule-limit checks and gift/notification writes from the same validated user ID
-- [ ] Test anonymous denial, privileged-token denial, forged-user denial, and the legitimate sign-in path
-- [ ] Deploy, run the full regression suite and build, then confirm resolution with a fresh security scan
+## Auto-gift endpoint authorization (complete)
+- [x] Derive the gift recipient only from a validated signed-in user session
+- [x] Reject missing, anonymous, invalid, service-role, and other non-user tokens before privileged database access
+- [x] Key both rule-limit checks and gift/notification writes from the same validated user ID
+- [x] Test anonymous denial, privileged-token denial, forged-user denial, and the legitimate sign-in path
+- [x] Deploy, run the full regression suite and build, then confirm resolution with a fresh security scan
