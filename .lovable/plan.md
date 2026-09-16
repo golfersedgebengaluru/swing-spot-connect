@@ -1,75 +1,56 @@
-# Training: self-directed logs and coach sessions
+# Complete the Training implementation
 
-## Direction
+## Why gaps remained
 
-This is a stronger design than the earlier proposal. The explicit `session_type` removes ambiguous identity inference, keeps coach-led and private self-directed records safely separated, and leaves room for future sharing without creating a second training system.
+The build focused on the new member self-directed flow and preserved the existing coach/admin workflow too literally. That caused visible admin wording and coach access to be missed. Verification also emphasized successful routes, compilation, and mocked behavior rather than tracing every approved requirement through the interface, database operation, permissions, and failure states. The implementation was therefore functional at its core but not complete against the approved checklist.
 
-## What will change
+These were execution and verification misses, not unavoidable limitations. They should have been addressed before completion was reported.
 
-### 1. Training navigation and routes
-- Rename member-facing **Coaching** labels to **Training** and point navigation to `/training`.
-- Add `/training/:sessionId` for session details.
-- Keep `/coaching` and `/coaching/:sessionId` as compatibility redirects so existing links and notifications continue to work.
-- Keep internal component, hook, query-key, and table names using `coaching`; this is only a visible product-language change.
-- Keep the existing coach workspace and admin coaching-library structure functionally unchanged; only visible top-level wording becomes Training where appropriate.
+## What will be corrected
 
-### 2. One Training area, separated by record type
-For a signed-in user, the Training page will provide:
-- **My Training** — only their `self_directed` completed logs, with a **Start Training** action.
-- **Coach Sessions** — only `coach_directed` sessions recorded for them, preserving the current read-only student experience.
-- Coaches retain their existing student roster, session creation, booking linkage, and session editing workspace. Their private self-directed logs remain separate and are never exposed through coach/student queries.
+### 1. Finish the Training rename
+- Change the admin sidebar label, admin page title, and management heading from **Coaching** to **Training**.
+- Retain internal `coaching` identifiers, table names, tab keys, and legacy `/coaching` links.
+- Review remaining visible wording individually: preserve **coaching** where it specifically describes paid coach-led services, and use **Training** for the combined feature area.
 
-Pre-registered profiles have no linked login and therefore cannot enter or create Training records. Once linked to a login, the ordinary signed-in flow applies; no parallel membership model will be added.
+### 2. Give every signed-in user a private training area
+- Let coaches access **My Training** and **Start Training** in addition to their existing student workspace.
+- Keep the coach roster, assignments, booking linkage, billing, and hours logic unchanged.
+- Keep pre-registered profiles excluded because they have no linked sign-in account.
 
-### 3. Start Training and completed-log flow
-- Reuse the current active focus/drill library, picker, snapshots, instructions, videos, recommended repetitions, drill notes, and progress summary.
-- Present selected drill details while the user trains, then save only when they choose **Complete Training**.
-- Require a valid city from the existing city source, defaulting from the user's existing profile/city context when available.
-- Create the session with:
-  - `session_type = 'self_directed'`
-  - `student_user_id = auth.uid()`
-  - `coach_user_id = auth.uid()` as the existing owner field
-  - no booking, invoice, corporate invoice, billing action, or hours deduction
-- Reuse the existing frozen session-focus and session-drill history rows. Complete a self-directed log through one narrow database operation that derives the signed-in identity and writes the session plus its frozen focus/drill history in one transaction. A failure therefore saves nothing rather than leaving a partial log.
-- A completed self-directed log may edit its date, city, notes, progress, and resource links. Focus/drill snapshots remain immutable, matching the existing historical-record design.
-- Self-directed delete directly removes the private log and cascades its history rows. It will not call booking cancellation or calendar-sync logic.
+### 3. Complete and constrain self-directed editing
+- Support the approved editable fields: date, city, notes, progress, and resource links.
+- Replace unrestricted city text with the existing city source and validate the selected city.
+- Keep focus/drill history and identity/type fields immutable.
 
-### 4. Minimal schema and permissions migration
-- Add `coaching_sessions.session_type` as constrained text: `self_directed | coach_directed`.
-- Make it non-null with `coach_directed` as the default, so every existing session is explicitly and safely classified as coach-directed without rewriting its behavior.
-- Add a database guard that prevents updates to `student_user_id`, `coach_user_id`, or `session_type` after creation. The UI will also omit/disable identity reassignment on edits, but the database remains the authority.
-- Replace the overlapping session policies with explicit type-aware rules:
-  - Self-directed: only the signed-in owner, with both identity fields equal to that user, may create, view, update, or delete.
-  - Coach-directed: assigned coach may create/update/delete; student may view; current city-scoped admins remain an explicit operational exception for scheduling and corrections, only for coach-directed records.
-  - No coach, admin, site admin, or other member receives access to another user's self-directed records in this version.
-- Update `can_read_coaching_session` and `can_write_coaching_session` so focus/drill history inherits exactly the same separation.
-- The self-directed completion operation will accept training content, but it will derive ownership from `auth.uid()` and reject unauthenticated calls; caller-supplied owner/student IDs will not be accepted.
-- Preserve child history as read/insert only; deletion continues through the parent cascade.
-- Keep service access for operational maintenance, while browser access remains RLS-controlled. No new table, enum type, view, or parallel model will be created.
+### 4. Harden self-directed completion
+- Replace the current database operation through a fresh migration so submitted focus/drill IDs are checked against active library records.
+- Derive frozen names, instructions, objectives, videos, and repetition snapshots from trusted library rows instead of trusting browser-supplied snapshot text.
+- Reject unknown, inactive, or mismatched focus/drill selections atomically; no partial session will be saved.
+- Preserve owner derivation from the signed-in user and keep self-directed records private.
 
-### 5. Notifications and existing paid coaching behavior
-- Add an explicit `session_type` check before every coaching email/in-app notification path.
-- Self-directed creation, editing, and deletion produce no coach-style email or notification.
-- Coach-directed notifications retain their current behavior, with links updated to `/training/...` while old `/coaching/...` links remain valid.
-- Do not change coach assignments, booking links, calendar cancellation, billing status, invoices, revenue, or hours deductions. Existing paid/coached flows continue on the coach-directed branch only.
+### 5. Make separation explicit in every path
+- Add an explicit `coach_directed` check before coach-style email and in-app notifications.
+- Explicitly restrict Member360 training history to coach-directed sessions so it never depends only on database filtering for privacy.
+- Keep self-directed deletion separate from booking cancellation, calendar, billing, invoices, revenue, and hours deductions.
 
-### 6. Detail and list behavior
-- Self-directed cards/details use **Self-directed** language and do not display the user as their own coach.
-- Coach-directed cards/details retain coach identity and existing tool links, notes, progress, focus areas, and drills.
-- Empty, loading, error, edit, and delete states will be independent for My Training and Coach Sessions.
-- Reuse existing cards, dialogs, buttons, tokens, and mobile patterns; no nested scrolling. Verify the full flow at mobile width and desktop width.
+### 6. Add proper failure states
+- Give **My Training** and **Coach Sessions** independent loading, error, empty, and retry states.
+- Ensure one failed history does not hide or block the other.
 
-## Technical safeguards and regression coverage
+### 7. Close the verification gap
+- Add CI regression tests for all visible Training labels and legacy routes.
+- Test registered users, members, and coaches accessing self-directed Training, with pre-registered profiles excluded.
+- Test owner-only self-directed access, admin/coach exclusion, coach-directed permissions, immutable identities/type, invalid session types, and forged/inactive library IDs.
+- Test explicit notification suppression and separation from booking, calendar, billing, revenue, and hours logic.
+- Test independent loading/error states, Member360 filtering, edit/delete behavior, and action visibility.
+- Run the complete test suite and confirm the test count increases beyond 783.
+- Verify authenticated member and coach flows on desktop and mobile, including no horizontal overflow and clear errors.
+- Verify the production database policies, function grants, and trusted snapshot behavior after migration.
 
-- Migration tests: allowed values/default/backfill, identity/type immutability, exact session and child-row RLS boundaries, admin exclusion from self-directed records, and unchanged coach-directed access.
-- Hook/database-operation tests: session-type filtering, authenticated identity derivation, atomic session/history creation, rejection of caller-supplied reassignment, self-directed edit/delete paths, and unchanged coach-directed mutation behavior.
-- Notification tests: no email or in-app notification for self-directed create/update/delete; coach-directed notifications still fire.
-- UI/route tests: Training labels, `/training` primary routes, old-route redirects including detail links, My Training versus Coach Sessions separation, Start Training completion, immutable focus/drill history, and coach workspace preservation.
-- Billing regression tests: self-directed logs never invoke booking, calendar, invoice, revenue, or hours-deduction paths.
-- Run focused tests, the full `npm test` suite, production build, and authenticated browser checks for member, coach, and access-denied cases. Report any role that cannot be verified rather than claiming it passed.
+### 8. Update supporting documentation
+- Update the user/admin documentation and project checklist so they describe the actual Training experience and retained paid-coaching behavior accurately.
 
-## Explicitly not included
-- Ongoing/editable training plans.
-- Coach/admin visibility into private self-directed logs.
-- Sharing flags or per-session/per-coach sharing permissions.
-- New session/focus/drill tables or an internal rename from coaching to training.
+## Completion standard
+
+The work will not be reported complete merely because it builds. Completion requires the approved checklist to be traced requirement by requirement, full CI tests to pass with a higher count, production permissions to be inspected, and authenticated member/coach browser checks to succeed. Any role that cannot be verified will be reported explicitly.
