@@ -65,6 +65,7 @@ export type QCEntry = {
   phone: string;
   amount: number;
   currency: string;
+  owner_id: string | null;
   razorpay_order_id: string | null;
   razorpay_payment_id: string | null;
   status: "pending" | "paid" | "refunded" | "failed";

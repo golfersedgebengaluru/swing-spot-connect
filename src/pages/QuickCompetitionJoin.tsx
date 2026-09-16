@@ -36,6 +36,7 @@ export default function QuickCompetitionJoin() {
 
   const isPaid = comp?.entry_type === "paid";
   const fee = useMemo(() => Number(comp?.entry_fee ?? 0), [comp]);
+  const claimStorageKey = competitionId ? `qc-entry-claim:${competitionId}` : null;
 
   if (isLoading) {
     return (
@@ -76,11 +77,24 @@ export default function QuickCompetitionJoin() {
     if (!name.trim() || !phone.trim() || !competitionId) return;
     setSubmitting(true);
     try {
+      const storedClaim = claimStorageKey ? sessionStorage.getItem(claimStorageKey) : null;
+      let priorAccess: { entry_id: string; guest_claim?: string } | null = null;
+      if (storedClaim) {
+        try {
+          priorAccess = JSON.parse(storedClaim) as { entry_id: string; guest_claim?: string };
+        } catch {
+          sessionStorage.removeItem(claimStorageKey);
+        }
+      }
       const { data, error } = await supabase.functions.invoke("qc-create-entry-order", {
-        body: { competition_id: competitionId, player_name: name.trim(), phone: phone.trim() },
+        body: { competition_id: competitionId, player_name: name.trim(), phone: phone.trim(), ...(priorAccess ?? {}) },
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "Could not start payment");
+      const entryAccess = data.guest_claim
+        ? { entry_id: data.entry_id as string, guest_claim: data.guest_claim as string }
+        : { entry_id: data.entry_id as string };
+      if (claimStorageKey) sessionStorage.setItem(claimStorageKey, JSON.stringify(entryAccess));
 
       const ok = await loadRazorpayScript();
       if (!ok) throw new Error("Payment script failed to load");
@@ -98,6 +112,7 @@ export default function QuickCompetitionJoin() {
           const { data: vData, error: vErr } = await supabase.functions.invoke("qc-verify-entry-payment", {
             body: {
               competition_id: competitionId,
+              ...entryAccess,
               razorpay_order_id: resp.razorpay_order_id,
               razorpay_payment_id: resp.razorpay_payment_id,
               razorpay_signature: resp.razorpay_signature,
