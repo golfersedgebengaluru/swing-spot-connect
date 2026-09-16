@@ -10,7 +10,7 @@ const responseHeaders = {
 const MAX_BODY_BYTES = 10_000;
 
 const PayloadSchema = z.object({
-  trigger_event: z.string().min(1).max(100),
+  trigger_event: z.literal("signup"),
 }).strip();
 
 type ClientFactory = typeof createClient;

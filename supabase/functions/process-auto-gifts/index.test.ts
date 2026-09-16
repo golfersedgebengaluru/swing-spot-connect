@@ -1,7 +1,7 @@
 import {
   assertEquals,
-  assertRejects,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import type { createClient as SupabaseClientFactory } from "npm:@supabase/supabase-js@2";
 import { handleProcessAutoGifts } from "./index.ts";
 
 const USER_ID = "11111111-1111-4111-8111-111111111111";
@@ -75,9 +75,13 @@ const env = {
   SUPABASE_SERVICE_ROLE_KEY: "service-key",
 };
 
+function compatibleFactory(factory: ReturnType<typeof createHarness>["createClient"]) {
+  return factory as unknown as typeof SupabaseClientFactory;
+}
+
 Deno.test("rejects an anonymous anon-key request before database access", async () => {
   const harness = createHarness(null);
-  const response = await handleProcessAutoGifts(request(), harness.createClient, env);
+  const response = await handleProcessAutoGifts(request(), compatibleFactory(harness.createClient), env);
 
   assertEquals(response.status, 401);
   assertEquals(await response.json(), { error: "Unauthorized" });
@@ -86,7 +90,11 @@ Deno.test("rejects an anonymous anon-key request before database access", async 
 
 Deno.test("rejects a service-role or other privileged non-user token", async () => {
   const harness = createHarness(null);
-  const response = await handleProcessAutoGifts(request("service-role-token"), harness.createClient, env);
+  const response = await handleProcessAutoGifts(
+    request("service-role-token"),
+    compatibleFactory(harness.createClient),
+    env,
+  );
 
   assertEquals(response.status, 401);
   assertEquals(await response.json(), { error: "Unauthorized" });
@@ -97,7 +105,7 @@ Deno.test("ignores a forged user_id and uses one validated identity throughout",
   const harness = createHarness(USER_ID);
   const response = await handleProcessAutoGifts(
     request("valid-user-token", { user_id: OTHER_USER_ID, trigger_event: "signup" }),
-    harness.createClient,
+    compatibleFactory(harness.createClient),
     env,
   );
 
@@ -115,7 +123,7 @@ Deno.test("ignores a forged user_id and uses one validated identity throughout",
   assertEquals(JSON.stringify(harness.calls).includes(OTHER_USER_ID), false);
 });
 
-Deno.test("fails closed when the gift write fails", async () => {
+Deno.test("returns an error and does not report a gift when the gift write fails", async () => {
   const harness = createHarness(USER_ID);
   const originalCreateClient = harness.createClient;
   const failingCreateClient = (url: string, key: string) => {
@@ -132,9 +140,11 @@ Deno.test("fails closed when the gift write fails", async () => {
     };
   };
 
-  await assertRejects(
-    () => handleProcessAutoGifts(request("valid-user-token"), failingCreateClient, env),
-    Error,
-    "write failed",
+  const response = await handleProcessAutoGifts(
+    request("valid-user-token"),
+    compatibleFactory(failingCreateClient),
+    env,
   );
+  assertEquals(response.status, 500);
+  assertEquals(await response.json(), { error: "Internal server error" });
 });
