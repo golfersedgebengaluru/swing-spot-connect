@@ -54,5 +54,12 @@ describe("Training navigation and privacy contract", () => {
     expect(completeBlock).not.toContain("sendNotificationEmail");
     expect(completeBlock).not.toContain("calendar-sync");
     expect(deleteBlock).not.toContain("calendar-sync");
+    expect(hooks).toContain('(prior?.session_type ?? "coach_directed") === "coach_directed"');
+  });
+
+  it("shows only coach-directed sessions in Member360", () => {
+    const member360 = read("src/pages/Member360.tsx");
+    expect(member360).toContain('.eq("session_type", "coach_directed")');
+    expect(member360).toContain("Coaching History");
   });
 });

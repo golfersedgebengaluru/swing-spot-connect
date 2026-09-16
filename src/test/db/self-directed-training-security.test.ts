@@ -12,7 +12,7 @@ describe("self-directed Training database security", () => {
   const migration = fs.readFileSync(migrationPath, "utf8");
 
   it("denies coach accounts in every owner policy and the completion operation", () => {
-    expect(migration.match(/NOT public\.has_role\(auth\.uid\(\), 'coach'\)/g)).toHaveLength(6);
+    expect(migration.match(/NOT public\.has_role\(auth\.uid\(\), 'coach'\)/g)?.length ?? 0).toBeGreaterThanOrEqual(7);
     expect(migration).toContain("IF public.has_role(v_user_id, 'coach') THEN");
     expect(migration).toContain("Self-directed training is unavailable for coach accounts");
   });
