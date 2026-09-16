@@ -14,6 +14,7 @@ import { useCompleteSelfDirectedTraining } from "@/hooks/useCoaching";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { SessionSelection } from "@/lib/coaching-library";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Props {
   open: boolean;
@@ -32,6 +33,7 @@ export function SelfDirectedTrainingDialog({ open, onOpenChange }: Props) {
   const [selection, setSelection] = useState<SessionSelection>(emptySelection);
   const [notes, setNotes] = useState("");
   const [progress, setProgress] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !user) return;
@@ -39,6 +41,7 @@ export function SelfDirectedTrainingDialog({ open, onOpenChange }: Props) {
     setSelection(emptySelection);
     setNotes("");
     setProgress("");
+    setSaveError(null);
     supabase
       .from("profiles")
       .select("preferred_city")
@@ -61,15 +64,13 @@ export function SelfDirectedTrainingDialog({ open, onOpenChange }: Props) {
   const canComplete = Boolean(city && sessionDate && selection.focusIds.length && !complete.isPending);
 
   const handleComplete = async () => {
-    await complete.mutateAsync({
-      city,
-      sessionDate,
-      notes,
-      progressSummary: progress,
-      selection,
-      library: library ?? [],
-    });
-    onOpenChange(false);
+    setSaveError(null);
+    try {
+      await complete.mutateAsync({ city, sessionDate, notes, progressSummary: progress, selection, library: library ?? [] });
+      onOpenChange(false);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Training could not be completed.");
+    }
   };
 
   return (
@@ -122,6 +123,7 @@ export function SelfDirectedTrainingDialog({ open, onOpenChange }: Props) {
 
           <VoiceTextarea label="Training notes" field="notes" value={notes} onChange={setNotes} rows={3} placeholder="What did you notice?" />
           <VoiceTextarea label="Progress summary" field="progress" value={progress} onChange={setProgress} rows={2} placeholder="How did the session go?" />
+          {saveError && <Alert variant="destructive"><AlertDescription>{saveError}</AlertDescription></Alert>}
         </div>
 
         <DialogFooter className="gap-2">

@@ -289,6 +289,12 @@ export interface SelfDirectedTrainingInput {
   library: LibraryFocus[];
 }
 
+function cleanLinks(links: ToolLink[] = []) {
+  return links
+    .map((link) => ({ url: link.url.trim(), label: link.label?.trim() || "" }))
+    .filter((link) => link.url.length > 0);
+}
+
 export function useCompleteSelfDirectedTraining() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -306,8 +312,8 @@ export function useCompleteSelfDirectedTraining() {
           superspeed_links: [],
           other_links: [],
         },
-        _focuses: JSON.parse(JSON.stringify(withoutSessionId(focusRows))),
-        _drills: JSON.parse(JSON.stringify(withoutSessionId(drillRows))),
+        _focuses: JSON.parse(JSON.stringify(withoutSessionId(focusRows).map(({ focus_id }) => ({ focus_id })))),
+        _drills: JSON.parse(JSON.stringify(withoutSessionId(drillRows).map(({ drill_id, focus_id, coach_note }) => ({ drill_id, focus_id, coach_note })))),
       });
       if (error) throw error;
       return data;
@@ -344,7 +350,7 @@ export function useUpdateSelfDirectedSession() {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async (input: { id: string; city: string; sessionDate: string; notes: string; progressSummary: string }) => {
+    mutationFn: async (input: { id: string; city: string; sessionDate: string; notes: string; progressSummary: string; onformLinks: ToolLink[]; sportsboxLinks: ToolLink[]; superspeedLinks: ToolLink[]; otherLinks: ToolLink[] }) => {
       const { error } = await supabase
         .from("coaching_sessions")
         .update({
@@ -352,6 +358,10 @@ export function useUpdateSelfDirectedSession() {
           session_date: input.sessionDate,
           notes: input.notes.trim() || null,
           progress_summary: input.progressSummary.trim() || null,
+          onform_links: cleanLinks(input.onformLinks),
+          sportsbox_links: cleanLinks(input.sportsboxLinks),
+          superspeed_links: cleanLinks(input.superspeedLinks),
+          other_links: cleanLinks(input.otherLinks),
         })
         .eq("id", input.id)
         .eq("session_type", "self_directed");
@@ -460,7 +470,7 @@ export function useSaveSession() {
           linksChanged(input.other_links ?? [], prior.other_links ?? []);
       }
 
-      if (meaningful) {
+      if (meaningful && (prior?.session_type ?? "coach_directed") === "coach_directed") {
         // Fetch coach name
         const { data: coachProf } = await supabase
           .from("profiles")

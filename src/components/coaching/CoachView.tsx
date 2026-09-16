@@ -177,7 +177,7 @@ export function CoachView() {
             Training
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Your students and session notes.
+            Your students and their coaching session notes.
           </p>
         </div>
         <Button size="sm" onClick={openNewSession}>
