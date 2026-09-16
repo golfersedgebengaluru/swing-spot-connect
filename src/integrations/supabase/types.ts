@@ -4936,7 +4936,9 @@ export type Database = {
           competition_id: string
           created_at: string
           currency: string
+          guest_claim_hash: string | null
           id: string
+          owner_id: string | null
           phone: string
           player_id: string | null
           player_name: string
@@ -4952,7 +4954,9 @@ export type Database = {
           competition_id: string
           created_at?: string
           currency?: string
+          guest_claim_hash?: string | null
           id?: string
+          owner_id?: string | null
           phone: string
           player_id?: string | null
           player_name: string
@@ -4968,7 +4972,9 @@ export type Database = {
           competition_id?: string
           created_at?: string
           currency?: string
+          guest_claim_hash?: string | null
           id?: string
+          owner_id?: string | null
           phone?: string
           player_id?: string | null
           player_name?: string

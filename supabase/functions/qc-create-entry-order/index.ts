@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { z } from "https://esm.sh/zod@3";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { z } from "npm:zod@3";
 import { resolveQcGateway } from "../_shared/qc-gateway.ts";
+import { canAccessQcEntry, createGuestClaim, hashGuestClaim, resolveQcCaller } from "../_shared/qc-entry-access.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,6 +21,8 @@ const Schema = z.object({
   competition_id: z.string().uuid(),
   player_name: z.string().min(1).max(80),
   phone: z.string().min(5).max(20),
+  entry_id: z.string().uuid().optional(),
+  guest_claim: z.string().length(64).regex(/^[a-f0-9]+$/).optional(),
 });
 
 serve(async (req) => {
@@ -27,10 +30,15 @@ serve(async (req) => {
   try {
     const parsed = Schema.safeParse(await req.json());
     if (!parsed.success) return ok({ success: false, error: "Invalid request" });
-    const { competition_id, player_name, phone } = parsed.data;
+    const { competition_id, player_name, phone, entry_id, guest_claim } = parsed.data;
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const caller = await resolveQcCaller(req.headers.get("Authorization"), supabaseUrl, anonKey, createClient as unknown as Parameters<typeof resolveQcCaller>[3]);
+    if (caller.kind === "invalid") return ok({ success: false, error: "Unauthorized" }, 401);
 
     const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
+      supabaseUrl,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
@@ -44,15 +52,19 @@ serve(async (req) => {
     if (comp.entry_type !== "paid" || !comp.entry_fee || Number(comp.entry_fee) <= 0)
       return ok({ success: false, error: "This competition is not a paid entry" });
 
-    // Check if entry already exists
+    // Phone remains a duplicate-prevention field, never an ownership credential.
     const { data: existing } = await supabase
       .from("qc_entries")
-      .select("id, status, razorpay_order_id")
+      .select("id, status, razorpay_order_id, owner_id, guest_claim_hash")
       .eq("competition_id", competition_id)
       .eq("phone", phone.trim())
       .maybeSingle();
-    if (existing?.status === "paid")
-      return ok({ success: false, error: "This phone number has already entered" });
+    if (existing) {
+      const ownsExisting = entry_id === existing.id && await canAccessQcEntry(caller, existing, guest_claim);
+      if (!ownsExisting || existing.status === "paid") {
+        return ok({ success: false, error: "An entry already exists for these details" });
+      }
+    }
 
     // Resolve gateway: tenant-scoped wins, then legacy city.
     const { gateway, city, scope } = await resolveQcGateway(supabase, comp);
@@ -92,6 +104,8 @@ serve(async (req) => {
     const order = await rzpRes.json();
 
     // Upsert pending entry
+    const newGuestClaim = caller.kind === "guest" && !existing ? createGuestClaim() : undefined;
+    const claimForEntry = guest_claim ?? newGuestClaim;
     const entryPayload = {
       competition_id,
       player_name: player_name.trim(),
@@ -100,11 +114,18 @@ serve(async (req) => {
       currency: comp.entry_currency || "INR",
       razorpay_order_id: order.id,
       status: "pending" as const,
+      owner_id: caller.kind === "user" ? caller.userId : null,
+      guest_claim_hash: caller.kind === "guest" && claimForEntry ? await hashGuestClaim(claimForEntry) : null,
     };
+    let savedEntryId: string;
     if (existing) {
-      await supabase.from("qc_entries").update(entryPayload).eq("id", existing.id);
+      const { error: updateError } = await supabase.from("qc_entries").update(entryPayload).eq("id", existing.id);
+      if (updateError) throw updateError;
+      savedEntryId = existing.id;
     } else {
-      await supabase.from("qc_entries").insert(entryPayload);
+      const { data: inserted, error: insertError } = await supabase.from("qc_entries").insert(entryPayload).select("id").single();
+      if (insertError || !inserted) throw insertError ?? new Error("Entry could not be saved");
+      savedEntryId = inserted.id;
     }
 
     return ok({
@@ -113,6 +134,8 @@ serve(async (req) => {
       amount: order.amount,
       currency: order.currency,
       key_id: apiKey,
+      entry_id: savedEntryId,
+      ...(newGuestClaim ? { guest_claim: newGuestClaim } : {}),
     });
   } catch (err) {
     console.error("qc-create-entry-order error", (err as Error).message);

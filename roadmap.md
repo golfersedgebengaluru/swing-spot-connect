@@ -118,8 +118,9 @@
 - [x] Deploy, run the full regression suite and build, then confirm resolution with a fresh security scan
 
 ## Quick Competition entry ownership (approved scope)
-- [ ] Replace editable-phone ownership with validated authenticated user identity
-- [ ] Add a hashed, high-entropy guest claim flow with no direct guest table access
-- [ ] Secure create, retry, payment verification, and status retrieval without changing payment accounting
-- [ ] Test cross-user phone impersonation, own-entry access, and cross-guest isolation
-- [ ] Deploy, verify production policies/grants and isolated QA paths, then run full regression/build/security scan
+- [x] Reconfirm the live `qc_entries` row count (0 rows); no legacy-row transition is required
+- [x] Replace editable-phone ownership with validated authenticated user identity
+- [x] Add a hashed, high-entropy guest claim flow with no direct guest table access
+- [x] Secure create, retry, payment verification, and status retrieval without changing payment accounting
+- [x] Test cross-user phone impersonation, own-entry access, and cross-guest isolation
+- [x] Deploy, verify production policies/grants and isolated QA paths, then run full regression/build/security scan
