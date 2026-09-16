@@ -123,4 +123,4 @@
 - [x] Add a hashed, high-entropy guest claim flow with no direct guest table access
 - [x] Secure create, retry, payment verification, and status retrieval without changing payment accounting
 - [x] Test cross-user phone impersonation, own-entry access, and cross-guest isolation
-- [ ] Deploy, verify production policies/grants and isolated QA paths, then run full regression/build/security scan
+- [x] Deploy, verify production policies/grants and isolated QA paths, then run full regression/build/security scan
