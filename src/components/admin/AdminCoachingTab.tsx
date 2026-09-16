@@ -482,7 +482,7 @@ export function AdminCoachingTab() {
         <div>
           <h1 className="text-xl md:text-2xl font-semibold flex items-center gap-2">
             <GraduationCap className="h-5 w-5 text-primary" />
-            Coaching
+            Training
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             Session cards with notes, drills, and links to Onform, Sportsbox AI, and Superspeed.
