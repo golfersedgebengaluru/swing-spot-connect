@@ -104,7 +104,7 @@
 - [x] Add regression coverage to the existing `npm test` CI command and confirm the test total increases
 - [x] Run the full suite, production build, and mobile/authenticated browser verification (93 files, 783 tests)
 
-## Training audit corrections (awaiting approval)
+## Training audit corrections
 - [ ] Complete the visible Training rename and correct the audited security, validation, error-state, testing, and documentation gaps
 - [ ] Keep coaches in their existing student workspace; do not add My Training or Start Training to the coach experience
-- [ ] Deny coach accounts at `/training`, `/training/start`, and the underlying self-directed database operation; verify direct requests, not only hidden UI
+- [x] Deny coach accounts at `/training`, `/training/start`, and the underlying self-directed database operation; verified with a real coach account
