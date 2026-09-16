@@ -57,8 +57,8 @@ describe("self-directed Training mutations", () => {
     expect(mockRpc).toHaveBeenCalledOnce();
     expect(mockRpc).toHaveBeenCalledWith("complete_self_directed_training", expect.objectContaining({
       _session: expect.objectContaining({ city: "Bengaluru", notes: "Better contact", progress_summary: "Eight solid strikes" }),
-      _focuses: [expect.objectContaining({ focus_id: "focus-1", snapshot: expect.objectContaining({ name: "Ball Contact" }) })],
-      _drills: [expect.objectContaining({ drill_id: "drill-1", coach_note: "Stay centred", snapshot: expect.objectContaining({ name: "9-to-3" }) })],
+      _focuses: [{ focus_id: "focus-1" }],
+      _drills: [{ drill_id: "drill-1", focus_id: "focus-1", coach_note: "Stay centred" }],
     }));
     expect(mockFrom).not.toHaveBeenCalled();
     expect(mockFunctionsInvoke).not.toHaveBeenCalled();

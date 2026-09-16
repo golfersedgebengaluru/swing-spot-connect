@@ -87,6 +87,7 @@ const App = () => (
               <Route path="/coaching" element={<ErrorBoundary><Coaching /></ErrorBoundary>} />
               <Route path="/coaching/:sessionId" element={<ErrorBoundary><CoachingSessionDetail /></ErrorBoundary>} />
               <Route path="/training" element={<ErrorBoundary><Coaching /></ErrorBoundary>} />
+              <Route path="/training/start" element={<ErrorBoundary><Coaching startOnLoad /></ErrorBoundary>} />
               <Route path="/training/:sessionId" element={<ErrorBoundary><CoachingSessionDetail /></ErrorBoundary>} />
               <Route path="/admin/setup" element={<ErrorBoundary><AdminSetup /></ErrorBoundary>} />
               <Route path="/admin" element={<ErrorBoundary><AdminRoute><Admin /></AdminRoute></ErrorBoundary>} />

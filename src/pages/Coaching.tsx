@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Dumbbell, GraduationCap, Loader2, Plus } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Dumbbell, GraduationCap, Loader2, Plus, ShieldOff } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { SessionCard } from "@/components/coaching/SessionCard";
 import { CoachView } from "@/components/coaching/CoachView";
@@ -32,13 +32,14 @@ function SessionList({ sessions, isLoading, isError, retry, emptyTitle, emptyMes
   );
 }
 
-export default function Coaching() {
+export default function Coaching({ startOnLoad = false }: { startOnLoad?: boolean }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, loading } = useAuth();
   const { isCoach, loading: adminLoading } = useAdmin();
   const coachQuery = useMyStudentSessions();
   const trainingQuery = useMySelfDirectedSessions();
-  const [startOpen, setStartOpen] = useState(false);
+  const [startOpen, setStartOpen] = useState(startOnLoad);
 
   if (!loading && !user) {
     navigate("/auth");
@@ -48,6 +49,10 @@ export default function Coaching() {
   if (loading || adminLoading) return (
     <div className="min-h-screen bg-background"><Navbar /><div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div></div>
   );
+
+  if (isCoach && location.pathname.startsWith("/training")) {
+    return <div className="min-h-screen bg-background"><Navbar /><main className="container mx-auto max-w-lg px-4 py-12"><Card className="space-y-4 p-8 text-center"><ShieldOff className="mx-auto h-10 w-10 text-destructive" /><h1 className="font-display text-2xl font-semibold">Training access denied</h1><p className="text-sm text-muted-foreground">Coach accounts use the coaching workspace for assigned students.</p><Button asChild><Link to="/coaching">Open coaching workspace</Link></Button></Card></main></div>;
+  }
 
   return (
     <div className="min-h-screen bg-background">

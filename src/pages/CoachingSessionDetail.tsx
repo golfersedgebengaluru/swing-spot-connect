@@ -16,11 +16,13 @@ import type { ToolLink } from "@/hooks/useCoaching";
 import { useAllCities } from "@/hooks/useBookings";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAdmin } from "@/hooks/useAdmin";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function CoachingSessionDetail() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
+  const { isCoach, loading: roleLoading } = useAdmin();
   const sessionQuery = useSession(sessionId);
   const { data: session, isLoading } = sessionQuery;
   const { data: cities } = useAllCities();
@@ -75,8 +77,10 @@ export default function CoachingSessionDetail() {
           <Link to="/training"><ArrowLeft className="mr-1 h-4 w-4" />Back to Training</Link>
         </Button>
 
-        {isLoading ? (
+        {isLoading || roleLoading ? (
           <div className="text-sm text-muted-foreground">Loading…</div>
+        ) : isCoach ? (
+          <Card className="p-8 text-center"><p className="font-medium">Training access denied</p><Button className="mt-4" asChild><Link to="/coaching">Open coaching workspace</Link></Button></Card>
         ) : sessionQuery.isError ? (
           <Card className="space-y-3 p-8 text-center"><p className="font-medium">Session could not be loaded</p><Button variant="outline" onClick={() => void sessionQuery.refetch()}>Try again</Button></Card>
         ) : !session ? (
