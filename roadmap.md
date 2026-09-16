@@ -107,3 +107,4 @@
 ## Training audit corrections (awaiting approval)
 - [ ] Complete the visible Training rename and correct the audited security, validation, error-state, testing, and documentation gaps
 - [ ] Keep coaches in their existing student workspace; do not add My Training or Start Training to the coach experience
+- [ ] Deny coach accounts at `/training`, `/training/start`, and the underlying self-directed database operation; verify direct requests, not only hidden UI

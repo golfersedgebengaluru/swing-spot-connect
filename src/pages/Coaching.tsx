@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Dumbbell, GraduationCap, Loader2, Plus } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Dumbbell, GraduationCap, Loader2, Plus, ShieldOff } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { SessionCard } from "@/components/coaching/SessionCard";
 import { CoachView } from "@/components/coaching/CoachView";
@@ -12,9 +12,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useMySelfDirectedSessions, useMyStudentSessions, type CoachingSession } from "@/hooks/useCoaching";
 
-function SessionList({ sessions, isLoading, emptyTitle, emptyMessage }: { sessions?: CoachingSession[]; isLoading: boolean; emptyTitle: string; emptyMessage: string }) {
+function SessionList({ sessions, isLoading, isError, retry, emptyTitle, emptyMessage }: { sessions?: CoachingSession[]; isLoading: boolean; isError: boolean; retry: () => void; emptyTitle: string; emptyMessage: string }) {
   const navigate = useNavigate();
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (isError) return <Card className="space-y-3 p-6 text-center"><p className="font-medium">Training sessions could not be loaded.</p><Button variant="outline" onClick={retry}>Try again</Button></Card>;
   if (!sessions?.length) return (
     <Card className="p-8 text-center">
       <GraduationCap className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
@@ -31,13 +32,14 @@ function SessionList({ sessions, isLoading, emptyTitle, emptyMessage }: { sessio
   );
 }
 
-export default function Coaching() {
+export default function Coaching({ startOnLoad = false }: { startOnLoad?: boolean }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, loading } = useAuth();
   const { isCoach, loading: adminLoading } = useAdmin();
-  const { data: coachSessions, isLoading: coachLoading } = useMyStudentSessions();
-  const { data: myTraining, isLoading: trainingLoading } = useMySelfDirectedSessions();
-  const [startOpen, setStartOpen] = useState(false);
+  const coachQuery = useMyStudentSessions();
+  const trainingQuery = useMySelfDirectedSessions();
+  const [startOpen, setStartOpen] = useState(startOnLoad);
 
   if (!loading && !user) {
     navigate("/auth");
@@ -47,6 +49,10 @@ export default function Coaching() {
   if (loading || adminLoading) return (
     <div className="min-h-screen bg-background"><Navbar /><div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div></div>
   );
+
+  if (isCoach && location.pathname.startsWith("/training")) {
+    return <div className="min-h-screen bg-background"><Navbar /><main className="container mx-auto max-w-lg px-4 py-12"><Card className="space-y-4 p-8 text-center"><ShieldOff className="mx-auto h-10 w-10 text-destructive" /><h1 className="font-display text-2xl font-semibold">Training access denied</h1><p className="text-sm text-muted-foreground">Coach accounts use the coaching workspace for assigned students.</p><Button asChild><Link to="/coaching">Open coaching workspace</Link></Button></Card></main></div>;
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -66,8 +72,8 @@ export default function Coaching() {
                 <TabsTrigger value="mine" className="min-h-9">My Training</TabsTrigger>
                 <TabsTrigger value="coach" className="min-h-9">Coach Sessions</TabsTrigger>
               </TabsList>
-              <TabsContent value="mine"><SessionList sessions={myTraining} isLoading={trainingLoading} emptyTitle="No training logs yet" emptyMessage="Choose a focus and drills to complete your first training session." /></TabsContent>
-              <TabsContent value="coach"><SessionList sessions={coachSessions} isLoading={coachLoading} emptyTitle="No coach sessions yet" emptyMessage="Sessions recorded by your coach will appear here." /></TabsContent>
+               <TabsContent value="mine"><SessionList sessions={trainingQuery.data} isLoading={trainingQuery.isLoading} isError={trainingQuery.isError} retry={() => void trainingQuery.refetch()} emptyTitle="No training logs yet" emptyMessage="Choose a focus and drills to complete your first training session." /></TabsContent>
+               <TabsContent value="coach"><SessionList sessions={coachQuery.data} isLoading={coachQuery.isLoading} isError={coachQuery.isError} retry={() => void coachQuery.refetch()} emptyTitle="No coaching sessions yet" emptyMessage="Sessions recorded by your coach will appear here." /></TabsContent>
             </Tabs>
             <SelfDirectedTrainingDialog open={startOpen} onOpenChange={setStartOpen} />
           </>

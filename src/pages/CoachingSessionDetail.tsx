@@ -11,12 +11,21 @@ import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { VoiceTextarea } from "@/components/coaching/VoiceTextarea";
+import { TrainingResourceLinksEditor } from "@/components/coaching/TrainingResourceLinksEditor";
+import type { ToolLink } from "@/hooks/useCoaching";
+import { useAllCities } from "@/hooks/useBookings";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAdmin } from "@/hooks/useAdmin";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function CoachingSessionDetail() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
-  const { data: session, isLoading } = useSession(sessionId);
+  const { isCoach, loading: roleLoading } = useAdmin();
+  const sessionQuery = useSession(sessionId);
+  const { data: session, isLoading } = sessionQuery;
+  const { data: cities } = useAllCities();
   const update = useUpdateSelfDirectedSession();
   const remove = useDeleteSelfDirectedSession();
   const [editing, setEditing] = useState(false);
@@ -25,6 +34,11 @@ export default function CoachingSessionDetail() {
   const [date, setDate] = useState("");
   const [notes, setNotes] = useState("");
   const [progress, setProgress] = useState("");
+  const [onformLinks, setOnformLinks] = useState<ToolLink[]>([]);
+  const [sportsboxLinks, setSportsboxLinks] = useState<ToolLink[]>([]);
+  const [superspeedLinks, setSuperspeedLinks] = useState<ToolLink[]>([]);
+  const [otherLinks, setOtherLinks] = useState<ToolLink[]>([]);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -32,12 +46,21 @@ export default function CoachingSessionDetail() {
     setDate(session.session_date);
     setNotes(session.notes ?? "");
     setProgress(session.progress_summary ?? "");
+    setOnformLinks(session.onform_links ?? []);
+    setSportsboxLinks(session.sportsbox_links ?? []);
+    setSuperspeedLinks(session.superspeed_links ?? []);
+    setOtherLinks(session.other_links ?? []);
   }, [session]);
 
   const save = async () => {
     if (!session) return;
-    await update.mutateAsync({ id: session.id, city, sessionDate: date, notes, progressSummary: progress });
-    setEditing(false);
+    setSaveError(null);
+    try {
+      await update.mutateAsync({ id: session.id, city, sessionDate: date, notes, progressSummary: progress, onformLinks, sportsboxLinks, superspeedLinks, otherLinks });
+      setEditing(false);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Training log could not be updated.");
+    }
   };
 
   const deleteLog = async () => {
@@ -54,8 +77,12 @@ export default function CoachingSessionDetail() {
           <Link to="/training"><ArrowLeft className="mr-1 h-4 w-4" />Back to Training</Link>
         </Button>
 
-        {isLoading ? (
+        {isLoading || roleLoading ? (
           <div className="text-sm text-muted-foreground">Loading…</div>
+        ) : isCoach ? (
+          <Card className="p-8 text-center"><p className="font-medium">Training access denied</p><Button className="mt-4" asChild><Link to="/coaching">Open coaching workspace</Link></Button></Card>
+        ) : sessionQuery.isError ? (
+          <Card className="space-y-3 p-8 text-center"><p className="font-medium">Session could not be loaded</p><Button variant="outline" onClick={() => void sessionQuery.refetch()}>Try again</Button></Card>
         ) : !session ? (
           <Card className="p-8 text-center">
             <p className="font-medium">Session not found</p>
@@ -72,11 +99,13 @@ export default function CoachingSessionDetail() {
               {editing && session.session_type === "self_directed" ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5"><Label>City</Label><Input value={city} onChange={(event) => setCity(event.target.value)} /></div>
+                     <div className="space-y-1.5"><Label>City</Label><Select value={city} onValueChange={setCity}><SelectTrigger><SelectValue placeholder="Select city" /></SelectTrigger><SelectContent>{(cities ?? []).map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div>
                     <div className="space-y-1.5"><Label>Date</Label><Input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></div>
                   </div>
                   <VoiceTextarea label="Training notes" field="notes" value={notes} onChange={setNotes} rows={3} />
                   <VoiceTextarea label="Progress summary" field="progress" value={progress} onChange={setProgress} rows={2} />
+                   <TrainingResourceLinksEditor onformLinks={onformLinks} setOnformLinks={setOnformLinks} sportsboxLinks={sportsboxLinks} setSportsboxLinks={setSportsboxLinks} superspeedLinks={superspeedLinks} setSuperspeedLinks={setSuperspeedLinks} otherLinks={otherLinks} setOtherLinks={setOtherLinks} />
+                   {saveError && <Alert variant="destructive"><AlertDescription>{saveError}</AlertDescription></Alert>}
                   <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setEditing(false)}>Cancel</Button><Button onClick={save} disabled={!city || !date || update.isPending}>Save</Button></div>
                 </div>
               ) : (

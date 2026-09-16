@@ -47,7 +47,7 @@ const coreItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, adminOrSiteAdminOnly: true },
   { id: "bookinglogs", label: "Bookings", icon: CalendarDays, adminOrSiteAdminOnly: true },
   { id: "leagues", label: "Leagues", icon: Trophy, adminOrSiteAdminOnly: true },
-  { id: "coaching", label: "Coaching", icon: GraduationCap },
+  { id: "coaching", label: "Training", icon: GraduationCap },
 ];
 
 const usersItems = [

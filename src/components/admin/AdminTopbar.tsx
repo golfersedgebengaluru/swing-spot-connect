@@ -47,7 +47,7 @@ const tabTitles: Record<string, string> = {
   reports_gstr1: "GSTR-1",
   finance: "Finance Settings",
   coupons: "Coupons",
-  coaching: "Coaching",
+  coaching: "Training",
   corporate: "Corporate Accounts",
   grievances: "Grievances",
   retention: "Data Retention",
