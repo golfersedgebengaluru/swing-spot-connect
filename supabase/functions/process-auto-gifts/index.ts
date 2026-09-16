@@ -135,4 +135,4 @@ export async function handleProcessAutoGifts(
   }
 }
 
-if (import.meta.main) Deno.serve(handleProcessAutoGifts);
+if (import.meta.main) Deno.serve((req) => handleProcessAutoGifts(req));

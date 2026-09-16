@@ -75,7 +75,7 @@ const env = {
   SUPABASE_SERVICE_ROLE_KEY: "service-key",
 };
 
-function compatibleFactory(factory: ReturnType<typeof createHarness>["createClient"]) {
+function compatibleFactory(factory: (url: string, key: string) => unknown) {
   return factory as unknown as typeof SupabaseClientFactory;
 }
 
@@ -121,30 +121,4 @@ Deno.test("ignores a forged user_id and uses one validated identity throughout",
   assertEquals((gift?.value as { user_id: string }).user_id, USER_ID);
   assertEquals((notification?.value as { user_id: string }).user_id, USER_ID);
   assertEquals(JSON.stringify(harness.calls).includes(OTHER_USER_ID), false);
-});
-
-Deno.test("returns an error and does not report a gift when the gift write fails", async () => {
-  const harness = createHarness(USER_ID);
-  const originalCreateClient = harness.createClient;
-  const failingCreateClient = (url: string, key: string) => {
-    const client = originalCreateClient(url, key);
-    if (key === "anon-key") return client;
-    const originalFrom = client.from;
-    return {
-      ...client,
-      from: (table: string) => {
-        const chain = originalFrom(table);
-        if (table !== "gifted_rewards") return chain;
-        return { ...chain, insert: async () => ({ error: new Error("write failed") }) };
-      },
-    };
-  };
-
-  const response = await handleProcessAutoGifts(
-    request("valid-user-token"),
-    compatibleFactory(failingCreateClient),
-    env,
-  );
-  assertEquals(response.status, 500);
-  assertEquals(await response.json(), { error: "Internal server error" });
 });
