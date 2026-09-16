@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { useSessionLibraryEntries } from "@/hooks/useCoachingLibrary";
+import { Button } from "@/components/ui/button";
 
 /**
  * Read-only render of a session's focuses/drills straight from the frozen
@@ -16,7 +17,10 @@ export function SessionLibrarySummary({
   /** When set (and there is content), wraps the summary in a titled card. */
   heading?: string;
 }) {
-  const { data } = useSessionLibraryEntries(sessionId);
+  const query = useSessionLibraryEntries(sessionId);
+  const { data } = query;
+  if (query.isLoading) return <div className="h-20 animate-pulse rounded-md bg-muted" aria-label="Loading focus and drills" />;
+  if (query.isError) return <div className="space-y-2 rounded-md border p-3 text-sm"><p>Focus and drills could not be loaded.</p><Button size="sm" variant="outline" onClick={() => void query.refetch()}>Try again</Button></div>;
   const focuses = data?.focuses ?? [];
   const drills = data?.drills ?? [];
   if (!focuses.length && !drills.length) return null;

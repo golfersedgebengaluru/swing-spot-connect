@@ -12,7 +12,8 @@
 - [/events](/events): Events — browse and register for upcoming community events.
 - [/community](/community): Community — social feed and member interactions.
 - [/leagues](/leagues): Leagues — join and manage golf leagues and competitions.
-- [/coaching](/coaching): Coaching — browse coaching sessions and manage your training.
+- [/training](/training): Training — registered users and members privately log self-directed focus areas and drills, and review coaching sessions.
+- [/coaching](/coaching): Legacy Training link and the existing coach workspace for assigned students.
 - [/shop](/shop): Shop — purchase golf products and gear.
 - [/rewards](/rewards): Rewards — view points balance, progress, and redeem rewards.
 - [/profile](/profile): Profile — manage your account and preferences.
