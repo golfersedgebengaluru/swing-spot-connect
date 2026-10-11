@@ -27,10 +27,11 @@ export function GSTR1DownloadCard({ city }: Props) {
   const handleDownload = async () => {
     setLoading(true);
     try {
-      await generateGSTR1Excel(city, Number(year), Number(month) + 1);
-      toast.success("GSTR-1 Excel downloaded successfully");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to generate GSTR-1");
+      const result = await generateGSTR1Excel(city, Number(year), Number(month) + 1);
+      if (result.reviewCount > 0) toast.warning(`Downloaded with ${result.reviewCount} review items. Auditor approval required before filing.`);
+      else toast.success("GSTR-1 auditor workbook downloaded");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to generate GSTR-1");
     } finally {
       setLoading(false);
     }
@@ -46,7 +47,7 @@ export function GSTR1DownloadCard({ city }: Props) {
       </CardHeader>
       <CardContent>
         <p className="text-xs text-muted-foreground mb-3">
-          Download GSTR-1 report with B2B, B2CS, Credit Notes, HSN Summary &amp; Document Summary sheets.
+          GSTR-1 auditor review export
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={month} onValueChange={setMonth}>

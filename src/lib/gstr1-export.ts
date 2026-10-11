@@ -1,9 +1,10 @@
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth } from "date-fns";
-import { isProfileGstRegistered } from "@/lib/gst-utils";
+import { isProfileGstRegistered, isGstRegistered } from "@/lib/gst-utils";
+import { buildHsnAudit } from "@/lib/gstr1-hsn";
 
-interface Invoice {
+export interface Invoice {
   id: string;
   invoice_number: string;
   invoice_date: string;
@@ -26,7 +27,9 @@ interface Invoice {
   city: string | null;
 }
 
-interface LineItem {
+export interface LineItem {
+  id?: string;
+  item_type?: string;
   invoice_id: string;
   item_name: string;
   hsn_code: string | null;
@@ -52,18 +55,20 @@ interface LineItem {
  * Every per-line GST rate is honoured (we never assume a single
  * rate per invoice). Both B2B/CDNR (per-invoice) and B2CS/CDNUR
  * (aggregated) sheets are split by GST rate, and the HSN summary
- * is keyed by (HSN/SAC, rate) so mixed-rate lines under the same
- * HSN do not collapse.
+ * is keyed by (B2B/B2C, HSN/SAC, rate, UQC). Audit sheets expose
+ * missing historical metadata; this is not a GST portal upload file.
  */
 export async function generateGSTR1Excel(city: string, year: number, month: number) {
+  if (!Number.isInteger(year) || year < 2017 || !Number.isInteger(month) || month < 1 || month > 12) throw new Error("Invalid reporting period.");
   const monthStart = format(startOfMonth(new Date(year, month - 1)), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(new Date(year, month - 1)), "yyyy-MM-dd");
 
   // Fetch GST profile
-  const { data: gstProfile } = await supabase.from("gst_profiles" as any)
+  const { data: gstProfile, error: profileError } = await supabase.from("gst_profiles")
     .select("*")
     .eq("city", city)
     .maybeSingle();
+  if (profileError) throw profileError;
   if (!gstProfile) throw new Error("GST profile not found for this city.");
   const gst = gstProfile as unknown as {
     state_code: string;
@@ -86,13 +91,14 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
   const allInvoices: Invoice[] = [];
   const invChunk = 1000;
   for (let from = 0; ; from += invChunk) {
-    const { data: invoices, error: invErr } = await supabase.from("invoices" as any)
+    const { data: invoices, error: invErr } = await supabase.from("invoices")
       .select("*")
       .eq("city", city)
       .gte("invoice_date", monthStart)
       .lte("invoice_date", monthEnd)
-      .in("status", ["issued", "paid"])
+      .in("status", ["issued", "paid", "cancelled"])
       .order("invoice_date")
+      .order("id")
       .range(from, from + invChunk - 1);
     if (invErr) throw invErr;
     const batch = (invoices ?? []) as unknown as Invoice[];
@@ -109,10 +115,11 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
   for (let i = 0; i < invoiceIds.length; i += 50) {
     const chunk = invoiceIds.slice(i, i + 50);
     for (let from = 0; ; from += liPage) {
-      const { data: items, error: liErr } = await supabase.from("invoice_line_items" as any)
+      const { data: items, error: liErr } = await supabase.from("invoice_line_items")
         .select("*")
         .in("invoice_id", chunk)
         .order("invoice_id")
+        .order("id")
         .range(from, from + liPage - 1);
       if (liErr) throw liErr;
       const batch = (items ?? []) as unknown as LineItem[];
@@ -122,18 +129,18 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
   }
 
 
-  // Fetch UQC (unit_of_measure) for all referenced products in one shot
+  // Catalogue metadata is review-only for rates/codes; UQC is not snapshotted
+  // on invoice lines, so its current source is explicitly disclosed in the audit.
   const productIds = Array.from(
     new Set(allLineItems.map((li) => li.product_id).filter(Boolean) as string[])
   );
-  const uqcByProduct = new Map<string, string>();
-  if (productIds.length > 0) {
-    const { data: prods } = await supabase.from("products_public" as any)
-      .select("id, unit_of_measure")
-      .in("id", productIds);
-    (prods ?? []).forEach((p: any) => {
-      if (p?.id) uqcByProduct.set(p.id, normalizeUqc(p.unit_of_measure));
-    });
+  const products = [];
+  for (let i = 0; i < productIds.length; i += 100) {
+    const { data: prods, error } = await supabase.from("products_public")
+      .select("id, unit_of_measure, hsn_code, sac_code, gst_rate")
+      .in("id", productIds.slice(i, i + 100));
+    if (error) throw error;
+    products.push(...(prods ?? []));
   }
 
   const lineItemsByInvoice = new Map<string, LineItem[]>();
@@ -143,15 +150,30 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
     lineItemsByInvoice.set(li.invoice_id, arr);
   });
 
-  const regularInvoices = allInvoices.filter((i) => i.invoice_type === "invoice");
-  const creditNotes = allInvoices.filter((i) => i.invoice_type === "credit_note");
+  // A cancelled invoice may have an issued credit note (even in a later period).
+  // Preserve the original supply in that case, otherwise the note double-reduces it.
+  const creditedOriginals = new Set<string>();
+  const cancelledIds = allInvoices.filter((i) => i.status === "cancelled" && i.invoice_type === "invoice").map((i) => i.id);
+  for (let i = 0; i < cancelledIds.length; i += 100) {
+    const { data, error } = await supabase.from("invoices")
+      .select("credit_note_for").in("credit_note_for", cancelledIds.slice(i, i + 100))
+      .in("status", ["issued", "paid"]);
+    if (error) throw error;
+    for (const note of data ?? []) if (note.credit_note_for) creditedOriginals.add(note.credit_note_for);
+  }
+  const reportInvoices = allInvoices.filter((i) => i.status !== "cancelled" || creditedOriginals.has(i.id));
+  const regularInvoices = reportInvoices.filter((i) => i.invoice_type === "invoice");
+  const creditNotes = reportInvoices.filter((i) => i.invoice_type === "credit_note");
 
-  const b2bInvoices = regularInvoices.filter((i) => i.customer_gstin);
-  const b2csInvoices = regularInvoices.filter((i) => !i.customer_gstin);
-  const cdnrNotes = creditNotes.filter((cn) => cn.customer_gstin);
-  const cdnurNotes = creditNotes.filter((cn) => !cn.customer_gstin);
+  const b2bInvoices = regularInvoices.filter((i) => isGstRegistered(i.customer_gstin));
+  const b2clInvoices = regularInvoices.filter((i) => !isGstRegistered(i.customer_gstin) && isB2cl(i));
+  const b2csInvoices = regularInvoices.filter((i) => !isGstRegistered(i.customer_gstin) && !isB2cl(i));
+  const cdnrNotes = creditNotes.filter((cn) => isGstRegistered(cn.customer_gstin));
+  const cdnurNotes = creditNotes.filter((cn) => !isGstRegistered(cn.customer_gstin));
 
   const placeOfSupply = `${gst.state_code}-${gst.state}`;
+  const pos = (invoice: Invoice) => invoice.customer_state_code
+    ? `${invoice.customer_state_code}-${invoice.customer_state ?? ""}` : placeOfSupply;
 
   // ── B2B Sheet (one row per invoice × GST rate) ──
   const b2bRows: any[] = [];
@@ -165,7 +187,7 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
         "Invoice Number": inv.invoice_number,
         "Invoice Date": inv.invoice_date,
         "Invoice Value": round2(inv.total),
-        "Place Of Supply": placeOfSupply,
+        "Place Of Supply": pos(inv),
         "Reverse Charge": "N",
         "Invoice Type": "Regular",
         "Rate": rate,
@@ -179,28 +201,30 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
   });
 
   // ── B2CS Sheet (aggregated by rate across invoices) ──
-  const b2csMap = new Map<number, { taxable: number; cgst: number; sgst: number; igst: number }>();
+  const b2csMap = new Map<string, { rate: number; pos: string; taxable: number; cgst: number; sgst: number; igst: number }>();
   b2csInvoices.forEach((inv) => {
     const lines = lineItemsByInvoice.get(inv.id) || [];
     const byRate = groupLinesByRate(lines);
     byRate.forEach((vals, rate) => {
-      const e = b2csMap.get(rate) || { taxable: 0, cgst: 0, sgst: 0, igst: 0 };
+      const key = `${pos(inv)}|${rate}`;
+      const e = b2csMap.get(key) || { rate, pos: pos(inv), taxable: 0, cgst: 0, sgst: 0, igst: 0 };
       e.taxable += vals.taxable;
       e.cgst += vals.cgst;
       e.sgst += vals.sgst;
       e.igst += vals.igst;
-      b2csMap.set(rate, e);
+      b2csMap.set(key, e);
     });
   });
-  const b2csRows = Array.from(b2csMap.entries())
-    .sort((a, b) => a[0] - b[0])
-    .map(([rate, vals]) => ({
+  const b2csRows = Array.from(b2csMap.values())
+    .sort((a, b) => a.pos.localeCompare(b.pos) || a.rate - b.rate)
+    .map((vals) => ({
       "Type": "OE",
-      "Place Of Supply": placeOfSupply,
-      "Rate": rate,
+      "Place Of Supply": vals.pos,
+      "Rate": vals.rate,
       "Taxable Value": round2(vals.taxable),
       "CGST Amount": round2(vals.cgst),
       "SGST/UTGST Amount": round2(vals.sgst),
+      "IGST Amount": round2(vals.igst),
       "Cess Amount": 0,
     }));
 
@@ -216,7 +240,7 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
         "Note Number": cn.invoice_number,
         "Note Date": cn.invoice_date,
         "Note Type": "C",
-        "Place Of Supply": placeOfSupply,
+        "Place Of Supply": pos(cn),
         "Reverse Charge": "N",
         "Note Supply Type": "Regular",
         "Note Value": round2(cn.total),
@@ -240,99 +264,57 @@ export async function generateGSTR1Excel(city: string, year: number, month: numb
         "Note Number": cn.invoice_number,
         "Note Date": cn.invoice_date,
         "Note Type": "C",
-        "Place Of Supply": placeOfSupply,
+        "Place Of Supply": pos(cn),
         "Note Value": round2(cn.total),
         "Rate": rate,
         "Taxable Value": round2(vals.taxable),
         "CGST Amount": round2(vals.cgst),
         "SGST/UTGST Amount": round2(vals.sgst),
+        "IGST Amount": round2(vals.igst),
         "Cess Amount": 0,
       });
     });
   });
 
-  // ── HSN Summary (keyed by HSN|rate) ──
-  type HsnAgg = {
-    desc: string;
-    uqc: string;
-    qty: number;
-    taxable: number;
-    cgst: number;
-    sgst: number;
-    igst: number;
-    gross: number;
-    rate: number;
-    code: string;
-  };
-  const hsnMap = new Map<string, HsnAgg>();
-  allLineItems.forEach((li) => {
-    const code = normalizeHsnCode(li.hsn_code, li.sac_code);
-    const rate = Number(li.gst_rate) || 0;
-    const key = `${code}|${rate}`;
-    const uqc = (li.product_id && uqcByProduct.get(li.product_id)) || "NOS";
-    const existing = hsnMap.get(key) || {
-      desc: li.item_name, uqc, qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0, gross: 0, rate, code,
-    };
-    const gross = Number(li.line_total) || Number(li.unit_price) * Number(li.quantity);
-    const gstAmt = Number(li.cgst_amount) + Number(li.sgst_amount) + Number(li.igst_amount);
-    existing.qty += Number(li.quantity);
-    existing.gross += gross;
-    existing.taxable += gross - gstAmt;
-    existing.cgst += Number(li.cgst_amount);
-    existing.sgst += Number(li.sgst_amount);
-    existing.igst += Number(li.igst_amount);
-    hsnMap.set(key, existing);
-  });
-  const hsnRows = Array.from(hsnMap.values())
-    .sort((a, b) => (a.code === b.code ? a.rate - b.rate : a.code.localeCompare(b.code)))
-    .map((vals) => ({
-      "HSN": vals.code,
-      "Description": vals.desc,
-      "UQC": vals.uqc,
-      "Total Quantity": vals.qty,
-      "Total Value": round2(vals.gross),
-      "Taxable Value": round2(vals.taxable),
-      "Rate": vals.rate,
-      "CGST Amount": round2(vals.cgst),
-      "SGST Amount": round2(vals.sgst),
-      "IGST Amount": round2(vals.igst),
-      "Cess Amount": 0,
-    }));
+  const audit = buildHsnAudit(reportInvoices, allLineItems, products);
 
   // ── Document Summary ──
-  const invoiceNumbers = regularInvoices.map((i) => i.invoice_number).sort();
-  const cnNumbers = creditNotes.map((i) => i.invoice_number).sort();
-  const docRows: any[] = [];
-  if (invoiceNumbers.length > 0) {
-    docRows.push({
-      "Nature of Document": "Invoices for outward supply",
-      "Sr. No. From": invoiceNumbers[0],
-      "Sr. No. To": invoiceNumbers[invoiceNumbers.length - 1],
-      "Total Number": invoiceNumbers.length,
-      "Cancelled": 0,
-    });
-  }
-  if (cnNumbers.length > 0) {
-    docRows.push({
-      "Nature of Document": "Credit Note",
-      "Sr. No. From": cnNumbers[0],
-      "Sr. No. To": cnNumbers[cnNumbers.length - 1],
-      "Total Number": cnNumbers.length,
-      "Cancelled": 0,
-    });
-  }
+  const docRows = buildDocumentSummary(allInvoices, creditedOriginals);
 
   const wb = XLSX.utils.book_new();
   appendSheet(wb, b2bRows, "B2B");
+  appendSheet(wb, b2clInvoices.flatMap((inv) => Array.from(groupLinesByRate(lineItemsByInvoice.get(inv.id) ?? []).entries()).map(([rate, values]) => ({
+    "Invoice Number": inv.invoice_number, "Invoice Date": inv.invoice_date, "Invoice Value": round2(inv.total),
+    "Place Of Supply": pos(inv), "Rate": rate, "Taxable Value": round2(values.taxable),
+    "IGST Amount": round2(values.igst), "CGST Amount": round2(values.cgst), "SGST Amount": round2(values.sgst), "Cess Amount": 0,
+  }))), "B2CL");
   appendSheet(wb, b2csRows, "B2CS");
   appendSheet(wb, cdnrRows, "CDNR");
   appendSheet(wb, cdnurRows, "CDNUR");
-  appendSheet(wb, hsnRows, "HSN");
+  appendSheet(wb, audit.hsnRows, "HSN");
+  appendSheet(wb, audit.hsnRows.filter((r) => r["Supply Type"] === "B2B"), "HSN B2B");
+  appendSheet(wb, audit.hsnRows.filter((r) => r["Supply Type"] === "B2C"), "HSN B2C");
+  appendSheet(wb, audit.breakdownRows, "Product Breakdown");
+  appendSheet(wb, audit.reviewRows, "Review Exceptions");
+  appendSheet(wb, audit.reconciliationRows, "Reconciliation");
+  appendSheet(wb, [
+    { Item: "Purpose", Detail: "Auditor review workbook; not GST portal JSON or an upload template. Resolve review exceptions before filing." },
+    { Item: "Registration / period", Detail: `${gst.gstin} / ${city} / ${monthStart} to ${monthEnd}; invoice business dates, INR values.` },
+    { Item: "HSN grouping", Detail: "B2B/B2C × invoice HSN/SAC × rate × UQC; credit notes subtract once. Product names are only in Product Breakdown." },
+    { Item: "Descriptions", Detail: "No verified HSN master is stored. Description is blank pending auditor selection of the official GST master description; no product name is substituted." },
+    { Item: "UQC source", Detail: "Invoice lines do not store historical units. Current catalogue units are disclosed and require confirmation; unavailable units remain UNKNOWN, never assumed NOS." },
+    { Item: "Place of supply", Detail: "Stored customer state used where available, otherwise local GST profile state (flagged for review). Confirm legal place of supply, particularly venue services/mixed invoices. B2CL: interstate unregistered invoice over INR 100000 from August 2024 (prior threshold INR 250000)." },
+    { Item: "Tax codes", Detail: "Check official HSN master and preceding-year turnover requirements (4 digits up to INR 5 crore; 6 digits above). Turnover is not stored here." },
+    { Item: "Scope", Detail: "Existing domestic invoice/credit-note data only. Exports, SEZ, deemed exports, reverse charge, e-commerce, advances, amendments, debit notes and nil/exempt/non-GST Table 8 classification are not fully modelled; confirm applicability separately. This workbook does not certify a complete return." },
+    { Item: "Documents", Detail: "Separate recorded series/ranges with cancelled and net counts. Original supplies reversed by credit notes remain supplies; no inference of missing serial numbers or unrecorded documents." },
+    { Item: "Official guidance", Detail: "https://tutorial.gst.gov.in/downloads/news/updated_advisory_hsn_table12_25042025.pdf" },
+  ], "Filing Notes");
   appendSheet(wb, docRows, "Docs");
 
   const monthLabel = format(new Date(year, month - 1), "MMM-yyyy");
   const fileName = `GSTR1_${city}_${monthLabel}.xlsx`;
   XLSX.writeFile(wb, fileName);
+  return { reviewCount: audit.reviewRows.length };
 }
 
 function appendSheet(wb: XLSX.WorkBook, rows: any[], name: string) {
@@ -342,7 +324,7 @@ function appendSheet(wb: XLSX.WorkBook, rows: any[], name: string) {
   } else {
     const ws = XLSX.utils.json_to_sheet(rows);
     const colWidths = Object.keys(rows[0]).map((key) => ({
-      wch: Math.max(key.length, ...rows.map((r) => String(r[key] ?? "").length)) + 2,
+      wch: Math.min(80, rows.reduce((width, r) => Math.max(width, String(r[key] ?? "").length), key.length) + 2),
     }));
     ws["!cols"] = colWidths;
     XLSX.utils.book_append_sheet(wb, ws, name);
@@ -356,7 +338,7 @@ export function groupLinesByRate(
   const map = new Map<number, { taxable: number; cgst: number; sgst: number; igst: number; gross: number }>();
   items.forEach((li) => {
     const rate = Number(li.gst_rate) || 0;
-    const gross = Number(li.line_total) || Number(li.unit_price) * Number(li.quantity);
+    const gross = Number(li.line_total);
     const cgst = Number(li.cgst_amount) || 0;
     const sgst = Number(li.sgst_amount) || 0;
     const igst = Number(li.igst_amount) || 0;
@@ -376,9 +358,9 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-/** Map product units to GST UQC codes (best-effort; falls back to NOS). */
-function normalizeUqc(unit: string | null | undefined): string {
-  if (!unit) return "NOS";
+/** Map known product units to UQC; unknown units require auditor review. */
+export function normalizeUqc(unit: string | null | undefined): string {
+  if (!unit) return "UNKNOWN";
   const u = unit.trim().toLowerCase();
   const map: Record<string, string> = {
     "each": "NOS", "nos": "NOS", "number": "NOS", "pcs": "PCS", "piece": "PCS",
@@ -390,7 +372,47 @@ function normalizeUqc(unit: string | null | undefined): string {
     "metre": "MTR", "meter": "MTR", "m": "MTR",
     "box": "BOX", "pack": "PAC", "set": "SET", "dozen": "DOZ",
   };
-  return map[u] || "NOS";
+  return map[u] || "UNKNOWN";
+}
+
+export function isB2cl(invoice: Invoice): boolean {
+  const threshold = invoice.invoice_date >= "2024-08-01" ? 100000 : 250000;
+  return !isGstRegistered(invoice.customer_gstin) && Boolean(invoice.customer_state_code && invoice.business_state_code)
+    && invoice.customer_state_code !== invoice.business_state_code && invoice.total > threshold;
+}
+
+export function buildDocumentSummary(invoices: Invoice[], creditedOriginals = new Set<string>()) {
+  const series = new Map<string, Invoice[]>();
+  for (const invoice of invoices) {
+    const match = invoice.invoice_number.match(/^(.*?)(\d+)$/);
+    const prefix = match?.[1] ?? invoice.invoice_number;
+    const key = `${invoice.invoice_type}|${prefix}`;
+    const rows = series.get(key) ?? [];
+    rows.push(invoice);
+    series.set(key, rows);
+  }
+  return Array.from(series.values()).flatMap((rows) => {
+    rows.sort((a, b) => a.invoice_number.localeCompare(b.invoice_number, undefined, { numeric: true }));
+    // Split gaps rather than imply that unrecorded documents were issued.
+    const runs: Invoice[][] = [];
+    for (const row of rows) {
+      const run = runs[runs.length - 1];
+      const prev = run?.[run.length - 1];
+      const number = Number(row.invoice_number.match(/\d+$/)?.[0]);
+      const previous = Number(prev?.invoice_number.match(/\d+$/)?.[0]);
+      if (run && prev && Number.isFinite(number) && number === previous + 1) run.push(row);
+      else runs.push([row]);
+    }
+    return runs.map((run) => {
+      const cancelled = run.filter((i) => i.status === "cancelled" && !creditedOriginals.has(i.id)).length;
+      return {
+        "Nature of Document": run[0].invoice_type === "credit_note" ? "Credit Note" : "Invoices for outward supply",
+        "Sr. No. From": run[0].invoice_number,
+        "Sr. No. To": run[run.length - 1].invoice_number,
+        "Total Number": run.length, "Cancelled": cancelled, "Net Issued": run.length - cancelled,
+      };
+    });
+  });
 }
 
 /**

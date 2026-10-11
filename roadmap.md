@@ -1,5 +1,13 @@
 # Roadmap
 
+## Auditor-focused GSTR-1 export
+- [x] Verify current official HSN/report requirements and document supported scope
+- [x] Consolidate HSN by supply type, code, rate and UQC; add signed invoice-line breakdown
+- [x] Add review exceptions and reconciliation without changing historical invoices; correct B2CL routing and recorded document ranges
+- [x] Cover grouping, discounts, credits, missing metadata and workbook integration; full regression: 97 files / 814 tests, current preview build OK
+- [ ] Live financial export verification: blocked because requesting user's available session has no admin/report access; browser correctly denies access
+- [ ] Filing readiness: auditor must confirm official HSN descriptions, historical goods UQC, turnover digit requirements and applicability of unmodelled return sections listed in Filing Notes; source data is unavailable and must not be invented
+
 ## Pass 3 — refunds & cancellations (done)
 - [x] `record_refund` RPC: negative amounts, source_ref idempotency, over-refund guard, inherits city/currency/product/customer
 - [x] Insert trigger: refunds must be negative, sales may not be
