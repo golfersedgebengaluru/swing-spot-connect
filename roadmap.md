@@ -1,5 +1,11 @@
 # Roadmap
 
+## Auditor-focused GSTR-1 export
+- [ ] Verify current official HSN/report requirements and document supported scope
+- [ ] Consolidate HSN by supply type, code, rate and UQC; add signed invoice-line breakdown
+- [ ] Add review exceptions and reconciliation without changing historical invoices
+- [ ] Cover grouping, discounts, credits, missing metadata and workbook integration; run full regression
+
 ## Pass 3 — refunds & cancellations (done)
 - [x] `record_refund` RPC: negative amounts, source_ref idempotency, over-refund guard, inherits city/currency/product/customer
 - [x] Insert trigger: refunds must be negative, sales may not be
