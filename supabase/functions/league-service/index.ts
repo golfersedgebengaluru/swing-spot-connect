@@ -743,7 +743,7 @@ async function computeLeaderboard(
     let handicap = 0
     if (hiddenHoles && holeScores.length > 0 && roundPar > 0) {
       hiddenSum = hiddenHoles.reduce((sum, holeNum) => sum + (holeScores[holeNum - 1] || 0), 0)
-      handicap = Math.max(0, (hiddenSum * HC_MULTIPLIER) - roundPar)
+      handicap = applyPeoriaLimits(Math.max(0, (hiddenSum * HC_MULTIPLIER) - roundPar))
       netScore = grossScore - handicap
     }
     playerScores.push({
@@ -940,7 +940,7 @@ async function computeLeaderboard(
           const teamHiddenSum = hiddenHolesForRound.reduce(
             (sum, holeNum) => sum + (bestBallHoles[holeNum - 1] || 0), 0,
           )
-          roundHandicap = Math.max(0, (teamHiddenSum * HC_MULTIPLIER) - roundPar)
+          roundHandicap = applyPeoriaLimits(Math.max(0, (teamHiddenSum * HC_MULTIPLIER) - roundPar))
         } else {
           roundHandicap = memberScoresForRound.reduce((s, p) => s + p.peoria_handicap, 0) / memberScoresForRound.length
         }
@@ -1325,7 +1325,7 @@ Deno.serve(async (req) => {
         }
 
         const updates: Record<string, any> = {}
-        const allowed = ['name', 'format', 'season_start', 'season_end', 'venue_id', 'status', 'score_entry_method', 'scoring_holes', 'fairness_factor_pct', 'team_aggregation_method', 'peoria_multiplier', 'stableford_enabled', 'allowed_team_sizes', 'show_on_landing', 'landing_note', 'price_per_person', 'currency', 'payment_city', 'gst_mode', 'gst_rate', 'sac_code']
+        const allowed = ['name', 'format', 'season_start', 'season_end', 'venue_id', 'status', 'score_entry_method', 'scoring_holes', 'fairness_factor_pct', 'team_aggregation_method', 'peoria_multiplier', 'peoria_adjustment_pct', 'peoria_max_cap', 'stableford_enabled', 'allowed_team_sizes', 'show_on_landing', 'landing_note', 'price_per_person', 'currency', 'payment_city', 'gst_mode', 'gst_rate', 'sac_code']
         for (const key of allowed) {
           if (body[key] !== undefined) updates[key] = body[key]
         }
