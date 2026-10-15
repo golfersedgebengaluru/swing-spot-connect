@@ -6566,6 +6566,15 @@ export type Database = {
         }
         Returns: string
       }
+      validate_corporate_invoice_items: {
+        Args: {
+          _account_id: string
+          _booking_ids: string[]
+          _city: string
+          _coaching_ids: string[]
+        }
+        Returns: undefined
+      }
       validate_coupon: {
         Args: { p_code: string; p_session_id?: string; p_user_id?: string }
         Returns: Json

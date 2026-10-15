@@ -22,6 +22,13 @@
       "when": 1792048726692,
       "tag": "0002_corporate_billing_guards_and_legacy_review",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792048971165,
+      "tag": "0003_validate_corporate_invoice_selection",
+      "breakpoints": true
     }
   ]
 }
