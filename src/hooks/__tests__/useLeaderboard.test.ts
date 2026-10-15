@@ -132,6 +132,33 @@ describe("Leaderboard types and data structure", () => {
     expect(net).toBe(0);
   });
 
+  it("should apply the 80% adjustment factor to the raw Peoria handicap", () => {
+    // Mirrors league-service applyPeoriaLimits: min(raw × pct/100, cap)
+    const applyPeoriaLimits = (raw: number, pct: number, cap: number) => Math.min(raw * (pct / 100), cap);
+    expect(applyPeoriaLimits(40, 80, 36)).toBe(32);
+  });
+
+  it("should cap the adjusted Peoria handicap at the max cap", () => {
+    const applyPeoriaLimits = (raw: number, pct: number, cap: number) => Math.min(raw * (pct / 100), cap);
+    expect(applyPeoriaLimits(50, 80, 36)).toBe(36); // 50 × 80% = 40 → capped at 36
+  });
+
+  it("should treat a 100% adjustment factor as today's unadjusted behavior", () => {
+    const applyPeoriaLimits = (raw: number, pct: number, cap: number) => Math.min(raw * (pct / 100), cap);
+    expect(applyPeoriaLimits(30, 100, 36)).toBe(30);
+  });
+
+  it("should apply the cap when it is below the adjusted value", () => {
+    const applyPeoriaLimits = (raw: number, pct: number, cap: number) => Math.min(raw * (pct / 100), cap);
+    expect(applyPeoriaLimits(30, 100, 18)).toBe(18);
+  });
+
+  it("should keep the zero floor with adjustment and cap applied", () => {
+    const applyPeoriaLimits = (raw: number, pct: number, cap: number) => Math.min(raw * (pct / 100), cap);
+    const raw = Math.max(0, (10 * 3) - 36); // hidden sum 10 × 3 − par 36 = −6 → floored
+    expect(applyPeoriaLimits(raw, 80, 36)).toBe(0);
+  });
+
   it("should handle 9-hole Peoria with 3 hidden holes × 3", () => {
     const holeScores = [4, 5, 3, 6, 4, 5, 3, 4, 5];
     const hiddenHoles = [2, 5, 8]; // 3 hidden holes for 9-hole

@@ -31,6 +31,10 @@ export interface League {
   fairness_factor_pct: number;
   team_aggregation_method: 'best_ball' | 'average';
   peoria_multiplier: number;
+  /** Percentage of the raw Peoria handicap applied (default 80). Applied before the cap. */
+  peoria_adjustment_pct: number;
+  /** Maximum Peoria handicap after the adjustment factor (default 36). */
+  peoria_max_cap: number;
   stableford_enabled: boolean;
   landing_note: string | null;
   allowed_team_sizes: number[];
@@ -223,6 +227,8 @@ export interface UpdateLeagueRequest {
   fairness_factor_pct?: number;
   team_aggregation_method?: 'best_ball' | 'average';
   peoria_multiplier?: number;
+  peoria_adjustment_pct?: number;
+  peoria_max_cap?: number;
   stableford_enabled?: boolean;
   allowed_team_sizes?: number[];
   show_on_landing?: boolean;

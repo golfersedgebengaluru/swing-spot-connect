@@ -596,7 +596,7 @@ async function computeLeaderboard(
 
   const { data: league } = await supabase
     .from('leagues')
-    .select('tenant_id, scoring_holes, fairness_factor_pct, team_aggregation_method, peoria_multiplier, stableford_enabled')
+    .select('tenant_id, scoring_holes, fairness_factor_pct, team_aggregation_method, peoria_multiplier, peoria_adjustment_pct, peoria_max_cap, stableford_enabled')
     .eq('id', leagueId)
     .single()
   if (!league) throw new Error('League not found')
@@ -693,6 +693,11 @@ async function computeLeaderboard(
   }
 
   const HC_MULTIPLIER = 3
+  // Peoria adjustment: apply a configurable percentage of the raw handicap,
+  // then cap it. Defaults: 80% factor, cap of 36.
+  const peoriaAdjustPct = Number(league.peoria_adjustment_pct ?? 80)
+  const peoriaMaxCap = Number(league.peoria_max_cap ?? 36)
+  const applyPeoriaLimits = (raw: number) => Math.min(raw * (peoriaAdjustPct / 100), peoriaMaxCap)
   const fairnessPct = Number(league.fairness_factor_pct) || 0
   const aggregation = league.team_aggregation_method || 'best_ball'
 
@@ -738,7 +743,7 @@ async function computeLeaderboard(
     let handicap = 0
     if (hiddenHoles && holeScores.length > 0 && roundPar > 0) {
       hiddenSum = hiddenHoles.reduce((sum, holeNum) => sum + (holeScores[holeNum - 1] || 0), 0)
-      handicap = Math.max(0, (hiddenSum * HC_MULTIPLIER) - roundPar)
+      handicap = applyPeoriaLimits(Math.max(0, (hiddenSum * HC_MULTIPLIER) - roundPar))
       netScore = grossScore - handicap
     }
     playerScores.push({
@@ -935,7 +940,7 @@ async function computeLeaderboard(
           const teamHiddenSum = hiddenHolesForRound.reduce(
             (sum, holeNum) => sum + (bestBallHoles[holeNum - 1] || 0), 0,
           )
-          roundHandicap = Math.max(0, (teamHiddenSum * HC_MULTIPLIER) - roundPar)
+          roundHandicap = applyPeoriaLimits(Math.max(0, (teamHiddenSum * HC_MULTIPLIER) - roundPar))
         } else {
           roundHandicap = memberScoresForRound.reduce((s, p) => s + p.peoria_handicap, 0) / memberScoresForRound.length
         }
@@ -1320,7 +1325,7 @@ Deno.serve(async (req) => {
         }
 
         const updates: Record<string, any> = {}
-        const allowed = ['name', 'format', 'season_start', 'season_end', 'venue_id', 'status', 'score_entry_method', 'scoring_holes', 'fairness_factor_pct', 'team_aggregation_method', 'peoria_multiplier', 'stableford_enabled', 'allowed_team_sizes', 'show_on_landing', 'landing_note', 'price_per_person', 'currency', 'payment_city', 'gst_mode', 'gst_rate', 'sac_code']
+        const allowed = ['name', 'format', 'season_start', 'season_end', 'venue_id', 'status', 'score_entry_method', 'scoring_holes', 'fairness_factor_pct', 'team_aggregation_method', 'peoria_multiplier', 'peoria_adjustment_pct', 'peoria_max_cap', 'stableford_enabled', 'allowed_team_sizes', 'show_on_landing', 'landing_note', 'price_per_person', 'currency', 'payment_city', 'gst_mode', 'gst_rate', 'sac_code']
         for (const key of allowed) {
           if (body[key] !== undefined) updates[key] = body[key]
         }
@@ -3042,6 +3047,17 @@ Deno.serve(async (req) => {
         // Works for both 9-hole (3 hidden × 3 = 9 holes) and 18-hole (6 hidden × 3 = 18 holes)
         const HC_MULTIPLIER = 3
 
+        // League-configurable adjustment: apply a percentage of the raw
+        // handicap, then cap it (defaults: 80%, cap 36).
+        const { data: leagueCfg } = await supabase
+          .from('leagues')
+          .select('peoria_adjustment_pct, peoria_max_cap')
+          .eq('id', route.leagueId)
+          .single()
+        const peoriaAdjustPct = Number(leagueCfg?.peoria_adjustment_pct ?? 80)
+        const peoriaMaxCap = Number(leagueCfg?.peoria_max_cap ?? 36)
+        const applyPeoriaLimits = (raw: number) => Math.min(raw * (peoriaAdjustPct / 100), peoriaMaxCap)
+
         const results: any[] = []
         for (const score of (scores || [])) {
           const holeScores = score.hole_scores as number[]
@@ -3053,7 +3069,7 @@ Deno.serve(async (req) => {
             return sum + (holeScores[idx] || 0)
           }, 0)
 
-          const peoriaHandicap = roundPar > 0 ? Math.max(0, (hiddenSum * HC_MULTIPLIER) - roundPar) : 0
+          const peoriaHandicap = roundPar > 0 ? applyPeoriaLimits(Math.max(0, (hiddenSum * HC_MULTIPLIER) - roundPar)) : 0
           const grossScore = score.total_score || holeScores.reduce((s: number, v: number) => s + (v || 0), 0)
           const netScore = grossScore - peoriaHandicap
 

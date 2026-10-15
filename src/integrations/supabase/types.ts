@@ -3416,6 +3416,8 @@ export type Database = {
           leaderboard_visibility: string
           name: string
           payment_city: string | null
+          peoria_adjustment_pct: number
+          peoria_max_cap: number
           peoria_multiplier: number
           price_per_person: number
           sac_code: string
@@ -3446,6 +3448,8 @@ export type Database = {
           leaderboard_visibility?: string
           name: string
           payment_city?: string | null
+          peoria_adjustment_pct?: number
+          peoria_max_cap?: number
           peoria_multiplier?: number
           price_per_person?: number
           sac_code?: string
@@ -3476,6 +3480,8 @@ export type Database = {
           leaderboard_visibility?: string
           name?: string
           payment_city?: string | null
+          peoria_adjustment_pct?: number
+          peoria_max_cap?: number
           peoria_multiplier?: number
           price_per_person?: number
           sac_code?: string
