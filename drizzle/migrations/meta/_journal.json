@@ -29,6 +29,13 @@
       "when": 1792048971165,
       "tag": "0003_validate_corporate_invoice_selection",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792049046283,
+      "tag": "0004_restrict_corporate_membership_grants",
+      "breakpoints": true
     }
   ]
 }
