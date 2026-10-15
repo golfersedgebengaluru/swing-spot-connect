@@ -600,6 +600,12 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
 
     setGenerating(true);
     try {
+      const { error: selectionError } = await supabase.rpc("validate_corporate_invoice_items", {
+        _account_id: account.id, _city: city,
+        _booking_ids: targetItems.filter(i => i.kind === "booking").map(i => i.id),
+        _coaching_ids: targetItems.filter(i => i.kind === "coaching").map(i => i.id),
+      });
+      if (selectionError) throw selectionError;
       // Re-generate: void existing invoice(s) for this range and unlink their items
       // first, so the fresh invoice reflects the current session count.
       if (isRegenerate) {
