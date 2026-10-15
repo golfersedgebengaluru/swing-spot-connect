@@ -596,7 +596,7 @@ async function computeLeaderboard(
 
   const { data: league } = await supabase
     .from('leagues')
-    .select('tenant_id, scoring_holes, fairness_factor_pct, team_aggregation_method, peoria_multiplier, stableford_enabled')
+    .select('tenant_id, scoring_holes, fairness_factor_pct, team_aggregation_method, peoria_multiplier, peoria_adjustment_pct, peoria_max_cap, stableford_enabled')
     .eq('id', leagueId)
     .single()
   if (!league) throw new Error('League not found')
@@ -693,6 +693,11 @@ async function computeLeaderboard(
   }
 
   const HC_MULTIPLIER = 3
+  // Peoria adjustment: apply a configurable percentage of the raw handicap,
+  // then cap it. Defaults: 80% factor, cap of 36.
+  const peoriaAdjustPct = Number(league.peoria_adjustment_pct ?? 80)
+  const peoriaMaxCap = Number(league.peoria_max_cap ?? 36)
+  const applyPeoriaLimits = (raw: number) => Math.min(raw * (peoriaAdjustPct / 100), peoriaMaxCap)
   const fairnessPct = Number(league.fairness_factor_pct) || 0
   const aggregation = league.team_aggregation_method || 'best_ball'
 
