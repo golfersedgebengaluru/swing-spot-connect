@@ -29,6 +29,7 @@ import { matchesMemberFilter, type MemberFilter } from "@/lib/member-utils";
 
 import { Switch } from "@/components/ui/switch";
 import { CorporateAccountPicker } from "./CorporateAccountPicker";
+import { canRegisterCorporateMember } from "@/lib/corporate-selection";
 
 // ─── Sub-components ──────────────────────────────────────────────
 
@@ -215,7 +216,7 @@ function RegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_name:
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const submit = async () => {
-    if (savingRef.current || !form.display_name.trim() || (corporate && accountIds.length === 0)) return;
+    if (savingRef.current || !canRegisterCorporateMember(form.display_name, corporate, accountIds)) return;
     savingRef.current = true;
     setSaving(true);
     try { await onSave({ ...form, accountIds: corporate ? accountIds : [] }); }

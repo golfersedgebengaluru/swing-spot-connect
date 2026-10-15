@@ -33,6 +33,7 @@ import { useAdmin } from "@/hooks/useAdmin";
 import { useAdvanceBalance, useDrawdownAdvance } from "@/hooks/useAdvanceAccount";
 import { useProfileBillingInfo } from "@/hooks/useCorporateAccounts";
 import { Building2 } from "lucide-react";
+import { resolveCorporateSelection } from "@/lib/corporate-selection";
 
 type Step = "customer" | "slot" | "payment" | "confirm";
 type CustomerMode = "existing" | "new";
@@ -292,7 +293,7 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
   const [selectedCorporateId, setSelectedCorporateId] = useState("");
   const corporateAccounts = billingInfo?.accounts ?? [];
   const isCorporate = corporateAccounts.length > 0;
-  const corporateId = corporateAccounts.length === 1 ? corporateAccounts[0].id : selectedCorporateId;
+  const corporateId = resolveCorporateSelection(corporateAccounts.map(a => a.id), selectedCorporateId);
   const corporateAccount = corporateAccounts.find(a => a.id === corporateId) ?? null;
   useEffect(() => { setSelectedCorporateId(""); }, [selectedProfile?.id, selectedCity, customerMode]);
 
