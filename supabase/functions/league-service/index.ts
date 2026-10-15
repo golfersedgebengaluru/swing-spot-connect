@@ -3047,6 +3047,17 @@ Deno.serve(async (req) => {
         // Works for both 9-hole (3 hidden × 3 = 9 holes) and 18-hole (6 hidden × 3 = 18 holes)
         const HC_MULTIPLIER = 3
 
+        // League-configurable adjustment: apply a percentage of the raw
+        // handicap, then cap it (defaults: 80%, cap 36).
+        const { data: leagueCfg } = await supabase
+          .from('leagues')
+          .select('peoria_adjustment_pct, peoria_max_cap')
+          .eq('id', route.leagueId)
+          .single()
+        const peoriaAdjustPct = Number(leagueCfg?.peoria_adjustment_pct ?? 80)
+        const peoriaMaxCap = Number(leagueCfg?.peoria_max_cap ?? 36)
+        const applyPeoriaLimits = (raw: number) => Math.min(raw * (peoriaAdjustPct / 100), peoriaMaxCap)
+
         const results: any[] = []
         for (const score of (scores || [])) {
           const holeScores = score.hole_scores as number[]
