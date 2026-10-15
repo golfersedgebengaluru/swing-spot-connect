@@ -143,14 +143,11 @@ export function useAssignProfileToCorporate() {
     mutationFn: async ({ profileId, corporateAccountId, remove = false, accountIds }: {
       profileId: string; corporateAccountId?: string | null; remove?: boolean; accountIds?: string[];
     }) => {
-      let ids = accountIds;
-      if (!ids) {
-        const { data, error } = await supabase.from("corporate_account_members").select("corporate_account_id").eq("profile_id", profileId);
-        if (error) throw error;
-        const current = (data ?? []).map(m => m.corporate_account_id);
-        ids = corporateAccountId ? (remove ? current.filter(id => id !== corporateAccountId) : [...new Set([...current, corporateAccountId])]) : [];
-      }
-      const { error } = await supabase.rpc("set_corporate_memberships", { _profile_id: profileId, _account_ids: ids });
+      const { error } = accountIds
+        ? await supabase.rpc("set_corporate_memberships", { _profile_id: profileId, _account_ids: accountIds })
+        : corporateAccountId
+          ? await supabase.rpc("change_corporate_membership", { _profile_id: profileId, _account_id: corporateAccountId, _remove: remove })
+          : await supabase.rpc("set_corporate_memberships", { _profile_id: profileId, _account_ids: [] });
       if (error) throw error;
     },
     onSuccess: () => {
