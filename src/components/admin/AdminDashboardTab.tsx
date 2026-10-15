@@ -70,7 +70,7 @@ function useAdminDashboardStats(cityFilter: string) {
 
       let upcomingQuery = supabase
         .from("bookings")
-        .select("id, status, start_time, end_time, bay_id, user_id, duration_minutes, session_type, city, invoice_id, corporate_invoice_id")
+        .select("id, status, start_time, end_time, bay_id, user_id, duration_minutes, session_type, city, invoice_id, corporate_invoice_id, corporate_account_id")
         .eq("status", "confirmed")
         .gte("start_time", now.toISOString())
         .order("start_time", { ascending: true })
@@ -123,7 +123,7 @@ function useAdminDashboardStats(cityFilter: string) {
       const bayIds = [...new Set((bookingsData ?? []).map((b) => b.bay_id).filter(Boolean))];
       const userKeys = [...new Set((bookingsData ?? []).map((b) => b.user_id).filter(Boolean))];
 
-      type ProfileInfo = { name: string; user_type: string | null; corporate_account_id: string | null };
+      type ProfileInfo = { name: string; user_type: string | null };
 
       const [baysMap, profilesMap] = await Promise.all([
         bayIds.length > 0
@@ -134,17 +134,16 @@ function useAdminDashboardStats(cityFilter: string) {
         userKeys.length > 0
           ? Promise.all([
               supabase.from("profiles")
-                .select("id, user_id, display_name, email, user_type, corporate_account_id")
+                .select("id, user_id, display_name, email, user_type")
                 .in("user_id", userKeys),
               supabase.from("profiles")
-                .select("id, user_id, display_name, email, user_type, corporate_account_id")
+                .select("id, user_id, display_name, email, user_type")
                 .in("id", userKeys),
             ]).then(([{ data: byUid }, { data: byId }]) => {
               const m: Record<string, ProfileInfo> = {};
               const toInfo = (p: any): ProfileInfo => ({
                 name: p.display_name || p.email || "Unknown",
                 user_type: p.user_type ?? null,
-                corporate_account_id: p.corporate_account_id ?? null,
               });
               for (const p of byUid ?? []) if (p.user_id) m[p.user_id] = toInfo(p);
               for (const p of byId ?? []) if (!m[p.id]) m[p.id] = toInfo(p);
@@ -155,7 +154,7 @@ function useAdminDashboardStats(cityFilter: string) {
 
       // Resolve corporate account names
       const corporateIds = [
-        ...new Set(Object.values(profilesMap).map((p) => p.corporate_account_id).filter(Boolean) as string[]),
+        ...new Set((bookingsData ?? []).map(b => b.corporate_account_id).filter(Boolean) as string[]),
       ];
       const corporateMap: Record<string, string> = corporateIds.length > 0
         ? await supabase.from("corporate_accounts").select("id, name, nickname").in("id", corporateIds).then(({ data }) =>
@@ -170,8 +169,8 @@ function useAdminDashboardStats(cityFilter: string) {
         hoursSold,
         upcomingBookings: (bookingsData ?? []).map((b) => {
           const profile = profilesMap[b.user_id];
-          const corporateName = profile?.corporate_account_id
-            ? corporateMap[profile.corporate_account_id] ?? null
+          const corporateName = b.corporate_account_id
+            ? corporateMap[b.corporate_account_id] ?? null
             : null;
           // "Hours" tag: member (birdie/coaching) + practice session + no invoice + no corporate
           const isMember = profile?.user_type === "birdie" || profile?.user_type === "coaching";

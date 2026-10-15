@@ -57,10 +57,11 @@ export function useCorporateAccount(id?: string | null) {
     queryKey: ["corporate_account", id],
     enabled: !!id,
     queryFn: async () => {
+      if (!id) return null;
       const { data, error } = await supabase
         .from("corporate_accounts")
         .select("*")
-        .eq("id", id!)
+        .eq("id", id)
         .maybeSingle();
       if (error) throw error;
       return (data ?? null) as CorporateAccount | null;
@@ -122,19 +123,16 @@ export function useDeleteCorporateAccount() {
   });
 }
 
-// ─── Members of a corporate account ─────────────────
+// Memberships are independent of historical session attribution.
 export function useCorporateMembers(corporateAccountId?: string | null) {
   return useQuery({
-    queryKey: ["corporate_members", corporateAccountId],
-    enabled: !!corporateAccountId,
+    queryKey: ["corporate_members", corporateAccountId], enabled: !!corporateAccountId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, user_id, display_name, email, phone, billing_mode")
-        .eq("corporate_account_id", corporateAccountId!)
-        .order("display_name");
+      if (!corporateAccountId) return [];
+      const { data, error } = await supabase.from("corporate_account_members")
+        .select("profile:profiles(id,user_id,display_name,email,phone)").eq("corporate_account_id", corporateAccountId);
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []).flatMap(row => row.profile ? [row.profile] : []);
     },
   });
 }
@@ -142,27 +140,18 @@ export function useCorporateMembers(corporateAccountId?: string | null) {
 export function useAssignProfileToCorporate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      profileId,
-      corporateAccountId,
-    }: {
-      profileId: string;
-      corporateAccountId: string | null;
+    mutationFn: async ({ profileId, corporateAccountId, remove = false, accountIds }: {
+      profileId: string; corporateAccountId?: string | null; remove?: boolean; accountIds?: string[];
     }) => {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          corporate_account_id: corporateAccountId,
-          billing_mode: corporateAccountId ? "monthly_consolidated" : "standard",
-        })
-        .eq("id", profileId);
+      const { error } = accountIds
+        ? await supabase.rpc("set_corporate_memberships", { _profile_id: profileId, _account_ids: accountIds })
+        : corporateAccountId
+          ? await supabase.rpc("change_corporate_membership", { _profile_id: profileId, _account_id: corporateAccountId, _remove: remove })
+          : await supabase.rpc("set_corporate_memberships", { _profile_id: profileId, _account_ids: [] });
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["corporate_members"] });
-      qc.invalidateQueries({ queryKey: ["all_users"] });
-      qc.invalidateQueries({ queryKey: ["profiles"] });
-      qc.invalidateQueries({ queryKey: ["user-profile-roles"] });
+      for (const key of ["corporate_members", "profile_billing_info", "corporate_accounts", "admin_all_users", "all_users", "profiles", "user-profile-roles"]) qc.invalidateQueries({ queryKey: [key] });
     },
   });
 }
@@ -175,10 +164,11 @@ export function useCorporateProducts(corporateAccountId?: string | null, city?: 
     queryKey: ["corporate_products", corporateAccountId, city || null],
     enabled: !!corporateAccountId,
     queryFn: async () => {
+      if (!corporateAccountId) return [];
       let q = supabase
         .from("products_public")
         .select("*")
-        .eq("corporate_account_id", corporateAccountId!)
+        .eq("corporate_account_id", corporateAccountId)
         .order("name");
       if (city) q = q.or(`city.eq.${city},city.is.null`);
       const { data, error } = await q;
@@ -192,27 +182,13 @@ export function useCorporateProducts(corporateAccountId?: string | null, city?: 
 // ─── Profile lookup (for Manual Booking corporate banner) ──
 export function useProfileBillingInfo(profileId?: string | null) {
   return useQuery({
-    queryKey: ["profile_billing_info", profileId],
-    enabled: !!profileId,
+    queryKey: ["profile_billing_info", profileId], enabled: !!profileId,
     queryFn: async () => {
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("id, billing_mode, corporate_account_id")
-        .eq("id", profileId!)
-        .maybeSingle();
+      if (!profileId) return { accounts: [], accountIds: [] };
+      const { data, error } = await supabase.from("corporate_account_members")
+        .select("corporate_account_id,account:corporate_accounts(*)").eq("profile_id", profileId);
       if (error) throw error;
-      if (!profile?.corporate_account_id) {
-        return { billing_mode: profile?.billing_mode ?? "standard", corporate: null };
-      }
-      const { data: corp } = await supabase
-        .from("corporate_accounts")
-        .select("*")
-        .eq("id", profile.corporate_account_id)
-        .maybeSingle();
-      return {
-        billing_mode: profile.billing_mode,
-        corporate: (corp ?? null) as CorporateAccount | null,
-      };
+      return { accountIds: (data ?? []).map(m => m.corporate_account_id), accounts: (data ?? []).flatMap(m => m.account?.is_active ? [m.account as CorporateAccount] : []) };
     },
   });
 }
@@ -252,19 +228,14 @@ export function useDeferredItemsForCorporate(
     queryKey: ["deferred_items_corporate", corporateAccountId, startDate, endDate, city || null],
     enabled: !!corporateAccountId,
     queryFn: async () => {
-      const { data: members, error: memErr } = await supabase
-        .from("profiles")
-        .select("id, user_id, display_name")
-        .eq("corporate_account_id", corporateAccountId!);
+      if (!corporateAccountId) return [] as DeferredBookingRow[];
+      const { data: members, error: memErr } = await supabase.from("profiles").select("id,user_id,display_name");
       if (memErr) throw memErr;
-      const memberIds = new Set<string>();
       const nameByKey = new Map<string, string>();
       for (const m of members ?? []) {
-        if (m.id) { memberIds.add(m.id); nameByKey.set(m.id, m.display_name ?? ""); }
-        if (m.user_id) { memberIds.add(m.user_id); nameByKey.set(m.user_id, m.display_name ?? ""); }
+        nameByKey.set(m.id, m.display_name ?? "");
+        if (m.user_id) nameByKey.set(m.user_id, m.display_name ?? "");
       }
-      const idList = Array.from(memberIds);
-      if (idList.length === 0) return [] as DeferredBookingRow[];
 
       const STATUSES = ["deferred", "invoiced"];
 
@@ -272,7 +243,7 @@ export function useDeferredItemsForCorporate(
         .from("bookings")
         .select("id, user_id, city, start_time, end_time, duration_minutes, session_type, bay_id, status, billing_status, invoice_id")
         .in("billing_status", STATUSES)
-        .in("user_id", idList)
+        .eq("corporate_account_id", corporateAccountId)
         .order("start_time");
       if (startDate) bq = bq.gte("start_time", startDate);
       if (endDate) bq = bq.lte("start_time", endDate);
@@ -284,7 +255,9 @@ export function useDeferredItemsForCorporate(
         .from("coaching_sessions")
         .select("id, student_user_id, city, session_date, booking_id, billing_status, invoice_id")
         .in("billing_status", STATUSES)
-        .in("student_user_id", idList)
+        .eq("corporate_account_id", corporateAccountId)
+        .is("booking_id", null)
+        .neq("session_type", "self_directed")
         .order("session_date");
       if (startDate) cq = cq.gte("session_date", startDate.slice(0, 10));
       if (endDate) cq = cq.lte("session_date", endDate.slice(0, 10));
@@ -302,8 +275,8 @@ export function useDeferredItemsForCorporate(
 
       // Invoice numbers
       const invoiceIds = Array.from(new Set([
-        ...(bookings ?? []).map((b: any) => b.invoice_id).filter(Boolean),
-        ...(coachings ?? []).map((c: any) => c.invoice_id).filter(Boolean),
+        ...(bookings ?? []).map((b) => b.invoice_id).filter(Boolean),
+        ...(coachings ?? []).map((c) => c.invoice_id).filter(Boolean),
       ])) as string[];
       const invMap = new Map<string, string>();
       if (invoiceIds.length) {
@@ -327,9 +300,9 @@ export function useDeferredItemsForCorporate(
           session_type: b.session_type,
           status: b.status,
           cancelled: b.status === "cancelled",
-          billing_status: (b as any).billing_status ?? null,
-          invoice_id: (b as any).invoice_id ?? null,
-          invoice_number: (b as any).invoice_id ? invMap.get((b as any).invoice_id) ?? null : null,
+          billing_status: (b).billing_status ?? null,
+          invoice_id: (b).invoice_id ?? null,
+          invoice_number: (b).invoice_id ? invMap.get((b).invoice_id) ?? null : null,
         });
       }
       for (const c of coachings ?? []) {
@@ -346,9 +319,9 @@ export function useDeferredItemsForCorporate(
           session_type: "coaching",
           status: null,
           cancelled: false,
-          billing_status: (c as any).billing_status ?? null,
-          invoice_id: (c as any).invoice_id ?? null,
-          invoice_number: (c as any).invoice_id ? invMap.get((c as any).invoice_id) ?? null : null,
+          billing_status: (c).billing_status ?? null,
+          invoice_id: (c).invoice_id ?? null,
+          invoice_number: (c).invoice_id ? invMap.get((c).invoice_id) ?? null : null,
         });
       }
       return rows;

@@ -1,5 +1,11 @@
 # Roadmap
 
+## Corporate multi-account registration and booking
+- [ ] Add secure memberships, atomic registration/assignment, and explicit session attribution
+- [ ] Convert registration, member management, booking choice, monthly billing and calendar labels
+- [ ] Verify legacy attribution, account-claim compatibility and city permissions
+- [ ] Run focused/full tests and verify authorized admin end-to-end flow
+
 ## Auditor-focused GSTR-1 export
 - [x] Verify current official HSN/report requirements and document supported scope
 - [x] Consolidate HSN by supply type, code, rate and UQC; add signed invoice-line breakdown

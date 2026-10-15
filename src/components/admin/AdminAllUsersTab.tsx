@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
@@ -26,6 +26,10 @@ import { useAdminCity } from "@/contexts/AdminCityContext";
 import { HoursBalanceBadge } from "@/components/admin/HoursBalanceBadge";
 import { HoursActionLabel, MemberHoursManager } from "@/components/admin/MemberHoursManager";
 import { matchesMemberFilter, type MemberFilter } from "@/lib/member-utils";
+
+import { Switch } from "@/components/ui/switch";
+import { CorporateAccountPicker } from "./CorporateAccountPicker";
+import { canRegisterCorporateMember } from "@/lib/corporate-selection";
 
 // ─── Sub-components ──────────────────────────────────────────────
 
@@ -205,17 +209,30 @@ function AdminRedeemForm({ profiles, rewards, onSave, onCancel }: { profiles: an
 }
 
 
-function RegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_name: string; email: string; phone: string }) => void; onCancel: () => void }) {
+function RegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_name: string; email: string; phone: string; accountIds: string[] }) => Promise<void>; onCancel: () => void }) {
   const [form, setForm] = useState({ display_name: "", email: "", phone: "" });
+  const [corporate, setCorporate] = useState(false);
+  const [accountIds, setAccountIds] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const submit = async () => {
+    if (savingRef.current || !canRegisterCorporateMember(form.display_name, corporate, accountIds)) return;
+    savingRef.current = true;
+    setSaving(true);
+    try { await onSave({ ...form, accountIds: corporate ? accountIds : [] }); }
+    finally { savingRef.current = false; setSaving(false); }
+  };
   return (
     <div className="space-y-4">
       <div><Label>Display Name <span className="text-destructive">*</span></Label><Input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder="John Smith" /></div>
       <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="john@example.com" /></div>
       <div><Label>Phone</Label><Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+91 98765 43210" /></div>
+      <div className="flex items-center justify-between"><Label htmlFor="register-corporate">Corporate account user</Label><Switch id="register-corporate" checked={corporate} disabled={saving} onCheckedChange={setCorporate} /></div>
+      {corporate && <CorporateAccountPicker value={accountIds} onChange={setAccountIds} disabled={saving} />}
       <p className="text-xs text-muted-foreground">Email and phone are optional. If an email is provided, the user will be linked when they sign in with that email.</p>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button onClick={() => onSave(form)} disabled={!form.display_name.trim()}>Register User</Button>
+        <Button onClick={submit} disabled={saving || !form.display_name.trim() || (corporate && accountIds.length === 0)}>{saving ? "Registering…" : "Register User"}</Button>
       </div>
     </div>
   );
@@ -490,31 +507,23 @@ export function AdminAllUsersTab() {
 
         <Dialog open={dialogOpen === "registeruser"} onOpenChange={(open) => setDialogOpen(open ? "registeruser" : null)}>
           <DialogTrigger asChild><Button size="sm"><UserCheck className="mr-2 h-4 w-4" />Register User</Button></DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Register New User</DialogTitle></DialogHeader>
             <RegisterUserForm onSave={async (data) => {
               const email = data.email.trim().toLowerCase();
-              // Duplicate pre-check (only if email provided)
-              if (email) {
-                const { data: existing } = await supabase
-                  .from("profiles")
-                  .select("id, display_name, user_id")
-                  .ilike("email", email)
-                  .limit(1)
-                  .maybeSingle();
-                if (existing) {
-                  toast({ title: "User already exists", description: `${existing.display_name || email} is already registered${existing.user_id ? "" : " (not yet claimed)"}. Open their profile instead of creating a duplicate.`, variant: "destructive" });
-                  return;
-                }
-              }
-              const insertData: Record<string, string> = { display_name: data.display_name.trim(), user_type: 'guest' };
-              if (email) insertData.email = email;
-              if (data.phone.trim()) insertData.phone = data.phone.trim();
-              if (selectedCity) insertData.preferred_city = selectedCity;
-              const { error } = await supabase.from("profiles").insert(insertData);
+              const { data: result, error } = await supabase.rpc("register_corporate_member", {
+                _name: data.display_name.trim(), _email: email || undefined, _phone: data.phone.trim() || undefined,
+                _city: selectedCity || undefined, _account_ids: data.accountIds,
+              });
               if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-              toast({ title: "User registered", description: email ? `${data.display_name} has been registered. They can claim the account by signing in with ${email}.` : `${data.display_name} has been registered.` });
+              if (result && typeof result === "object" && !Array.isArray(result) && result.existing) {
+                toast({ title: "User already exists", description: `${result.display_name || email} is already registered. Their memberships have not changed.`, variant: "destructive" });
+                if (typeof result.profile_id === "string") navigate(`/members/${result.profile_id}/360`);
+                return;
+              }
+              toast({ title: "User registered", description: `${data.display_name} has been registered.` });
               queryClient.invalidateQueries({ queryKey: ["admin_all_users"] });
+              queryClient.invalidateQueries({ queryKey: ["corporate_members"] });
               setDialogOpen(null);
             }} onCancel={() => setDialogOpen(null)} />
           </DialogContent>

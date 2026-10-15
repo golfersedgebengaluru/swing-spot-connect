@@ -421,6 +421,7 @@ export type Database = {
           calendar_event_id: string | null
           city: string
           coach_name: string | null
+          corporate_account_id: string | null
           corporate_invoice_id: string | null
           created_at: string
           duration_minutes: number
@@ -441,6 +442,7 @@ export type Database = {
           calendar_event_id?: string | null
           city: string
           coach_name?: string | null
+          corporate_account_id?: string | null
           corporate_invoice_id?: string | null
           created_at?: string
           duration_minutes: number
@@ -461,6 +463,7 @@ export type Database = {
           calendar_event_id?: string | null
           city?: string
           coach_name?: string | null
+          corporate_account_id?: string | null
           corporate_invoice_id?: string | null
           created_at?: string
           duration_minutes?: number
@@ -481,6 +484,13 @@ export type Database = {
             columns: ["bay_id"]
             isOneToOne: false
             referencedRelation: "bays"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_corporate_account_id_fkey"
+            columns: ["corporate_account_id"]
+            isOneToOne: false
+            referencedRelation: "corporate_accounts"
             referencedColumns: ["id"]
           },
           {
@@ -850,6 +860,7 @@ export type Database = {
           booking_id: string | null
           city: string
           coach_user_id: string
+          corporate_account_id: string | null
           corporate_invoice_id: string | null
           created_at: string
           drills: string | null
@@ -876,6 +887,7 @@ export type Database = {
           booking_id?: string | null
           city: string
           coach_user_id: string
+          corporate_account_id?: string | null
           corporate_invoice_id?: string | null
           created_at?: string
           drills?: string | null
@@ -902,6 +914,7 @@ export type Database = {
           booking_id?: string | null
           city?: string
           coach_user_id?: string
+          corporate_account_id?: string | null
           corporate_invoice_id?: string | null
           created_at?: string
           drills?: string | null
@@ -929,6 +942,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coaching_sessions_corporate_account_id_fkey"
+            columns: ["corporate_account_id"]
+            isOneToOne: false
+            referencedRelation: "corporate_accounts"
             referencedColumns: ["id"]
           },
           {
@@ -1051,6 +1071,56 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      corporate_account_members: {
+        Row: {
+          corporate_account_id: string
+          created_at: string
+          profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          corporate_account_id: string
+          created_at?: string
+          profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          corporate_account_id?: string
+          created_at?: string
+          profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "corporate_account_members_corporate_account_id_fkey"
+            columns: ["corporate_account_id"]
+            isOneToOne: false
+            referencedRelation: "corporate_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "corporate_account_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "coach_student_contacts"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "corporate_account_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "corporate_account_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["profile_id"]
+          },
+        ]
       }
       corporate_accounts: {
         Row: {
@@ -6212,6 +6282,10 @@ export type Database = {
         Args: { p_booking_id: string; p_cancelled_by?: string }
         Returns: Json
       }
+      change_corporate_membership: {
+        Args: { _account_id: string; _profile_id: string; _remove?: boolean }
+        Returns: undefined
+      }
       check_email_rate_limit: {
         Args: { p_max_per_hour?: number; p_user_id: string }
         Returns: boolean
@@ -6279,8 +6353,16 @@ export type Database = {
         Args: { _drills?: Json; _focuses?: Json; _session: Json }
         Returns: string
       }
+      confirm_legacy_corporate_payer: {
+        Args: { _account_id: string; _booking_id: string }
+        Returns: undefined
+      }
       confirm_parental_consent: {
         Args: { _approve: boolean; _token: string }
+        Returns: boolean
+      }
+      corporate_admin_profile_access: {
+        Args: { _profile_id: string }
         Returns: boolean
       }
       decrement_user_points_safe: {
@@ -6430,6 +6512,16 @@ export type Database = {
         }
         Returns: string
       }
+      register_corporate_member: {
+        Args: {
+          _account_ids?: string[]
+          _city?: string
+          _email?: string
+          _name: string
+          _phone?: string
+        }
+        Returns: Json
+      }
       release_pending_guest_booking: {
         Args: { _error?: string; _order_id: string }
         Returns: undefined
@@ -6445,6 +6537,10 @@ export type Database = {
         }
         Returns: string
       }
+      set_corporate_memberships: {
+        Args: { _account_ids: string[]; _profile_id: string }
+        Returns: undefined
+      }
       site_admin_has_city: {
         Args: { _city: string; _user_id: string }
         Returns: boolean
@@ -6459,6 +6555,24 @@ export type Database = {
       }
       upsert_member_hours: {
         Args: { p_hours: number; p_user_id: string }
+        Returns: undefined
+      }
+      validate_corporate_booking: {
+        Args: {
+          _account_id: string
+          _caller: string
+          _city: string
+          _profile_ref: string
+        }
+        Returns: string
+      }
+      validate_corporate_invoice_items: {
+        Args: {
+          _account_id: string
+          _booking_ids: string[]
+          _city: string
+          _coaching_ids: string[]
+        }
         Returns: undefined
       }
       validate_coupon: {
