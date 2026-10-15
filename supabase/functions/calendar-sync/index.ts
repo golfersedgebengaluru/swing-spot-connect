@@ -916,6 +916,24 @@ Deno.serve(async (req) => {
 
 
       const adminClient = createAdminClient();
+      const selectedCorporateAccount = params.corporate_account_id ?? null;
+      if (isDeferred || selectedCorporateAccount || params.gateway_name === "corporate_deferred") {
+        if (!isDeferred || !selectedCorporateAccount || !user_id_override) {
+          return new Response(JSON.stringify({ error: "Select a corporate member and billing account" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const authHeader = req.headers.get("Authorization");
+        const authClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "", { global: { headers: { Authorization: authHeader ?? "" } } });
+        const { data: { user }, error: authError } = await authClient.auth.getUser();
+        if (authError || !user || user.is_anonymous) {
+          return new Response(JSON.stringify({ error: "Administrator sign-in required" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const { error: corporateError } = await adminClient.rpc("validate_corporate_booking", {
+          _caller: user.id, _profile_ref: user_id_override, _account_id: selectedCorporateAccount, _city: city,
+        });
+        if (corporateError) return new Response(JSON.stringify({ error: corporateError.message }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        const { data: bay, error: bayError } = await adminClient.from("bays").select("city").eq("id", bay_id).maybeSingle();
+        if (bayError || !bay || bay.city !== city) return new Response(JSON.stringify({ error: "Select a bay in this city" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
 
       // Resolve calendar mailbox server-side (guests cannot read it from the client)
       if (!calendar_email) {
@@ -979,7 +997,7 @@ Deno.serve(async (req) => {
       }
 
 
-      const bracketTag = await resolveCorporateTag(adminClient, user_id_override ?? null, "Guest");
+      const bracketTag = await resolveCorporateTag(adminClient, selectedCorporateAccount, "Guest");
 
       // Calendar event creation is deferred until AFTER the booking row is
       // inserted. Creating the event first risks orphan calendar entries if
@@ -1074,6 +1092,7 @@ Deno.serve(async (req) => {
           calendar_event_id: calendarEventId,
           note: noteParts.join(" "),
           billing_status: isDeferred ? "deferred" : "immediate",
+          corporate_account_id: selectedCorporateAccount,
           parent_booking_id: parent_booking_id || null,
         })
         .select()

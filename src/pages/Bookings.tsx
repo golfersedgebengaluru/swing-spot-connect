@@ -18,11 +18,14 @@ import { getBookableWindow } from "@/lib/extended-hours";
 import { useToast } from "@/hooks/use-toast";
 import { Navigate } from "react-router-dom";
 
+import { useProfileBillingInfo } from "@/hooks/useCorporateAccounts";
+
 export default function Bookings() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const { data: bays, isLoading: loadingBays } = useBays();
   const { data: profile } = useUserProfile();
+  const { data: corporateMemberships } = useProfileBillingInfo(profile?.id);
   const { data: balance } = useUserHoursBalance();
   const updateCity = useUpdatePreferredCity();
   const createBooking = useCreateBooking();
@@ -162,7 +165,7 @@ export default function Bookings() {
           </div>
 
           {/* Corporate member info banner */}
-          {(profile as any)?.corporate_account_id && (
+          {!!corporateMemberships?.accounts.length && (
             <Card className="mb-6 border-amber-300/60 bg-amber-50 dark:bg-amber-950/20 shadow-elegant">
               <CardContent className="flex items-start gap-3 p-4">
                 <div className="rounded-xl bg-amber-100 dark:bg-amber-900/40 p-2 shrink-0">

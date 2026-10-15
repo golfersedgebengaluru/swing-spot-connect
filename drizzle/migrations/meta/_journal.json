@@ -8,6 +8,20 @@
       "when": 1792043008059,
       "tag": "0000_league_peoria_adjustment_and_cap",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792048536562,
+      "tag": "0001_corporate_memberships_and_session_attribution",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792048726692,
+      "tag": "0002_corporate_billing_guards_and_legacy_review",
+      "breakpoints": true
     }
   ]
 }

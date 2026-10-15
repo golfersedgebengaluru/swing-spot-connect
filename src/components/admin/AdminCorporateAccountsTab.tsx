@@ -356,10 +356,10 @@ function MembersPanel({ account }: { account: CorporateAccount }) {
   };
 
   const handleRemove = async (profileId: string, name: string) => {
-    if (!confirm(`Remove ${name} from ${account.name}? Future bookings will revert to standard billing.`)) return;
+    if (!confirm(`Remove ${name} from ${account.name}? This will not affect other corporate memberships or historical billing.`)) return;
     try {
-      await assign.mutateAsync({ profileId, corporateAccountId: null });
-      toast({ title: "Removed", description: `${name} reverted to standard billing.` });
+      await assign.mutateAsync({ profileId, corporateAccountId: account.id, remove: true });
+      toast({ title: "Removed", description: `${name} was removed from ${account.name}.` });
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     }
@@ -427,7 +427,6 @@ function MembersPanel({ account }: { account: CorporateAccount }) {
             ) : (
               (searchResults ?? []).map((p: any) => {
                 const already = assignedIds.has(p.id);
-                const inOtherAccount = !!p.corporate_account_id && p.corporate_account_id !== account.id;
                 return (
                   <button
                     key={p.id}
@@ -440,7 +439,6 @@ function MembersPanel({ account }: { account: CorporateAccount }) {
                       <div className="font-medium truncate">{p.display_name || "—"}</div>
                       <div className="text-[11px] text-muted-foreground truncate">
                         {p.email || "no email"}
-                        {inOtherAccount && " · already in another corporate account (will move)"}
                       </div>
                     </div>
                     {already ? (
@@ -455,7 +453,7 @@ function MembersPanel({ account }: { account: CorporateAccount }) {
           </Card>
         )}
         <p className="text-[11px] text-muted-foreground">
-          A user can belong to <strong>one</strong> corporate account at a time. Adding moves them automatically.
+          Members can belong to multiple corporate accounts. Adding here preserves their other memberships.
         </p>
       </div>
     </div>
@@ -471,7 +469,7 @@ function useProfileSearch(query: string) {
       const q = query.trim();
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, display_name, email, phone, corporate_account_id")
+        .select("id, display_name, email, phone")
         .or(`display_name.ilike.%${q}%,email.ilike.%${q}%`)
         .limit(20);
       if (error) throw error;
@@ -705,14 +703,16 @@ function BillingPanel({ account }: { account: CorporateAccount }) {
       const bookingIds = targetItems.filter((i) => i.kind === "booking").map((i) => i.id);
       const coachingIds = targetItems.filter((i) => i.kind === "coaching").map((i) => i.id);
       if (bookingIds.length) {
-        await supabase.from("bookings")
+        const { error } = await supabase.from("bookings")
           .update({ billing_status: "invoiced", invoice_id: invoice.id })
           .in("id", bookingIds);
+        if (error) throw error;
       }
       if (coachingIds.length) {
-        await supabase.from("coaching_sessions")
+        const { error } = await supabase.from("coaching_sessions")
           .update({ billing_status: "invoiced", invoice_id: invoice.id })
           .in("id", coachingIds);
+        if (error) throw error;
       }
 
       toast({

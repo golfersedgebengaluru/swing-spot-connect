@@ -49,8 +49,10 @@ Deno.test("resolveCorporateTag: falls back to profiles.id lookup when user_id mi
   });
   const tag = await resolveCorporateTag(client, "profile-id");
   assertEquals(tag, "Globex");
-  // Two profile lookups + one corporate lookup
-  assertEquals(calls.length, 3);
+  // Only the explicitly selected company is looked up.
+  assertEquals(calls.length, 1);
+  assertEquals(calls[0].table, "corporate_accounts");
+  assertEquals(calls[0].value, "profile-id");
 });
 
 Deno.test("resolveCorporateTag: returns Guest when profile has no corporate", async () => {

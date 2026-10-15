@@ -286,11 +286,15 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
   const drawdownAdvance = useDrawdownAdvance();
 
   // Corporate billing detection (skips per-session payment, defers to monthly invoice)
-  const { data: billingInfo } = useProfileBillingInfo(
+  const { data: billingInfo, isLoading: billingLoading, error: billingError } = useProfileBillingInfo(
     customerMode === "existing" ? selectedProfile?.id : null
   );
-  const isCorporate = !!billingInfo?.corporate;
-  const corporateAccount = billingInfo?.corporate ?? null;
+  const [selectedCorporateId, setSelectedCorporateId] = useState("");
+  const corporateAccounts = billingInfo?.accounts ?? [];
+  const isCorporate = corporateAccounts.length > 0;
+  const corporateId = corporateAccounts.length === 1 ? corporateAccounts[0].id : selectedCorporateId;
+  const corporateAccount = corporateAccounts.find(a => a.id === corporateId) ?? null;
+  useEffect(() => { setSelectedCorporateId(""); }, [selectedProfile?.id, selectedCity, customerMode]);
 
   // Force manual mode for corporate (no hours, no need for offline method selection)
   useEffect(() => {
@@ -301,8 +305,8 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
   const canProceedFromSlot = !!selectedCity && !!currentBay && !!selectedDate && !!startTime;
   const hoursNeeded = sessionType === "coaching" ? (currentBay?.coaching_hours ?? 1) : duration / 60;
   const canPayWithHours = paymentMode === "hours" && hoursBalance !== null && hoursBalance >= hoursNeeded;
-  const canConfirm = isCorporate
-    ? true
+  const canConfirm = billingLoading || billingError ? false : isCorporate
+    ? !!corporateAccount
     : paymentMode === "hours" ? canPayWithHours : !!selectedPaymentMethod;
 
   const today = new Date();
@@ -314,12 +318,13 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
   const minutes = ["00", "30"];
 
   const handleConfirmBooking = async () => {
-    if (!startTime || !endTime || !currentBay) return;
+    if (!startTime || !endTime || !currentBay || !canConfirm || isProcessing) return;
     setIsProcessing(true);
 
     try {
       if (paymentMode === "hours") {
-        const targetUserId = customerUserId!;
+        if (!customerUserId) throw new Error("Select a customer");
+        const targetUserId = customerUserId;
 
         // Create booking via calendar-sync — hours deduction handled server-side
         const res = await supabase.functions.invoke("calendar-sync", {
@@ -369,6 +374,7 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
             gateway_name: isCorporate ? "corporate_deferred" : selectedPaymentMethod,
             user_id_override: customerUserId || undefined,
             billing_status: isCorporate ? "deferred" : "immediate",
+            corporate_account_id: corporateAccount?.id ?? null,
             backdated: isBackdated,
             parent_booking_id: participantOf?.id || null,
 
@@ -480,7 +486,7 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
               <p><span className="font-medium">Bay:</span> {currentBay?.name}</p>
               <p><span className="font-medium">Date:</span> {selectedDate && format(selectedDate, "PPP")}</p>
               <p><span className="font-medium">Time:</span> {startTime && format(new Date(startTime), "h:mm a")} – {endTime && format(new Date(endTime), "h:mm a")}</p>
-              <p className="break-words"><span className="font-medium">Payment:</span> {isCorporate ? `Deferred — added to monthly invoice` : paymentMode === "hours" ? `${hoursNeeded}h from balance` : `₹${totalCost.toLocaleString()} via ${selectedPaymentMethod}`}</p>
+              <p className="break-words"><span className="font-medium">Payment:</span> {isCorporate ? `Deferred — ${corporateAccount?.name}` : paymentMode === "hours" ? `${hoursNeeded}h from balance` : `₹${totalCost.toLocaleString()} via ${selectedPaymentMethod}`}</p>
             </div>
             <div className="flex gap-2 mt-4">
               <Button className="flex-1" variant="outline" onClick={handleClose}>Close</Button>
@@ -902,6 +908,14 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
               </CardContent>
             </Card>
 
+            {billingError && <p className="text-sm text-destructive">Could not load corporate memberships. Reopen this booking to retry.</p>}
+            {isCorporate && corporateAccounts.length > 1 && <div className="space-y-2">
+              <Label>Bill to corporate account</Label>
+              <Select value={selectedCorporateId} onValueChange={setSelectedCorporateId}>
+                <SelectTrigger><SelectValue placeholder="Select corporate account" /></SelectTrigger>
+                <SelectContent>{corporateAccounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>}
             {/* Corporate banner — replaces payment selection entirely */}
             {isCorporate && (
               <Card className="border-primary/30 bg-primary/5">
