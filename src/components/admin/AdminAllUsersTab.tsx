@@ -517,7 +517,7 @@ export function AdminAllUsersTab() {
               if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
               if (result && typeof result === "object" && !Array.isArray(result) && result.existing) {
                 toast({ title: "User already exists", description: `${result.display_name || email} is already registered. Their memberships have not changed.`, variant: "destructive" });
-                if (typeof result.profile_id === "string") navigate(`/admin/members/${result.profile_id}`);
+                if (typeof result.profile_id === "string") navigate(`/members/${result.profile_id}/360`);
                 return;
               }
               toast({ title: "User registered", description: `${data.display_name} has been registered.` });

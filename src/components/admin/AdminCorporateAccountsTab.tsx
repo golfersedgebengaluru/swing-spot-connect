@@ -35,6 +35,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Package } from "lucide-react";
 import { useAdminCity } from "@/contexts/AdminCityContext";
+import { CorporateLegacyReview } from "./CorporateLegacyReview";
 
 export function AdminCorporateAccountsTab() {
   const { selectedCity } = useAdminCity();
@@ -52,6 +53,7 @@ export function AdminCorporateAccountsTab() {
 
   return (
     <div className="space-y-4">
+      <CorporateLegacyReview city={selectedCity || null} />
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">
