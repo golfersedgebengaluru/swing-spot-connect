@@ -2057,6 +2057,8 @@ function ScoringConfigPanel({ league }: { league: League }) {
   const [fairnessPct, setFairnessPct] = useState(league.fairness_factor_pct || 0);
   const [aggregation, setAggregation] = useState(league.team_aggregation_method || 'best_ball');
   const [peoriaMultiplier, setPeoriaMultiplier] = useState(league.peoria_multiplier || 3);
+  const [peoriaAdjustmentPct, setPeoriaAdjustmentPct] = useState(league.peoria_adjustment_pct ?? 80);
+  const [peoriaMaxCap, setPeoriaMaxCap] = useState(league.peoria_max_cap ?? 36);
   const [stablefordEnabled, setStablefordEnabled] = useState(league.stableford_enabled !== false);
 
   const handleSave = () => {
@@ -2065,6 +2067,8 @@ function ScoringConfigPanel({ league }: { league: League }) {
       fairness_factor_pct: fairnessPct,
       team_aggregation_method: aggregation as 'best_ball' | 'average',
       peoria_multiplier: peoriaMultiplier,
+      peoria_adjustment_pct: peoriaAdjustmentPct,
+      peoria_max_cap: peoriaMaxCap,
       stableford_enabled: stablefordEnabled,
     });
   };
@@ -2089,6 +2093,16 @@ function ScoringConfigPanel({ league }: { league: League }) {
           <Label>Peoria Multiplier</Label>
           <Input type="number" value={peoriaMultiplier || ""} onChange={(e) => setPeoriaMultiplier(Number(e.target.value))} min={1} max={10} step={0.5} />
           <p className="text-xs text-muted-foreground mt-1">Hidden hole sum × this value = handicap</p>
+        </div>
+        <div>
+          <Label>Peoria Adjustment Factor (%)</Label>
+          <Input type="number" value={peoriaAdjustmentPct || ""} onChange={(e) => setPeoriaAdjustmentPct(Number(e.target.value))} min={0} max={100} step={1} />
+          <p className="text-xs text-muted-foreground mt-1">Only this % of the calculated handicap is applied (default 80)</p>
+        </div>
+        <div>
+          <Label>Peoria Max Cap</Label>
+          <Input type="number" value={peoriaMaxCap || ""} onChange={(e) => setPeoriaMaxCap(Number(e.target.value))} min={0} max={100} step={1} />
+          <p className="text-xs text-muted-foreground mt-1">Maximum handicap a player can receive (default 36)</p>
         </div>
         <div>
           <Label>Team Aggregation Method</Label>
