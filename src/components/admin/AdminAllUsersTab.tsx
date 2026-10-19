@@ -209,14 +209,28 @@ function AdminRedeemForm({ profiles, rewards, onSave, onCancel }: { profiles: an
 }
 
 
-function RegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_name: string; email: string; phone: string; accountIds: string[] }) => Promise<void>; onCancel: () => void }) {
-  const [form, setForm] = useState({ display_name: "", email: "", phone: "" });
+function CityField({ value, onChange, required, disabled }: { value: string; onChange: (v: string) => void; required?: boolean; disabled?: boolean }) {
+  const { availableCities } = useAdminCity();
+  const options = value && !availableCities.includes(value) ? [value, ...availableCities] : availableCities;
+  return (
+    <div><Label>Preferred City {required && <span className="text-destructive">*</span>}</Label>
+      <Select value={value || undefined} onValueChange={onChange} disabled={disabled}>
+        <SelectTrigger><SelectValue placeholder="Select city" /></SelectTrigger>
+        <SelectContent>{options.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function RegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_name: string; email: string; phone: string; city: string; accountIds: string[] }) => Promise<void>; onCancel: () => void }) {
+  const { selectedCity } = useAdminCity();
+  const [form, setForm] = useState({ display_name: "", email: "", phone: "", city: selectedCity || "" });
   const [corporate, setCorporate] = useState(false);
   const [accountIds, setAccountIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const submit = async () => {
-    if (savingRef.current || !canRegisterCorporateMember(form.display_name, corporate, accountIds)) return;
+    if (savingRef.current || !form.city || !canRegisterCorporateMember(form.display_name, corporate, accountIds)) return;
     savingRef.current = true;
     setSaving(true);
     try { await onSave({ ...form, accountIds: corporate ? accountIds : [] }); }
@@ -227,12 +241,13 @@ function RegisterUserForm({ onSave, onCancel }: { onSave: (data: { display_name:
       <div><Label>Display Name <span className="text-destructive">*</span></Label><Input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder="John Smith" /></div>
       <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="john@example.com" /></div>
       <div><Label>Phone</Label><Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+91 98765 43210" /></div>
+      <CityField value={form.city} onChange={(city) => setForm({ ...form, city })} required disabled={saving} />
       <div className="flex items-center justify-between"><Label htmlFor="register-corporate">Corporate account user</Label><Switch id="register-corporate" checked={corporate} disabled={saving} onCheckedChange={setCorporate} /></div>
       {corporate && <CorporateAccountPicker value={accountIds} onChange={setAccountIds} disabled={saving} />}
       <p className="text-xs text-muted-foreground">Email and phone are optional. If an email is provided, the user will be linked when they sign in with that email.</p>
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
-        <Button onClick={submit} disabled={saving || !form.display_name.trim() || (corporate && accountIds.length === 0)}>{saving ? "Registering…" : "Register User"}</Button>
+        <Button onClick={submit} disabled={saving || !form.display_name.trim() || !form.city || (corporate && accountIds.length === 0)}>{saving ? "Registering…" : "Register User"}</Button>
       </div>
     </div>
   );
@@ -267,7 +282,7 @@ function EditProfileForm({ profile, onSave, onCancel }: { profile: any; onSave: 
       <div><Label>Display Name</Label><Input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} /></div>
       <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
       <div><Label>Phone</Label><Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-      <div><Label>Preferred City</Label><Input value={form.preferred_city} onChange={(e) => setForm({ ...form, preferred_city: e.target.value })} /></div>
+      <CityField value={form.preferred_city} onChange={(preferred_city) => setForm({ ...form, preferred_city })} />
       <div className="flex gap-2 justify-end">
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
         <Button onClick={() => onSave(form)} disabled={!form.display_name.trim()}>Save</Button>
@@ -513,7 +528,7 @@ export function AdminAllUsersTab() {
               const email = data.email.trim().toLowerCase();
               const { data: result, error } = await supabase.rpc("register_corporate_member", {
                 _name: data.display_name.trim(), _email: email || undefined, _phone: data.phone.trim() || undefined,
-                _city: selectedCity || undefined, _account_ids: data.accountIds,
+                _city: data.city, _account_ids: data.accountIds,
               });
               if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
               if (result && typeof result === "object" && !Array.isArray(result) && result.existing) {
