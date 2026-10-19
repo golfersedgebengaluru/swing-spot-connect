@@ -34,15 +34,15 @@ export function CitySelectionModal() {
   if (!user || isLoading) return null;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open}>
+      <DialogContent className="sm:max-w-md [&>button]:hidden" onEscapeKeyDown={(e) => e.preventDefault()} onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5 text-primary" />
             Select Your City
           </DialogTitle>
           <DialogDescription>
-            Choose your preferred location for bay bookings. You can change this later in settings.
+            Choose your preferred location for bay bookings. A preferred city is required to continue. You can change it later in your profile.
           </DialogDescription>
         </DialogHeader>
         <div className="pt-4">
