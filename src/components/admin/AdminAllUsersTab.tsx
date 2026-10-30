@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
@@ -25,7 +25,10 @@ import { useAdmin } from "@/hooks/useAdmin";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { HoursBalanceBadge } from "@/components/admin/HoursBalanceBadge";
 import { HoursActionLabel, MemberHoursManager } from "@/components/admin/MemberHoursManager";
-import { matchesMemberFilter, type MemberFilter } from "@/lib/member-utils";
+import { type MemberFilter } from "@/lib/member-utils";
+import { useCustomerReport, fetchCustomerReport } from "@/hooks/useCustomerReport";
+import { customerReportCsv, formatCustomerSpend } from "@/lib/customer-report";
+import { CustomerReportControls, initialCustomerFilters } from "./CustomerReportControls";
 
 import { Switch } from "@/components/ui/switch";
 import { CorporateAccountPicker } from "./CorporateAccountPicker";
@@ -79,7 +82,7 @@ function BookingTransactionHistory({ userId, profileId }: { userId: string; prof
           .eq("status", "confirmed");
         (txs ?? []).forEach((t: any) => {
           if (!t.booking_id) return;
-          const sign = t.transaction_type === "refund" ? -1 : 1;
+          const sign = 1;
           txByBooking.set(t.booking_id, (txByBooking.get(t.booking_id) ?? 0) + sign * Number(t.amount || 0));
           if (t.currency) currency = t.currency;
         });
@@ -330,73 +333,46 @@ export function AdminAllUsersTab() {
   const typeFilter: MemberFilter = requestedFilter === "pre-registered" || requestedFilter === "registered" || requestedFilter === "member" ? requestedFilter : "all";
   const PAGE_SIZE = 50;
   const { isAdmin, assignedCities } = useAdmin();
-  const { selectedCity } = useAdminCity();
+  const { selectedCity, availableCities } = useAdminCity();
 
-  const { data: allUsers, isLoading } = useQuery({
-    queryKey: ["admin_all_users", isAdmin, assignedCities, selectedCity],
-    queryFn: async () => {
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, user_id, display_name, email, phone, points, created_at, user_type, preferred_city, extended_hours_access")
-        .order("created_at", { ascending: false });
-      const { data: hours } = await supabase.from("member_hours").select("*");
-      const hoursMap = new Map((hours ?? []).map((h: any) => [h.user_id, h]));
-
-      let filtered = profiles ?? [];
-
-      if (!isAdmin) {
-        const citiesToFilter = selectedCity ? [selectedCity] : assignedCities;
-        if (citiesToFilter.length > 0) {
-          const { data: cityBookings } = await supabase
-            .from("bookings")
-            .select("user_id, city")
-            .in("city", citiesToFilter);
-          const bookingUserIds = new Set((cityBookings ?? []).map((b: any) => b.user_id));
-          filtered = filtered.filter((p: any) =>
-            (p.preferred_city && citiesToFilter.includes(p.preferred_city)) ||
-            (p.user_id && bookingUserIds.has(p.user_id)) ||
-            bookingUserIds.has(p.id)
-          );
-        }
-      } else if (selectedCity) {
-        const { data: cityBookings } = await supabase
-          .from("bookings")
-          .select("user_id, city")
-          .eq("city", selectedCity);
-        const bookingUserIds = new Set((cityBookings ?? []).map((b: any) => b.user_id));
-        filtered = filtered.filter((p: any) =>
-          p.preferred_city === selectedCity ||
-          !p.preferred_city ||
-          (p.user_id && bookingUserIds.has(p.user_id))
-        );
-      }
-
-      return filtered.map((p: any) => {
-        const memberHours = (p.user_id ? hoursMap.get(p.user_id) : undefined) ?? hoursMap.get(p.id);
-        return {
-          ...p,
-          member_hours_id: memberHours?.id ?? null,
-          hours_purchased: memberHours?.hours_purchased ?? 0,
-          hours_used: memberHours?.hours_used ?? 0,
-          hours_remaining: (memberHours?.hours_purchased ?? 0) - (memberHours?.hours_used ?? 0),
-        };
-      });
-    },
-  });
-
-  // ─── Filtered + paginated data ─────────────────────────────────
-
-  const filteredUsers = (allUsers ?? []).filter((u: any) => {
-    if (!matchesMemberFilter(typeFilter, u.user_id, u.member_hours_id)) return false;
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (u.display_name?.toLowerCase().includes(q)) || (u.email?.toLowerCase().includes(q));
-  });
-
-  const totalUsers = filteredUsers.length;
+  const [reportFilters, setReportFilters] = useState(initialCustomerFilters);
+  const [exporting, setExporting] = useState(false);
+  useEffect(() => { setPage(0); setReportFilters(initialCustomerFilters); }, [selectedCity]);
+  const reportArgs = {
+    _city: selectedCity || undefined, _preferred_city: reportFilters.preferredCity || undefined,
+    _visited_city: reportFilters.visitedCity || undefined, _from: reportFilters.from || undefined,
+    _to: reportFilters.to || undefined, _preset: reportFilters.preset, _type: typeFilter, _search: searchQuery,
+  };
+  const { data: report, isLoading, error: reportError } = useCustomerReport({ ...reportArgs, _offset: page * PAGE_SIZE, _limit: PAGE_SIZE });
+  const totalUsers = report?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalUsers / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
-  const paginated = filteredUsers.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+  useEffect(() => { if (page !== safePage) setPage(safePage); }, [page, safePage]);
+  const paginated = report?.rows ?? [];
+  const exportCustomers = async () => {
+    if (!report) return;
+    setExporting(true);
+    try {
+      const rows = [];
+      let offset = 0;
+      let total = report.total;
+      do {
+        const batch = await fetchCustomerReport({ ...reportArgs, _as_of: report.as_of, _offset: offset, _limit: 500 });
+        total = batch.total;
+        if (!batch.rows.length && offset < total) throw new Error("Customer list changed during export. Please retry.");
+        rows.push(...batch.rows); offset += batch.rows.length;
+      } while (offset < total);
+      if (new Set(rows.map(r => r.id)).size !== rows.length) throw new Error("Customer list changed during export. Please retry.");
+      const download = (content: string, name: string, type: string) => {
+        const url = URL.createObjectURL(new Blob([content], { type }));
+        const link = document.createElement("a"); link.href = url; link.download = name; link.click(); URL.revokeObjectURL(url);
+      };
+      download(customerReportCsv(rows), "customers.csv", "text/csv;charset=utf-8");
+      download(JSON.stringify({ ...reportArgs, as_of: report.as_of, locations: report.cities, timezone: report.timezone, customers: rows.length, reconciliation: report.reconciliation, unlinked_revenue: report.unlinked_revenue, missing_revenue_date: report.missing_revenue_date,
+        definitions: { visits: "Past confirmed qualifying sessions, parent booking deduplicated; not verified attendance", spend: "Confirmed signed personal revenue by business revenue date, currencies separate, corporate billing excluded", balances: "Hours and points are account-wide", channel: "Online only from explicit completed booking/payment links; otherwise Unknown" } }, null, 2), "customers-report-summary.json", "application/json");
+    } catch (error) { toast({ title: "Export unavailable", description: error instanceof Error ? error.message : "Please retry.", variant: "destructive" }); }
+    finally { setExporting(false); }
+  };
 
   // ─── Handlers ──────────────────────────────────────────────────
 
@@ -424,24 +400,22 @@ export function AdminAllUsersTab() {
   };
 
   const loadProfiles = async () => {
-    const { data } = await supabase.from("profiles").select("user_id, display_name, email, points, preferred_city");
-    let filtered = data ?? [];
-    if (!isAdmin) {
-      const citiesToFilter = selectedCity ? [selectedCity] : assignedCities;
-      if (citiesToFilter.length > 0) {
-        const { data: cityBookings } = await supabase.from("bookings").select("user_id, city").in("city", citiesToFilter);
-        const bookingUserIds = new Set((cityBookings ?? []).map((b: any) => b.user_id));
-        filtered = filtered.filter((p: any) =>
-          (p.preferred_city && citiesToFilter.includes(p.preferred_city)) || (p.user_id && bookingUserIds.has(p.user_id))
-        );
-      }
-    }
-    setAllProfiles(filtered);
+    try {
+      const rows = [];
+      let offset = 0;
+      let total = 0;
+      do {
+        const result = await fetchCustomerReport({ _city: selectedCity || undefined, _offset: offset, _limit: 500 });
+        rows.push(...result.rows); total = result.total; offset += result.rows.length;
+        if (!result.rows.length) break;
+      } while (offset < total);
+      setAllProfiles(rows);
+    } catch (error) { toast({ title: "Customer list unavailable", description: error instanceof Error ? error.message : "Please retry.", variant: "destructive" }); }
   };
 
   const handleAllocatePoints = async (data: { user_id: string; points: number; description: string; isProfileId?: boolean }) => {
     try {
-      await allocatePoints.mutateAsync({ userId: data.user_id, points: data.points, description: data.description, adminId: user?.id!, isProfileId: data.isProfileId });
+      await allocatePoints.mutateAsync({ userId: data.user_id, points: data.points, description: data.description, adminId: user?.id ?? "", isProfileId: data.isProfileId });
       toast({ title: "Points allocated", description: `${data.points} points awarded.` });
       setDialogOpen(null);
     } catch (err: any) {
@@ -451,7 +425,7 @@ export function AdminAllUsersTab() {
 
   const handleAdminRedeem = async (data: { user_id: string; reward_id: string; reward_name: string; points: number; isProfileId?: boolean }) => {
     try {
-      await redeemPoints.mutateAsync({ userId: data.user_id, points: data.points, rewardId: data.reward_id, rewardName: data.reward_name, adminId: user?.id!, isProfileId: data.isProfileId });
+      await redeemPoints.mutateAsync({ userId: data.user_id, points: data.points, rewardId: data.reward_id, rewardName: data.reward_name, adminId: user?.id ?? "", isProfileId: data.isProfileId });
       toast({ title: "Reward redeemed", description: `${data.reward_name} redeemed successfully.` });
       setDialogOpen(null);
     } catch (err: any) {
@@ -461,7 +435,7 @@ export function AdminAllUsersTab() {
 
   const handleInlineAllocatePoints = async (userId: string, isProfileId: boolean, data: { points: number; description: string }) => {
     try {
-      await allocatePoints.mutateAsync({ userId, points: data.points, description: data.description, adminId: user?.id!, isProfileId });
+      await allocatePoints.mutateAsync({ userId, points: data.points, description: data.description, adminId: user?.id ?? "", isProfileId });
       toast({ title: "Points allocated", description: `${data.points} points awarded.` });
       setDialogOpen(null);
       setSelectedUser(null);
@@ -648,6 +622,8 @@ export function AdminAllUsersTab() {
         </Select>
       </div>
 
+      <CustomerReportControls filters={reportFilters} onChange={value => { setReportFilters(value); setPage(0); }} cities={availableCities} report={report} exporting={exporting} onExport={exportCustomers} />
+      {reportError && <p role="alert" className="text-sm text-destructive">Customer report unavailable: {reportError.message}</p>}
       {/* Main table */}
       {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
         <>
@@ -659,8 +635,9 @@ export function AdminAllUsersTab() {
                   <TableRow className="hover:bg-transparent border-b border-border">
                     <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium w-[35%]"><span className="pl-[44px]">User</span></TableHead>
                     <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Type</TableHead>
-                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Points</TableHead>
-                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Remaining hours</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Points · account</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Hours · account</TableHead>
+                    <TableHead>Last visit</TableHead><TableHead>Next booking</TableHead><TableHead>Period visits</TableHead><TableHead>Personal net spend · period</TableHead>
                     <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -727,6 +704,10 @@ export function AdminAllUsersTab() {
                           {u.member_hours_id ? <HoursBalanceBadge remaining={hoursRemaining} /> : <span className="text-muted-foreground">—</span>}
                         </TableCell>
 
+                        <TableCell className="whitespace-nowrap text-xs">{u.last_visit ? new Date(u.last_visit).toLocaleDateString(undefined, { timeZone: report?.timezone }) : "—"}</TableCell>
+                        <TableCell className="whitespace-nowrap text-xs">{u.next_booking ? new Date(u.next_booking).toLocaleDateString(undefined, { timeZone: report?.timezone }) : "—"}</TableCell>
+                        <TableCell>{u.visit_count}</TableCell>
+                        <TableCell className="min-w-36 text-xs">{formatCustomerSpend(u.period_spend)}</TableCell>
                         {/* Actions */}
                         <TableCell className="py-3 text-center">
                           <DropdownMenu>
