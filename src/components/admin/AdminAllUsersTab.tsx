@@ -633,12 +633,12 @@ export function AdminAllUsersTab() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-b border-border">
-                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium w-[35%]"><span className="pl-[44px]">User</span></TableHead>
+                    <TableHead className="sticky left-0 z-20 w-[220px] min-w-[220px] max-w-[220px] bg-card text-[11px] uppercase tracking-wider text-muted-foreground font-medium"><span className="pl-[44px]">User</span></TableHead>
+                    <TableHead className="sticky left-[220px] z-20 w-16 min-w-16 bg-card text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Actions</TableHead>
                     <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Type</TableHead>
-                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Points · account</TableHead>
                     <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Hours · account</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Points · account</TableHead>
                     <TableHead>Last visit</TableHead><TableHead>Next booking</TableHead><TableHead>Period visits</TableHead><TableHead>Personal net spend · period</TableHead>
-                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -660,13 +660,13 @@ export function AdminAllUsersTab() {
                     return (
                       <TableRow key={u.id || u.user_id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                         {/* User */}
-                        <TableCell className="py-3">
+                        <TableCell className="sticky left-0 z-10 w-[220px] min-w-[220px] max-w-[220px] bg-card py-3">
                           <div className="flex items-center gap-3">
                             <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-medium shrink-0 ${avatarClass}`}>
                               {getInitials(u.display_name)}
                             </div>
                             <div className="min-w-0">
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                                 <span className="font-normal text-foreground truncate">{u.display_name || "Unknown"}</span>
                                 {!u.user_id && u.user_type === "guest" && (
                                   <span className="inline-flex items-center rounded-full bg-amber-500/15 text-amber-400 border border-amber-400/30 px-1.5 py-0 text-[10px] font-medium shrink-0">Pending</span>
@@ -678,45 +678,15 @@ export function AdminAllUsersTab() {
                           </div>
                         </TableCell>
 
-                        {/* Type */}
-                        <TableCell className="py-3">
-                          <Select value={u.user_type || "registered"} onValueChange={(v) => handleChangeUserType(u.id, v)}>
-                            <SelectTrigger className="w-[130px] h-7 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {USER_TYPES.map((t) => (
-                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-
-                        {/* Points */}
-                        <TableCell className="py-3 text-center">
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/15 text-purple-400 px-2.5 py-0.5 text-xs font-medium">
-                            <Star className="h-3 w-3" />{points}
-                          </span>
-                        </TableCell>
-
-                        {/* Hours */}
-                        <TableCell className="py-3 text-center">
-                          {u.member_hours_id ? <HoursBalanceBadge remaining={hoursRemaining} /> : <span className="text-muted-foreground">—</span>}
-                        </TableCell>
-
-                        <TableCell className="whitespace-nowrap text-xs">{u.last_visit ? new Date(u.last_visit).toLocaleDateString(undefined, { timeZone: report?.timezone }) : "—"}</TableCell>
-                        <TableCell className="whitespace-nowrap text-xs">{u.next_booking ? new Date(u.next_booking).toLocaleDateString(undefined, { timeZone: report?.timezone }) : "—"}</TableCell>
-                        <TableCell>{u.visit_count}</TableCell>
-                        <TableCell className="min-w-36 text-xs">{formatCustomerSpend(u.period_spend)}</TableCell>
                         {/* Actions */}
-                        <TableCell className="py-3 text-center">
+                        <TableCell className="sticky left-[220px] z-10 w-16 min-w-16 bg-card py-3 text-center">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={`Actions for ${u.display_name || u.email || "user"}`} title="Customer actions">
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuContent align="end" className="w-56 max-h-[calc(100dvh-2rem)] overflow-y-auto">
                               <DropdownMenuItem onClick={() => navigate(`/members/${u.id}/360`)}>
                                 <CircleUserRound className="mr-2 h-4 w-4" />Member360
                               </DropdownMenuItem>
@@ -762,6 +732,38 @@ export function AdminAllUsersTab() {
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
+
+                        {/* Type */}
+                        <TableCell className="py-3">
+                          <Select value={u.user_type || "registered"} onValueChange={(v) => handleChangeUserType(u.id, v)}>
+                            <SelectTrigger className="w-[130px] h-7 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {USER_TYPES.map((t) => (
+                                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+
+                        {/* Hours */}
+                        <TableCell className="py-3 text-center">
+                          {u.member_hours_id ? <HoursBalanceBadge remaining={hoursRemaining} /> : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+
+                        {/* Points */}
+                        <TableCell className="py-3 text-center">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/15 text-purple-400 px-2.5 py-0.5 text-xs font-medium">
+                            <Star className="h-3 w-3" />{points}
+                          </span>
+                        </TableCell>
+
+                        <TableCell className="whitespace-nowrap text-xs">{u.last_visit ? new Date(u.last_visit).toLocaleDateString(undefined, { timeZone: report?.timezone }) : "—"}</TableCell>
+                        <TableCell className="whitespace-nowrap text-xs">{u.next_booking ? new Date(u.next_booking).toLocaleDateString(undefined, { timeZone: report?.timezone }) : "—"}</TableCell>
+                        <TableCell>{u.visit_count}</TableCell>
+                        <TableCell className="min-w-36 text-xs">{formatCustomerSpend(u.period_spend)}</TableCell>
+
                       </TableRow>
                     );
                   })}
