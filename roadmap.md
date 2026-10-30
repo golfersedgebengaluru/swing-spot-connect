@@ -2,7 +2,8 @@
 
 ## CRM Phase 3 — awaiting approval
 - [x] Prepare customer notes, assigned follow-ups and due-list proposal without application changes
-- [ ] Implement only after approval; verify city access, audit history and guest account-claim continuity
+- [x] Reassess necessity of general notes against the user's priority: essential centre operations and staff ease of use, without bells and whistles
+- [ ] Agree whether a minimal follow-up list solves an actual staff need before implementation; the earlier notes proposal is not approved
 
 ## All Users action visibility (approved column-only change)
 - [x] Review the existing three-dot menu, hours/points actions and advance deposit entry

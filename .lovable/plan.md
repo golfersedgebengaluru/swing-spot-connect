@@ -1,5 +1,8 @@
 # CRM Phase 3 — Customer notes and follow-ups
 
+## Scope reconsideration — not ready for implementation
+The user prioritizes essential centre operations and staff ease of use, without bells and whistles. General customer notes are not necessary and should be removed from the proposed release. The proposal below is superseded pending agreement on whether a minimal customer/action/staff/due-date/completed follow-up list addresses a real operational need. No Phase 3 implementation is approved.
+
 ## Outcome
 Staff can record a customer conversation, assign the next action, find what is due, and record completion. Build on Member 360 and All Users, not a separate CRM directory.
 
