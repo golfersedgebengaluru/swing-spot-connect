@@ -36,6 +36,13 @@
       "when": 1792049046283,
       "tag": "0004_restrict_corporate_membership_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793341218338,
+      "tag": "0005_customer_reporting_read_only",
+      "breakpoints": true
     }
   ]
 }
