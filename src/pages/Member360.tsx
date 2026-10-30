@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, CalendarDays, Clock, Dumbbell, Gift, Mail, MapPin, Phone, ShoppingBag, Trophy, UserRound } from "lucide-react";
-import { AdminCityProvider } from "@/contexts/AdminCityContext";
+import { AdminCityProvider, useAdminCity } from "@/contexts/AdminCityContext";
 import { useAdmin } from "@/hooks/useAdmin";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +38,7 @@ function dateLabel(value?: string | null) {
 
 function Member360Content() {
   const { id } = useParams();
+  const { selectedCity } = useAdminCity();
   const { isAdmin, assignedCities, loading: adminLoading } = useAdmin();
 
   const profileQuery = useQuery({
@@ -66,7 +67,7 @@ function Member360Content() {
   });
   const allowed = isAdmin || accessQuery.data === true;
   const ready = Boolean(profile) && allowed;
-  const { data: customerReport } = useCustomerReport({ _profile_id: id }, ready);
+  const { data: customerReport } = useCustomerReport({ _profile_id: id, _city: selectedCity || undefined }, ready);
   const customerSummary = customerReport?.rows[0];
 
   const membershipQuery = useQuery({
@@ -174,7 +175,7 @@ function Member360Content() {
       <div className="mx-auto max-w-5xl space-y-4 p-4 sm:p-6">
         <Link to="/admin?tab=allusers&filter=member" className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />Back to Members</Link>
         <div><h1 className="font-display text-2xl font-semibold sm:text-3xl">{profile.display_name || "Member360"}</h1><p className="text-sm text-muted-foreground">Member360</p></div>
-        {id && <CustomerSummary profileId={id} />}
+        {id && <CustomerSummary profileId={id} city={selectedCity} />}
         {signals.length > 0 && <div className="flex flex-wrap gap-2" aria-label="Member signals">{signals.map((signal) => <Badge key={signal} variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300">{signal}</Badge>)}</div>}
 
         <Card><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><UserRound className="h-5 w-5" />Profile</CardTitle></CardHeader><CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"><Field label="Name" value={profile.display_name} /><Field label="Email" value={profile.email} /><Field label="Phone" value={profile.phone} /><Field label="City" value={profile.preferred_city} /><Field label="Member since" value={dateLabel(membershipQuery.data?.memberSince)} /></CardContent></Card>
