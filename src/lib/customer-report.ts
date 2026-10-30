@@ -17,12 +17,14 @@ export type CustomerReport = {
 };
 export function parseCustomerReport(value: Json): CustomerReport {
   if (!value || typeof value !== "object" || Array.isArray(value) || !Array.isArray(value.rows) || typeof value.total !== "number") throw new Error("Invalid customer report response");
+  for (const row of value.rows) {
+    if (!row || typeof row !== "object" || Array.isArray(row) || typeof row.id !== "string" || !Array.isArray(row.visited_cities) || !row.visited_cities.every(city => typeof city === "string") || typeof row.visit_count !== "number" || !row.period_spend || typeof row.period_spend !== "object" || Array.isArray(row.period_spend) || !row.lifetime_spend || typeof row.lifetime_spend !== "object" || Array.isArray(row.lifetime_spend)) throw new Error("Invalid customer summary response");
+  }
   return value as unknown as CustomerReport;
 }
 export function formatCustomerSpend(amounts: Record<string, number> | undefined): string {
   return Object.entries(amounts ?? {}).map(([currency, amount]) => `${currency} ${Number(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`).join(" · ") || "—";
 }
-export function signedCustomerTotal(amounts: readonly number[]): number { return amounts.reduce((sum, amount) => sum + amount, 0); }
 export function csvCell(value: unknown): string {
   const text = String(value ?? "");
   const safe = /^[\s\u0000-\u001f]*[=+@-]/.test(text) ? `'${text}` : text;
