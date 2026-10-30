@@ -1,5 +1,6 @@
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
+import { Blob as NodeBlob } from "node:buffer";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const admin = "00000000-0000-0000-0000-000000000001";
@@ -9,7 +10,7 @@ const booking = "00000000-0000-0000-0000-000000000004";
 const blank = "00000000-0000-0000-0000-000000000005";
 let db: PGlite;
 beforeAll(async () => {
-  db = new PGlite();
+  db = new PGlite({ fsBundle: new NodeBlob([readFileSync("node_modules/@electric-sql/pglite/dist/pglite.data")]) as unknown as Blob });
   await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role; CREATE SCHEMA auth;
     CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$ SELECT nullif(current_setting('request.user_id',true),'')::uuid $$;
     CREATE TABLE user_roles(user_id uuid,role text);
