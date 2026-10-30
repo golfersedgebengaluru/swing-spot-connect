@@ -1,44 +1,53 @@
-# Restore full customer actions alongside reporting
+# CRM Phase 3 — Customer notes and follow-ups
 
-## Review findings
-- The current All Users page still contains Member360, View Profile, Edit Profile, Allocate Points, Adjust Hours, histories, Finance, Manage Access, Extended Hours and Delete User.
-- Reporting added four columns before Actions, pushing the three-dot menu to the far right in a horizontally scrollable table. This is the likely reason it is no longer readily visible; authorized browser confirmation is still needed.
-- Add/Deduct Hours are inside Adjust Hours. Advance deposits are inside Finance → Add Deposit. Neither is clearly exposed from the row menu.
-- A separate per-customer Deduct Points entry is absent; reward redemption exists as a top-level action. Deducting points must not require selecting a reward.
+## Outcome
+Staff can record a customer conversation, assign the next action, find what is due, and record completion. Build on Member 360 and All Users, not a separate CRM directory.
 
-## Proposed restoration
-Keep the new filters, reports and exports. Restore a readily reachable three-dot menu on every customer row without requiring horizontal scrolling to find it. Keep customer identity, type and balances compact; place report metrics in a concise stacked area rather than four additional wide columns.
+Phases 1–2 are implemented, with authorized browser and actual account-claim checks still outstanding. Phase 3 must not be called fully verified until its own authorized end-to-end checks pass.
 
-### Full row menu
-| Group | Options |
-| --- | --- |
-| Profile | View Profile; Member360; Edit Profile |
-| Hours | Add Hours; Deduct Hours; Adjust Hours; Hours History |
-| Points | Add Points; Deduct Points; Redeem Reward for this customer; Points History |
-| Finance | Add Advance; Finance / Transaction History |
-| Activity | Booking History |
-| Access | Manage Access; Enable / Disable Extended Hours |
-| User management | Delete User, retaining confirmation |
+## What will be added
 
-- Add/Deduct Hours open the existing hours form with the appropriate action selected; retain payment, reason, note and service-date behavior.
-- Add Points reuses existing allocation; Deduct Points exposes the existing safe points-decrement operation with an amount and reason, without a reward requirement or a misleading reward-redemption message.
-- Redeem Reward opens the existing reward workflow with the customer selected.
-- Add Advance opens the existing Finance deposit form directly; Finance still shows balances and transaction history.
-- Retain membership-type editing and the existing top-level Register User, Allocate Points and Redeem for User actions.
-- Preserve current city restrictions, access permissions, customer identity links and accounting behavior. No new permissions or financial rules.
-- After an action succeeds, refresh the displayed balances and relevant history without clearing report filters or returning to the first page unnecessarily.
+### 1. Customer activity in Member 360
+- Add a staff-only Notes & Follow-ups section alongside the existing customer history.
+- Notes contain the note text, location, author and timestamp. Staff can correct notes; retain the previous version and who changed it. No permanent deletion in this release.
+- Follow-ups contain a subject, optional detail, location, responsible staff member, due date and Open/Completed status.
+- Show open follow-ups and completed history. Completion records who completed it and when, with an optional outcome note; reopening or reassignment retains its history.
+- Support guests and registered customers without creating login accounts or duplicating existing booking/training notes.
 
-## Technical approach
-- Make a small presentation-focused change to All Users and reuse the existing hours, finance, profile and access dialogs.
-- Add optional initial-action/customer selection parameters only where needed; do not duplicate forms or introduce a second balance calculation.
-- Reuse points mutations and existing balance protections; distinguish a manual deduction from a reward redemption in the interface and recorded description.
-- No database migrations, reporting rewrites, historical data changes, cancellation changes or new CRM phases.
+### 2. One Follow-ups view in admin
+- Default to the signed-in staff member's overdue and due-today open tasks within permitted locations.
+- Filter by location, responsible staff member, due-date range and Open/Completed status. Authorized staff can also view all permitted tasks.
+- Show customer, subject, due date, owner and status; distinguish overdue items clearly.
+- Open the customer's Member 360 or mark the task completed from the list. Completion from either place updates both views.
+- No extra report columns in All Users. Preserve the visible three-dot menu, every existing customer action, filters and exports.
 
-## Verification before completion
-- Add focused interaction tests for row/customer selection and each restored action, including opening add versus deduct forms, advance deposit entry and reward selection.
-- Verify successful actions refresh balances and histories while preserving filters; verify failure feedback and existing deduction protections.
-- Run the relevant regression tests and check preview errors.
-- Verify the reachable menu and dialog flow in the browser with an authorized admin/city-admin session. The currently available session lacks admin access; if that remains unavailable, explicitly report browser checks as blocked rather than completed.
+### 3. Safe location access and preserved history
+- Every note and follow-up has an explicit location selected from configured locations. Do not infer it from customer preference or expose another location's notes because a customer visits both.
+- Only existing authorized admins/site admins may read or write activities within their allowed locations. Customers and unauthenticated users have no access.
+- Assign only to eligible authorized staff with access to the activity's location; assignment itself never grants access.
+- If staff access changes, reject further unauthorized edits and show the task as needing reassignment to an authorized colleague.
+- Keep notes, tasks and their change history attached to the same customer when a guest later registers or the existing account-claim process merges their profile.
+- A due date is a location-calendar date; completion and audit timestamps are stored in UTC. No automatic email or marketing permission is implied.
+
+## Clean implementation and controlled scope
+- Reuse existing profile identity, staff roles, configured cities, Member 360, form controls and admin navigation.
+- Add only focused note, follow-up and immutable change-history storage, with explicit grants and city-scoped access rules. Use one shared authorized operations layer for both views.
+- Validate customer, location, assignee and status changes on the backend. Prevent duplicate creation on retry and conflicting edits from silently overwriting one another.
+- Extend the existing transactional account-claim compatibility path rather than adding another identity or merge mechanism.
+- Load activity on demand with pagination; refresh only affected activity after saving. No per-customer task requests in the directory, background jobs, external services or AI features.
+- Record the structural rules in the existing architecture guide during implementation.
+
+## Delivery and acceptance checks
+1. Add secure storage and account-claim preservation; test permitted access, non-admin denial, cross-city denial, valid assignment, retry safety and audited status changes.
+2. Add Member 360 notes and follow-ups using the same authorized operations.
+3. Add the Follow-ups list and verify filtering, overdue date boundaries, completion and reassignment.
+4. Run focused tests while developing, then the complete regression suite once. Confirm reporting, financial figures, bookings and the existing customer menu remain unchanged.
+5. Verify a real authorized staff flow: create a note, assign a follow-up, find it in the due list, complete it and read back its outcome. Verify a permitted city-admin flow and denial for another city. Verify actual guest-to-registered activity continuity.
+
+Authorized browser verification previously lacked an admin session. Retry authorized access during implementation; if it remains unavailable, report that checkpoint as blocked rather than claim a tested release.
+
+## Not included
+Tags, pipelines, lead scoring, automated reminders, bulk tasks, WhatsApp/SMS, promotional email, a communications inbox, historical identity repairs, booking-source changes or changes to payment, hours, points, advance, GST and corporate billing.
 
 ## Approval boundary
-Only this review and plan are prepared. No application code or database changes until approval.
+This is the proposed Phase 3 scope only. No application code or database changes before approval; publishing is separate.
