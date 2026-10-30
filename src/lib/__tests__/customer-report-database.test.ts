@@ -25,6 +25,7 @@ beforeAll(async () => {
     CREATE TABLE revenue_transactions(id uuid,user_id uuid,booking_id uuid,original_transaction_id uuid,status text,city text,revenue_date date,amount numeric,currency text,gateway_order_ref text);
     CREATE TABLE pending_bookings(booking_id uuid,status text);
     CREATE TABLE pending_guest_bookings(razorpay_order_id text,status text,city text,start_time timestamptz,guest_email text,guest_phone text);
+    CREATE TABLE invoices(revenue_transaction_id uuid,invoice_type text);
     INSERT INTO user_roles VALUES('${admin}','admin');
     INSERT INTO bays VALUES(null,'Bengaluru','INR'),(null,'Chennai','INR');
     INSERT INTO profiles VALUES('${guest}',null,'Guest','guest@example.test',null,0,now(),'guest','Bengaluru',false),('${blank}',null,'Blank',null,null,0,now(),'guest',null,false);
@@ -34,6 +35,7 @@ beforeAll(async () => {
     INSERT INTO member_hours VALUES('${booking}','${guest}',2,1);
     SET request.user_id='${admin}';`);
   await db.exec(readFileSync("drizzle/migrations/0005_customer_reporting_read_only.sql", "utf8"));
+  await db.exec(readFileSync("drizzle/migrations/0006_customer_reporting_boundary_guards.sql", "utf8"));
 }, 30000);
 afterAll(async () => { await db?.close(); });
 async function report(args = "_city=>'Bengaluru', _as_of=>'2026-10-30 06:00Z'") {
@@ -57,6 +59,27 @@ describe("customer reporting database rules", () => {
   it("uses the existing one-hour low-hours threshold", async () => { const value = await db.query<{ yes: boolean; no: boolean }>(`SELECT customer_report_preset('low-hours',null,null,null,0,1,null,null,'2026-10-30') AS yes,customer_report_preset('low-hours',null,null,null,0,1.01,null,null,'2026-10-30') AS no`); expect(value.rows[0]).toEqual({ yes: true, no: false }); });
   it("defines inactivity at 60 days and excludes never-visited customers", async () => { const value = await db.query<{ yes: boolean; no: boolean }>(`SELECT customer_report_preset('inactive',null,'2026-08-31',null,0,null,null,null,'2026-10-30') AS yes,customer_report_preset('inactive',null,null,null,0,null,null,null,'2026-10-30') AS no`); expect(value.rows[0]).toEqual({ yes: true, no: false }); });
   it("requires two period visits for the repeat preset", async () => { const value = await db.query<{ yes: boolean; no: boolean }>(`SELECT customer_report_preset('repeat',null,null,null,2,null,null,null,'2026-10-30') AS yes,customer_report_preset('repeat',null,null,null,1,null,null,null,'2026-10-30') AS no`); expect(value.rows[0]).toEqual({ yes: true, no: false }); });
+  it("supports first-time visitors without explicitly entered dates", async () => { expect((await report("_city=>'Bengaluru',_preset=>'first-time',_as_of=>'2026-10-30Z'")).total).toBe(1); });
+  it("keeps corporate invoice revenue out of personal spend", async () => {
+    await db.exec(`INSERT INTO invoices VALUES('${booking}','corporate')`);
+    expect((await report()).rows[0].lifetime_spend).toEqual({});
+    await db.exec(`DELETE FROM invoices WHERE revenue_transaction_id='${booking}'`);
+  });
+  it("separates currencies rather than mixing totals", async () => {
+    await db.exec(`INSERT INTO revenue_transactions VALUES('${blank}','${user}',null,null,'confirmed','Bengaluru','2026-09-01',10,'USD',null)`);
+    expect((await report()).rows[0].lifetime_spend).toEqual({ INR:800,USD:10 });
+    await db.exec(`DELETE FROM revenue_transactions WHERE id='${blank}'`);
+  });
+  it("deduplicates parent-linked visits", async () => {
+    await db.exec(`INSERT INTO bookings VALUES('${blank}','${guest}','${booking}','2026-08-31 11:00Z','confirmed','deferred',null,'Bengaluru',null)`);
+    expect((await report()).rows[0].lifetime_visits).toBe(1);
+    await db.exec(`DELETE FROM bookings WHERE id='${blank}'`);
+  });
+  it("exports pagination over the same stable result ordering", async () => {
+    const first=await report("_limit=>1,_offset=>0,_as_of=>'2026-10-30Z'");
+    const second=await report("_limit=>1,_offset=>1,_as_of=>'2026-10-30Z'");
+    expect(first.total).toBe(2); expect(second.total).toBe(2); expect(first.rows[0].id).not.toBe(second.rows[0].id);
+  });
   it("rejects non-admin access", async () => { await db.exec(`SET request.user_id='${blank}'`); await expect(report()).rejects.toThrow("Administrator access required"); await db.exec(`SET request.user_id='${admin}'`); });
   it("rejects a city outside site-admin assignments", async () => { await db.exec(`INSERT INTO user_roles VALUES('${blank}','site_admin'); INSERT INTO site_admin_cities VALUES('${blank}','Chennai'); SET request.user_id='${blank}'`); await expect(report()).rejects.toThrow("Location access denied"); await db.exec(`SET request.user_id='${admin}'`); });
 });
