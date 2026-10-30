@@ -3,7 +3,10 @@
 ## Goal
 Build on All Users and Member 360 so staff can reliably find customers, run useful reports and manage follow-ups. Keep one customer identity and reuse existing booking, finance and permission rules.
 
-No application changes are made during planning. Approval authorizes the phases below, in order, with a verification checkpoint after each phase.
+No application changes are made during planning. Approval authorizes the first release: Phases 1 and 2 only. Phase 3 is the proposed next release and requires separate approval.
+
+## Improved delivery decision
+Deliver one trustworthy, filterable customer list before adding staff workflows. Start with four report presets and only the filters needed to support them; avoid a general-purpose report builder. Separate uncertain historical identity repairs and booking-source changes from the reporting release so neither blocks useful reports nor expands payment-path risk.
 
 ## Scope and guardrails
 - Keep All Users as the directory and Member 360 as the customer detail view; include guests without requiring login accounts. No additional CRM directory or navigation rename in this release.
@@ -18,7 +21,7 @@ No application changes are made during planning. Approval authorizes the phases 
 - Check completed online bookings against existing profiles using both profile ID and login user ID, then reliable booking links and contact evidence.
 - Investigate the seven completed bookings without an email-matched profile; phone matching may already explain them. Do not assume seven missing customers.
 - Produce a small reconciliation result: linked, safely recoverable, ambiguous, or missing contact details.
-- Repair only confirmed omissions through an authorized, repeat-safe operation. Do not automatically merge conflicting email/phone records or rewrite historical invoices and payments. Ambiguous cases require administrator confirmation.
+- Link confirmed historical evidence read-only for reporting where possible. List omissions needing a stored-data repair for separate approval; this release does not merge profiles or rewrite historical invoices and payments. Do not automatically resolve conflicting email/phone records.
 - Verify guest-to-registered account claiming preserves bookings, memberships and future CRM activity.
 
 ### Agree on reporting rules in code and tests
@@ -36,7 +39,7 @@ No application changes are made during planning. Approval authorizes the phases 
 ### Directory and Member 360
 - Add Last Visit, Visit Count, Next Booking and Net Spend to the customer directory, using compact columns and existing location/financial visibility permissions.
 - Show consistent summary figures in Member 360. Keep recent commerce history separately labelled; it must not masquerade as lifetime spend.
-- Filters: customer status, Preferred City, Visited Location, visit-date range, spend-date range, visit count, spend range, and booking channel.
+- Initial filters: customer status, Preferred City, Visited Location and reporting date range, plus the four report presets below. Use the selected period for visit count and period spend; last visit, first visit and inactivity use lifetime history up to the report's as-of date. Defer arbitrary spend/count ranges and independent date controls until staff need them.
 - The top location selector scopes location-based activity. A separate Preferred City filter narrows customer preference. Customers with neither a matching preference nor activity must not appear merely because their preferred city is blank. This resolves the previously identified Bengaluru-list issue.
 - Label filtered-period figures separately from lifetime figures. Site administrators never gain cross-city or financial access through filtering or export.
 
@@ -54,13 +57,13 @@ These are preset filters over the same directory, not four separately maintained
 - Preserve field escaping and protect spreadsheet exports against formula injection. Exclude restricted contact/financial fields according to permissions.
 
 ### Booking channel
-- Record Online or Staff-created on new bookings at the trusted creation path, without changing payment or customer status.
-- Recover historical channel only from reliable origin evidence. Gateway name alone is insufficient; uncertain history remains Unknown.
-- Channel filtering means “has a qualifying booking through this channel in the selected booking period,” not an exclusive customer label.
+- Show Online or Staff-created only when existing booking-origin evidence supports it; otherwise show Unknown. Gateway name alone is insufficient. Do not filter away Unknown customers by default.
+- Include an evidence-backed Online customers preset only if the coverage audit establishes reliable booking links. Otherwise defer channel filtering rather than ship misleading classifications.
+- Adding durable channel capture to booking creation is a separate follow-on proposal, not part of this reporting release. A future channel filter means “has a qualifying booking through this channel in the selected booking period,” not an exclusive customer label.
 
 **Checkpoint:** compare directory, Member 360 and exported totals for the same scope; verify complete exports and all four presets.
 
-## Phase 3 — Minimal relationship management
+## Phase 3 — Minimal relationship management (next release; separate approval)
 - Add a customer activity section in Member 360 for staff notes and follow-ups.
 - A follow-up has a subject, responsible staff member, due date and Open/Completed status; completing it records who and when.
 - Show creator and timestamps for notes and follow-ups. Preserve an audit trail for changes; notes are not a second copy of booking or training notes.
@@ -76,7 +79,7 @@ These are preset filters over the same directory, not four separately maintained
 - Apply filtering, aggregation and pagination server-side with authorized read operations. Never fetch each customer's complete history to calculate a list, and do not issue one request per customer.
 - Inspect existing indexes and query plans before adding targeted indexes. Reuse query caching and invalidate only affected summaries after supported changes.
 - Do not add nightly aggregation jobs, materialized caches, AI services, a generic CRM framework or a second event store for existing operational data. Use on-demand summaries initially; reconsider only if measured latency requires it.
-- Add only the minimal profile-linked note/follow-up storage and booking-source field needed. Any new public tables receive explicit grants, RLS and city-scoped authorization; privileges remain in the existing protected role system.
+- First release: add no new customer identity, activity tables or booking-source writes. Use a focused authorized reporting operation over existing records. Next release: add only minimal profile-linked note/follow-up storage; any new public tables receive explicit grants, RLS and city-scoped authorization. Privileges remain in the existing protected role system.
 - Make schema changes additive and account-claim handling transactional. Record structural decisions in AGENTS.md during implementation.
 - Build and verify each phase before starting the next. Run focused tests while iterating and the full regression suite at release, rather than repeatedly rerunning unrelated work. This limits rework; no numerical credit savings are claimed.
 
@@ -92,5 +95,5 @@ These are preset filters over the same directory, not four separately maintained
 ## Not in this release
 Marketing campaigns, automatic outreach, tags, sales pipelines, lead scoring, WhatsApp/SMS integration, bulk deduplication, a pending-payment enquiries screen, or a complete communications timeline. These can follow once the directory and follow-up workflow are reliable.
 
-## Delivery priority
-Phases 1 and 2 deliver the largest immediate reporting improvement. Phase 3 adds the smallest practical CRM workflow. No external service or AI subscription is required for this scope.
+## Delivery priority and stop condition
+Phases 1 and 2 are the first release: trustworthy coverage, consistent customer summaries, four useful reports and complete exports. Stop after verifying those outcomes and review the remaining data exceptions with the owner. Phase 3 then adds the smallest practical CRM workflow after separate approval. No external service or AI subscription is required for this scope.
