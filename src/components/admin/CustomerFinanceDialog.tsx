@@ -185,9 +185,9 @@ export function CustomerFinanceDialog({ open, onOpenChange, userId, profileId, d
               <Card>
                 <CardContent className="pt-4 pb-3 px-4">
                   <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                    <TrendingUp className="h-3.5 w-3.5" /> Lifetime Revenue
+                    <TrendingUp className="h-3.5 w-3.5" /> Personal Net Spend · Lifetime
                   </div>
-                  <p className="text-lg font-semibold">{currency.format(lifetimeRevenue ?? 0)}</p>
+                  <p className="text-lg font-semibold break-words">{customerReportError ? "Unavailable" : formatCustomerSpend(lifetimeRevenue)}</p>
                 </CardContent>
               </Card>
               <Card>

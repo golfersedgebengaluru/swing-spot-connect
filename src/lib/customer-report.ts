@@ -26,7 +26,7 @@ export function signedCustomerTotal(amounts: readonly number[]): number { return
 export function csvCell(value: unknown): string {
   const text = String(value ?? "");
   const safe = /^[\s\u0000-\u001f]*[=+@-]/.test(text) ? `'${text}` : text;
-  return `"${safe.replaceAll('"', '""')}"`;
+  return `"${safe.replace(/"/g, '""')}"`;
 }
 export function customerReportCsv(rows: CustomerRow[]): string {
   const columns = ["Profile ID", "Name", "Email", "Phone", "Customer status", "Preferred City", "Visited Locations", "Last Visit", "Next Booking", "Period Visits", "Lifetime Visits", "Corporate Visits", "Period Personal Net Spend", "Lifetime Personal Net Spend", "Remaining Hours (account-wide)", "Booking Channel"];
