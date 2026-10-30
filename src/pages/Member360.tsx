@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HoursBalanceBadge } from "@/components/admin/HoursBalanceBadge";
-import { countDistinctVisits, identityKeys, shouldShowMemberSection } from "@/lib/member-utils";
+import { identityKeys, shouldShowMemberSection } from "@/lib/member-utils";
 import { CustomerSummary } from "@/components/admin/CustomerSummary";
 import { useCustomerReport } from "@/hooks/useCustomerReport";
 
@@ -153,9 +153,9 @@ function Member360Content() {
     const values: string[] = [];
     const hours = membershipQuery.data?.hours;
     if (hours && hours.hours_purchased - hours.hours_used <= 1) values.push("Low hours");
-    if (bookingsQuery.data && !bookingsQuery.data.bookings.some((booking) => booking.status !== "cancelled" && new Date(booking.start_time).getTime() > Date.now())) values.push("No upcoming booking");
+    if (customerSummary && !customerSummary.next_booking) values.push("No upcoming booking");
     return values;
-  }, [membershipQuery.data, bookingsQuery.data]);
+  }, [membershipQuery.data, customerSummary]);
 
   if (profileQuery.isLoading || adminLoading || (!isAdmin && accessQuery.isLoading)) return <div className="mx-auto max-w-5xl space-y-4 p-4 sm:p-6"><Skeleton className="h-8 w-48" /><SectionSkeleton /><SectionSkeleton /></div>;
   if (!profile) return <Navigate to="/admin?tab=allusers" replace />;
@@ -168,7 +168,7 @@ function Member360Content() {
   const past = bookings.filter((booking) => booking.status === "confirmed" && new Date(booking.start_time).getTime() <= now);
   const future = bookings.filter((booking) => booking.status !== "cancelled" && new Date(booking.start_time).getTime() > now).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
   const visits = customerSummary?.lifetime_visits ?? 0;
-  const firstVisit = past.length ? past[past.length - 1].start_time : null;
+  const firstVisit = customerSummary?.first_visit;
   const monthsActive = firstVisit ? Math.max(1, (now - new Date(firstVisit).getTime()) / 2_629_746_000) : 0;
 
   return (
@@ -183,7 +183,7 @@ function Member360Content() {
 
         {membershipQuery.isLoading ? <SectionSkeleton /> : hours && <Card><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Clock className="h-5 w-5" />Membership</CardTitle></CardHeader><CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4"><Field label="Plan" value="Hours package" /><Field label="Status" value={remaining > 0 ? "Active" : "Depleted"} /><Field label="Purchased" value={`${hours.hours_purchased} hrs`} /><Field label="Used" value={`${hours.hours_used} hrs`} /><div><p className="text-xs text-muted-foreground">Remaining</p><HoursBalanceBadge remaining={remaining} className="mt-1" /></div></CardContent></Card>}
 
-        {bookingsQuery.isLoading ? <SectionSkeleton /> : <Card><CardHeader><CardTitle className="flex items-center justify-between gap-2 text-lg"><span className="flex items-center gap-2"><CalendarDays className="h-5 w-5" />Bookings</span><Link className="text-sm font-normal text-primary" to={`/admin?tab=bookinglogs&user=${profile.user_id ?? profile.id}`}>View history</Link></CardTitle></CardHeader><CardContent className="space-y-4"><div className="grid grid-cols-2 gap-4"><Field label="Last visit" value={dateLabel(past[0]?.start_time)} /><Field label="Next booking" value={dateLabel(future[0]?.start_time)} /></div>{bookings.length > 0 ? <div className="space-y-2">{bookings.slice(0, 5).map((booking) => <div key={booking.id} className="flex items-center justify-between gap-3 border-t pt-2 text-sm"><span>{new Date(booking.start_time).toLocaleString()}</span><span className="capitalize text-muted-foreground">{booking.session_type} · {booking.status}</span></div>)}</div> : <p className="text-sm text-muted-foreground">No bookings on file.</p>}</CardContent></Card>}
+        {bookingsQuery.isLoading ? <SectionSkeleton /> : <Card><CardHeader><CardTitle className="flex items-center justify-between gap-2 text-lg"><span className="flex items-center gap-2"><CalendarDays className="h-5 w-5" />Bookings</span><Link className="text-sm font-normal text-primary" to={`/admin?tab=bookinglogs&user=${profile.user_id ?? profile.id}`}>View history</Link></CardTitle></CardHeader><CardContent className="space-y-4"><div className="grid grid-cols-2 gap-4"><Field label="Last visit" value={dateLabel(customerSummary?.last_visit)} /><Field label="Next booking" value={dateLabel(customerSummary?.next_booking)} /></div>{bookings.length > 0 ? <div className="space-y-2">{bookings.slice(0, 5).map((booking) => <div key={booking.id} className="flex items-center justify-between gap-3 border-t pt-2 text-sm"><span>{new Date(booking.start_time).toLocaleString()}</span><span className="capitalize text-muted-foreground">{booking.session_type} · {booking.status}</span></div>)}</div> : <p className="text-sm text-muted-foreground">No bookings on file.</p>}</CardContent></Card>}
 
         {trainingQuery.isLoading ? <SectionSkeleton /> : shouldShowMemberSection(trainingQuery.data) && <Card><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Dumbbell className="h-5 w-5" />Coaching History</CardTitle></CardHeader><CardContent className="space-y-4"><div className="grid gap-4 sm:grid-cols-2"><Field label="Current focus" value={(trainingQuery.data?.[0]?.focuses?.[0]?.snapshot as { name?: string } | undefined)?.name ?? trainingQuery.data?.[0]?.progress_summary} /><Field label="Latest session" value={dateLabel(trainingQuery.data?.[0]?.session_date)} /></div><div>{trainingQuery.data?.slice(0, 3).map((session) => <Link key={session.id} to={`/training/${session.id}`} className="block border-t py-3 text-sm hover:text-primary"><span>{dateLabel(session.session_date)}</span><span className="ml-2 text-muted-foreground">{session.drills || (session.libraryDrills[0]?.snapshot as { name?: string } | undefined)?.name || "Session notes"}</span></Link>)}</div></CardContent></Card>}
 
