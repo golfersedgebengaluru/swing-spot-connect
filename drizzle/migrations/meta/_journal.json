@@ -50,6 +50,13 @@
       "when": 1793341593152,
       "tag": "0006_customer_reporting_boundary_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793341690655,
+      "tag": "0007_customer_reporting_corporate_invoice_links",
+      "breakpoints": true
     }
   ]
 }
