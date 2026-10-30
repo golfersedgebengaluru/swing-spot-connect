@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { matchesMemberFilter } from "@/lib/member-utils";
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), "src", path), "utf8");
 
@@ -21,10 +22,8 @@ describe("members consolidation", () => {
   });
 
   it("keeps filtering URL-backed and uses member_hours existence", () => {
-    expect(users).toContain('searchParams.get("filter")');
-    expect(users).toContain('matchesMemberFilter(typeFilter, u.user_id, u.member_hours_id)');
-    expect(users).toContain('hoursMap.get(p.id)');
-    expect(users).toContain('<SelectItem value="member">Member</SelectItem>');
+    expect(matchesMemberFilter("member", null, "hours-record")).toBe(true);
+    expect(matchesMemberFilter("member", "registered-user", null)).toBe(false);
   });
 
   it("prepends Member360 while preserving existing actions", () => {

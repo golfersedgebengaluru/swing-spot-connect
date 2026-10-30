@@ -13,6 +13,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { useCustomerReport } from "@/hooks/useCustomerReport";
+import { formatCustomerSpend } from "@/lib/customer-report";
 
 interface Props {
   open: boolean;
@@ -34,21 +36,8 @@ export function CustomerFinanceDialog({ open, onOpenChange, userId, profileId, d
   // depending on whether the customer was a guest at the time the row was written.
   const ids = Array.from(new Set([userId, profileId].filter(Boolean))) as string[];
 
-  // Lifetime revenue (refunds reduce the total)
-  const { data: lifetimeRevenue } = useQuery({
-    queryKey: ["customer_lifetime_revenue", ids],
-    enabled: ids.length > 0,
-    queryFn: async () => {
-      const { data } = await supabase.from("revenue_transactions")
-        .select("amount, transaction_type")
-        .in("user_id", ids)
-        .eq("status", "confirmed");
-      return (data ?? []).reduce((sum: number, r: any) => {
-        const amt = Number(r.amount);
-        return r.transaction_type === "refund" ? sum - amt : sum + amt;
-      }, 0);
-    },
-  });
+  const { data: customerReport, error: customerReportError } = useCustomerReport({ _profile_id: profileId, _city: city }, open && Boolean(profileId));
+  const lifetimeRevenue = customerReport?.rows[0]?.lifetime_spend;
 
   // Outstanding credit notes
   const { data: outstandingCreditNotes } = useQuery({
@@ -196,9 +185,9 @@ export function CustomerFinanceDialog({ open, onOpenChange, userId, profileId, d
               <Card>
                 <CardContent className="pt-4 pb-3 px-4">
                   <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                    <TrendingUp className="h-3.5 w-3.5" /> Lifetime Revenue
+                    <TrendingUp className="h-3.5 w-3.5" /> Personal Net Spend · Lifetime
                   </div>
-                  <p className="text-lg font-semibold">{currency.format(lifetimeRevenue ?? 0)}</p>
+                  <p className="text-lg font-semibold break-words">{customerReportError ? "Unavailable" : formatCustomerSpend(lifetimeRevenue)}</p>
                 </CardContent>
               </Card>
               <Card>

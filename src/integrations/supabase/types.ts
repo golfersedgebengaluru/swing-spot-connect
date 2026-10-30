@@ -6365,6 +6365,48 @@ export type Database = {
         Args: { _profile_id: string }
         Returns: boolean
       }
+      customer_report: {
+        Args: {
+          _as_of?: string
+          _city?: string
+          _from?: string
+          _limit?: number
+          _offset?: number
+          _preferred_city?: string
+          _preset?: string
+          _profile_id?: string
+          _search?: string
+          _to?: string
+          _type?: string
+          _visited_city?: string
+        }
+        Returns: Json
+      }
+      customer_report_preset: {
+        Args: {
+          _as_of: string
+          _count: number
+          _first: string
+          _from: string
+          _hours: number
+          _last: string
+          _next: string
+          _preset: string
+          _to: string
+        }
+        Returns: boolean
+      }
+      customer_report_visit: {
+        Args: {
+          _as_of: string
+          _billing: string
+          _hours_paid: boolean
+          _invoice: string
+          _start: string
+          _status: string
+        }
+        Returns: boolean
+      }
       decrement_user_points_safe: {
         Args: { p_delta: number; p_user_id: string }
         Returns: number

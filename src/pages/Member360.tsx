@@ -2,14 +2,16 @@ import { useMemo } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, CalendarDays, Clock, Dumbbell, Gift, Mail, MapPin, Phone, ShoppingBag, Trophy, UserRound } from "lucide-react";
-import { AdminCityProvider } from "@/contexts/AdminCityContext";
+import { AdminCityProvider, useAdminCity } from "@/contexts/AdminCityContext";
 import { useAdmin } from "@/hooks/useAdmin";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HoursBalanceBadge } from "@/components/admin/HoursBalanceBadge";
-import { countDistinctVisits, identityKeys, shouldShowMemberSection } from "@/lib/member-utils";
+import { identityKeys, shouldShowMemberSection } from "@/lib/member-utils";
+import { CustomerSummary } from "@/components/admin/CustomerSummary";
+import { useCustomerReport } from "@/hooks/useCustomerReport";
 
 type Profile = {
   id: string;
@@ -36,6 +38,7 @@ function dateLabel(value?: string | null) {
 
 function Member360Content() {
   const { id } = useParams();
+  const { selectedCity } = useAdminCity();
   const { isAdmin, assignedCities, loading: adminLoading } = useAdmin();
 
   const profileQuery = useQuery({
@@ -64,6 +67,8 @@ function Member360Content() {
   });
   const allowed = isAdmin || accessQuery.data === true;
   const ready = Boolean(profile) && allowed;
+  const { data: customerReport } = useCustomerReport({ _profile_id: id, _city: selectedCity || undefined }, ready);
+  const customerSummary = customerReport?.rows[0];
 
   const membershipQuery = useQuery({
     queryKey: ["member360", "membership", keys], enabled: ready,
@@ -149,9 +154,9 @@ function Member360Content() {
     const values: string[] = [];
     const hours = membershipQuery.data?.hours;
     if (hours && hours.hours_purchased - hours.hours_used <= 1) values.push("Low hours");
-    if (bookingsQuery.data && !bookingsQuery.data.bookings.some((booking) => booking.status !== "cancelled" && new Date(booking.start_time).getTime() > Date.now())) values.push("No upcoming booking");
+    if (customerSummary && !customerSummary.next_booking) values.push("No upcoming booking");
     return values;
-  }, [membershipQuery.data, bookingsQuery.data]);
+  }, [membershipQuery.data, customerSummary]);
 
   if (profileQuery.isLoading || adminLoading || (!isAdmin && accessQuery.isLoading)) return <div className="mx-auto max-w-5xl space-y-4 p-4 sm:p-6"><Skeleton className="h-8 w-48" /><SectionSkeleton /><SectionSkeleton /></div>;
   if (!profile) return <Navigate to="/admin?tab=allusers" replace />;
@@ -161,10 +166,8 @@ function Member360Content() {
   const remaining = hours ? hours.hours_purchased - hours.hours_used : 0;
   const bookings = bookingsQuery.data?.bookings ?? [];
   const now = Date.now();
-  const past = bookings.filter((booking) => booking.status === "confirmed" && new Date(booking.start_time).getTime() <= now);
-  const future = bookings.filter((booking) => booking.status !== "cancelled" && new Date(booking.start_time).getTime() > now).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-  const visits = bookingsQuery.data ? countDistinctVisits(bookings, bookingsQuery.data.paidBookingIds) : 0;
-  const firstVisit = past.length ? past[past.length - 1].start_time : null;
+  const visits = customerSummary?.lifetime_visits ?? 0;
+  const firstVisit = customerSummary?.first_visit;
   const monthsActive = firstVisit ? Math.max(1, (now - new Date(firstVisit).getTime()) / 2_629_746_000) : 0;
 
   return (
@@ -172,13 +175,14 @@ function Member360Content() {
       <div className="mx-auto max-w-5xl space-y-4 p-4 sm:p-6">
         <Link to="/admin?tab=allusers&filter=member" className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />Back to Members</Link>
         <div><h1 className="font-display text-2xl font-semibold sm:text-3xl">{profile.display_name || "Member360"}</h1><p className="text-sm text-muted-foreground">Member360</p></div>
+        {id && <CustomerSummary profileId={id} city={selectedCity} />}
         {signals.length > 0 && <div className="flex flex-wrap gap-2" aria-label="Member signals">{signals.map((signal) => <Badge key={signal} variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300">{signal}</Badge>)}</div>}
 
         <Card><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><UserRound className="h-5 w-5" />Profile</CardTitle></CardHeader><CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"><Field label="Name" value={profile.display_name} /><Field label="Email" value={profile.email} /><Field label="Phone" value={profile.phone} /><Field label="City" value={profile.preferred_city} /><Field label="Member since" value={dateLabel(membershipQuery.data?.memberSince)} /></CardContent></Card>
 
         {membershipQuery.isLoading ? <SectionSkeleton /> : hours && <Card><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Clock className="h-5 w-5" />Membership</CardTitle></CardHeader><CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4"><Field label="Plan" value="Hours package" /><Field label="Status" value={remaining > 0 ? "Active" : "Depleted"} /><Field label="Purchased" value={`${hours.hours_purchased} hrs`} /><Field label="Used" value={`${hours.hours_used} hrs`} /><div><p className="text-xs text-muted-foreground">Remaining</p><HoursBalanceBadge remaining={remaining} className="mt-1" /></div></CardContent></Card>}
 
-        {bookingsQuery.isLoading ? <SectionSkeleton /> : <Card><CardHeader><CardTitle className="flex items-center justify-between gap-2 text-lg"><span className="flex items-center gap-2"><CalendarDays className="h-5 w-5" />Bookings</span><Link className="text-sm font-normal text-primary" to={`/admin?tab=bookinglogs&user=${profile.user_id ?? profile.id}`}>View history</Link></CardTitle></CardHeader><CardContent className="space-y-4"><div className="grid grid-cols-2 gap-4"><Field label="Last visit" value={dateLabel(past[0]?.start_time)} /><Field label="Next booking" value={dateLabel(future[0]?.start_time)} /></div>{bookings.length > 0 ? <div className="space-y-2">{bookings.slice(0, 5).map((booking) => <div key={booking.id} className="flex items-center justify-between gap-3 border-t pt-2 text-sm"><span>{new Date(booking.start_time).toLocaleString()}</span><span className="capitalize text-muted-foreground">{booking.session_type} · {booking.status}</span></div>)}</div> : <p className="text-sm text-muted-foreground">No bookings on file.</p>}</CardContent></Card>}
+        {bookingsQuery.isLoading ? <SectionSkeleton /> : <Card><CardHeader><CardTitle className="flex items-center justify-between gap-2 text-lg"><span className="flex items-center gap-2"><CalendarDays className="h-5 w-5" />Bookings</span><Link className="text-sm font-normal text-primary" to={`/admin?tab=bookinglogs&user=${profile.user_id ?? profile.id}`}>View history</Link></CardTitle></CardHeader><CardContent className="space-y-4"><div className="grid grid-cols-2 gap-4"><Field label="Last visit" value={dateLabel(customerSummary?.last_visit)} /><Field label="Next booking" value={dateLabel(customerSummary?.next_booking)} /></div>{bookings.length > 0 ? <div className="space-y-2">{bookings.slice(0, 5).map((booking) => <div key={booking.id} className="flex items-center justify-between gap-3 border-t pt-2 text-sm"><span>{new Date(booking.start_time).toLocaleString()}</span><span className="capitalize text-muted-foreground">{booking.session_type} · {booking.status}</span></div>)}</div> : <p className="text-sm text-muted-foreground">No bookings on file.</p>}</CardContent></Card>}
 
         {trainingQuery.isLoading ? <SectionSkeleton /> : shouldShowMemberSection(trainingQuery.data) && <Card><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Dumbbell className="h-5 w-5" />Coaching History</CardTitle></CardHeader><CardContent className="space-y-4"><div className="grid gap-4 sm:grid-cols-2"><Field label="Current focus" value={(trainingQuery.data?.[0]?.focuses?.[0]?.snapshot as { name?: string } | undefined)?.name ?? trainingQuery.data?.[0]?.progress_summary} /><Field label="Latest session" value={dateLabel(trainingQuery.data?.[0]?.session_date)} /></div><div>{trainingQuery.data?.slice(0, 3).map((session) => <Link key={session.id} to={`/training/${session.id}`} className="block border-t py-3 text-sm hover:text-primary"><span>{dateLabel(session.session_date)}</span><span className="ml-2 text-muted-foreground">{session.drills || (session.libraryDrills[0]?.snapshot as { name?: string } | undefined)?.name || "Session notes"}</span></Link>)}</div></CardContent></Card>}
 
@@ -186,7 +190,7 @@ function Member360Content() {
 
         {loyaltyQuery.isLoading ? <SectionSkeleton /> : shouldShowMemberSection(loyaltyQuery.data) && <Card><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Gift className="h-5 w-5" />Loyalty</CardTitle></CardHeader><CardContent className="space-y-3"><Field label="Points balance" value={profile.points ?? 0} />{loyaltyQuery.data?.slice(0, 5).map((transaction) => <div key={transaction.id} className="flex justify-between border-t pt-2 text-sm"><span>{transaction.description || transaction.type}</span><span>{transaction.points}</span></div>)}</CardContent></Card>}
 
-        {commerceQuery.isLoading ? <SectionSkeleton /> : shouldShowMemberSection(commerceQuery.data) && <Card><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><ShoppingBag className="h-5 w-5" />Commerce</CardTitle></CardHeader><CardContent className="space-y-3"><Field label="Total spend" value={(commerceQuery.data ?? []).reduce((sum, order) => sum + Number(order.total_price), 0).toFixed(2)} />{commerceQuery.data?.slice(0, 5).map((order) => <div key={order.id} className="flex justify-between border-t pt-2 text-sm"><span>{dateLabel(order.created_at)} · <span className="capitalize">{order.status}</span></span><span>{Number(order.total_price).toFixed(2)}</span></div>)}</CardContent></Card>}
+        {commerceQuery.isLoading ? <SectionSkeleton /> : shouldShowMemberSection(commerceQuery.data) && <Card><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><ShoppingBag className="h-5 w-5" />Recent commerce orders</CardTitle></CardHeader><CardContent className="space-y-3">{commerceQuery.data?.slice(0, 5).map((order) => <div key={order.id} className="flex justify-between border-t pt-2 text-sm"><span>{dateLabel(order.created_at)} · <span className="capitalize">{order.status}</span></span><span>{Number(order.total_price).toFixed(2)}</span></div>)}</CardContent></Card>}
 
         {bookingsQuery.isLoading ? <SectionSkeleton /> : <Card><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><MapPin className="h-5 w-5" />Engagement</CardTitle></CardHeader><CardContent className="grid grid-cols-2 gap-4"><Field label="Total visits" value={visits} /><Field label="Visit frequency" value={visits && monthsActive ? `${(visits / monthsActive).toFixed(1)} per month` : "—"} /></CardContent></Card>}
       </div>
