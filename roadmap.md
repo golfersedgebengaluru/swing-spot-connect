@@ -1,14 +1,16 @@
 # Roadmap
 
-## CRM execution planning (no implementation authorized)
+## CRM execution planning
 - [x] Tighten the proposed CRM plan around the smallest reportable release and present it for approval
 
 ## CRM reporting foundation (approved Phases 1 and 2)
-- [ ] Audit online-customer coverage and account-claim compatibility without historical writes
-- [ ] Add authorized shared customer summaries and strict location filtering
-- [ ] Add directory presets, period filters and complete safe exports; align Member360/Finance summaries
-- [ ] Run rule/regression tests and verify authorized admin/city-admin reporting end-to-end
-- [ ] Report unresolved identity exceptions and stop before follow-up workflows or booking-source writes
+- [x] Audit online-customer coverage without historical writes: all 211 completed online guest bookings have explicit payment-order/booking/profile links; seven email mismatches are not missing customers
+- [x] Inspect deployed account-claim behavior and test dual-key reporting continuity; actual signup/duplicate-merge end-to-end remains unverified
+- [x] Add authorized shared customer summaries and strict location filtering
+- [x] Add directory presets, period filters and complete safe exports; align Member360/Finance summaries
+- [x] Run rule/regression tests: 101 files / 852 tests passed; preview build OK; live non-admin RPC denies with 403
+- [ ] Verify authorized admin/city-admin reporting and real account-claim end-to-end: available requesting-user session has neither role; browser correctly shows Access Denied
+- [x] Stop before follow-up workflows, booking-source writes and historical identity repairs; no missing online-guest customer links found
 
 ## Corporate multi-account registration and booking
 - [ ] Add secure memberships, atomic registration/assignment, and explicit session attribution
