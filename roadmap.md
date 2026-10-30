@@ -1,7 +1,14 @@
 # Roadmap
 
 ## CRM execution planning (no implementation authorized)
-- [ ] Tighten the proposed CRM plan around the smallest reportable release and present it for approval
+- [x] Tighten the proposed CRM plan around the smallest reportable release and present it for approval
+
+## CRM reporting foundation (approved Phases 1 and 2)
+- [ ] Audit online-customer coverage and account-claim compatibility without historical writes
+- [ ] Add authorized shared customer summaries and strict location filtering
+- [ ] Add directory presets, period filters and complete safe exports; align Member360/Finance summaries
+- [ ] Run rule/regression tests and verify authorized admin/city-admin reporting end-to-end
+- [ ] Report unresolved identity exceptions and stop before follow-up workflows or booking-source writes
 
 ## Corporate multi-account registration and booking
 - [ ] Add secure memberships, atomic registration/assignment, and explicit session attribution
