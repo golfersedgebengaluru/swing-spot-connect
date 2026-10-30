@@ -1,0 +1,7 @@
+CREATE OR REPLACE FUNCTION public.customer_report_preset(_preset text, _first date, _last date, _next timestamptz, _count bigint, _hours numeric, _from date, _to date, _as_of date) RETURNS boolean LANGUAGE sql IMMUTABLE SET search_path=public AS $$ SELECT CASE _preset WHEN 'first-time' THEN _first IS NOT NULL AND _first BETWEEN coalesce(_from,'-infinity'::date) AND coalesce(_to,_as_of) WHEN 'repeat' THEN _count>=2 WHEN 'inactive' THEN _last IS NOT NULL AND _last<=_as_of-60 AND _next IS NULL WHEN 'low-hours' THEN _hours IS NOT NULL AND _hours<=1 ELSE true END $$;
+DO $patch$ DECLARE definition text; BEGIN
+ SELECT pg_get_functiondef('public.customer_report(text,text,text,date,date,text,text,text,uuid,integer,integer,timestamptz)'::regprocedure) INTO definition;
+ definition:=replace(definition,'LEFT JOIN public.bookings b ON b.id=r.booking_id','LEFT JOIN public.revenue_transactions original ON original.id=r.original_transaction_id LEFT JOIN public.bookings b ON b.id=coalesce(r.booking_id,original.booking_id)');
+ definition:=replace(definition,'AND b.corporate_account_id IS NULL','AND b.corporate_account_id IS NULL AND NOT EXISTS(SELECT 1 FROM public.invoices inv WHERE inv.revenue_transaction_id IN (r.id,original.id) AND inv.invoice_type=''corporate'')');
+ EXECUTE definition;
+END $patch$;

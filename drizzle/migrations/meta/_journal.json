@@ -43,6 +43,13 @@
       "when": 1793341218338,
       "tag": "0005_customer_reporting_read_only",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793341593152,
+      "tag": "0006_customer_reporting_boundary_guards",
+      "breakpoints": true
     }
   ]
 }
