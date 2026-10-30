@@ -2,6 +2,7 @@
 
 ## Restore full All Users actions (awaiting approval)
 - [x] Review the existing three-dot menu, hours/points actions and advance deposit entry
+- [x] Confirm with user that actions exist off-screen; recommend column reorganization rather than rebuilding workflows
 - [ ] Restore clearly reachable full customer actions alongside reporting filters; implementation awaits approval
 - [ ] Verify action wiring, refreshed balances, retained filters and authorized browser interaction
 
