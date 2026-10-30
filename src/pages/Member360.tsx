@@ -165,8 +165,6 @@ function Member360Content() {
   const remaining = hours ? hours.hours_purchased - hours.hours_used : 0;
   const bookings = bookingsQuery.data?.bookings ?? [];
   const now = Date.now();
-  const past = bookings.filter((booking) => booking.status === "confirmed" && new Date(booking.start_time).getTime() <= now);
-  const future = bookings.filter((booking) => booking.status !== "cancelled" && new Date(booking.start_time).getTime() > now).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
   const visits = customerSummary?.lifetime_visits ?? 0;
   const firstVisit = customerSummary?.first_visit;
   const monthsActive = firstVisit ? Math.max(1, (now - new Date(firstVisit).getTime()) / 2_629_746_000) : 0;
