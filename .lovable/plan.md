@@ -2,7 +2,7 @@
 
 ## Review findings
 - The current All Users page still contains Member360, View Profile, Edit Profile, Allocate Points, Adjust Hours, histories, Finance, Manage Access, Extended Hours and Delete User.
-- Reporting added four columns before Actions, pushing the three-dot menu to the far right. This defeats the previous compact, no-horizontal-scrolling design and makes the existing actions difficult to reach.
+- Reporting added four columns before Actions, pushing the three-dot menu to the far right in a horizontally scrollable table. This is the likely reason it is no longer readily visible; authorized browser confirmation is still needed.
 - Add/Deduct Hours are inside Adjust Hours. Advance deposits are inside Finance → Add Deposit. Neither is clearly exposed from the row menu.
 - A separate per-customer Deduct Points entry is absent; reward redemption exists as a top-level action. Deducting points must not require selecting a reward.
 
