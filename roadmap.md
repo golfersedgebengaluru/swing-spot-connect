@@ -1,10 +1,11 @@
 # Roadmap
 
-## Restore full All Users actions (awaiting approval)
+## All Users action visibility (approved column-only change)
 - [x] Review the existing three-dot menu, hours/points actions and advance deposit entry
 - [x] Confirm with user that actions exist off-screen; recommend column reorganization rather than rebuilding workflows
-- [ ] Restore clearly reachable full customer actions alongside reporting filters; implementation awaits approval
-- [ ] Verify action wiring, refreshed balances, retained filters and authorized browser interaction
+- [x] Move Actions beside User; pin both columns while scrolling; keep menus, filters, exports and handlers unchanged
+- [x] Run focused customer regressions: 10 tests passed; preview build OK
+- [ ] Verify menu visually with authorized admin access: requesting-user session still shows Access Denied
 
 ## CRM execution planning
 - [x] Tighten the proposed CRM plan around the smallest reportable release and present it for approval
