@@ -1,5 +1,9 @@
 # Roadmap
 
+## CRM Phase 3 — awaiting approval
+- [x] Prepare customer notes, assigned follow-ups and due-list proposal without application changes
+- [ ] Implement only after approval; verify city access, audit history and guest account-claim continuity
+
 ## All Users action visibility (approved column-only change)
 - [x] Review the existing three-dot menu, hours/points actions and advance deposit entry
 - [x] Confirm with user that actions exist off-screen; recommend column reorganization rather than rebuilding workflows
