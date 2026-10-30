@@ -1,5 +1,10 @@
 # Roadmap
 
+## Restore full All Users actions (awaiting approval)
+- [x] Review the existing three-dot menu, hours/points actions and advance deposit entry
+- [ ] Restore clearly reachable full customer actions alongside reporting filters; implementation awaits approval
+- [ ] Verify action wiring, refreshed balances, retained filters and authorized browser interaction
+
 ## CRM execution planning
 - [x] Tighten the proposed CRM plan around the smallest reportable release and present it for approval
 
