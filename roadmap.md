@@ -1,5 +1,8 @@
 # Roadmap
 
+## CRM execution planning (no implementation authorized)
+- [ ] Tighten the proposed CRM plan around the smallest reportable release and present it for approval
+
 ## Corporate multi-account registration and booking
 - [ ] Add secure memberships, atomic registration/assignment, and explicit session attribution
 - [ ] Convert registration, member management, booking choice, monthly billing and calendar labels
