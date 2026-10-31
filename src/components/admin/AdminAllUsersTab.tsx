@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Loader2, MinusCircle, PlusCircle, Star, Award, UserCheck, ChevronLeft, ChevronRight, Clock, MoreHorizontal, Pencil, History, Trash2, Search, Wallet, Eye, ShieldCheck, CircleUserRound } from "lucide-react";
+import { Plus, Loader2, MinusCircle, PlusCircle, Star, Award, UserCheck, ChevronLeft, ChevronRight, Clock, MoreHorizontal, Pencil, History, Trash2, Search, Wallet, Eye, ShieldCheck, CircleUserRound, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { CustomerFinanceDialog } from "@/components/admin/CustomerFinanceDialog";
 import { ViewUserProfileDialog } from "@/components/admin/ViewUserProfileDialog";
 import { UserAccessDialog } from "@/components/admin/UserAccessDialog";
@@ -35,6 +35,20 @@ import { CorporateAccountPicker } from "./CorporateAccountPicker";
 import { canRegisterCorporateMember } from "@/lib/corporate-selection";
 
 // ─── Sub-components ──────────────────────────────────────────────
+
+type CustomerSort = { key: string; dir: "asc" | "desc" };
+
+function SortableHead({ label, sortKey, sort, onSort, className, buttonClassName }: { label: string; sortKey: string; sort: CustomerSort | null; onSort: (key: string) => void; className?: string; buttonClassName?: string }) {
+  const active = sort?.key === sortKey;
+  return (
+    <TableHead className={className ?? "text-[11px] uppercase tracking-wider text-muted-foreground font-medium"}>
+      <button type="button" onClick={() => onSort(sortKey)} aria-label={`Sort by ${label}`} className={`inline-flex items-center gap-1 uppercase tracking-wider hover:text-foreground ${buttonClassName ?? ""}`}>
+        {label}
+        {active ? (sort.dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+      </button>
+    </TableHead>
+  );
+}
 
 function PointsTransactionHistory({ userId }: { userId: string }) {
   const { data: transactions, isLoading } = usePointsTransactions(userId);
