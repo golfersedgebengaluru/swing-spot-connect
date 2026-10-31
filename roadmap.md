@@ -1,5 +1,11 @@
 # Roadmap
 
+## Actionable dashboard (approved)
+- [ ] Replace Top Members with short renewal and inactive-repeat customer views using shared authorized reporting
+- [ ] Mark evidenced first visits at the booking's location; preserve unknown guest history as unknown
+- [ ] Link customer rows to Member360 and the existing full reports; leave booking/payment workflows unchanged
+- [ ] Run rule tests, dashboard regressions and authorized desktop/mobile checks
+
 ## CRM Phase 3 — awaiting approval
 - [x] Prepare customer notes, assigned follow-ups and due-list proposal without application changes
 - [x] Reassess necessity of general notes against the user's priority: essential centre operations and staff ease of use, without bells and whistles
