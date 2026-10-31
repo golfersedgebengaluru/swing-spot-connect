@@ -121,4 +121,27 @@ describe("customer reporting database rules", () => {
     expect((await report("_city=>'Bengaluru',_preset=>'inactive-repeat',_as_of=>'2026-10-30Z'")).total).toBe(0);
     await db.exec(`DELETE FROM bookings WHERE id IN ('${blank}','00000000-0000-0000-0000-000000000006')`);
   });
+  it("does not mark ambiguous ownership or the same parent visit as prior history", async () => {
+    await db.exec(`UPDATE profiles SET user_id='${user}' WHERE id='${blank}';
+      INSERT INTO bookings VALUES('${blank}','${user}',NULL,'2026-11-01Z','confirmed','deferred',NULL,'Bengaluru',NULL)`);
+    let result = await db.query<{ value: {first_visits:string[]} }>(`SELECT customer_report(_preset=>'dashboard',_as_of=>'2026-10-30Z') AS value`);
+    expect(result.rows[0].value.first_visits).toEqual([]);
+    await db.exec(`UPDATE profiles SET user_id=NULL WHERE id='${blank}';
+      UPDATE bookings SET user_id='${blank}',parent_booking_id='${booking}' WHERE id='${blank}';
+      INSERT INTO bookings VALUES('00000000-0000-0000-0000-000000000006','${blank}','${booking}','2026-10-01Z','confirmed','deferred',NULL,'Bengaluru',NULL)`);
+    result = await db.query(`SELECT customer_report(_preset=>'dashboard',_as_of=>'2026-10-30Z') AS value`);
+    expect(result.rows[0].value.first_visits).toEqual([blank]);
+    await db.exec(`DELETE FROM bookings WHERE id IN ('${blank}','00000000-0000-0000-0000-000000000006')`);
+  });
+  it("keeps dashboard attention within site-admin cities and denies non-admins", async () => {
+    await db.exec(`SET request.user_id='${blank}'`);
+    const result = await db.query<{ value:{cities:string[];renewals:unknown[];inactive:unknown[]} }>(`SELECT customer_report(_preset=>'dashboard',_as_of=>'2026-10-30Z') AS value`);
+    expect(result.rows[0].value.cities).toEqual(['Chennai']);
+    expect(result.rows[0].value.renewals).toEqual([]);
+    expect(result.rows[0].value.inactive).toEqual([]);
+    await expect(report("_city=>'Bengaluru',_preset=>'dashboard'")).rejects.toThrow('Location access denied');
+    await db.exec(`SET request.user_id='${user}'`);
+    await expect(report("_preset=>'dashboard'")).rejects.toThrow('Administrator access required');
+    await db.exec(`SET request.user_id='${admin}'`);
+  });
 });
