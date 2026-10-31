@@ -6369,6 +6369,7 @@ export type Database = {
         Args: {
           _as_of?: string
           _city?: string
+          _dir?: string
           _from?: string
           _limit?: number
           _offset?: number
@@ -6376,6 +6377,7 @@ export type Database = {
           _preset?: string
           _profile_id?: string
           _search?: string
+          _sort?: string
           _to?: string
           _type?: string
           _visited_city?: string
