@@ -338,6 +338,13 @@ export function AdminAllUsersTab() {
   const [reportFilters, setReportFilters] = useState(initialCustomerFilters);
   const [exporting, setExporting] = useState(false);
   useEffect(() => { setPage(0); setReportFilters(initialCustomerFilters); }, [selectedCity]);
+  const dashboardPreset = searchParams.get("preset");
+  useEffect(() => {
+    if (dashboardPreset === "renewal-opportunities" || dashboardPreset === "inactive-repeat") {
+      setReportFilters({ ...initialCustomerFilters, preset: dashboardPreset });
+      setPage(0);
+    }
+  }, [dashboardPreset, selectedCity]);
   const reportArgs = {
     _city: selectedCity || undefined, _preferred_city: reportFilters.preferredCity || undefined,
     _visited_city: reportFilters.visitedCity || undefined, _from: reportFilters.from || undefined,

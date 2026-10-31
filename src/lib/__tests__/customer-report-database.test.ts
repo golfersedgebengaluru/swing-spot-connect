@@ -38,6 +38,7 @@ beforeAll(async () => {
   await db.exec(readFileSync("drizzle/migrations/0005_customer_reporting_read_only.sql", "utf8"));
   await db.exec(readFileSync("drizzle/migrations/0006_customer_reporting_boundary_guards.sql", "utf8"));
   await db.exec(readFileSync("drizzle/migrations/0007_customer_reporting_corporate_invoice_links.sql", "utf8"));
+  await db.exec(readFileSync("drizzle/migrations/0008_dashboard_customer_attention.sql", "utf8"));
 }, 30000);
 afterAll(async () => { await db?.close(); });
 async function report(args = "_city=>'Bengaluru', _as_of=>'2026-10-30 06:00Z'") {
@@ -85,4 +86,62 @@ describe("customer reporting database rules", () => {
   });
   it("rejects non-admin access", async () => { await db.exec(`SET request.user_id='${blank}'`); await expect(report()).rejects.toThrow("Administrator access required"); await db.exec(`SET request.user_id='${admin}'`); });
   it("rejects a city outside site-admin assignments", async () => { await db.exec(`INSERT INTO user_roles VALUES('${blank}','site_admin'); INSERT INTO site_admin_cities VALUES('${blank}','Chennai'); SET request.user_id='${blank}'`); await expect(report()).rejects.toThrow("Location access denied"); await db.exec(`SET request.user_id='${admin}'`); });
+  it("requires repeat visits and exactly 60 days without a future booking", async () => {
+    const result = await db.query(`SELECT customer_report_attention('inactive-repeat',NULL,'2026-08-31',NULL,2,'2026-10-30') AS yes,
+      customer_report_attention('inactive-repeat',NULL,'2026-09-01',NULL,2,'2026-10-30') AS recent,
+      customer_report_attention('inactive-repeat',NULL,'2026-08-31',NULL,1,'2026-10-30') AS once,
+      customer_report_attention('inactive-repeat',NULL,'2026-08-31','2026-11-01Z',2,'2026-10-30') AS booked`);
+    expect(result.rows[0]).toEqual({ yes:true, recent:false, once:false, booked:false });
+  });
+  it("requires low hours plus known activity rather than empty old accounts", async () => {
+    const result = await db.query(`SELECT customer_report_attention('renewal-opportunities',1,'2026-10-01',NULL,1,'2026-10-30') AS active,
+      customer_report_attention('renewal-opportunities',1,NULL,'2026-11-01Z',0,'2026-10-30') AS booked,
+      customer_report_attention('renewal-opportunities',0,NULL,NULL,0,'2026-10-30') AS empty,
+      customer_report_attention('renewal-opportunities',1.01,'2026-10-01',NULL,1,'2026-10-30') AS enough`);
+    expect(result.rows[0]).toEqual({ active:true, booked:true, empty:false, enough:false });
+  });
+  it("prioritizes upcoming renewals and marks known guests only in the booking city", async () => {
+    await db.exec(`INSERT INTO member_hours VALUES('${blank}','${blank}',1,0);
+      UPDATE profiles SET preferred_city='Bengaluru' WHERE id='${blank}';
+      INSERT INTO bookings VALUES('${blank}','${blank}',NULL,'2026-11-01Z','confirmed','immediate',NULL,'Bengaluru',NULL),
+      ('00000000-0000-0000-0000-000000000006','${user}',NULL,'2026-11-02Z','confirmed','immediate',NULL,'Chennai',NULL),
+      ('00000000-0000-0000-0000-000000000007','00000000-0000-0000-0000-000000000000',NULL,'2026-11-03Z','confirmed','deferred',NULL,'Bengaluru',NULL),
+      ('00000000-0000-0000-0000-000000000008','${user}',NULL,'2026-11-04Z','confirmed','deferred',NULL,'Bengaluru',NULL)`);
+    const result = await db.query<{ value: { renewals: {id:string}[]; first_visits:string[] } }>(`SELECT customer_report(_preset=>'dashboard',_as_of=>'2026-10-30Z') AS value`);
+    expect(result.rows[0].value.renewals.map(row=>row.id)).toEqual([blank,guest]);
+    expect(result.rows[0].value.first_visits.sort()).toEqual([blank,'00000000-0000-0000-0000-000000000006'].sort());
+    const scoped = await db.query<{ value: { first_visits:string[] } }>(`SELECT customer_report(_city=>'Bengaluru',_preset=>'dashboard',_as_of=>'2026-10-30Z') AS value`);
+    expect(scoped.rows[0].value.first_visits).toEqual([blank]);
+    await db.exec(`DELETE FROM bookings WHERE id IN ('${blank}','00000000-0000-0000-0000-000000000006','00000000-0000-0000-0000-000000000007','00000000-0000-0000-0000-000000000008'); DELETE FROM member_hours WHERE id='${blank}'; UPDATE profiles SET preferred_city=NULL WHERE id='${blank}'`);
+  });
+  it("excludes repeat customers with future confirmed unpaid bookings", async () => {
+    await db.exec(`INSERT INTO bookings VALUES('${blank}','${user}',NULL,'2026-08-30Z','confirmed','deferred',NULL,'Bengaluru',NULL)`);
+    expect((await report("_city=>'Bengaluru',_preset=>'inactive-repeat',_as_of=>'2026-10-30Z'")).total).toBe(1);
+    await db.exec(`INSERT INTO bookings VALUES('00000000-0000-0000-0000-000000000006','${user}',NULL,'2026-11-01Z','confirmed','immediate',NULL,'Bengaluru',NULL)`);
+    expect((await report("_city=>'Bengaluru',_preset=>'inactive-repeat',_as_of=>'2026-10-30Z'")).total).toBe(0);
+    await db.exec(`DELETE FROM bookings WHERE id IN ('${blank}','00000000-0000-0000-0000-000000000006')`);
+  });
+  it("does not mark ambiguous ownership or the same parent visit as prior history", async () => {
+    await db.exec(`UPDATE profiles SET user_id='${user}' WHERE id='${blank}';
+      INSERT INTO bookings VALUES('${blank}','${user}',NULL,'2026-11-01Z','confirmed','deferred',NULL,'Bengaluru',NULL)`);
+    let result = await db.query<{ value: {first_visits:string[]} }>(`SELECT customer_report(_preset=>'dashboard',_as_of=>'2026-10-30Z') AS value`);
+    expect(result.rows[0].value.first_visits).toEqual([]);
+    await db.exec(`UPDATE profiles SET user_id=NULL WHERE id='${blank}';
+      UPDATE bookings SET user_id='${blank}',parent_booking_id='${booking}' WHERE id='${blank}';
+      INSERT INTO bookings VALUES('00000000-0000-0000-0000-000000000006','${blank}','${booking}','2026-10-01Z','confirmed','deferred',NULL,'Bengaluru',NULL)`);
+    result = await db.query(`SELECT customer_report(_preset=>'dashboard',_as_of=>'2026-10-30Z') AS value`);
+    expect(result.rows[0].value.first_visits).toEqual([blank]);
+    await db.exec(`DELETE FROM bookings WHERE id IN ('${blank}','00000000-0000-0000-0000-000000000006')`);
+  });
+  it("keeps dashboard attention within site-admin cities and denies non-admins", async () => {
+    await db.exec(`SET request.user_id='${blank}'`);
+    const result = await db.query<{ value:{cities:string[];renewals:unknown[];inactive:unknown[]} }>(`SELECT customer_report(_preset=>'dashboard',_as_of=>'2026-10-30Z') AS value`);
+    expect(result.rows[0].value.cities).toEqual(['Chennai']);
+    expect(result.rows[0].value.renewals).toEqual([]);
+    expect(result.rows[0].value.inactive).toEqual([]);
+    await expect(report("_city=>'Bengaluru',_preset=>'dashboard'")).rejects.toThrow('Location access denied');
+    await db.exec(`SET request.user_id='${user}'`);
+    await expect(report("_preset=>'dashboard'")).rejects.toThrow('Administrator access required');
+    await db.exec(`SET request.user_id='${admin}'`);
+  });
 });

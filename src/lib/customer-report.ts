@@ -1,6 +1,6 @@
 import type { Json } from "@/integrations/supabase/types";
 
-export type CustomerPreset = "all" | "first-time" | "repeat" | "inactive" | "low-hours" | "online";
+export type CustomerPreset = "all" | "first-time" | "repeat" | "inactive" | "low-hours" | "online" | "renewal-opportunities" | "inactive-repeat";
 export type CustomerRow = {
   id: string; user_id: string | null; display_name: string | null; email: string | null; phone: string | null;
   preferred_city: string | null; user_type: string | null; customer_status: string; points: number;
