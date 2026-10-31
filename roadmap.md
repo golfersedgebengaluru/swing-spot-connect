@@ -1,10 +1,11 @@
 # Roadmap
 
 ## Actionable dashboard (approved)
-- [ ] Replace Top Members with short renewal and inactive-repeat customer views using shared authorized reporting
-- [ ] Mark evidenced first visits at the booking's location; preserve unknown guest history as unknown
-- [ ] Link customer rows to Member360 and the existing full reports; leave booking/payment workflows unchanged
-- [ ] Run rule tests, dashboard regressions and authorized desktop/mobile checks
+- [x] Replace Top Members with short renewal and inactive-repeat customer views using shared authorized reporting
+- [x] Mark evidenced first visits at the booking's location; preserve unknown guest history as unknown
+- [x] Link customer rows to Member360 and the existing full reports; leave booking/payment workflows unchanged
+- [x] Run rule and navigation regressions, including city boundaries and unknown/ambiguous guest history: 102 files / 860 tests passed; preview build OK
+- [ ] Verify authorized desktop/mobile dashboard, first-arrival markers and full-report links: requesting-user session still shows Access Denied; no privileges were changed
 
 ## CRM Phase 3 — awaiting approval
 - [x] Prepare customer notes, assigned follow-ups and due-list proposal without application changes
