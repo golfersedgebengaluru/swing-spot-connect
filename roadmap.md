@@ -169,3 +169,9 @@
 - [x] Secure create, retry, payment verification, and status retrieval without changing payment accounting
 - [x] Test cross-user phone impersonation, own-entry access, and cross-guest isolation
 - [x] Deploy, verify production policies/grants and isolated QA paths, then run full regression/build/security scan
+
+## All Users column sorting (approved)
+- [x] Add whitelisted server-side sorting (_sort/_dir) to the shared customer report; unknown values last, name tiebreaker, invalid keys rejected
+- [x] Make every Users table column except Actions clickable with direction indicators; export follows the same ordering
+- [x] Run rule and regression tests: 102 files / 865 tests passed; preview build OK
+- [ ] Verify sorting visually with authorized admin access: requesting-user session still shows Access Denied
