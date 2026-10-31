@@ -343,6 +343,11 @@ export function AdminAllUsersTab() {
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(0);
+  const [sort, setSort] = useState<CustomerSort | null>(null);
+  const toggleSort = (key: string) => {
+    setPage(0);
+    setSort(current => (current?.key === key ? { key, dir: current.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+  };
   const requestedFilter = searchParams.get("filter");
   const typeFilter: MemberFilter = requestedFilter === "pre-registered" || requestedFilter === "registered" || requestedFilter === "member" ? requestedFilter : "all";
   const PAGE_SIZE = 50;
@@ -363,6 +368,7 @@ export function AdminAllUsersTab() {
     _city: selectedCity || undefined, _preferred_city: reportFilters.preferredCity || undefined,
     _visited_city: reportFilters.visitedCity || undefined, _from: reportFilters.from || undefined,
     _to: reportFilters.to || undefined, _preset: reportFilters.preset, _type: typeFilter, _search: searchQuery,
+    _sort: sort?.key, _dir: sort?.dir,
   };
   const { data: report, isLoading, error: reportError } = useCustomerReport({ ...reportArgs, _offset: page * PAGE_SIZE, _limit: PAGE_SIZE });
   const totalUsers = report?.total ?? 0;
