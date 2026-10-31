@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Loader2, MinusCircle, PlusCircle, Star, Award, UserCheck, ChevronLeft, ChevronRight, Clock, MoreHorizontal, Pencil, History, Trash2, Search, Wallet, Eye, ShieldCheck, CircleUserRound } from "lucide-react";
+import { Plus, Loader2, MinusCircle, PlusCircle, Star, Award, UserCheck, ChevronLeft, ChevronRight, Clock, MoreHorizontal, Pencil, History, Trash2, Search, Wallet, Eye, ShieldCheck, CircleUserRound, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { CustomerFinanceDialog } from "@/components/admin/CustomerFinanceDialog";
 import { ViewUserProfileDialog } from "@/components/admin/ViewUserProfileDialog";
 import { UserAccessDialog } from "@/components/admin/UserAccessDialog";
@@ -35,6 +35,20 @@ import { CorporateAccountPicker } from "./CorporateAccountPicker";
 import { canRegisterCorporateMember } from "@/lib/corporate-selection";
 
 // ─── Sub-components ──────────────────────────────────────────────
+
+type CustomerSort = { key: string; dir: "asc" | "desc" };
+
+function SortableHead({ label, sortKey, sort, onSort, className, buttonClassName }: { label: string; sortKey: string; sort: CustomerSort | null; onSort: (key: string) => void; className?: string; buttonClassName?: string }) {
+  const active = sort?.key === sortKey;
+  return (
+    <TableHead className={className ?? "text-[11px] uppercase tracking-wider text-muted-foreground font-medium"}>
+      <button type="button" onClick={() => onSort(sortKey)} aria-label={`Sort by ${label}`} className={`inline-flex items-center gap-1 uppercase tracking-wider hover:text-foreground ${buttonClassName ?? ""}`}>
+        {label}
+        {active ? (sort.dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+      </button>
+    </TableHead>
+  );
+}
 
 function PointsTransactionHistory({ userId }: { userId: string }) {
   const { data: transactions, isLoading } = usePointsTransactions(userId);
@@ -329,6 +343,11 @@ export function AdminAllUsersTab() {
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(0);
+  const [sort, setSort] = useState<CustomerSort | null>(null);
+  const toggleSort = (key: string) => {
+    setPage(0);
+    setSort(current => (current?.key === key ? { key, dir: current.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+  };
   const requestedFilter = searchParams.get("filter");
   const typeFilter: MemberFilter = requestedFilter === "pre-registered" || requestedFilter === "registered" || requestedFilter === "member" ? requestedFilter : "all";
   const PAGE_SIZE = 50;
@@ -349,6 +368,7 @@ export function AdminAllUsersTab() {
     _city: selectedCity || undefined, _preferred_city: reportFilters.preferredCity || undefined,
     _visited_city: reportFilters.visitedCity || undefined, _from: reportFilters.from || undefined,
     _to: reportFilters.to || undefined, _preset: reportFilters.preset, _type: typeFilter, _search: searchQuery,
+    _sort: sort?.key, _dir: sort?.dir,
   };
   const { data: report, isLoading, error: reportError } = useCustomerReport({ ...reportArgs, _offset: page * PAGE_SIZE, _limit: PAGE_SIZE });
   const totalUsers = report?.total ?? 0;
@@ -640,12 +660,15 @@ export function AdminAllUsersTab() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-b border-border">
-                    <TableHead className="sticky left-0 z-20 w-[220px] min-w-[220px] max-w-[220px] bg-card text-[11px] uppercase tracking-wider text-muted-foreground font-medium"><span className="pl-[44px]">User</span></TableHead>
+                    <SortableHead label="User" sortKey="name" sort={sort} onSort={toggleSort} className="sticky left-0 z-20 w-[220px] min-w-[220px] max-w-[220px] bg-card text-[11px] uppercase tracking-wider text-muted-foreground font-medium" buttonClassName="pl-[44px]" />
                     <TableHead className="sticky left-[220px] z-20 w-16 min-w-16 bg-card text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Actions</TableHead>
-                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Type</TableHead>
-                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Hours · account</TableHead>
-                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Points · account</TableHead>
-                    <TableHead>Last visit</TableHead><TableHead>Next booking</TableHead><TableHead>Period visits</TableHead><TableHead>Personal net spend · period</TableHead>
+                    <SortableHead label="Type" sortKey="type" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Hours · account" sortKey="hours" sort={sort} onSort={toggleSort} className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center" buttonClassName="w-full justify-center" />
+                    <SortableHead label="Points · account" sortKey="points" sort={sort} onSort={toggleSort} className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center" buttonClassName="w-full justify-center" />
+                    <SortableHead label="Last visit" sortKey="last-visit" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Next booking" sortKey="next-booking" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Period visits" sortKey="period-visits" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Personal net spend · period" sortKey="spend" sort={sort} onSort={toggleSort} />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
