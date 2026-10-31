@@ -660,12 +660,15 @@ export function AdminAllUsersTab() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-b border-border">
-                    <TableHead className="sticky left-0 z-20 w-[220px] min-w-[220px] max-w-[220px] bg-card text-[11px] uppercase tracking-wider text-muted-foreground font-medium"><span className="pl-[44px]">User</span></TableHead>
+                    <SortableHead label="User" sortKey="name" sort={sort} onSort={toggleSort} className="sticky left-0 z-20 w-[220px] min-w-[220px] max-w-[220px] bg-card text-[11px] uppercase tracking-wider text-muted-foreground font-medium" buttonClassName="pl-[44px]" />
                     <TableHead className="sticky left-[220px] z-20 w-16 min-w-16 bg-card text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Actions</TableHead>
-                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Type</TableHead>
-                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Hours · account</TableHead>
-                    <TableHead className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Points · account</TableHead>
-                    <TableHead>Last visit</TableHead><TableHead>Next booking</TableHead><TableHead>Period visits</TableHead><TableHead>Personal net spend · period</TableHead>
+                    <SortableHead label="Type" sortKey="type" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Hours · account" sortKey="hours" sort={sort} onSort={toggleSort} className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center" buttonClassName="w-full justify-center" />
+                    <SortableHead label="Points · account" sortKey="points" sort={sort} onSort={toggleSort} className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center" buttonClassName="w-full justify-center" />
+                    <SortableHead label="Last visit" sortKey="last-visit" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Next booking" sortKey="next-booking" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Period visits" sortKey="period-visits" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Personal net spend · period" sortKey="spend" sort={sort} onSort={toggleSort} />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
