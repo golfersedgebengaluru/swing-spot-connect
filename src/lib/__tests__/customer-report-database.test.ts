@@ -39,6 +39,7 @@ beforeAll(async () => {
   await db.exec(readFileSync("drizzle/migrations/0006_customer_reporting_boundary_guards.sql", "utf8"));
   await db.exec(readFileSync("drizzle/migrations/0007_customer_reporting_corporate_invoice_links.sql", "utf8"));
   await db.exec(readFileSync("drizzle/migrations/0008_dashboard_customer_attention.sql", "utf8"));
+  await db.exec(readFileSync("drizzle/migrations/0009_customer_report_sorting.sql", "utf8"));
 }, 30000);
 afterAll(async () => { await db?.close(); });
 async function report(args = "_city=>'Bengaluru', _as_of=>'2026-10-30 06:00Z'") {
@@ -143,5 +144,42 @@ describe("customer reporting database rules", () => {
     await db.exec(`SET request.user_id='${user}'`);
     await expect(report("_preset=>'dashboard'")).rejects.toThrow('Administrator access required');
     await db.exec(`SET request.user_id='${admin}'`);
+  });
+});
+describe("customer report sorting", () => {
+  const alpha = "00000000-0000-0000-0000-0000000000a1";
+  const bravo = "00000000-0000-0000-0000-0000000000b2";
+  beforeAll(async () => {
+    await db.exec(`INSERT INTO profiles VALUES('${alpha}',null,'Alpha','alpha@example.test',null,5,now(),'guest','Bengaluru',false),('${bravo}',null,'bravo','bravo@example.test',null,50,now(),'guest','Bengaluru',false);
+      INSERT INTO member_hours VALUES('${alpha}','${alpha}',10,0);`);
+  });
+  afterAll(async () => { await db.exec(`DELETE FROM member_hours WHERE user_id='${alpha}'; DELETE FROM profiles WHERE id IN ('${alpha}','${bravo}');`); });
+  it("sorts names ascending by default and descending on request", async () => {
+    const asc = await report("_city=>'Bengaluru',_sort=>'name',_as_of=>'2026-10-30Z'");
+    expect(asc.rows.map(r => r.display_name)).toEqual(["Alpha", "bravo", "Guest"]);
+    const desc = await report("_city=>'Bengaluru',_sort=>'name',_dir=>'desc',_as_of=>'2026-10-30Z'");
+    expect(desc.rows.map(r => r.display_name)).toEqual(["Guest", "bravo", "Alpha"]);
+  });
+  it("sorts points and remaining hours numerically", async () => {
+    const points = await report("_city=>'Bengaluru',_sort=>'points',_dir=>'desc',_as_of=>'2026-10-30Z'");
+    expect(points.rows.map(r => r.points)).toEqual([50, 5, 0]);
+    const hours = await report("_city=>'Bengaluru',_sort=>'hours',_dir=>'desc',_as_of=>'2026-10-30Z'");
+    expect(hours.rows.map(r => Number(r.hours_remaining))).toEqual([10, 1, 0]);
+  });
+  it("sorts ascending dates least to most recent with blanks last", async () => {
+    const asc = await report("_city=>'Bengaluru',_sort=>'last-visit',_as_of=>'2026-10-30Z'");
+    expect(asc.rows[0].id).toBe(guest);
+    expect(asc.rows.slice(1).every(r => r.last_visit === null)).toBe(true);
+    const desc = await report("_city=>'Bengaluru',_sort=>'last-visit',_dir=>'desc',_as_of=>'2026-10-30Z'");
+    expect(desc.rows[0].id).toBe(guest);
+    expect(desc.rows.slice(1).every(r => r.last_visit === null)).toBe(true);
+  });
+  it("keeps the default name ordering when no sort is requested", async () => {
+    const unsorted = await report("_city=>'Bengaluru',_as_of=>'2026-10-30Z'");
+    expect(unsorted.rows.map(r => r.display_name)).toEqual(["Alpha", "bravo", "Guest"]);
+  });
+  it("rejects unknown sort columns and directions", async () => {
+    await expect(report("_city=>'Bengaluru',_sort=>'email',_as_of=>'2026-10-30Z'")).rejects.toThrow("Invalid report filter");
+    await expect(report("_city=>'Bengaluru',_sort=>'name',_dir=>'sideways',_as_of=>'2026-10-30Z'")).rejects.toThrow("Invalid report filter");
   });
 });
