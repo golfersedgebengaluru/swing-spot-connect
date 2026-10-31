@@ -10,14 +10,22 @@ import { fetchAllPaged } from "@/lib/supabase-paging";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { useAdmin } from "@/hooks/useAdmin";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { parseDashboardAttention } from "@/lib/dashboard-attention";
 
 interface AdminDashboardTabProps {
   onNavigate?: (tab: string) => void;
 }
 
 function useAdminDashboardStats(cityFilter: string) {
+  const { user } = useAuth();
+  const { hasAdminAccess, loading } = useAdmin();
   return useQuery({
-    queryKey: ["admin-dashboard-stats", cityFilter],
+    queryKey: ["admin-dashboard-stats", user?.id, cityFilter],
+    enabled: hasAdminAccess && !loading,
     queryFn: async () => {
       const now = new Date();
       // Business-month boundaries (half-open) shared with the revenue reports,
@@ -74,16 +82,16 @@ function useAdminDashboardStats(cityFilter: string) {
         .eq("status", "confirmed")
         .gte("start_time", now.toISOString())
         .order("start_time", { ascending: true })
+        .order("id", { ascending: true })
         .limit(5);
       if (cityFilter) upcomingQuery = upcomingQuery.eq("city", cityFilter);
 
-      let topQuery = supabase
-        .from("profiles")
-        .select("id, display_name, email, points, tier, total_rounds, user_id, preferred_city")
-        .in("user_type", ["birdie", "coaching"])
-        .order("points", { ascending: false })
-        .limit(5);
-      if (cityFilter) topQuery = topQuery.eq("preferred_city", cityFilter);
+      const attentionQuery = supabase.rpc("customer_report", {
+        _city: cityFilter || undefined, _preset: "dashboard", _limit: 1, _as_of: now.toISOString(),
+      }).then(({ data: result, error }) => {
+        if (error) throw error;
+        return parseDashboardAttention(result);
+      });
 
       // Execute ALL independent queries in parallel
       const [
@@ -92,14 +100,14 @@ function useAdminDashboardStats(cityFilter: string) {
         revData,
         hoursData,
         { data: bookingsData },
-        { data: topMembers },
+        attention,
       ] = await Promise.all([
         totalBookingsQuery,
         membersQuery,
         revenueRows,
         hoursRows,
         upcomingQuery,
-        topQuery,
+        attentionQuery,
       ]);
 
       // Net revenue. Refunds are stored negative, so they subtract themselves;
@@ -185,9 +193,10 @@ function useAdminDashboardStats(cityFilter: string) {
             isCoaching,
             isCorporate,
             usingHours,
+            firstVisitHere: attention.first_visits.includes(b.id),
           };
         }),
-        topMembers: topMembers ?? [],
+        attention,
       };
     },
     refetchInterval: 30000,
@@ -210,7 +219,9 @@ function getBayShort(name: string) {
 
 export function AdminDashboardTab({ onNavigate }: AdminDashboardTabProps = {}) {
   const { selectedCity } = useAdminCity();
-  const { data, isLoading } = useAdminDashboardStats(selectedCity);
+  const { data, isLoading, error, refetch } = useAdminDashboardStats(selectedCity);
+  const navigate = useNavigate();
+  const [attentionView, setAttentionView] = useState("renewals");
   const { format: formatAmount } = useDefaultCurrency();
   const { isAdmin } = useAdmin();
 
@@ -221,6 +232,10 @@ export function AdminDashboardTab({ onNavigate }: AdminDashboardTabProps = {}) {
       </div>
     );
   }
+
+  if (error) return <div role="alert" className="py-8 text-center space-y-3"><p className="text-sm text-destructive">Dashboard unavailable. Please try again.</p><Button variant="outline" onClick={() => void refetch()}>Retry</Button></div>;
+  const attentionRows = attentionView === "renewals" ? data?.attention.renewals ?? [] : data?.attention.inactive ?? [];
+  const attentionTotal = attentionView === "renewals" ? data?.attention.renewal_total ?? 0 : data?.attention.inactive_total ?? 0;
 
   const stats = [
     {
@@ -331,6 +346,7 @@ export function AdminDashboardTab({ onNavigate }: AdminDashboardTabProps = {}) {
                             Hours
                           </span>
                         )}
+                        {b.firstVisitHere && <span className="rounded px-1.5 py-px text-[10px] font-medium bg-accent text-accent-foreground">First visit here</span>}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {b.bayName} · {timeStr}
@@ -346,46 +362,50 @@ export function AdminDashboardTab({ onNavigate }: AdminDashboardTabProps = {}) {
           </CardContent>
         </Card>
 
-        {/* Top members */}
-        <Card className="border border-[hsl(0_0%_92%)] shadow-none rounded-xl bg-white">
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-base font-display font-medium text-[hsl(0_0%_13%)]">Top members</CardTitle>
+        {/* Customer attention */}
+        <Card className="border border-border shadow-none rounded-lg bg-card min-w-0">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
+            <CardTitle className="text-base font-display font-medium">{attentionView === "renewals" ? "Renewal opportunities" : "Inactive repeat customers"}</CardTitle>
             <Button
               variant="ghost"
               size="sm"
-              className="text-xs text-[hsl(var(--admin-gold))] hover:text-[hsl(var(--admin-gold-dark))] h-auto py-1"
-              onClick={() => onNavigate?.("members")}
+              className="text-xs text-primary h-auto py-1 shrink-0"
+              onClick={() => navigate(`/admin?tab=allusers&preset=${attentionView === "renewals" ? "renewal-opportunities" : "inactive-repeat"}`)}
             >
-              View all →
+              View all ({attentionTotal}) →
             </Button>
           </CardHeader>
           <CardContent className="space-y-2 pt-0">
-            {(data?.topMembers ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">No members yet</p>
+            <Tabs value={attentionView} onValueChange={setAttentionView} className="pb-2"><TabsList className="w-full"><TabsTrigger value="renewals" className="flex-1">Renewals</TabsTrigger><TabsTrigger value="inactive" className="flex-1">Inactive repeat</TabsTrigger></TabsList></Tabs>
+            {attentionRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">{attentionView === "renewals" ? "No active members running low on hours" : "No inactive repeat customers"}</p>
             ) : (
-              (data?.topMembers ?? []).map((m) => (
-                <div
+              attentionRows.map((m) => (
+                <Button
                   key={m.id}
-                  className="flex items-center gap-3 rounded-lg border border-border/40 px-3 py-2.5"
+                  variant="ghost"
+                  onClick={() => navigate(`/members/${m.id}/360`)}
+                  aria-label={`Open ${m.display_name || m.email || "customer"} Member360`}
+                  className="flex w-full h-auto items-center gap-3 rounded-lg border border-border/40 px-3 py-2.5 text-left whitespace-normal"
                 >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-foreground">
                     {getInitials(m.display_name || m.email || "?")}
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 overflow-hidden">
                     <p className="text-sm font-medium text-foreground truncate">
                       {m.display_name || m.email || "Unknown"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {m.tier ?? "Member"} · {m.total_rounds ?? 0} visits
+                      {attentionView === "renewals" && m.next_booking ? `Next · ${format(new Date(m.next_booking), "dd MMM, HH:mm")}` : m.last_visit ? `Last visit · ${format(new Date(m.last_visit), "dd MMM yyyy")}` : "—"}
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-medium text-[hsl(var(--admin-gold))]">
-                      {(m.points ?? 0).toLocaleString()}
+                    <p className="text-sm font-medium text-primary">
+                      {attentionView === "renewals" ? Number(m.hours_remaining).toLocaleString(undefined, { maximumFractionDigits: 2 }) : m.lifetime_visits}
                     </p>
-                    <p className="text-xs text-muted-foreground">pts</p>
+                    <p className="text-xs text-muted-foreground">{attentionView === "renewals" ? "hours left" : "visits"}</p>
                   </div>
-                </div>
+                </Button>
               ))
             )}
           </CardContent>
