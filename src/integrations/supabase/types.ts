@@ -6382,6 +6382,17 @@ export type Database = {
         }
         Returns: Json
       }
+      customer_report_attention: {
+        Args: {
+          _day: string
+          _hours: number
+          _last: string
+          _mode: string
+          _next: string
+          _visits: number
+        }
+        Returns: boolean
+      }
       customer_report_preset: {
         Args: {
           _as_of: string

@@ -57,6 +57,13 @@
       "when": 1793341690655,
       "tag": "0007_customer_reporting_corporate_invoice_links",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793421802488,
+      "tag": "0008_dashboard_customer_attention",
+      "breakpoints": true
     }
   ]
 }
