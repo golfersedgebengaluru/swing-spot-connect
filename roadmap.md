@@ -1,5 +1,11 @@
 # Roadmap
 
+## Users totals audit (approved)
+- [ ] Audit Zaheen's visits and all invoice/payment attribution, including paid memberships
+- [ ] Replace directory period visits with total visits and align sorting; correct attributable membership spend if missing
+- [ ] Establish Rohan Pada's Birdie membership date from recorded evidence
+- [ ] Run focused regressions and verify live totals; report any access or source-history limitations
+
 ## Actionable dashboard (approved)
 - [x] Replace Top Members with short renewal and inactive-repeat customer views using shared authorized reporting
 - [x] Mark evidenced first visits at the booking's location; preserve unknown guest history as unknown
