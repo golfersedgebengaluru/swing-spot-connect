@@ -1,5 +1,13 @@
 # Roadmap
 
+## Users totals audit (approved)
+- [x] Audit Zaheen's visits and all invoice/payment attribution: 11 paid bookings; 818 issued invoices all linked with matching amounts/dates; five orphan manual-revenue entries and eight partial/unpaid invoices identified, not changed
+- [x] Replace directory period visits/spend with total columns and aligned sorting; recognize paid booking revenue/invoice evidence and invoice/hours customer ownership without double-counting
+- [x] Establish Rohan Pada's earliest 25-hour purchase: 2 August 2026, 13:04 IST; exact tier assignment and initial payment remain unsupported by retained records
+- [x] Run regressions: 102 files / 869 tests passed; live evidence confirms 11 Zaheen visits; preview build OK
+- [ ] Staff-screen verification: requesting-user session still shows Access Denied; no privileges changed
+- [ ] Historical finance exception resolution: needs confirmation of five invoice-less revenue entries and Rohan's initial membership payment before any financial correction
+
 ## Actionable dashboard (approved)
 - [x] Replace Top Members with short renewal and inactive-repeat customer views using shared authorized reporting
 - [x] Mark evidenced first visits at the booking's location; preserve unknown guest history as unknown

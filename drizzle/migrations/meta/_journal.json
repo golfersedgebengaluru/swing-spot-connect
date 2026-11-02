@@ -71,6 +71,13 @@
       "when": 1793439219447,
       "tag": "0009_customer_report_sorting",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793604682819,
+      "tag": "0010_customer_total_visits_and_invoice_evidence",
+      "breakpoints": true
     }
   ]
 }

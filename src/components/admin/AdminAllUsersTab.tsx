@@ -667,8 +667,8 @@ export function AdminAllUsersTab() {
                     <SortableHead label="Points · account" sortKey="points" sort={sort} onSort={toggleSort} className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center" buttonClassName="w-full justify-center" />
                     <SortableHead label="Last visit" sortKey="last-visit" sort={sort} onSort={toggleSort} />
                     <SortableHead label="Next booking" sortKey="next-booking" sort={sort} onSort={toggleSort} />
-                    <SortableHead label="Period visits" sortKey="period-visits" sort={sort} onSort={toggleSort} />
-                    <SortableHead label="Personal net spend · period" sortKey="spend" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Total visits" sortKey="total-visits" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Total personal net spend" sortKey="total-spend" sort={sort} onSort={toggleSort} />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -791,8 +791,8 @@ export function AdminAllUsersTab() {
 
                         <TableCell className="whitespace-nowrap text-xs">{u.last_visit ? new Date(u.last_visit).toLocaleDateString(undefined, { timeZone: report?.timezone }) : "—"}</TableCell>
                         <TableCell className="whitespace-nowrap text-xs">{u.next_booking ? new Date(u.next_booking).toLocaleDateString(undefined, { timeZone: report?.timezone }) : "—"}</TableCell>
-                        <TableCell>{u.visit_count}</TableCell>
-                        <TableCell className="min-w-36 text-xs">{formatCustomerSpend(u.period_spend)}</TableCell>
+                        <TableCell>{u.lifetime_visits}</TableCell>
+                        <TableCell className="min-w-36 text-xs">{formatCustomerSpend(u.lifetime_spend)}</TableCell>
 
                       </TableRow>
                     );
