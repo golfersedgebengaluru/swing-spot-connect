@@ -188,6 +188,17 @@ describe("customer report sorting", () => {
 describe("total visits and membership invoice evidence", () => {
   const sale = "00000000-0000-0000-0000-0000000000c1";
   const other = "00000000-0000-0000-0000-0000000000c2";
+  it("returns all 11 evidenced visits when nine invoices link through revenue only", async () => {
+    await db.exec(`UPDATE profiles SET preferred_city='Bengaluru' WHERE id='${blank}';
+      INSERT INTO bookings SELECT md5('visit-'||n)::uuid,'${blank}',NULL,'2026-07-01Z'::timestamptz+n*interval '1 day','confirmed','immediate',CASE WHEN n<=2 THEN md5('visit-'||n)::uuid END,'Bengaluru',NULL FROM generate_series(1,11) n;
+      INSERT INTO revenue_transactions(id,user_id,booking_id,status,city,revenue_date,amount,currency,metadata) SELECT md5('visit-'||n)::uuid,'${blank}',md5('visit-'||n)::uuid,'confirmed','Bengaluru','2026-07-01'::date+n,1200,'INR','{"manual_invoice":true}'::jsonb FROM generate_series(1,11) n;
+      INSERT INTO invoices SELECT md5('visit-'||n)::uuid,md5('visit-'||n)::uuid,'invoice','${blank}','issued',1200 FROM generate_series(1,11) n;`);
+    try {
+      const row = (await report(`_city=>'Bengaluru',_profile_id=>'${blank}'`)).rows[0];
+      expect(row.lifetime_visits).toBe(11);
+      expect(row.lifetime_spend).toEqual({INR:13200});
+    } finally { await db.exec(`DELETE FROM invoices WHERE customer_user_id='${blank}'; DELETE FROM revenue_transactions WHERE user_id='${blank}'; DELETE FROM bookings WHERE user_id='${blank}'; UPDATE profiles SET preferred_city=NULL WHERE id='${blank}'`); }
+  });
   it("counts paid invoice-backed bookings without a booking invoice pointer", async () => {
     await db.exec(`INSERT INTO bookings VALUES('${sale}','${user}',NULL,'2026-07-01Z','confirmed','immediate',NULL,'Bengaluru',NULL);
       INSERT INTO revenue_transactions(id,user_id,booking_id,status,city,revenue_date,amount,currency,metadata) VALUES('${sale}','${user}','${sale}','confirmed','Bengaluru','2026-07-01',1200,'INR','{"manual_invoice":true}');
