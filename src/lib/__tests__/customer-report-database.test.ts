@@ -20,18 +20,18 @@ beforeAll(async () => {
     CREATE TABLE profiles(id uuid PRIMARY KEY,user_id uuid,display_name text,email text,phone text,points int,created_at timestamptz,user_type text,preferred_city text,extended_hours_access boolean);
     CREATE TABLE bays(id uuid,city text,currency text);
     CREATE TABLE bookings(id uuid PRIMARY KEY,user_id uuid,parent_booking_id uuid,start_time timestamptz,status text,billing_status text,invoice_id uuid,city text,corporate_account_id uuid);
-    CREATE TABLE hours_transactions(user_id uuid,booking_id uuid);
+    CREATE TABLE hours_transactions(user_id uuid,booking_id uuid,id uuid);
     CREATE TABLE member_hours(id uuid,user_id uuid,hours_purchased numeric,hours_used numeric);
-    CREATE TABLE revenue_transactions(id uuid,user_id uuid,booking_id uuid,original_transaction_id uuid,status text,city text,revenue_date date,amount numeric,currency text,gateway_order_ref text);
+    CREATE TABLE revenue_transactions(id uuid,user_id uuid,booking_id uuid,original_transaction_id uuid,status text,city text,revenue_date date,amount numeric,currency text,gateway_order_ref text,metadata jsonb,hours_transaction_id uuid);
     CREATE TABLE pending_bookings(booking_id uuid,status text);
     CREATE TABLE pending_guest_bookings(razorpay_order_id text,status text,city text,start_time timestamptz,guest_email text,guest_phone text);
-    CREATE TABLE invoices(id uuid,revenue_transaction_id uuid,invoice_type text);
+    CREATE TABLE invoices(id uuid,revenue_transaction_id uuid,invoice_type text,customer_user_id uuid,status text,amount_paid numeric);
     CREATE TABLE coaching_sessions(invoice_id uuid,corporate_account_id uuid);
     INSERT INTO user_roles VALUES('${admin}','admin');
     INSERT INTO bays VALUES(null,'Bengaluru','INR'),(null,'Chennai','INR');
     INSERT INTO profiles VALUES('${guest}',null,'Guest','guest@example.test',null,0,now(),'guest','Bengaluru',false),('${blank}',null,'Blank',null,null,0,now(),'guest',null,false);
     INSERT INTO bookings VALUES('${booking}','${guest}',null,'2026-08-31 10:00Z','confirmed','immediate','${booking}','Bengaluru',null);
-    INSERT INTO revenue_transactions VALUES('${booking}','${guest}','${booking}',null,'confirmed','Bengaluru','2026-08-31',1000,'INR','order-1'),('${user}','${guest}','${booking}','${booking}','confirmed','Bengaluru','2026-09-01',-200,'INR',null);
+    INSERT INTO revenue_transactions(id,user_id,booking_id,original_transaction_id,status,city,revenue_date,amount,currency,gateway_order_ref) VALUES('${booking}','${guest}','${booking}',null,'confirmed','Bengaluru','2026-08-31',1000,'INR','order-1'),('${user}','${guest}','${booking}','${booking}','confirmed','Bengaluru','2026-09-01',-200,'INR',null);
     INSERT INTO pending_guest_bookings VALUES('order-1','completed','Bengaluru','2026-08-31 10:00Z','guest@example.test','123');
     INSERT INTO member_hours VALUES('${booking}','${guest}',2,1);
     SET request.user_id='${admin}';`);
@@ -40,6 +40,7 @@ beforeAll(async () => {
   await db.exec(readFileSync("drizzle/migrations/0007_customer_reporting_corporate_invoice_links.sql", "utf8"));
   await db.exec(readFileSync("drizzle/migrations/0008_dashboard_customer_attention.sql", "utf8"));
   await db.exec(readFileSync("drizzle/migrations/0009_customer_report_sorting.sql", "utf8"));
+  await db.exec(readFileSync("drizzle/migrations/0010_customer_total_visits_and_invoice_evidence.sql", "utf8"));
 }, 30000);
 afterAll(async () => { await db?.close(); });
 async function report(args = "_city=>'Bengaluru', _as_of=>'2026-10-30 06:00Z'") {
@@ -65,13 +66,13 @@ describe("customer reporting database rules", () => {
   it("requires two period visits for the repeat preset", async () => { const value = await db.query<{ yes: boolean; no: boolean }>(`SELECT customer_report_preset('repeat',null,null,null,2,null,null,null,'2026-10-30') AS yes,customer_report_preset('repeat',null,null,null,1,null,null,null,'2026-10-30') AS no`); expect(value.rows[0]).toEqual({ yes: true, no: false }); });
   it("supports first-time visitors without explicitly entered dates", async () => { expect((await report("_city=>'Bengaluru',_preset=>'first-time',_as_of=>'2026-10-30Z'")).total).toBe(1); });
   it("keeps corporate invoice revenue out of personal spend", async () => {
-    await db.exec(`INSERT INTO invoices VALUES('${booking}','${booking}','invoice'); INSERT INTO coaching_sessions VALUES('${booking}','${admin}')`);
+    await db.exec(`INSERT INTO invoices(id,revenue_transaction_id,invoice_type) VALUES('${booking}','${booking}','invoice'); INSERT INTO coaching_sessions VALUES('${booking}','${admin}')`);
     expect((await report()).rows[0].lifetime_spend).toEqual({});
     await db.exec(`DELETE FROM invoices WHERE revenue_transaction_id='${booking}'`);
     await db.exec(`DELETE FROM coaching_sessions WHERE invoice_id='${booking}'`);
   });
   it("separates currencies rather than mixing totals", async () => {
-    await db.exec(`INSERT INTO revenue_transactions VALUES('${blank}','${user}',null,null,'confirmed','Bengaluru','2026-09-01',10,'USD',null)`);
+    await db.exec(`INSERT INTO revenue_transactions(id,user_id,booking_id,original_transaction_id,status,city,revenue_date,amount,currency,gateway_order_ref) VALUES('${blank}','${user}',null,null,'confirmed','Bengaluru','2026-09-01',10,'USD',null)`);
     expect((await report()).rows[0].lifetime_spend).toEqual({ INR:800,USD:10 });
     await db.exec(`DELETE FROM revenue_transactions WHERE id='${blank}'`);
   });
@@ -181,5 +182,46 @@ describe("customer report sorting", () => {
   it("rejects unknown sort columns and directions", async () => {
     await expect(report("_city=>'Bengaluru',_sort=>'email',_as_of=>'2026-10-30Z'")).rejects.toThrow("Invalid report filter");
     await expect(report("_city=>'Bengaluru',_sort=>'name',_dir=>'sideways',_as_of=>'2026-10-30Z'")).rejects.toThrow("Invalid report filter");
+  });
+});
+
+describe("total visits and membership invoice evidence", () => {
+  const sale = "00000000-0000-0000-0000-0000000000c1";
+  const other = "00000000-0000-0000-0000-0000000000c2";
+  it("counts paid invoice-backed bookings without a booking invoice pointer", async () => {
+    await db.exec(`INSERT INTO bookings VALUES('${sale}','${user}',NULL,'2026-07-01Z','confirmed','immediate',NULL,'Bengaluru',NULL);
+      INSERT INTO revenue_transactions(id,user_id,booking_id,status,city,revenue_date,amount,currency,metadata) VALUES('${sale}','${user}','${sale}','confirmed','Bengaluru','2026-07-01',1200,'INR','{"manual_invoice":true}');
+      INSERT INTO invoices VALUES('${sale}','${sale}','invoice','${user}','issued',1200);`);
+    try {
+      const row = (await report("_city=>'Bengaluru',_from=>'2026-09-01',_to=>'2026-09-30',_sort=>'total-visits',_dir=>'desc'")).rows[0];
+      expect(row.visit_count).toBe(0);
+      expect(row.lifetime_visits).toBe(2);
+      await db.exec(`UPDATE invoices SET amount_paid=0 WHERE id='${sale}'`);
+      expect((await report()).rows[0].lifetime_visits).toBe(1);
+    } finally { await db.exec(`DELETE FROM invoices WHERE id='${sale}'; DELETE FROM revenue_transactions WHERE id='${sale}'; DELETE FROM bookings WHERE id='${sale}'`); }
+  });
+  it("includes a paid membership using invoice identity once and inherits it for refunds", async () => {
+    await db.exec(`INSERT INTO revenue_transactions(id,status,city,revenue_date,amount,currency) VALUES('${sale}','confirmed','Bengaluru','2026-08-02',25000,'INR');
+      INSERT INTO invoices VALUES('${sale}','${sale}','invoice','${user}','issued',25000);
+      INSERT INTO revenue_transactions(id,original_transaction_id,status,city,revenue_date,amount,currency) VALUES('${other}','${sale}','confirmed','Bengaluru','2026-09-01',-1000,'INR');`);
+    try {
+      expect((await report()).rows[0].lifetime_spend).toEqual({INR:24800});
+      await db.exec(`UPDATE revenue_transactions SET user_id='${guest}' WHERE id='${sale}'`);
+      expect((await report()).rows[0].lifetime_spend).toEqual({INR:24800});
+      await db.exec(`UPDATE invoices SET customer_user_id='${blank}' WHERE id='${sale}'`);
+      expect((await report()).rows[0].lifetime_spend).toEqual({INR:800});
+    } finally { await db.exec(`DELETE FROM invoices WHERE id='${sale}'; DELETE FROM revenue_transactions WHERE id IN ('${sale}','${other}')`); }
+  });
+  it("sorts total visits and spend rather than period values before pagination", async () => {
+    await db.exec(`UPDATE profiles SET preferred_city='Bengaluru' WHERE id='${blank}';
+      INSERT INTO bookings VALUES('${sale}','${blank}',NULL,'2026-09-02Z','confirmed','deferred',NULL,'Bengaluru',NULL),('${other}','${user}',NULL,'2026-07-01Z','confirmed','deferred',NULL,'Bengaluru',NULL);
+      INSERT INTO revenue_transactions(id,user_id,status,city,revenue_date,amount,currency) VALUES('${sale}','${blank}','confirmed','Bengaluru','2026-09-02',100,'INR');`);
+    try {
+      const args="_city=>'Bengaluru',_from=>'2026-09-01',_to=>'2026-09-30',_limit=>1";
+      expect((await report(args+",_sort=>'total-visits',_dir=>'desc'")).rows[0].id).toBe(guest);
+      expect((await report(args+",_sort=>'total-visits',_dir=>'asc'")).rows[0].id).toBe(blank);
+      expect((await report(args+",_sort=>'total-spend',_dir=>'desc'")).rows[0].id).toBe(guest);
+      expect((await report(args+",_sort=>'spend',_dir=>'desc'")).rows[0].id).toBe(blank);
+    } finally { await db.exec(`DELETE FROM bookings WHERE id IN ('${sale}','${other}'); DELETE FROM revenue_transactions WHERE id='${sale}'; UPDATE profiles SET preferred_city=NULL WHERE id='${blank}'`); }
   });
 });
