@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Wallet, PlusCircle, MinusCircle, ArrowUpRight, ArrowDownLeft, TrendingUp, FileText } from "lucide-react";
+import { Loader2, Wallet, PlusCircle, ArrowUpRight, ArrowDownLeft, TrendingUp, FileText } from "lucide-react";
 import { useAdvanceBalance, useAdvanceTransactions, useAddAdvanceCredit } from "@/hooks/useAdvanceAccount";
 import { useDefaultCurrency } from "@/hooks/useCurrency";
 import { useQuery } from "@tanstack/react-query";
@@ -41,44 +41,35 @@ export function CustomerFinanceDialog({ open, onOpenChange, userId, profileId, d
 
   // Outstanding credit notes
   const { data: outstandingCreditNotes } = useQuery({
-    queryKey: ["customer_credit_notes", ids],
-    enabled: ids.length > 0,
+    queryKey: ["customer_credit_notes", ids, city],
+    enabled: open && ids.length > 0,
     queryFn: async () => {
-      const { data } = await supabase.from("invoices")
+      let query = supabase.from("invoices")
         .select("id, invoice_number, total, invoice_date, credit_note_disposition")
         .in("customer_user_id", ids)
         .eq("invoice_type", "credit_note")
         .eq("status", "issued")
         .order("created_at", { ascending: false });
+      if (city) query = query.eq("city", city);
+      const { data, error } = await query;
+      if (error) throw error;
       return data ?? [];
     },
   });
 
   // Invoice history
-  const { data: invoiceHistory } = useQuery({
-    queryKey: ["customer_invoice_history", ids],
-    enabled: ids.length > 0,
+  const { data: invoiceHistory, isLoading: invoiceLoading, error: invoiceError } = useQuery({
+    queryKey: ["customer_invoice_history", ids, city],
+    enabled: open && ids.length > 0,
     queryFn: async () => {
-      const { data } = await supabase.from("invoices")
-        .select("id, invoice_number, total, invoice_date, invoice_type, status, payment_method")
+      let query = supabase.from("invoices")
+        .select("id, invoice_number, total, invoice_date, invoice_type, status, payment_method, payment_status")
         .in("customer_user_id", ids)
         .order("invoice_date", { ascending: false })
         .limit(50);
-      return data ?? [];
-    },
-  });
-
-  // Raw revenue transactions (covers guest_booking / payment / refund / product_order, including those without an invoice)
-  const { data: revenueHistory } = useQuery({
-    queryKey: ["customer_revenue_history", ids],
-    enabled: ids.length > 0,
-    queryFn: async () => {
-      const { data } = await supabase.from("revenue_transactions")
-        .select("id, amount, currency, transaction_type, status, description, city, created_at, booking_id")
-        .in("user_id", ids)
-        .eq("status", "confirmed")
-        .order("created_at", { ascending: false })
-        .limit(100);
+      if (city) query = query.eq("city", city);
+      const { data, error } = await query;
+      if (error) throw error;
       return data ?? [];
     },
   });
@@ -103,63 +94,24 @@ export function CustomerFinanceDialog({ open, onOpenChange, userId, profileId, d
       setShowDepositForm(false);
       setDepositAmount("");
       setDepositNote("");
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Unable to add advance credit.", variant: "destructive" });
     }
   };
 
-  // Merge invoices + advance transactions + raw revenue transactions for combined timeline.
-  // We de-dupe revenue rows that already have a matching invoice to avoid showing them twice.
-  const combinedHistory = (() => {
-    const items: { date: string; type: string; description: string; amount: number; variant: "credit" | "debit" | "neutral" }[] = [];
+  // Financial documents only; bookings and advances retain their separate histories.
+  // Lifetime spend remains the shared signed-ledger total, not a sum of these rows.
+  const documents = (invoiceHistory ?? []).map(inv => ({
+    id: inv.id,
+    date: inv.invoice_date,
+    type: inv.invoice_type === "credit_note" ? "Credit Note" : "Invoice",
+    description: inv.invoice_number,
+    amount: Number(inv.total),
+    isCredit: inv.invoice_type === "credit_note",
+    status: inv.status === "issued" ? inv.payment_status : inv.status,
+  }));
 
-    const invoicedRevenueIds = new Set<string>(); // not tracked yet, but reserved for future linkage
-
-    for (const inv of (invoiceHistory ?? [])) {
-      items.push({
-        date: inv.invoice_date,
-        type: inv.invoice_type === "credit_note" ? "Credit Note" : "Invoice",
-        description: inv.invoice_number,
-        amount: Number(inv.total),
-        variant: inv.invoice_type === "credit_note" ? "credit" : "debit",
-      });
-    }
-
-    // Raw revenue rows that have no invoice (guest bookings, gateway payments, refunds)
-    for (const r of (revenueHistory ?? [])) {
-      if (invoicedRevenueIds.has(r.id)) continue;
-      const isRefund = r.transaction_type === "refund";
-      const typeLabel = r.transaction_type === "guest_booking" ? "Guest Booking"
-        : r.transaction_type === "product_order" ? "Shop Order"
-        : r.transaction_type === "refund" ? "Refund"
-        : r.transaction_type === "payment" ? "Payment"
-        : r.transaction_type === "booking" ? "Booking"
-        : r.transaction_type === "purchase" ? "Purchase"
-        : String(r.transaction_type);
-      items.push({
-        date: (r.created_at as string).split("T")[0],
-        type: typeLabel,
-        description: r.description || r.city || "",
-        amount: Number(r.amount),
-        variant: isRefund ? "credit" : "debit",
-      });
-    }
-
-    for (const t of (advanceTransactions ?? [])) {
-      items.push({
-        date: t.created_at.split("T")[0],
-        type: t.source_type === "credit_note" ? "CN → Advance" : t.source_type === "manual_deposit" ? "Advance Deposit" : "Advance Drawdown",
-        description: t.description || "",
-        amount: Number(t.amount),
-        variant: t.transaction_type === "credit" ? "credit" : "debit",
-      });
-    }
-
-    items.sort((a, b) => b.date.localeCompare(a.date));
-    return items.slice(0, 100);
-  })();
-
-  const isLoading = balLoading || txnLoading;
+  const isLoading = balLoading || txnLoading || invoiceLoading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -262,23 +214,26 @@ export function CustomerFinanceDialog({ open, onOpenChange, userId, profileId, d
 
             <Separator />
 
-            {/* Combined History */}
+            {/* Invoice documents */}
             <div>
-              <h3 className="text-sm font-medium mb-3">Transaction History</h3>
-              {combinedHistory.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No transactions yet.</p>
+              <h3 className="text-sm font-medium mb-3">Invoices &amp; Credit Notes</h3>
+              {invoiceError ? (
+                <p className="text-sm text-destructive">Unable to load invoices.</p>
+              ) : documents.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No invoices yet.</p>
               ) : (
                 <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                  {combinedHistory.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                  {documents.map(item => (
+                    <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm">
                       <div className="flex items-center gap-2 min-w-0">
-                        <Badge variant={item.variant === "credit" ? "default" : item.variant === "debit" ? "destructive" : "secondary"} className="text-[10px] shrink-0">
+                        <Badge variant={item.isCredit ? "default" : "secondary"} className="text-[10px] shrink-0">
                           {item.type}
                         </Badge>
-                        <span className="truncate text-muted-foreground">{item.description}</span>
+                        <span className="break-words text-muted-foreground">{item.description}</span>
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
-                        <span className={item.variant === "credit" ? "text-green-600 font-medium" : item.variant === "debit" ? "text-foreground font-medium" : "text-muted-foreground"}>
+                        {item.status ? <Badge variant="outline" className="capitalize text-[10px]">{item.status}</Badge> : null}
+                        <span className={item.isCredit ? "text-primary font-medium" : "text-foreground font-medium"}>
                           {currency.format(item.amount)}
                         </span>
                         <span className="text-xs text-muted-foreground">{format(new Date(item.date), "dd MMM yyyy")}</span>
