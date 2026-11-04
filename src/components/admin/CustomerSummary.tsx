@@ -10,6 +10,6 @@ export function CustomerSummary({ profileId, city }: { profileId: string; city?:
   if (!row) return null;
   const date = (value: string | null) => value ? new Date(value).toLocaleDateString(undefined, { timeZone: data?.timezone }) : "—";
   return <section className="border-y border-border py-4"><div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-    {[['Last qualifying visit', date(row.last_visit)], ['Next booking', date(row.next_booking)], ['Qualifying visits', String(row.lifetime_visits)], ['Personal net spend · lifetime', formatCustomerSpend(row.lifetime_spend)]].map(([label, value]) => <div key={label}><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 break-words text-sm font-medium">{value}</p></div>)}
+    {[['Last visit', date(row.last_visit)], ['Next confirmed booking', date(row.next_booking)], ['Visits · all dates', String(row.lifetime_visits)], ['Personal net spend · all dates', formatCustomerSpend(row.lifetime_spend)]].map(([label, value]) => <div key={label}><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 break-words text-sm font-medium">{value}</p></div>)}
   </div>{row.corporate_visits > 0 && <p className="mt-3 text-xs text-muted-foreground">Corporate-paid visits: {row.corporate_visits} · billed separately</p>}</section>;
 }

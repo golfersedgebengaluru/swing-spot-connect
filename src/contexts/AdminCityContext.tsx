@@ -21,7 +21,7 @@ const AdminCityContext = createContext<AdminCityContextType>({
 const STORAGE_KEY = "admin_selected_city";
 
 export function AdminCityProvider({ children }: { children: ReactNode }) {
-  const { isAdmin, assignedCities } = useAdmin();
+  const { isAdmin, assignedCities, loading: roleLoading } = useAdmin();
   const { data: allCities, isLoading } = useAllCities();
 
   const cities = isAdmin
@@ -39,21 +39,22 @@ export function AdminCityProvider({ children }: { children: ReactNode }) {
   // If the stored city is no longer valid, reset
   // For site_admins (non-admins), auto-select first city if none selected
   useEffect(() => {
-    if (!isLoading && cities.length > 0) {
+    if (!isLoading && !roleLoading) {
       if (selectedCity && !cities.includes(selectedCity)) {
         // Invalid selection — reset
-        const fallback = isAdmin ? "" : cities[0];
+        const fallback = isAdmin ? "" : (cities[0] ?? "");
         setSelectedCityState(fallback);
         try { if (fallback) sessionStorage.setItem(STORAGE_KEY, fallback); else sessionStorage.removeItem(STORAGE_KEY); } catch {}
-      } else if (!isAdmin && !selectedCity) {
+      } else if (!isAdmin && !selectedCity && cities.length > 0) {
         // Site admin with no city selected — auto-select first
         setSelectedCityState(cities[0]);
         try { sessionStorage.setItem(STORAGE_KEY, cities[0]); } catch {}
       }
     }
-  }, [cities, isLoading, selectedCity, isAdmin]);
+  }, [cities, isLoading, roleLoading, selectedCity, isAdmin]);
 
   const setSelectedCity = (city: string) => {
+    if (roleLoading || isLoading || (city && !cities.includes(city)) || (!city && !isAdmin)) return;
     setSelectedCityState(city);
     try {
       if (city) sessionStorage.setItem(STORAGE_KEY, city);
@@ -67,7 +68,7 @@ export function AdminCityProvider({ children }: { children: ReactNode }) {
         selectedCity,
         setSelectedCity,
         availableCities: cities,
-        isLoadingCities: isLoading,
+        isLoadingCities: isLoading || roleLoading,
       }}
     >
       {children}

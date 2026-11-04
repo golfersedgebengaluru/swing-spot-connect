@@ -31,6 +31,6 @@ export function csvCell(value: unknown): string {
   return `"${safe.replace(/"/g, '""')}"`;
 }
 export function customerReportCsv(rows: CustomerRow[]): string {
-  const columns = ["Profile ID", "Name", "Email", "Phone", "Customer status", "Preferred City", "Visited Locations", "Last Visit", "Next Booking", "Period Visits", "Total Visits", "Corporate Visits", "Period Personal Net Spend", "Total Personal Net Spend", "Remaining Hours (account-wide)", "Booking Channel"];
-  return "\uFEFF" + [columns, ...rows.map(r => [r.id, r.display_name, r.email, r.phone, r.customer_status, r.preferred_city, r.visited_cities.join("; "), r.last_visit, r.next_booking, r.visit_count, r.lifetime_visits, r.corporate_visits, formatCustomerSpend(r.period_spend), formatCustomerSpend(r.lifetime_spend), r.member_hours_id ? r.hours_remaining : "", r.booking_channel])].map(row => row.map(csvCell).join(",")).join("\r\n");
+  const columns = ["Profile ID", "Name", "Email", "Phone", "Customer status", "Membership type", "Preferred City", "Visited Locations (all activity)", "Last Visit", "Next Booking", "Visits", "Corporate Visits", "Personal Net Spend", "Remaining Hours (account-wide, current)", "Points (account-wide, current)", "Booking Channel"];
+  return "\uFEFF" + [columns, ...rows.map(r => [r.id, r.display_name, r.email, r.phone, r.customer_status, r.user_type, r.preferred_city, r.visited_cities.join("; "), r.last_visit, r.next_booking, r.visit_count, r.corporate_visits, formatCustomerSpend(r.period_spend), r.member_hours_id ? r.hours_remaining : "", r.points, r.booking_channel])].map(row => row.map(csvCell).join(",")).join("\r\n");
 }

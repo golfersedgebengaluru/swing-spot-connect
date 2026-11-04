@@ -73,27 +73,21 @@ function Member360Content() {
   const membershipQuery = useQuery({
     queryKey: ["member360", "membership", keys], enabled: ready,
     queryFn: async () => {
-      const [hoursResult, transactionsResult] = await Promise.all([
-        supabase.from("member_hours").select("id, user_id, hours_purchased, hours_used, created_at").in("user_id", keys).maybeSingle(),
-        supabase.from("hours_transactions").select("id, user_id, type, hours, created_at").in("user_id", keys).order("created_at", { ascending: true }),
-      ]);
-      if (hoursResult.error) throw hoursResult.error;
+      const transactionsResult = await supabase.from("hours_transactions").select("id, user_id, type, hours, created_at").in("user_id", keys).order("created_at", { ascending: true });
       if (transactionsResult.error) throw transactionsResult.error;
       const firstPurchase = transactionsResult.data?.find((row) => row.type === "purchase");
-      return { hours: hoursResult.data, memberSince: firstPurchase?.created_at ?? hoursResult.data?.created_at ?? profile?.created_at };
+      return { memberSince: firstPurchase?.created_at };
     },
   });
 
   const bookingsQuery = useQuery({
-    queryKey: ["member360", "bookings", keys], enabled: ready,
+    queryKey: ["member360", "bookings", keys, selectedCity], enabled: ready,
     queryFn: async () => {
-      const [bookingResult, hoursResult] = await Promise.all([
-        supabase.from("bookings").select("id, parent_booking_id, start_time, end_time, duration_minutes, city, session_type, status, billing_status, invoice_id").in("user_id", keys).order("start_time", { ascending: false }),
-        supabase.from("hours_transactions").select("booking_id").in("user_id", keys).not("booking_id", "is", null),
-      ]);
+      let query = supabase.from("bookings").select("id, parent_booking_id, start_time, end_time, duration_minutes, city, session_type, status, billing_status, invoice_id").in("user_id", keys).order("start_time", { ascending: false });
+      if (selectedCity) query = query.eq("city", selectedCity);
+      const bookingResult = await query;
       if (bookingResult.error) throw bookingResult.error;
-      if (hoursResult.error) throw hoursResult.error;
-      return { bookings: bookingResult.data ?? [], paidBookingIds: new Set((hoursResult.data ?? []).map((row) => row.booking_id).filter((value): value is string => Boolean(value))) };
+      return { bookings: bookingResult.data ?? [] };
     },
   });
 
@@ -152,18 +146,17 @@ function Member360Content() {
 
   const signals = useMemo(() => {
     const values: string[] = [];
-    const hours = membershipQuery.data?.hours;
-    if (hours && hours.hours_purchased - hours.hours_used <= 1) values.push("Low hours");
+    if (customerSummary?.member_hours_id && customerSummary.hours_remaining <= 1) values.push("Low hours");
     if (customerSummary && !customerSummary.next_booking) values.push("No upcoming booking");
     return values;
-  }, [membershipQuery.data, customerSummary]);
+  }, [customerSummary]);
 
   if (profileQuery.isLoading || adminLoading || (!isAdmin && accessQuery.isLoading)) return <div className="mx-auto max-w-5xl space-y-4 p-4 sm:p-6"><Skeleton className="h-8 w-48" /><SectionSkeleton /><SectionSkeleton /></div>;
   if (!profile) return <Navigate to="/admin?tab=allusers" replace />;
   if (!allowed) return <div className="mx-auto max-w-xl p-6"><Card><CardContent className="p-6 text-center"><h1 className="font-display text-2xl">Access denied</h1><p className="mt-2 text-muted-foreground">This member is outside your assigned location.</p><Link className="mt-4 inline-flex min-h-11 items-center text-primary" to="/admin?tab=allusers">Back to All Users</Link></CardContent></Card></div>;
 
-  const hours = membershipQuery.data?.hours;
-  const remaining = hours ? hours.hours_purchased - hours.hours_used : 0;
+  const hours = customerSummary?.member_hours_id ? customerSummary : undefined;
+  const remaining = hours?.hours_remaining ?? 0;
   const bookings = bookingsQuery.data?.bookings ?? [];
   const now = Date.now();
   const visits = customerSummary?.lifetime_visits ?? 0;

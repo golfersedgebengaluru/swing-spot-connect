@@ -378,7 +378,7 @@ export function AdminDashboardTab({ onNavigate }: AdminDashboardTabProps = {}) {
           <CardContent className="space-y-2 pt-0">
             <Tabs value={attentionView} onValueChange={setAttentionView} className="pb-2"><TabsList className="w-full"><TabsTrigger value="renewals" className="flex-1">Renewals</TabsTrigger><TabsTrigger value="inactive" className="flex-1">Inactive repeat</TabsTrigger></TabsList></Tabs>
             {attentionRows.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">{attentionView === "renewals" ? "No active members running low on hours" : "No inactive repeat customers"}</p>
+              <p className="text-sm text-muted-foreground py-4 text-center">{attentionView === "renewals" ? "No renewal opportunities" : "No inactive repeat customers"}</p>
             ) : (
               attentionRows.map((m) => (
                 <Button

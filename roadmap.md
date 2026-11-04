@@ -1,5 +1,11 @@
 # Roadmap
 
+## Users report alignment (approved)
+- [ ] Align Visits and personal net spend with explicit date bounds; default to all activity, with matching sorting and export
+- [ ] Use the top-level city as the only directory location selector; preserve authorized customer access and account-wide balances
+- [ ] Distinguish membership type from customer status; unify next-booking display and clarify booking-history revenue
+- [ ] Run focused and full regressions, inspect the preview and verify the authorized flow where access permits
+
 ## Customer Finance correction (approved)
 - [x] Show invoices and credit notes only; retain separate advance history and shared lifetime spend
 - [x] Restore Rohan's ₹25,000 Birdie invoice …/1582 dated 3 November 2026 against the existing payment, without granting hours or posting revenue again; remove recycled number and retain August purchase in notes
