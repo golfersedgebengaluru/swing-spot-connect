@@ -239,3 +239,62 @@ describe("total visits and membership invoice evidence", () => {
     } finally { await db.exec(`DELETE FROM bookings WHERE id IN ('${sale}','${other}'); DELETE FROM revenue_transactions WHERE id='${sale}'; UPDATE profiles SET preferred_city=NULL WHERE id='${blank}'`); }
   });
 });
+describe("aligned date and city scope", () => {
+  const id = "00000000-0000-0000-0000-0000000000d1";
+  it("defaults to all visits and includes both date boundaries without rewriting lifetime", async () => {
+    await db.exec(`INSERT INTO bookings VALUES('${id}','${user}',NULL,'2026-09-30 18:29:59Z','confirmed','deferred',NULL,'Bengaluru',NULL)`);
+    try {
+      expect((await report()).rows[0].visit_count).toBe(2);
+      const september = (await report("_city=>'Bengaluru',_from=>'2026-09-01',_to=>'2026-09-30',_as_of=>'2026-10-30Z'")).rows[0];
+      expect(september.visit_count).toBe(1);
+      expect(september.lifetime_visits).toBe(2);
+      expect(september.period_spend).toEqual({ INR: -200 });
+      expect(september.lifetime_spend).toEqual({ INR: 800 });
+      expect((await report("_city=>'Bengaluru',_to=>'2026-08-31',_as_of=>'2026-10-30Z'")).rows[0].visit_count).toBe(1);
+      expect((await report("_city=>'Bengaluru',_from=>'2026-09-30',_as_of=>'2026-10-30Z'")).rows[0].visit_count).toBe(1);
+    } finally { await db.exec(`DELETE FROM bookings WHERE id='${id}'`); }
+  });
+  it("keeps selected-city metrics local but includes customers with local booking evidence", async () => {
+    await db.exec(`INSERT INTO profiles VALUES('${id}',NULL,'Other city',NULL,NULL,0,now(),'registered','Chennai',false);
+      INSERT INTO bookings VALUES('${id}','${user}',NULL,'2026-09-01Z','confirmed','deferred',NULL,'Chennai',NULL);
+      INSERT INTO revenue_transactions(id,user_id,status,city,revenue_date,amount,currency) VALUES('${id}','${user}','confirmed','Chennai','2026-09-01',500,'INR')`);
+    try {
+      const bengaluru = await report();
+      expect(bengaluru.rows.map(r=>r.id)).toEqual([guest]);
+      expect(bengaluru.rows[0].visit_count).toBe(1);
+      expect(bengaluru.rows[0].period_spend).toEqual({ INR: 800 });
+      const chennai = await report("_city=>'Chennai',_as_of=>'2026-10-30Z'");
+      expect(chennai.rows.map(r=>r.id).sort()).toEqual([guest,id].sort());
+      expect(chennai.rows.find(r=>r.id===guest)?.visit_count).toBe(1);
+      expect(chennai.rows.find(r=>r.id===guest)?.period_spend).toEqual({ INR: 500 });
+      expect(chennai.rows.find(r=>r.id===id)?.visit_count).toBe(0);
+    } finally { await db.exec(`DELETE FROM revenue_transactions WHERE id='${id}'; DELETE FROM bookings WHERE id='${id}'; DELETE FROM profiles WHERE id='${id}'`); }
+  });
+  it("returns the same future confirmed booking across ordinary and attention reports", async () => {
+    await db.exec(`INSERT INTO bookings VALUES('${id}','${user}',NULL,'2026-11-01Z','confirmed','immediate',NULL,'Bengaluru',NULL)`);
+    try {
+      const args="_city=>'Bengaluru',_as_of=>'2026-10-30Z',_to=>'2026-08-31'";
+      const ordinary=(await report(args)).rows[0];
+      expect(ordinary.next_booking).toBe("2026-11-01T00:00:00+00:00");
+      expect((await report(args+",_preset=>'renewal-opportunities'")).rows[0].next_booking).toBe(ordinary.next_booking);
+    } finally { await db.exec(`DELETE FROM bookings WHERE id='${id}'`); }
+  });
+  it("sorts filtered visits and spend before pagination", async () => {
+    await db.exec(`UPDATE profiles SET preferred_city='Bengaluru' WHERE id='${blank}';
+      INSERT INTO bookings VALUES('${id}','${blank}',NULL,'2026-09-01Z','confirmed','deferred',NULL,'Bengaluru',NULL);
+      INSERT INTO revenue_transactions(id,user_id,status,city,revenue_date,amount,currency) VALUES('${id}','${blank}','confirmed','Bengaluru','2026-09-01',100,'INR')`);
+    try {
+      const args="_city=>'Bengaluru',_from=>'2026-09-01',_to=>'2026-09-30',_limit=>1,_as_of=>'2026-10-30Z'";
+      expect((await report(args+",_sort=>'period-visits',_dir=>'desc'")).rows[0].id).toBe(blank);
+      expect((await report(args+",_sort=>'spend',_dir=>'desc'")).rows[0].id).toBe(blank);
+    } finally { await db.exec(`DELETE FROM bookings WHERE id='${id}'; DELETE FROM revenue_transactions WHERE id='${id}'; UPDATE profiles SET preferred_city=NULL WHERE id='${blank}'`); }
+  });
+  it("sorts the displayed membership type without changing status classification", async () => {
+    await db.exec(`UPDATE profiles SET preferred_city='Bengaluru',user_type='birdie' WHERE id='${blank}'`);
+    try {
+      const rows=(await report("_city=>'Bengaluru',_sort=>'type',_as_of=>'2026-10-30Z'")).rows;
+      expect(rows.map(r=>r.id)).toEqual([blank,guest]);
+      expect(rows[0].customer_status).toBe('pre-registered');
+    } finally { await db.exec(`UPDATE profiles SET preferred_city=NULL,user_type='guest' WHERE id='${blank}'`); }
+  });
+});
