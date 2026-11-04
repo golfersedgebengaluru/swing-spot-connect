@@ -41,6 +41,7 @@ beforeAll(async () => {
   await db.exec(readFileSync("drizzle/migrations/0008_dashboard_customer_attention.sql", "utf8"));
   await db.exec(readFileSync("drizzle/migrations/0009_customer_report_sorting.sql", "utf8"));
   await db.exec(readFileSync("drizzle/migrations/0010_customer_total_visits_and_invoice_evidence.sql", "utf8"));
+  await db.exec(readFileSync("drizzle/migrations/0011_customer_report_date_and_display_alignment.sql", "utf8"));
 }, 30000);
 afterAll(async () => { await db?.close(); });
 async function report(args = "_city=>'Bengaluru', _as_of=>'2026-10-30 06:00Z'") {
@@ -166,6 +167,8 @@ describe("customer report sorting", () => {
     expect(points.rows.map(r => r.points)).toEqual([50, 5, 0]);
     const hours = await report("_city=>'Bengaluru',_sort=>'hours',_dir=>'desc',_as_of=>'2026-10-30Z'");
     expect(hours.rows.map(r => Number(r.hours_remaining))).toEqual([10, 1, 0]);
+    const ascending = await report("_city=>'Bengaluru',_sort=>'hours',_as_of=>'2026-10-30Z'");
+    expect(ascending.rows.map(r => r.id)).toEqual([guest, alpha, bravo]);
   });
   it("sorts ascending dates least to most recent with blanks last", async () => {
     const asc = await report("_city=>'Bengaluru',_sort=>'last-visit',_as_of=>'2026-10-30Z'");
