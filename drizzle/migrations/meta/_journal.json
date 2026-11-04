@@ -78,6 +78,13 @@
       "when": 1793604682819,
       "tag": "0010_customer_total_visits_and_invoice_evidence",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793777098273,
+      "tag": "0011_customer_report_date_and_display_alignment",
+      "breakpoints": true
     }
   ]
 }
