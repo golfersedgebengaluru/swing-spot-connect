@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { CustomerFinanceDialog } from "../CustomerFinanceDialog";
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), from: vi.fn(), report: vi.fn() }));
@@ -25,14 +25,16 @@ describe("Customer Finance document separation", () => {
   it("shows the ₹25,000 membership invoice once on November 3 without merging booking or advance representations", () => {
     mount();
     expect(screen.getAllByText("INR 25000")).toHaveLength(1);
-    expect(screen.getByText("03 Nov 2026")).toBeTruthy();
+    const membershipRow = screen.getByText(invoice.invoice_number).parentElement?.parentElement;
+    if (!membershipRow) throw new Error("Membership document missing");
+    expect(within(membershipRow).getByText("03 Nov 2026")).toBeTruthy();
     expect(screen.getAllByText("Deposit")).toHaveLength(1);
     expect(mocks.query.mock.calls.map(([options]) => options.queryKey[0])).toEqual(["customer_credit_notes", "customer_invoice_history"]);
   });
   it("keeps credit notes once and preserves the signed ledger spend independently of invoice sums", () => {
     mount();
     expect(screen.getAllByText("INR 500")).toHaveLength(1);
-    expect(screen.getByText("INR 24500")).toBeTruthy();
+    expect(screen.getByText("INR 24,500.00")).toBeTruthy();
     expect(mocks.report).toHaveBeenCalledWith({ _profile_id: "profile", _city: "Bengaluru" }, true);
   });
   it("queries both customer identities within the selected city and uses invoice dates", async () => {
