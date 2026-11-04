@@ -1,9 +1,10 @@
 # Roadmap
 
 ## Customer Finance correction (approved)
-- [ ] Show invoices and credit notes only; retain separate advance history and shared lifetime spend
-- [ ] Restore Rohan's ₹25,000 Birdie invoice …/1582 dated 3 November 2026 against the existing payment, without granting hours or posting revenue again
-- [ ] Run Finance regressions and verify restored invoice, tax lines and authorized screen access
+- [x] Show invoices and credit notes only; retain separate advance history and shared lifetime spend
+- [x] Restore Rohan's ₹25,000 Birdie invoice …/1582 dated 3 November 2026 against the existing payment, without granting hours or posting revenue again; remove recycled number and retain August purchase in notes
+- [x] Verify invoice/tax/payment link and unchanged 11 revenue rows totaling ₹40,053.76 and 25 purchased / 15.75 used hours; 103 files / 874 tests pass
+- [ ] Authorized Finance screen verification: requesting user's signed-in session still shows Access Denied; no privileges changed
 
 ## Users totals audit (approved)
 - [x] Audit Zaheen's visits and all invoice/payment attribution: 11 paid bookings; 818 issued invoices all linked with matching amounts/dates; five orphan manual-revenue entries and eight partial/unpaid invoices identified, not changed
@@ -11,7 +12,7 @@
 - [x] Establish Rohan Pada's earliest 25-hour purchase: 2 August 2026, 13:04 IST; exact tier assignment and initial payment remain unsupported by retained records
 - [x] Run regressions: 102 files / 869 tests passed; live evidence confirms 11 Zaheen visits; preview build OK
 - [ ] Staff-screen verification: requesting-user session still shows Access Denied; no privileges changed
-- [ ] Historical finance exception resolution: Rohan's ₹25,000 Birdie invoice restoration approved; remaining four invoice-less entries require source confirmation
+- [ ] Historical finance exception resolution: Rohan's ₹25,000 Birdie invoice restored; remaining four invoice-less entries require source confirmation
 
 ## Actionable dashboard (approved)
 - [x] Replace Top Members with short renewal and inactive-repeat customer views using shared authorized reporting
