@@ -75,16 +75,19 @@ function PointsTransactionHistory({ userId }: { userId: string }) {
   );
 }
 
-function BookingTransactionHistory({ userId, profileId }: { userId: string; profileId?: string }) {
+function BookingTransactionHistory({ userId, profileId, city }: { userId: string; profileId?: string; city?: string }) {
   const { data, isLoading } = useQuery({
-    queryKey: ["admin_user_booking_history", userId, profileId],
+    queryKey: ["admin_user_booking_history", userId, profileId, city],
     queryFn: async () => {
       const ids = Array.from(new Set([userId, profileId].filter(Boolean) as string[]));
-      const { data: bookings } = await supabase
+      let bookingQuery = supabase
         .from("bookings")
         .select("id, start_time, end_time, duration_minutes, city, bay_id, session_type, status, note")
         .in("user_id", ids)
         .order("start_time", { ascending: false });
+      if (city) bookingQuery = bookingQuery.eq("city", city);
+      const { data: bookings, error: bookingError } = await bookingQuery;
+      if (bookingError) throw bookingError;
       const bookingIds = (bookings ?? []).map((b: any) => b.id);
       let txByBooking = new Map<string, number>();
       let currency = "INR";
@@ -122,7 +125,7 @@ function BookingTransactionHistory({ userId, profileId }: { userId: string; prof
     <div className="space-y-2">
       <div className="flex items-center justify-between text-sm border-b pb-2">
         <span className="text-muted-foreground">{data.rows.length} booking{data.rows.length !== 1 ? "s" : ""}</span>
-        <span className="font-medium">Total paid: {fmt(data.grandTotal)}</span>
+        <span className="font-medium">Net booking revenue: {fmt(data.grandTotal)}</span>
       </div>
       <div className="space-y-2 max-h-[60vh] overflow-y-auto">
         {data.rows.map((b: any) => (
@@ -356,17 +359,16 @@ export function AdminAllUsersTab() {
 
   const [reportFilters, setReportFilters] = useState(initialCustomerFilters);
   const [exporting, setExporting] = useState(false);
-  useEffect(() => { setPage(0); setReportFilters(initialCustomerFilters); }, [selectedCity]);
+  useEffect(() => { setPage(0); }, [selectedCity]);
   const dashboardPreset = searchParams.get("preset");
   useEffect(() => {
     if (dashboardPreset === "renewal-opportunities" || dashboardPreset === "inactive-repeat") {
       setReportFilters({ ...initialCustomerFilters, preset: dashboardPreset });
       setPage(0);
     }
-  }, [dashboardPreset, selectedCity]);
+  }, [dashboardPreset]);
   const reportArgs = {
-    _city: selectedCity || undefined, _preferred_city: reportFilters.preferredCity || undefined,
-    _visited_city: reportFilters.visitedCity || undefined, _from: reportFilters.from || undefined,
+    _city: selectedCity || undefined, _from: reportFilters.from || undefined,
     _to: reportFilters.to || undefined, _preset: reportFilters.preset, _type: typeFilter, _search: searchQuery,
     _sort: sort?.key, _dir: sort?.dir,
   };
@@ -396,7 +398,7 @@ export function AdminAllUsersTab() {
       };
       download(customerReportCsv(rows), "customers.csv", "text/csv;charset=utf-8");
       download(JSON.stringify({ ...reportArgs, as_of: report.as_of, locations: report.cities, timezone: report.timezone, customers: rows.length, reconciliation: report.reconciliation, unlinked_revenue: report.unlinked_revenue, missing_revenue_date: report.missing_revenue_date,
-        definitions: { visits: "Past confirmed qualifying sessions, parent booking deduplicated; not verified attendance", spend: "Confirmed signed personal revenue by business revenue date, currencies separate, corporate billing excluded", balances: "Hours and points are account-wide", channel: "Online only from explicit completed booking/payment links; otherwise Unknown" } }, null, 2), "customers-report-summary.json", "application/json");
+        definitions: { visits: "Past confirmed qualifying sessions, parent booking deduplicated; not verified attendance", spend: "Confirmed signed personal revenue by business revenue date, currencies separate, corporate billing excluded", balances: "Hours and points are current and account-wide", date_scope: "Visits, corporate visits and personal net spend use inclusive From/To bounds; blank bounds are unbounded; last visit and next booking remain current", channel: "Online only from explicit completed booking/payment links; otherwise Unknown" } }, null, 2), "customers-report-summary.json", "application/json");
     } catch (error) { toast({ title: "Export unavailable", description: error instanceof Error ? error.message : "Please retry.", variant: "destructive" }); }
     finally { setExporting(false); }
   };
@@ -561,7 +563,7 @@ export function AdminAllUsersTab() {
       <Dialog open={dialogOpen === "bookinghistory"} onOpenChange={(open) => { setDialogOpen(open ? "bookinghistory" : null); if (!open) setViewingBookingHistory(null); }}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader><DialogTitle>Booking History</DialogTitle></DialogHeader>
-          {viewingBookingHistory && <BookingTransactionHistory userId={viewingBookingHistory.userId} profileId={viewingBookingHistory.profileId} />}
+          {viewingBookingHistory && <BookingTransactionHistory userId={viewingBookingHistory.userId} profileId={viewingBookingHistory.profileId} city={selectedCity || undefined} />}
         </DialogContent>
       </Dialog>
 
@@ -631,7 +633,7 @@ export function AdminAllUsersTab() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search name or email…" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }} className="pl-9 h-9" />
+          <Input placeholder="Search name, email or phone…" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }} className="pl-9 h-9" />
         </div>
         <Select value={typeFilter} onValueChange={(value: MemberFilter) => {
           const next = new URLSearchParams(searchParams);
@@ -639,9 +641,9 @@ export function AdminAllUsersTab() {
           setSearchParams(next, { replace: true });
           setPage(0);
         }}>
-          <SelectTrigger className="h-9 w-full sm:w-44" aria-label="Type filter"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-9 w-full sm:w-44" aria-label="Customer status filter"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="all">All customer statuses</SelectItem>
             <SelectItem value="pre-registered">Pre-registered</SelectItem>
             <SelectItem value="registered">Registered</SelectItem>
             <SelectItem value="member">Member</SelectItem>
@@ -649,7 +651,7 @@ export function AdminAllUsersTab() {
         </Select>
       </div>
 
-      <CustomerReportControls filters={reportFilters} onChange={value => { setReportFilters(value); setPage(0); }} cities={availableCities} report={report} exporting={exporting} onExport={exportCustomers} />
+      <CustomerReportControls filters={reportFilters} onChange={value => { setReportFilters(value); setPage(0); }} report={report} exporting={exporting} onExport={exportCustomers} />
       {reportError && <p role="alert" className="text-sm text-destructive">Customer report unavailable: {reportError.message}</p>}
       {/* Main table */}
       {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
@@ -662,13 +664,13 @@ export function AdminAllUsersTab() {
                   <TableRow className="hover:bg-transparent border-b border-border">
                     <SortableHead label="User" sortKey="name" sort={sort} onSort={toggleSort} className="sticky left-0 z-20 w-[220px] min-w-[220px] max-w-[220px] bg-card text-[11px] uppercase tracking-wider text-muted-foreground font-medium" buttonClassName="pl-[44px]" />
                     <TableHead className="sticky left-[220px] z-20 w-16 min-w-16 bg-card text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center">Actions</TableHead>
-                    <SortableHead label="Type" sortKey="type" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Membership type" sortKey="type" sort={sort} onSort={toggleSort} />
                     <SortableHead label="Hours · account" sortKey="hours" sort={sort} onSort={toggleSort} className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center" buttonClassName="w-full justify-center" />
                     <SortableHead label="Points · account" sortKey="points" sort={sort} onSort={toggleSort} className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center" buttonClassName="w-full justify-center" />
                     <SortableHead label="Last visit" sortKey="last-visit" sort={sort} onSort={toggleSort} />
                     <SortableHead label="Next booking" sortKey="next-booking" sort={sort} onSort={toggleSort} />
-                    <SortableHead label="Total visits" sortKey="total-visits" sort={sort} onSort={toggleSort} />
-                    <SortableHead label="Total personal net spend" sortKey="total-spend" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Visits" sortKey="period-visits" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Personal net spend" sortKey="spend" sort={sort} onSort={toggleSort} />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -791,8 +793,8 @@ export function AdminAllUsersTab() {
 
                         <TableCell className="whitespace-nowrap text-xs">{u.last_visit ? new Date(u.last_visit).toLocaleDateString(undefined, { timeZone: report?.timezone }) : "—"}</TableCell>
                         <TableCell className="whitespace-nowrap text-xs">{u.next_booking ? new Date(u.next_booking).toLocaleDateString(undefined, { timeZone: report?.timezone }) : "—"}</TableCell>
-                        <TableCell>{u.lifetime_visits}</TableCell>
-                        <TableCell className="min-w-36 text-xs">{formatCustomerSpend(u.lifetime_spend)}</TableCell>
+                        <TableCell>{u.visit_count}</TableCell>
+                        <TableCell className="min-w-36 text-xs">{formatCustomerSpend(u.period_spend)}</TableCell>
 
                       </TableRow>
                     );
