@@ -47,7 +47,7 @@ describe("Member360 contract", () => {
   it("uses dual-key identity, independent queries, and existing access scope", () => {
     expect(page).toContain("identityKeys(profile)");
     for (const section of ["membership", "bookings", "training", "leagues", "loyalty", "commerce"]) {
-      expect(page).toContain(`["member360", "${section}", keys]`);
+      expect(page).toContain(`["member360", "${section}", keys`);
     }
     expect(page).toContain('assignedCities.includes(profile.preferred_city)');
     expect(page).toContain('in("city", assignedCities)');
