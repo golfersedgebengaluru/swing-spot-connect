@@ -27,6 +27,7 @@ import { HoursBalanceBadge } from "@/components/admin/HoursBalanceBadge";
 import { HoursActionLabel, MemberHoursManager } from "@/components/admin/MemberHoursManager";
 import { type MemberFilter } from "@/lib/member-utils";
 import { useCustomerReport, fetchCustomerReport } from "@/hooks/useCustomerReport";
+import { bookingRevenueTotals } from "@/lib/booking-history-revenue";
 import { customerReportCsv, formatCustomerSpend } from "@/lib/customer-report";
 import { CustomerReportControls, initialCustomerFilters } from "./CustomerReportControls";
 
@@ -76,7 +77,7 @@ function PointsTransactionHistory({ userId }: { userId: string }) {
 }
 
 function BookingTransactionHistory({ userId, profileId, city }: { userId: string; profileId?: string; city?: string }) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["admin_user_booking_history", userId, profileId, city],
     queryFn: async () => {
       const ids = Array.from(new Set([userId, profileId].filter(Boolean) as string[]));
@@ -89,38 +90,32 @@ function BookingTransactionHistory({ userId, profileId, city }: { userId: string
       const { data: bookings, error: bookingError } = await bookingQuery;
       if (bookingError) throw bookingError;
       const bookingIds = (bookings ?? []).map((b: any) => b.id);
-      let txByBooking = new Map<string, number>();
-      let currency = "INR";
+      let revenue = bookingRevenueTotals([]);
       if (bookingIds.length) {
-        const { data: txs } = await supabase
-          .from("revenue_transactions")
-          .select("booking_id, amount, currency, transaction_type, status")
-          .in("booking_id", bookingIds)
-          .eq("status", "confirmed");
-        (txs ?? []).forEach((t: any) => {
-          if (!t.booking_id) return;
-          const sign = 1;
-          txByBooking.set(t.booking_id, (txByBooking.get(t.booking_id) ?? 0) + sign * Number(t.amount || 0));
-          if (t.currency) currency = t.currency;
-        });
+        const { data: txs, error } = await supabase.from("revenue_transactions")
+          .select("booking_id, amount, currency").in("booking_id", bookingIds).eq("status", "confirmed");
+        if (error) throw error;
+        revenue = bookingRevenueTotals(txs ?? []);
       }
       // Sort ascending for running total, then reverse for display
       const sortedAsc = [...(bookings ?? [])].sort(
         (a: any, b: any) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
       );
-      let running = 0;
-      const withTotals = sortedAsc.map((b: any) => {
-        const amt = txByBooking.get(b.id) ?? 0;
-        running += amt;
-        return { ...b, amount_paid: amt, running_total: running };
+      const running: Record<string, number> = {};
+      const withTotals = sortedAsc.map((b) => {
+        const amounts = revenue.byBooking.get(b.id) ?? {};
+        for (const [currency, amount] of Object.entries(amounts)) running[currency] = (running[currency] ?? 0) + amount;
+        return { ...b, amounts, running_total: { ...running } };
       });
-      return { rows: withTotals.reverse(), grandTotal: running, currency };
+      return { rows: withTotals.reverse(), grandTotal: revenue.total };
+
     },
   });
 
   if (isLoading) return <Loader2 className="mx-auto h-6 w-6 animate-spin" />;
+  if (error) return <p role="alert" className="text-sm text-destructive">Booking history unavailable.</p>;
   if (!data?.rows?.length) return <p className="text-sm text-muted-foreground">No bookings yet.</p>;
-  const fmt = (n: number) => `${data.currency} ${n.toFixed(2)}`;
+  const fmt = formatCustomerSpend;
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-sm border-b pb-2">
@@ -139,7 +134,7 @@ function BookingTransactionHistory({ userId, profileId, city }: { userId: string
               </div>
             </div>
             <div className="text-right shrink-0 ml-3">
-              <div className={b.amount_paid < 0 ? "text-destructive" : "text-primary"}>{fmt(b.amount_paid)}</div>
+              <div className="text-primary">{fmt(b.amounts)}</div>
               <div className="text-xs text-muted-foreground">Running: {fmt(b.running_total)}</div>
             </div>
           </div>
@@ -667,8 +662,8 @@ export function AdminAllUsersTab() {
                     <SortableHead label="Membership type" sortKey="type" sort={sort} onSort={toggleSort} />
                     <SortableHead label="Hours · account" sortKey="hours" sort={sort} onSort={toggleSort} className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center" buttonClassName="w-full justify-center" />
                     <SortableHead label="Points · account" sortKey="points" sort={sort} onSort={toggleSort} className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium text-center" buttonClassName="w-full justify-center" />
-                    <SortableHead label="Last visit" sortKey="last-visit" sort={sort} onSort={toggleSort} />
-                    <SortableHead label="Next booking" sortKey="next-booking" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Last visit · latest" sortKey="last-visit" sort={sort} onSort={toggleSort} />
+                    <SortableHead label="Next booking · confirmed" sortKey="next-booking" sort={sort} onSort={toggleSort} />
                     <SortableHead label="Visits" sortKey="period-visits" sort={sort} onSort={toggleSort} />
                     <SortableHead label="Personal net spend" sortKey="spend" sort={sort} onSort={toggleSort} />
                   </TableRow>
@@ -706,6 +701,7 @@ export function AdminAllUsersTab() {
                                 {u.member_hours_id && <Badge variant="secondary" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px]">Member</Badge>}
                               </div>
                               <div className="text-xs text-muted-foreground truncate">{u.email || "—"}</div>
+                              <div className="text-[10px] text-muted-foreground capitalize">{u.customer_status.replaceAll("-", " ")}</div>
                             </div>
                           </div>
                         </TableCell>
