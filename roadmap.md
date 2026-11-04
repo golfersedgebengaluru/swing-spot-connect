@@ -1,10 +1,11 @@
 # Roadmap
 
 ## Users report alignment (approved)
-- [ ] Align Visits and personal net spend with explicit date bounds; default to all activity, with matching sorting and export
-- [ ] Use the top-level city as the only directory location selector; preserve authorized customer access and account-wide balances
-- [ ] Distinguish membership type from customer status; unify next-booking display and clarify booking-history revenue
-- [ ] Run focused and full regressions, inspect the preview and verify the authorized flow where access permits
+- [x] Align Visits and personal net spend with explicit date bounds; default to all activity, with matching sorting and export
+- [x] Use the top-level city as the only directory location selector; preserve authorized customer access and account-wide balances
+- [x] Distinguish membership type from customer status; unify next-booking display and clarify booking-history revenue
+- [x] Focused and full regressions: 105 files / 884 tests passed; preview build OK
+- [ ] Authorized Users visual/end-to-end verification blocked: requesting-user session shows Access Denied; no privileges changed
 
 ## Customer Finance correction (approved)
 - [x] Show invoices and credit notes only; retain separate advance history and shared lifetime spend
