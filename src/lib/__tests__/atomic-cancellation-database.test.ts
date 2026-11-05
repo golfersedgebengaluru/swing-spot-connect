@@ -29,6 +29,7 @@ beforeAll(async () => {
   await db.exec(readFileSync("supabase/migrations/20260426134936_2cb8a231-0f8c-4d16-8b4e-443ec9de28cd.sql", "utf8"));
   await db.exec(readFileSync("supabase/migrations/20260909131704_7440667c-42ed-4c4c-91a0-3807bb0b4053.sql", "utf8"));
   await db.exec(readFileSync("drizzle/migrations/0012_atomic_paid_booking_cancellation.sql", "utf8"));
+  await db.exec(readFileSync("drizzle/migrations/0013_restrict_cancellation_receipt_grants.sql", "utf8"));
 }, 30000);
 afterAll(async () => { await db?.close(); });
 beforeEach(async () => {
