@@ -12,3 +12,4 @@
 - Keep editable membership type distinct from derived customer status; display and sort each by its own source, and use future confirmed bookings consistently across customer-report views.
 - Dashboard attention lists reuse customer-report selection and ordering, and first-arrival checks reuse its visit predicate in one authorized batch; never introduce per-customer history requests or billing writes.
 - Member booking history resolves bay-calendar timezones server-side in one authorized read with request-local caching; shared display/export formatting uses explicit zones and labels unavailable zones as UTC rather than inheriting device settings.
+- Gateway-paid booking cancellations use a service-only authorized database transaction and persisted receipt for booking, loyalty, refund, credit-note and advance writes; external calendar cleanup follows commit so failure cannot cancel a financially unchanged booking.

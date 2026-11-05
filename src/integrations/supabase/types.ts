@@ -414,6 +414,38 @@ export type Database = {
         }
         Relationships: []
       }
+      booking_cancellation_receipts: {
+        Row: {
+          actor_id: string
+          booking_id: string
+          created_at: string
+          disposition: string
+          result: Json
+        }
+        Insert: {
+          actor_id: string
+          booking_id: string
+          created_at?: string
+          disposition: string
+          result: Json
+        }
+        Update: {
+          actor_id?: string
+          booking_id?: string
+          created_at?: string
+          disposition?: string
+          result?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_cancellation_receipts_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           bay_id: string | null
@@ -6280,6 +6312,15 @@ export type Database = {
       }
       cancel_booking_with_clawback: {
         Args: { p_booking_id: string; p_cancelled_by?: string }
+        Returns: Json
+      }
+      cancel_paid_booking_atomic: {
+        Args: {
+          p_actor: string
+          p_admin?: boolean
+          p_booking_id: string
+          p_disposition?: string
+        }
         Returns: Json
       }
       change_corporate_membership: {

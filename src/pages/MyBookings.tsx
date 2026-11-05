@@ -147,12 +147,12 @@ export default function MyBookings() {
     setConfirmingCancelId(null);
     setCancelDialogBooking(null);
     try {
-      await cancelBooking.mutateAsync({ bookingId: booking.id, disposition });
-      const msg = disposition === "advance_credit"
+      const result = await cancelBooking.mutateAsync({ bookingId: booking.id, disposition });
+      const msg = result?.disposition === "advance_credit" && Number(result.credit_amount) > 0
         ? "Cancelled. Amount credited to your customer advance."
-        : disposition === "external_refund"
+        : result?.disposition === "external_refund"
           ? "Cancelled. Refund will be processed to your original payment method."
-          : "Your hours have been refunded.";
+          : disposition === "hours" ? "Your hours have been refunded." : "Booking cancelled.";
       toast({ title: "Booking Cancelled", description: msg });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });

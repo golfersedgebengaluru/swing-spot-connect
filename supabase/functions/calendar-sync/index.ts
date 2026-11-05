@@ -7,6 +7,7 @@ import {
 } from "../_shared/booking-notifications.ts";
 import { recordRefund } from "../_shared/revenue-ledger.ts";
 import { enrichBookingTimezones } from "./booking-timezones.ts";
+import { cancelPaidBooking } from "./atomic-cancellation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") || "*",
@@ -2276,8 +2277,17 @@ Deno.serve(async (req) => {
       // Get calendar email, bay name, and coaching hours
       const adminClient = createAdminClient();
 
-      // Check configurable cancellation policy (applies to confirmed bookings)
-      if (booking.status === "confirmed") {
+      let paidCancellation;
+      try {
+        paidCancellation = await cancelPaidBooking(adminClient, booking_id, userId, disposition || "advance_credit", false);
+      } catch (error) {
+        return new Response(JSON.stringify({ error: (error as Error).message }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Legacy hours/manual policy; paid cancellation validates this under lock.
+      if (!paidCancellation && booking.status === "confirmed") {
         // Fetch cancellation window from admin_config (default 24h)
         let cancellationWindowHours = 24;
         const { data: configRow } = await adminClient
@@ -2319,8 +2329,9 @@ Deno.serve(async (req) => {
       const calendarCancelError = await cancelBookingCalendarEvent(adminClient, accessToken, booking);
 
       // Atomically mark booking cancelled + claw back loyalty points in one DB transaction
-      const { data: cancelResult, error: cancelErr } = await adminClient
-        .rpc("cancel_booking_with_clawback", { p_booking_id: booking_id, p_cancelled_by: userId });
+      const { data: cancelResult, error: cancelErr } = paidCancellation
+        ? { data: paidCancellation, error: null }
+        : await adminClient.rpc("cancel_booking_with_clawback", { p_booking_id: booking_id, p_cancelled_by: userId });
       if (cancelErr) {
         console.error("cancel_booking_with_clawback RPC failed:", cancelErr);
         return new Response(
@@ -2336,14 +2347,14 @@ Deno.serve(async (req) => {
       }
       if ((cancelResult as any)?.already_cancelled) {
         const repairResult = await repairCancelledBookingCalendarEvent(adminClient, accessToken, booking_id);
-        return new Response(JSON.stringify(repairResult), {
+        return new Response(JSON.stringify({ ...repairResult, ...paidCancellation }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
       // Refund hours only if was confirmed (pending bookings never had hours deducted)
       let hoursRefunded = 0;
-      if (booking.status === "confirmed") {
+      if (!paidCancellation && booking.status === "confirmed") {
         const isCoaching = booking.session_type === "coaching";
         const durationHoursCancel = booking.duration_minutes / 60;
         // Coaching: refund cap is per-hour (capped at coaching_hours), then scaled by duration.
@@ -2381,7 +2392,7 @@ Deno.serve(async (req) => {
       }
 
       // Reverse paid revenue with disposition handling (advance_credit vs external_refund)
-      const dispositionResult = await handleCancellationDisposition(
+      const dispositionResult = paidCancellation ? { reversed: true, error: undefined } : await handleCancellationDisposition(
         adminClient,
         booking,
         disposition || "advance_credit",
@@ -2462,7 +2473,7 @@ Deno.serve(async (req) => {
         console.error("Failed to send cancellation email:", (e as Error).message);
       }
 
-      return new Response(JSON.stringify({ success: true, calendar_warning: calendarCancelError }), {
+      return new Response(JSON.stringify({ success: true, ...paidCancellation, calendar_warning: calendarCancelError }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -2500,9 +2511,18 @@ Deno.serve(async (req) => {
         });
       }
 
-      if (booking.status === "cancelled") {
+      let paidCancellation;
+      try {
+        paidCancellation = await cancelPaidBooking(adminClient, booking_id, userId, disposition || "advance_credit", true);
+      } catch (error) {
+        return new Response(JSON.stringify({ error: (error as Error).message }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (booking.status === "cancelled" || paidCancellation?.already_cancelled) {
         const repairResult = await repairCancelledBookingCalendarEvent(adminClient, accessToken, booking_id);
-        return new Response(JSON.stringify(repairResult), {
+        return new Response(JSON.stringify({ ...repairResult, ...paidCancellation }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -2527,11 +2547,11 @@ Deno.serve(async (req) => {
       const calendarCancelError = await cancelBookingCalendarEvent(adminClient, accessToken, booking);
 
       // Update booking status
-      await adminClient.from("bookings").update({ status: "cancelled", note: booking.note ? `${booking.note} | Admin cancelled` : "Admin cancelled" }).eq("id", booking_id);
+      if (!paidCancellation) await adminClient.from("bookings").update({ status: "cancelled", note: booking.note ? `${booking.note} | Admin cancelled` : "Admin cancelled" }).eq("id", booking_id);
 
       // Refund hours if was confirmed
       let hoursRefunded = 0;
-      if (booking.status === "confirmed") {
+      if (!paidCancellation && booking.status === "confirmed") {
         const isCoaching = booking.session_type === "coaching";
         const hoursToRefund = isCoaching
           ? Math.min(coachingCancellationRefundHours ?? coachingHours, coachingHours)
@@ -2557,7 +2577,7 @@ Deno.serve(async (req) => {
       }
 
       // Reverse paid revenue and auto-generate credit note for guest/walk-in bookings
-      const adminDispositionResult = await handleCancellationDisposition(
+      const adminDispositionResult = paidCancellation ? { reversed: true, error: undefined } : await handleCancellationDisposition(
         adminClient,
         booking,
         disposition || "advance_credit",
@@ -2567,7 +2587,7 @@ Deno.serve(async (req) => {
       }
 
       // Claw back loyalty points awarded for this booking
-      const pointsClawedBack = await clawbackLoyaltyPoints(adminClient, booking_id, booking.user_id, userId);
+      const pointsClawedBack = paidCancellation?.points_clawed_back ?? await clawbackLoyaltyPoints(adminClient, booking_id, booking.user_id, userId);
 
       // Notify booking owner
       await adminClient.from("notifications").insert({
@@ -2652,7 +2672,7 @@ Deno.serve(async (req) => {
         JSON.stringify({
           success: true,
           calendar_warning: calendarCancelError,
-          refund_warning: adminDispositionResult.error || null,
+          ...paidCancellation, refund_warning: adminDispositionResult.error || null,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
