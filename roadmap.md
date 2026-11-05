@@ -1,5 +1,10 @@
 # Roadmap
 
+## Member booking timezone display (approved)
+- [x] Resolve each member booking's timezone from its bay calendar without exposing calendar identifiers
+- [x] Align desktop, mobile and CSV dates/times and timezone labels; leave booking instants and cancellation rules unchanged
+- [x] 106 files / 894 tests passed; preview build OK; signed-in real-history desktop/mobile and CSV verified under Korea device timezone without overflow or runtime errors; Russell's exact noon–2PM instants covered by regression
+
 ## Users report alignment (approved)
 - [x] Align Visits and personal net spend with explicit date bounds; default to all activity, with matching sorting and export
 - [x] Use the top-level city as the only directory location selector; preserve authorized customer access and account-wide balances
