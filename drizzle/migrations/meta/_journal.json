@@ -92,6 +92,13 @@
       "when": 1793880410761,
       "tag": "0012_atomic_paid_booking_cancellation",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793880699107,
+      "tag": "0013_restrict_cancellation_receipt_grants",
+      "breakpoints": true
     }
   ]
 }
