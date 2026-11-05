@@ -35,6 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { format } from "date-fns";
+import { bookingTimeDisplay } from "@/lib/booking-time";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMyBookings, useCancelBooking, useUserHoursBalance, useBays } from "@/hooks/useBookings";
 import { useHoursTransactions } from "@/hooks/useMemberHours";
@@ -69,7 +70,7 @@ const STATUS_CONFIG: Record<string, { emoji: string; label: string; variant: "de
 
 export default function MyBookings() {
   const { user, loading: authLoading } = useAuth();
-  const { data: bookings, isLoading } = useMyBookings();
+  const { data: bookings, isLoading, error: bookingsError, refetch: refetchBookings } = useMyBookings();
   const { data: balance } = useUserHoursBalance();
   const { data: hoursTx = [] } = useHoursTransactions(user?.id);
   const { data: bays } = useBays();
@@ -103,10 +104,11 @@ export default function MyBookings() {
     queryKey: ["my-bookings-coaching-links", user?.id],
     enabled: !!user,
     queryFn: async () => {
+      if (!user) return {};
       const { data, error } = await supabase
         .from("coaching_sessions")
         .select("id, booking_id")
-        .eq("student_user_id", user!.id)
+        .eq("student_user_id", user.id)
         .not("booking_id", "is", null);
       if (error) throw error;
       const m: Record<string, string> = {};
@@ -191,15 +193,18 @@ export default function MyBookings() {
   };
 
   const exportCSV = () => {
-    const rows = filteredBookings.map((b: any) => ({
-      Date: format(new Date(b.start_time), "yyyy-MM-dd"),
-      Time: `${format(new Date(b.start_time), "h:mm a")} – ${format(new Date(b.end_time), "h:mm a")}`,
+    const rows = filteredBookings.map((b: any) => {
+      const display = bookingTimeDisplay(b.start_time, b.end_time, b.timezone);
+      return {
+      Date: display.csvDate,
+      Time: display.timeRange,
+      Timezone: display.timezoneLabel,
       Bay: b.bay_name || "—",
       City: b.city,
       Type: b.session_type || "practice",
       Status: b.status,
       Hours: b.duration_minutes / 60,
-    }));
+    }; });
     const header = Object.keys(rows[0] || {}).join(",");
     const csv = [header, ...rows.map((r) => Object.values(r).join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -225,8 +230,7 @@ export default function MyBookings() {
 
   // Mobile card for a booking
   const BookingCard = ({ booking }: { booking: any }) => {
-    const start = new Date(booking.start_time);
-    const end = new Date(booking.end_time);
+    const display = bookingTimeDisplay(booking.start_time, booking.end_time, booking.timezone);
     const canCancel = canCancelBooking(booking);
 
     return (
@@ -247,7 +251,7 @@ export default function MyBookings() {
                   </Badge>
                 )}
               </div>
-              <p className="font-medium text-foreground text-sm">{format(start, "EEE, MMM d, yyyy")}</p>
+              <p className="font-medium text-foreground text-sm">{display.mobileDate}</p>
             </div>
             {canCancel && (
               confirmingCancelId === booking.id ? (
@@ -275,9 +279,9 @@ export default function MyBookings() {
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="flex items-center gap-1.5 text-muted-foreground">
+            <div className="flex items-start gap-1.5 text-muted-foreground col-span-2">
               <Clock className="h-3.5 w-3.5" />
-              {format(start, "h:mm a")} – {format(end, "h:mm a")}
+              <div><div>{display.timeRange}</div><div className="text-xs break-words">{display.timezoneLabel}</div></div>
             </div>
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <MapPin className="h-3.5 w-3.5" />
@@ -388,6 +392,11 @@ export default function MyBookings() {
             <div className="flex justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
+          ) : bookingsError ? (
+            <div role="alert" className="py-8 text-center">
+              <p className="text-destructive">Unable to load booking history.</p>
+              <Button variant="outline" className="mt-3" onClick={() => refetchBookings()}>Retry</Button>
+            </div>
           ) : filteredBookings.length === 0 ? (
             <Card className="shadow-md rounded-xl">
               <CardContent className="py-12 text-center text-muted-foreground">
@@ -428,7 +437,7 @@ export default function MyBookings() {
                 <TableBody>
                   {filteredBookings.map((booking: any) => {
                     const start = new Date(booking.start_time);
-                    const end = new Date(booking.end_time);
+                    const display = bookingTimeDisplay(booking.start_time, booking.end_time, booking.timezone);
                     const canCancel = canCancelBooking(booking);
                     const isPast = start < now;
 
@@ -436,8 +445,9 @@ export default function MyBookings() {
                       <TableRow key={booking.id} className={isPast ? "opacity-60" : ""}>
                         <TableCell>
                           <div>
-                            <p className="font-medium text-foreground">{format(start, "MMM d, yyyy")}</p>
-                            <p className="text-xs text-muted-foreground">{format(start, "h:mm a")} – {format(end, "h:mm a")}</p>
+                            <p className="font-medium text-foreground">{display.date}</p>
+                            <p className="text-xs text-muted-foreground">{display.timeRange}</p>
+                            <p className="text-xs text-muted-foreground break-words">{display.timezoneLabel}</p>
                           </div>
                         </TableCell>
                         <TableCell className="text-foreground">{booking.bay_name || "—"}</TableCell>

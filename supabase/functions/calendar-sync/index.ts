@@ -6,9 +6,11 @@ import {
   type BookingNotificationHelpers,
 } from "../_shared/booking-notifications.ts";
 import { recordRefund } from "../_shared/revenue-ledger.ts";
+import { enrichBookingTimezones } from "./booking-timezones.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") || "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
@@ -683,18 +685,25 @@ async function clawbackLoyaltyPoints(adminClient: any, bookingId: string, bookin
 }
 
 // Fetch the calendar's timezone from Google Calendar API
-async function getCalendarTimezone(accessToken: string, calendarId: string): Promise<string> {
+async function lookupCalendarTimezone(accessToken: string, calendarId: string): Promise<string | null> {
   try {
     const res = await fetch(
       `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     const data = await res.json();
-    if (res.ok && data.timeZone) return data.timeZone;
+    if (res.ok && typeof data.timeZone === "string") {
+      new Intl.DateTimeFormat("en-US", { timeZone: data.timeZone });
+      return data.timeZone;
+    }
   } catch (e) {
     console.error("Failed to fetch calendar timezone:", (e as Error).message);
   }
-  return "UTC"; // fallback
+  return null;
+}
+
+async function getCalendarTimezone(accessToken: string, calendarId: string): Promise<string> {
+  return (await lookupCalendarTimezone(accessToken, calendarId)) ?? "UTC";
 }
 
 function formatDate(dateStr: string, tz: string): string {
@@ -894,6 +903,46 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { action, ...params } = body;
+
+    // Read only the signed-in member's history; calendar identifiers never leave the server.
+    if (action === "my_bookings") {
+      const reply = (payload: object) => new Response(JSON.stringify(payload), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+      try {
+        const authHeader = req.headers.get("Authorization");
+        if (!authHeader?.startsWith("Bearer ")) return reply({ error: "Unauthorized" });
+        const memberClient = createClient(
+          Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!,
+          { global: { headers: { Authorization: authHeader } } },
+        );
+        const { data: { user }, error: authError } = await memberClient.auth.getUser();
+        if (authError || !user) return reply({ error: "Unauthorized" });
+        const { data: bookings, error } = await memberClient.from("bookings")
+          .select("*").eq("user_id", user.id).order("start_time", { ascending: false });
+        if (error) return reply({ error: "Unable to load booking history" });
+        if (!bookings?.length) return reply({ bookings: [] });
+        const adminClient = createAdminClient();
+        // A calendar outage must not hide bookings or imply a guessed local timezone.
+        let accessToken: string | null = null;
+        try {
+          const key = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_KEY");
+          if (key) accessToken = await getAccessToken(JSON.parse(key));
+        } catch {
+          console.error("Booking history calendar timezone lookup unavailable");
+        }
+        const enriched = await enrichBookingTimezones(bookings, async (bayId, city) => {
+          const { data: bay } = bayId
+            ? await adminClient.from("bays").select("name").eq("id", bayId).maybeSingle()
+            : { data: null };
+          const calendar = await resolveCalendarEmail(adminClient, { bay_id: bayId, city });
+          return { name: bay?.name ?? null, calendar };
+        }, (calendar) => accessToken ? lookupCalendarTimezone(accessToken, calendar) : Promise.resolve(null));
+        return reply({ bookings: enriched });
+      } catch {
+        return reply({ error: "Unable to load booking history" });
+      }
+    }
 
     // Guest booking does not require authentication
     if (action === "guest_booking") {

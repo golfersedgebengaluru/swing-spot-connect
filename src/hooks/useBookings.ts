@@ -346,28 +346,18 @@ export function useAdminCancelBooking() {
 export function useMyBookings() {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["my_bookings"],
+    queryKey: ["my_bookings", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select("*")
-        .eq("user_id", user!.id)
-        .order("start_time", { ascending: false });
+      if (!user) return [];
+      const { data, error } = await supabase.functions.invoke("calendar-sync", {
+        body: { action: "my_bookings" },
+      });
       if (error) throw error;
-
-      // Enrich with bay name
-      const bayIds = [...new Set((data ?? []).map((b: any) => b.bay_id).filter(Boolean))];
-      let bayMap = new Map<string, string>();
-      if (bayIds.length > 0) {
-        const { data: bays } = await supabase.from("bays").select("id, name").in("id", bayIds);
-        bayMap = new Map((bays ?? []).map((b: any) => [b.id, b.name]));
-      }
-
-      return (data ?? []).map((b: any) => ({
-        ...b,
-        bay_name: bayMap.get(b.bay_id) || null,
-      }));
+      if (data?.error) throw new Error(data.error);
+      return data.bookings as (import("@/integrations/supabase/types").Tables<"bookings"> & {
+        bay_name: string | null; timezone: string | null;
+      })[];
     },
   });
 }
