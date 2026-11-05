@@ -172,11 +172,11 @@ export function AdminBookingLogsTab() {
     try {
       const result: any = await adminCancelBooking.mutateAsync({ bookingId: booking.id, disposition });
       const baseMsg =
-        disposition === "advance_credit"
+        result?.disposition === "advance_credit" && Number(result.credit_amount) > 0
           ? "Cancelled. Amount credited to customer advance."
-          : disposition === "external_refund"
+          : result?.disposition === "external_refund"
             ? "Cancelled. Refund will be processed externally to the customer."
-            : "Booking has been cancelled and hours refunded.";
+            : disposition === "hours" ? "Booking has been cancelled and hours refunded." : "Booking cancelled.";
       if (result?.calendar_warning) {
         toast({
           title: "Booking Cancelled (calendar issue)",

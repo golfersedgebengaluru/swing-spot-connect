@@ -201,8 +201,6 @@ export function useCreateBooking() {
       queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
       queryClient.invalidateQueries({ queryKey: ["member_hours"] });
       queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
-      queryClient.invalidateQueries({ queryKey: ["advance_transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["customer_finance"] });
     },
   });
 }
@@ -228,6 +226,11 @@ export function useCancelBooking() {
       queryClient.invalidateQueries({ queryKey: ["available_slots"] });
       queryClient.invalidateQueries({ queryKey: ["member_hours"] });
       queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
+      queryClient.invalidateQueries({ queryKey: ["advance_balance"] });
+      queryClient.invalidateQueries({ queryKey: ["advance_transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["advance_balances_all"] });
+      queryClient.invalidateQueries({ queryKey: ["customer_invoice_history"] });
+      queryClient.invalidateQueries({ queryKey: ["customer_credit_notes"] });
     },
   });
 }
@@ -342,7 +345,10 @@ export function useAdminCancelBooking() {
       queryClient.invalidateQueries({ queryKey: ["member_hours"] });
       queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
       queryClient.invalidateQueries({ queryKey: ["advance_transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["customer_finance"] });
+      queryClient.invalidateQueries({ queryKey: ["advance_balance"] });
+      queryClient.invalidateQueries({ queryKey: ["advance_balances_all"] });
+      queryClient.invalidateQueries({ queryKey: ["customer_invoice_history"] });
+      queryClient.invalidateQueries({ queryKey: ["customer_credit_notes"] });
     },
   });
 }
