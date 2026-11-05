@@ -34,7 +34,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-const { useBays, useCities, useUserHoursBalance, useUserProfile, useAdminCancelBooking } = await import(
+const { useBays, useCities, useUserHoursBalance, useUserProfile, useAdminCancelBooking, useMyBookings } = await import(
   "@/hooks/useBookings"
 );
 
@@ -178,5 +178,26 @@ describe("useAdminCancelBooking", () => {
 
     await expect(result.current.mutateAsync("booking-456")).rejects.toThrow(/Session expired/i);
     expect(mockFunctionsInvoke).not.toHaveBeenCalled();
+  });
+});
+
+describe("useMyBookings", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("reads history with centre timezone via the authorized operation, without supplying another user", async () => {
+    const bookings = [{ id: "booking", timezone: "Asia/Kolkata", start_time: "2026-11-08T06:30:00Z" }];
+    mockFunctionsInvoke.mockResolvedValue({ data: { bookings }, error: null });
+    const { result } = renderHook(() => useMyBookings(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual(bookings);
+    expect(mockFunctionsInvoke).toHaveBeenCalledWith("calendar-sync", { body: { action: "my_bookings" } });
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it("surfaces read errors rather than showing an empty booking history", async () => {
+    mockFunctionsInvoke.mockResolvedValue({ data: { error: "Unauthorized" }, error: null });
+    const { result } = renderHook(() => useMyBookings(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error?.message).toBe("Unauthorized");
   });
 });
