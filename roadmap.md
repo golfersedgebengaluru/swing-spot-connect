@@ -1,5 +1,11 @@
 # Roadmap
 
+## Atomic paid-booking cancellation (approved)
+- [ ] Commit cancellation, loyalty reversal, signed refund, credit note and advance credit in one authorized transaction
+- [ ] Route member and admin paid cancellations through it; run calendar cleanup only after commit and report actual credit outcomes
+- [ ] Test rollback, retries, concurrent requests, ownership, cancellation boundaries and unchanged manual/hour-only flows
+- [ ] Deploy and verify the permitted signed-in flow; do not repair historical financial exceptions automatically
+
 ## Member booking timezone display (approved)
 - [x] Resolve each member booking's timezone from its bay calendar without exposing calendar identifiers
 - [x] Align desktop, mobile and CSV dates/times and timezone labels; leave booking instants and cancellation rules unchanged
