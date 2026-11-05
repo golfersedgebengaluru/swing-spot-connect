@@ -201,6 +201,8 @@ export function useCreateBooking() {
       queryClient.invalidateQueries({ queryKey: ["my_bookings"] });
       queryClient.invalidateQueries({ queryKey: ["member_hours"] });
       queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
+      queryClient.invalidateQueries({ queryKey: ["advance_transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["customer_finance"] });
     },
   });
 }
@@ -339,6 +341,8 @@ export function useAdminCancelBooking() {
       queryClient.invalidateQueries({ queryKey: ["available_slots"] });
       queryClient.invalidateQueries({ queryKey: ["member_hours"] });
       queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
+      queryClient.invalidateQueries({ queryKey: ["advance_transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["customer_finance"] });
     },
   });
 }
