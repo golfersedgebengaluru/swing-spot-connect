@@ -332,6 +332,8 @@ export function useCreateInvoice() {
         metadata: { manual_invoice: true },
       });
 
+      let createdInvoiceId: string | null = null;
+      try {
 
       // 5. Insert invoice
       const invoicePayload = {
@@ -377,6 +379,7 @@ export function useCreateInvoice() {
         .select()
         .single();
       if (invErr) throw invErr;
+      createdInvoiceId = invoice.id;
 
       // 6. Insert line items
       const lineItemsPayload = params.lineItems.map((item, idx) => ({
@@ -532,8 +535,18 @@ export function useCreateInvoice() {
         }
       }
 
-
       return invoice;
+      } catch (err) {
+        // Creation failed partway: remove the half-made invoice and void its
+        // payment entry so a retry cannot leave an un-invoiced payment behind.
+        try {
+          if (createdInvoiceId) await deleteInvoiceRecord(createdInvoiceId);
+          else await voidManualInvoiceRevenue(supabase, revenueId, invoiceNumber, "invoice_creation_failed");
+        } catch (cleanupErr) {
+          console.error("Manual invoice cleanup failed", cleanupErr);
+        }
+        throw err;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invoices"] });
@@ -863,7 +876,16 @@ export function useCancelInvoice() {
 export function useDeleteInvoice() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (invoiceId: string) => {
+    mutationFn: deleteInvoiceRecord,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: ["revenue_transactions"] });
+      qc.invalidateQueries({ queryKey: ["bookings"] });
+    },
+  });
+}
+
+async function deleteInvoiceRecord(invoiceId: string): Promise<void> {
       const { data: invoice, error: fetchErr } = await supabase.from("invoices")
         .select("*")
         .eq("id", invoiceId)
@@ -888,9 +910,7 @@ export function useDeleteInvoice() {
       await supabase.from("invoice_line_items").delete().eq("invoice_id", invoiceId);
       const { error: delErr } = await supabase.from("invoices").delete().eq("id", invoiceId);
       if (delErr) throw delErr;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["invoices"] }),
-  });
+      await voidManualInvoiceRevenue(supabase, invoice.revenue_transaction_id, invoice.invoice_number, "invoice_deleted");
 }
 
 // ─── Reassign invoice to a different city ──────────────
