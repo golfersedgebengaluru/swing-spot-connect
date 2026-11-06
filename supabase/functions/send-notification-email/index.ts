@@ -1,5 +1,20 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { submitEmailAttempt } from "../_shared/email-delivery.ts";
+import { isServiceRoleToken } from "../_shared/trusted-caller.ts";
+import { authorizeEmailRequest, sanitizeSubject } from "./authorize.ts";
+
+const escapeHtml = (v: string) =>
+  v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+/** Browser-supplied template values are shown as text, never as markup. */
+function escapeData(value: unknown): unknown {
+  if (typeof value === "string") return escapeHtml(value);
+  if (Array.isArray(value)) return value.map(escapeData);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, escapeData(v)]));
+  }
+  return value;
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") || "*",
@@ -556,19 +571,55 @@ Deno.serve(async (req) => {
     // Auth check
     const authHeader = req.headers.get("Authorization");
     let callerId: string | null = null;
-    
-    if (authHeader?.startsWith("Bearer ")) {
+    const isService = isServiceRoleToken(authHeader, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"));
+
+    if (!isService && authHeader?.startsWith("Bearer ")) {
       const supabaseUser = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_ANON_KEY")!,
         { global: { headers: { Authorization: authHeader } } }
       );
       const { data: { user: authUser } } = await supabaseUser.auth.getUser();
-      callerId = authUser?.id || null;
+      callerId = authUser && !authUser.is_anonymous ? authUser.id : null;
     }
 
     const body = await req.json();
-    const { user_id, template, subject, data, is_test, recipient_email } = body as EmailPayload & { is_test?: boolean; recipient_email?: string };
+    const { user_id, template, is_test, recipient_email } = body as EmailPayload & { is_test?: boolean; recipient_email?: string };
+    let { subject, data } = body as EmailPayload;
+    data = data && typeof data === "object" ? data : {};
+
+    if (!isService) {
+      // Browser callers: only existing members via their profile, by permitted senders.
+      let targetIsSelf = false;
+      let callerCoachesTarget = false;
+      let isStaff = false;
+      if (callerId && user_id && !recipient_email) {
+        const { data: target } = await supabaseAdmin
+          .from("profiles").select("id, user_id")
+          .or(`user_id.eq.${user_id},id.eq.${user_id}`).limit(1).maybeSingle();
+        targetIsSelf = !!target && target.user_id === callerId;
+        const { data: staff } = await supabaseAdmin.rpc("is_admin_or_site_admin", { _user_id: callerId });
+        isStaff = !!staff;
+        if (target && !isStaff && !targetIsSelf) {
+          const callerClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader! } } });
+          const { data: coaches } = await callerClient.rpc("is_coach_of_student", { _student_profile_id: target.id });
+          callerCoachesTarget = !!coaches;
+        }
+      }
+      const decision = authorizeEmailRequest({
+        isService, callerId, isStaff, template: String(template ?? ""),
+        hasRecipientEmail: !!recipient_email, hasUserId: !!user_id, isTest: !!is_test,
+        targetIsSelf, callerCoachesTarget,
+      });
+      if (!decision.ok) {
+        return new Response(JSON.stringify({ error: decision.error }), {
+          status: decision.error === "Unauthorized" ? 401 : 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      subject = sanitizeSubject(String(subject ?? ""));
+      data = escapeData(data) as Record<string, any>;
+    }
 
     if (!template || !subject) {
       return new Response(JSON.stringify({ error: "Missing required fields: template, subject" }), {
