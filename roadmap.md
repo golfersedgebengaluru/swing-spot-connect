@@ -162,10 +162,11 @@
 - [x] Log errors returned by every remaining database update in the webhook
 - [x] Run the full regression suite and report the pass count (88 files, 756 tests)
 
-## GitHub Actions CI and migration drift detection (paused for audit)
+## GitHub Actions CI and migration drift detection
 - [ ] Before creating any production connection secret, identify whether a dedicated read-only migration-ledger role already exists
 - [ ] If absent, report the proposed role and exact minimal grants before making database or workflow changes
-- [ ] Add push/pull-request test and build checks only after the credential design is approved
+- [x] Existing credential-free workflow runs tests and production compilation on pushes/pull requests to main
+- [ ] Verify real GitHub runs and required `Test and build` merge check; Hari's GitHub API returns no accessible repositories, so provider-side enforcement is unverified
 - [ ] Add the separate scheduled read-only migration-ledger comparison only after the restricted role is approved
 
 ## Product vendor persistence
