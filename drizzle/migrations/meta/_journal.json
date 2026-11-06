@@ -113,6 +113,13 @@
       "when": 1793945605611,
       "tag": "0015_atomic_manual_invoice_operations",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793945658714,
+      "tag": "0016_correct_atomic_invoice_recycling",
+      "breakpoints": true
     }
   ]
 }
