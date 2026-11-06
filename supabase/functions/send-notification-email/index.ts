@@ -609,7 +609,7 @@ Deno.serve(async (req) => {
       }
       const decision = authorizeEmailRequest({
         isService, callerId, isStaff, template: String(template ?? ""),
-        hasRecipientEmail: !!recipient_email, hasUserId: !!user_id, isTest: !!is_test,
+        hasRecipientEmail: !!recipient_email, hasUserId: isUuid, isTest: !!is_test,
         targetIsSelf, callerCoachesTarget,
       });
       if (!decision.ok) {
