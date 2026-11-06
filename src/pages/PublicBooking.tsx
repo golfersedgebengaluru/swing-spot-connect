@@ -27,7 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { CouponInput } from "@/components/shop/CouponInput";
-import { ValidateCouponResult, calculateDiscount, useRedeemCoupon } from "@/hooks/useCoupons";
+import { ValidateCouponResult, calculateDiscount, getSessionId, useRedeemCoupon } from "@/hooks/useCoupons";
 import { BookingTerms } from "@/components/BookingTerms";
 import { waitForPaymentFinalization } from "@/hooks/usePaymentFinalization";
 
@@ -180,20 +180,21 @@ export default function PublicBooking() {
           return;
         }
 
-        // 1. Create Razorpay order via edge function
+        // 1. Create the Razorpay order. The server prices the booking, picks the
+        // city's payment account and records the pending checkout itself; the
+        // Razorpay webhook (with the cron reconciler as backstop) is the ONLY
+        // thing that creates the booking, revenue row, calendar event and emails.
         const orderRes = await supabase.functions.invoke("create-razorpay-order", {
           body: {
-            amount: amountToCharge,
-            currency: currentPrice?.currency || "INR",
-            city: selectedCity,
-            receipt: `booking_${Date.now()}`,
-            booking_summary: {
-              bay: currentBay.name,
-              city: selectedCity,
-              date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : "",
-              duration: `${duration / 60}h`,
-              session_type: sessionType,
-            },
+            purpose: "booking",
+            bay_id: currentBay.id,
+            start_time: selectedSlot,
+            duration_minutes: duration,
+            session_type: sessionType,
+            local_date: selectedDate ? format(selectedDate, "yyyy-MM-dd") : "",
+            coupon_code: appliedCoupon?.code || undefined,
+            coupon_session_id: user ? undefined : getSessionId(),
+            guest: user ? undefined : { name: guestName, email: guestEmail, phone: guestPhone },
           },
         });
 
@@ -201,61 +202,7 @@ export default function PublicBooking() {
           throw new Error(orderRes.data?.error || orderRes.error?.message || "Failed to create payment order");
         }
 
-        const { order_id, key_id, currency: rzpCurrency } = orderRes.data;
-
-        // 1b. Stash a pending row server-side BEFORE opening checkout. The
-        // Razorpay webhook (with the cron reconciler as backstop) is the ONLY
-        // thing that creates the booking, revenue row, calendar event and
-        // emails — for guests AND signed-in members alike. The browser just
-        // waits. If this stash fails we must NOT take a payment, because
-        // nothing would finalize it, so the failure is fatal here.
-        if (!user) {
-          const { error: stashErr } = await supabase.from("pending_guest_bookings").insert({
-            razorpay_order_id: order_id,
-            city: selectedCity,
-            bay_id: currentBay.id,
-            bay_name: currentBay.name,
-            start_time: selectedSlot,
-            end_time: endTime,
-            duration_minutes: duration,
-            session_type: sessionType,
-            guest_name: guestName,
-            guest_email: guestEmail,
-            guest_phone: guestPhone,
-            amount: amountToCharge,
-            currency: currentPrice?.currency || "INR",
-            coupon_code: appliedCoupon?.code || null,
-            discount_amount: couponDiscount || 0,
-            original_amount: totalCost,
-          });
-          if (stashErr) {
-            console.error("Failed to stash pending guest booking:", stashErr);
-            throw new Error("Could not start payment. Please try again.");
-          }
-        } else {
-          const { error: stashErr } = await supabase.from("pending_bookings").insert({
-            razorpay_order_id: order_id,
-            user_id: user.id,
-            city: selectedCity,
-            bay_id: currentBay.id,
-            bay_name: currentBay.name,
-            start_time: selectedSlot,
-            end_time: endTime,
-            duration_minutes: duration,
-            session_type: sessionType,
-            display_name: user.user_metadata?.display_name || user.email,
-            amount: amountToCharge,
-            currency: currentPrice?.currency || "INR",
-            coupon_code: appliedCoupon?.code || null,
-            discount_amount: couponDiscount || 0,
-            original_amount: totalCost,
-          });
-          if (stashErr) {
-            console.error("Failed to stash pending member booking:", stashErr);
-            throw new Error("Could not start payment. Please try again.");
-          }
-        }
-
+        const { order_id, key_id, currency: rzpCurrency, amount: orderAmount } = orderRes.data;
 
         // 2. Load Razorpay checkout script
         const loaded = await loadRazorpayScript();
@@ -282,7 +229,7 @@ export default function PublicBooking() {
 
           const options = {
             key: key_id,
-            amount: Math.round(amountToCharge * 100),
+            amount: orderAmount,
             currency: rzpCurrency || "INR",
             name: "Golfer's Edge",
             description: `${currentBay.name} · ${duration / 60}h ${sessionType}`,
