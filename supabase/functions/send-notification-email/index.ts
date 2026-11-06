@@ -593,7 +593,8 @@ Deno.serve(async (req) => {
       let targetIsSelf = false;
       let callerCoachesTarget = false;
       let isStaff = false;
-      if (callerId && user_id && !recipient_email) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(user_id ?? ""));
+      if (callerId && isUuid && !recipient_email) {
         const { data: target } = await supabaseAdmin
           .from("profiles").select("id, user_id")
           .or(`user_id.eq.${user_id},id.eq.${user_id}`).limit(1).maybeSingle();
