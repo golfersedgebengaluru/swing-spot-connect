@@ -1,4 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isServiceRoleToken } from "../_shared/trusted-caller.ts";
+import { bookingDurationMinutes } from "../_shared/checkout-pricing.ts";
 import { resolveProfileDisplayName } from "./profile-lookup.ts";
 import { resolveCorporateTag } from "./corporate-tag.ts";
 import {
@@ -947,6 +949,18 @@ Deno.serve(async (req) => {
 
     // Guest booking does not require authentication
     if (action === "guest_booking") {
+      // Only the payment webhook/reconciler (service credential) or signed-in
+      // staff recording walk-ins may create these bookings and revenue rows.
+      if (!isServiceRoleToken(req.headers.get("Authorization"), Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))) {
+        const staffClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "", { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
+        const { data: { user: staffUser } } = await staffClient.auth.getUser();
+        const { data: isStaff } = staffUser && !staffUser.is_anonymous
+          ? await createAdminClient().rpc("is_admin_or_site_admin", { _user_id: staffUser.id })
+          : { data: false };
+        if (!isStaff) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+      }
       const {
         payment_id, order_id,
         start_time, end_time, duration_minutes, city, bay_id, bay_name,
@@ -1350,6 +1364,9 @@ Deno.serve(async (req) => {
     // Fully idempotent via a status CAS: only the first caller that flips
     // 'pending' → 'processing' actually creates the booking.
     if (action === "finalize_pending_member_booking") {
+      if (!isServiceRoleToken(req.headers.get("Authorization"), Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"))) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
       const { razorpay_order_id, payment_id } = params as {
         razorpay_order_id?: string;
         payment_id?: string | null;
@@ -1661,7 +1678,16 @@ Deno.serve(async (req) => {
     // list_slots is handled above (before auth check) — this block is intentionally removed
 
     if (action === "create_booking") {
-      const { start_time, end_time, duration_minutes, city, bay_id, bay_name, display_name, session_type, payment_method, user_id_override, parent_booking_id } = params;
+      const { start_time, end_time, city, bay_id, bay_name, display_name, session_type, payment_method, user_id_override, parent_booking_id } = params;
+      // Hours are charged for the slot actually reserved, never a caller-supplied duration.
+      const duration_minutes = bookingDurationMinutes(String(start_time ?? ""), String(end_time ?? ""));
+      if (duration_minutes === null || (params.duration_minutes != null && Number(params.duration_minutes) !== duration_minutes)) {
+        return new Response(JSON.stringify({ error: "Invalid booking time range" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      // Paid bookings are created only by the payment webhook after checkout.
+      if (payment_method && payment_method !== "hours") {
+        return new Response(JSON.stringify({ error: "Paid bookings must be made through checkout" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
       const isParticipant = !!parent_booking_id;
 
       let { calendar_email } = params;

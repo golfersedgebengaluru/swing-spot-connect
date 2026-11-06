@@ -47,10 +47,12 @@ describe("member paid booking: server finalizes, browser only waits", () => {
   });
 
   it("aborts before taking payment if the pending row cannot be stashed", () => {
-    // Both stashes are fatal now — the webhook has nothing to finalize without them.
-    const matches = pageSrc.match(/Could not start payment\. Please try again\./g) ?? [];
-    expect(matches.length).toBe(2);
-    expect(pageSrc).not.toMatch(/stash pending .*booking \(non-fatal\)/);
+    // The order function records the pending row itself and returns an error
+    // (no order id) if it cannot, so the page throws before opening checkout.
+    const orderSrc = readFileSync(
+      resolve(__dirname, "../../../supabase/functions/create-razorpay-order/index.ts"), "utf8");
+    expect(orderSrc).toMatch(/stashErr[\s\S]{0,200}Could not start payment\. Please try again\./);
+    expect(pageSrc).toMatch(/orderRes\.data\?\.error[\s\S]{0,120}throw new Error/);
   });
 
   it("still allows the hours-based (non-payment) member booking to be created directly", () => {

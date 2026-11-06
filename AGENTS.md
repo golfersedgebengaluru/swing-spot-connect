@@ -16,3 +16,5 @@
 - Manual invoice creation and deletion use authorized city-scoped database transactions, with explicit booking-origin attribution; deletion voids only manual revenue, preserves gateway payments, and recycles numbers only after document removal so partial failures cannot orphan billing.
 - Site-admin city assignments use a validated service-only transaction called after edge-function authorization, so roles cannot be granted without their locations.
 - Email submission checks HTTP and payload outcomes and records transport failures; notification failures never undo confirmed bookings and accepted emails are not automatically retried after log failures.
+- Checkout orders are priced, routed to a city payment account and recorded as pending rows only by the order-creation function from server records; browsers describe what they buy, never amounts, so payments cannot be underpriced or rebound.
+- Booking finalization, guest/walk-in booking creation, hour crediting and arbitrary-recipient emails accept only the service credential (staff may also record walk-ins); member hours are charged from the reserved time range, never a caller-supplied duration.
