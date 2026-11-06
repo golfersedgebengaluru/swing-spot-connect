@@ -120,6 +120,13 @@
       "when": 1793945658714,
       "tag": "0016_correct_atomic_invoice_recycling",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793967928047,
+      "tag": "0017_server_owned_checkout_records",
+      "breakpoints": true
     }
   ]
 }
