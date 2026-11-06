@@ -1,5 +1,15 @@
 # Roadmap
 
+## Low-effort reliability fixes (approved 6 November)
+- [x] Restrict legacy cancellation to internal service calls; verified live anon/member denial and service access; existing paid-cancellation regressions pass
+- [ ] Verify real CI runs and merge enforcement: GitHub connection exposes no repositories; existing test/build workflow unchanged, migration-drift automation separate
+- [x] Make manual invoice creation/deletion transactional, with explicit booking attribution, rollback and replay tests; leave historical outstanding/deferred entries unchanged
+- [x] Restore transactional site-admin city assignment with internal-only access, city validation and rollback tests
+- [x] Surface and persist email failures without rolling back confirmed bookings or adding automatic retries; deployed notification sender and calendar-sync
+- [x] Full regression suite: 109 files / 938 tests passed; preview build OK; verified current database permissions and unchanged outstanding invoice balances
+- [ ] Authorized live invoice/staff-operation end-to-end checks: requesting-user screen shows Access Denied; sandbox database role cannot execute new RPCs or assume authenticated role; no real financial records altered
+- [ ] Separate approval for deep-scan findings: scan reports checkout/finalization authorization and pricing, email authorization, and unsafe HTML rendering risks; not included in this five-fix release
+
 ## Atomic paid-booking cancellation (approved)
 - [x] Commit cancellation, loyalty reversal, signed refund, credit note and advance credit in one authorized transaction
 - [x] Route member and admin paid cancellations through it; run calendar cleanup only after commit and report actual credit outcomes
@@ -154,10 +164,11 @@
 - [x] Log errors returned by every remaining database update in the webhook
 - [x] Run the full regression suite and report the pass count (88 files, 756 tests)
 
-## GitHub Actions CI and migration drift detection (paused for audit)
+## GitHub Actions CI and migration drift detection
 - [ ] Before creating any production connection secret, identify whether a dedicated read-only migration-ledger role already exists
 - [ ] If absent, report the proposed role and exact minimal grants before making database or workflow changes
-- [ ] Add push/pull-request test and build checks only after the credential design is approved
+- [x] Existing credential-free workflow runs tests and production compilation on pushes/pull requests to main
+- [ ] Verify real GitHub runs and required `Test and build` merge check; Hari's GitHub API returns no accessible repositories, so provider-side enforcement is unverified
 - [ ] Add the separate scheduled read-only migration-ledger comparison only after the restricted role is approved
 
 ## Product vendor persistence

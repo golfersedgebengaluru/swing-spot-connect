@@ -41,7 +41,7 @@ vi.mock("@/integrations/supabase/client", () => {
   };
   const supabase = {
     from: vi.fn((t: string) => makeBuilder(t)),
-    rpc: vi.fn(async () => ({ data: "INV/2025-26/0001", error: null })),
+    rpc: vi.fn(async () => ({ data: null, error: new Error('duplicate key value violates unique constraint "invoices_invoice_number_key"') })),
     __queue: (t: string, ...rows: any[]) => {
       queues[t] = (queues[t] ?? []).concat(rows);
     },

@@ -100,8 +100,10 @@ describe("manual invoices", () => {
   const src = read("hooks/useInvoices.ts");
 
   it("record revenue through the shared ledger on the invoice date", () => {
-    expect(src).toMatch(/recordRevenue\(\{[\s\S]{0,400}revenueDate: invoiceDate/);
-    expect(src).toMatch(/sourceRef: `manual_invoice:/);
-    expect(src).toMatch(/manual_invoice: true/);
+    const transaction = fs.readFileSync(path.resolve(process.cwd(), "drizzle/migrations/0015_atomic_manual_invoice_operations.sql"), "utf8");
+    expect(src).toContain('rpc("create_manual_invoice_atomic"');
+    expect(transaction).toContain("public.record_revenue(");
+    expect(transaction).toContain("p_revenue_date=>(p_invoice->>'invoice_date')::date");
+    expect(transaction).toContain("'manual_invoice',true");
   });
 });

@@ -22,7 +22,7 @@ export const defaultEmailSender: EmailSender = async (payload) => {
   const env = (globalThis as any).Deno?.env;
   const baseUrl = env?.get("SUPABASE_URL");
   const serviceKey = env?.get("SUPABASE_SERVICE_ROLE_KEY");
-  await fetch(`${baseUrl}/functions/v1/send-notification-email`, {
+  const response = await fetch(`${baseUrl}/functions/v1/send-notification-email`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -30,6 +30,9 @@ export const defaultEmailSender: EmailSender = async (payload) => {
     },
     body: JSON.stringify(payload),
   });
+  if (!response.ok) throw new Error(`Email function returned HTTP ${response.status}`);
+  const result = await response.json();
+  if (result?.success !== true) throw new Error(result?.error || `Email submission failed: ${result?.status || "unknown"}`);
 };
 
 export interface BookingNotificationInput {
