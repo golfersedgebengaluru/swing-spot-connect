@@ -45,9 +45,9 @@ describe("revenue is counted on its business date", () => {
   });
 
   it("manual invoices stamp the revenue date from the invoice date", () => {
-    const invoices = read("src/hooks/useInvoices.ts");
+    const invoices = read("drizzle/migrations/0015_atomic_manual_invoice_operations.sql");
     // Now stamped through the single ledger entry point.
-    expect(invoices).toMatch(/revenueDate: invoiceDate/);
+    expect(invoices).toContain("p_revenue_date=>(p_invoice->>'invoice_date')::date");
   });
 });
 

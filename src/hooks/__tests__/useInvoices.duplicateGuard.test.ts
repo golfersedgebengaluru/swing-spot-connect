@@ -22,6 +22,7 @@ vi.mock("@/integrations/supabase/client", () => {
   };
 
   const supabase = {
+    rpc: vi.fn(async () => ({ data: null, error: new Error("GST profile not configured") })),
     from: vi.fn((table: string) => {
       if (!builders[table]) builders[table] = makeBuilder(table);
       return builders[table];
@@ -95,6 +96,6 @@ describe("useCreateInvoice — duplicate invoice guardrail", () => {
     ).rejects.toThrow(/GST profile not configured/i);
 
     const calls = (supabase.from as any).mock.calls.map((c: any[]) => c[0]);
-    expect(calls).toContain("gst_profiles");
+    expect(supabase.rpc).toHaveBeenCalledWith("create_manual_invoice_atomic", expect.any(Object));
   });
 });

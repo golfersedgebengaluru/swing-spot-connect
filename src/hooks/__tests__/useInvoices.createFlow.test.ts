@@ -9,7 +9,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
   return React.createElement(QueryClientProvider, { client: new QueryClient({ defaultOptions: { mutations: { retry: false } } }) }, children);
 }
 const params = { city: "Bengaluru", customerName: "Member", invoiceCategory: "purchase", subtotal: 100, cgstTotal: 9, sgstTotal: 9, igstTotal: 0, total: 118,
-  lineItems: [{ itemName: "Session", itemType: "service" as const, sacCode: "999652", quantity: 1, unitPrice: 100, gstRate: 18, cgstAmount: 9, sgstAmount: 9, igstAmount: 0, lineTotal: 118 }] };
+  lineItems: [{ itemName: "Session", itemType: "service" as const, sacCode: "999652", quantity: 1, unitPrice: 100, taxableAmount: 100, gstRate: 18, cgstAmount: 9, sgstAmount: 9, igstAmount: 0, lineTotal: 118 }] };
 beforeEach(() => { vi.clearAllMocks(); mocks.rpc.mockResolvedValue({ data: { id: "inv-1", invoice_number: "INV/42" }, error: null }); });
 describe("atomic manual invoice hooks", () => {
   it("creates the document and ledger in one call, preserving the invoice business date and paid amount", async () => {
