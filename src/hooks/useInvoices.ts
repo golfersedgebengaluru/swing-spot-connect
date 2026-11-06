@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { recordRefund, recordRevenue } from "@/lib/revenue";
 import type { CalculatedLineItem } from "@/lib/gst-utils";
 import { isProfileGstRegistered } from "@/lib/gst-utils";
@@ -317,7 +318,7 @@ export function useCreateInvoice() {
       });
       if (error) throw error;
       if (!invoice || typeof invoice !== "object" || Array.isArray(invoice)) throw new Error("Invoice creation returned no document");
-      return invoice;
+      return invoice as unknown as Database["public"]["Tables"]["invoices"]["Row"];
 
     },
     onSuccess: () => {
