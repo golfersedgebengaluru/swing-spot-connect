@@ -99,6 +99,13 @@
       "when": 1793880699107,
       "tag": "0013_restrict_cancellation_receipt_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793945477793,
+      "tag": "0014_restrict_legacy_cancellation_and_restore_staff_assignment",
+      "breakpoints": true
     }
   ]
 }

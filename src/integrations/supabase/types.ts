@@ -6498,6 +6498,10 @@ export type Database = {
         Args: { p_vendor_id: string }
         Returns: number
       }
+      grant_site_admin_with_cities: {
+        Args: { p_cities: string[]; p_user_id: string }
+        Returns: undefined
+      }
       has_city_access: {
         Args: { _city: string; _user_id: string }
         Returns: boolean

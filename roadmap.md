@@ -1,5 +1,13 @@
 # Roadmap
 
+## Low-effort reliability fixes (approved 6 November)
+- [ ] Restrict legacy cancellation to internal service calls; regression-test paid and hours cancellation paths
+- [ ] Verify existing CI and merge enforcement where provider access permits; keep migration-drift automation separate
+- [ ] Make manual invoice deletion/failed-creation cleanup transactional and safely retryable; leave historical outstanding/deferred entries unchanged
+- [ ] Restore transactional site-admin city assignment with internal-only access and validation
+- [ ] Surface and persist email failures without rolling back confirmed bookings or adding automatic retries
+- [ ] Run focused/full regressions, deploy changed functions and verify live permissions and available authorized flows
+
 ## Atomic paid-booking cancellation (approved)
 - [x] Commit cancellation, loyalty reversal, signed refund, credit note and advance credit in one authorized transaction
 - [x] Route member and admin paid cancellations through it; run calendar cleanup only after commit and report actual credit outcomes
