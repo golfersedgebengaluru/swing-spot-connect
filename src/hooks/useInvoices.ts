@@ -1,4 +1,3 @@
-import { voidManualInvoiceRevenue } from "@/lib/manual-invoice-cleanup";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { recordRefund, recordRevenue } from "@/lib/revenue";
@@ -270,284 +269,56 @@ export function useCreateInvoice() {
         }
       }
 
-      // 1. Get per-city GST profile
-      const { data: gstProfile, error: gstErr } = await supabase.from("gst_profiles")
-        .select("*")
-        .eq("city", params.city)
-        .maybeSingle();
-      if (gstErr) throw gstErr;
-      if (!gstProfile) throw new Error(`GST profile not configured for ${params.city}. Please set up the GST profile in Finance → GST Settings.`);
-
-
-      const gstRegistered = isProfileGstRegistered(gstProfile as any);
-      // Use GSTIN for sequencing if registered, otherwise use city as fallback identifier
-      const sequenceGstin = gstRegistered ? gstProfile.gstin : `NOGST-${params.city}`;
-
-      // 2. Get the active financial year, preferring the city-specific one and
-      //    falling back to the global (city IS NULL) row. Mirrors the DB
-      //    function `auto_create_invoice_for_revenue` so manual and automatic
-      //    invoices always land in the same FY — and so activating a per-city
-      //    FY alongside the global one can never return multiple rows.
-      const { data: fy } = await supabase
-        .from("financial_years")
-        .select("*")
-        .eq("is_active", true)
-        .or(`city.eq.${params.city},city.is.null`)
-        .order("city", { ascending: true, nullsFirst: false })
-        .limit(1)
-        .maybeSingle();
-      if (!fy) throw new Error("No active financial year configured.");
-
-
-      // 3. Get next invoice number
-      const { data: seqData, error: seqErr } = await supabase
-        .rpc("get_next_invoice_number", {
-          p_gstin: sequenceGstin,
-          p_fy_id: fy.id,
-          p_prefix: gstProfile.invoice_prefix || "INV",
-          p_start: gstProfile.invoice_start_number || 1,
-          p_doc_type: params.invoiceType === "credit_note" ? "credit_note" : "tax_invoice",
-        });
-      if (seqErr) throw seqErr;
-      const invoiceNumber = (typeof seqData === "string" ? seqData : (seqData as any)) as string;
-      if (!invoiceNumber) throw new Error("Failed to generate invoice number");
-
-      // 4. Create revenue transaction first (so we can link it).
-      //    `manual_invoice` tells the DB trigger `trg_auto_create_invoice` to
-      //    stand down: this flow inserts its own fully itemised invoice below.
-      //    Without the flag both writers race and produce two invoices for the
-      //    same payment (each burning an invoice number).
       const invoiceDate = params.invoiceDate || new Date().toISOString().split("T")[0];
-      // Recorded through the single ledger entry point, which stamps the city's
-      // currency. `revenueDate` is the invoice date, so a back-dated invoice
-      // reports in the month it is dated for, not the month it was typed in.
-      const revenueId = await recordRevenue({
-        sourceRef: `manual_invoice:${crypto.randomUUID()}`,
-        transactionType: params.invoiceCategory === "booking" ? "booking" : "purchase",
-        amount: params.total,
-        description: `Invoice for ${params.customerName}`,
-        city: params.city,
-        userId: params.customerUserId || null,
-        gatewayName: params.paymentMethod || null,
-        revenueDate: invoiceDate,
-        metadata: { manual_invoice: true },
-      });
-
-      let createdInvoiceId: string | null = null;
-      try {
-
-      // 5. Insert invoice
-      const invoicePayload = {
-        invoice_number: invoiceNumber,
-        invoice_date: invoiceDate,
-        financial_year_id: fy.id,
-        customer_user_id: params.customerUserId || null,
-        customer_name: params.customerName,
-        customer_email: params.customerEmail || null,
-        customer_phone: params.customerPhone || null,
-        customer_gstin: params.customerGstin || null,
-        customer_state: params.customerState || null,
-        customer_state_code: params.customerStateCode || null,
-        business_name: gstProfile.legal_name,
-        business_gstin: gstRegistered ? gstProfile.gstin : "",
-        business_address: gstProfile.address || null,
-        business_state: gstProfile.state || null,
-        business_state_code: gstProfile.state_code || null,
-        subtotal: params.subtotal,
-        cgst_total: params.cgstTotal,
-        sgst_total: params.sgstTotal,
-        igst_total: params.igstTotal,
-        total: params.total,
-        status: "issued",
-        invoice_type: params.invoiceType || "invoice",
-        credit_note_for: params.creditNoteFor || null,
-        payment_method: params.paymentMethod || null,
-        revenue_transaction_id: revenueId,
-        city: params.city,
-        notes: params.notes || null,
-        due_date: params.dueDate || new Date().toISOString().split("T")[0],
-        invoice_category: params.invoiceCategory || "purchase",
-        payment_reference: params.paymentReference || null,
-        amount_paid: params.amountPaid ?? params.total,
-        payment_status: params.paymentStatus || "paid",
-        discount_type: params.discountType || null,
-        discount_value: params.discountValue ?? 0,
-        discount_amount: params.discountAmount ?? 0,
-      };
-
-      const { data: invoice, error: invErr } = await supabase.from("invoices")
-        .insert(invoicePayload)
-        .select()
-        .single();
-      if (invErr) throw invErr;
-      createdInvoiceId = invoice.id;
-
-      // 6. Insert line items
-      const lineItemsPayload = params.lineItems.map((item, idx) => ({
-        invoice_id: invoice.id,
-        item_name: item.itemName,
-        item_type: item.itemType,
-        hsn_code: item.hsnCode || null,
-        sac_code: item.sacCode || null,
-        quantity: item.quantity,
-        unit_price: item.unitPrice,
-        gst_rate: item.gstRate,
-        cgst_amount: item.cgstAmount,
-        sgst_amount: item.sgstAmount,
-        igst_amount: item.igstAmount,
-        line_total: item.lineTotal,
-        product_id: item.productId || null,
-        sort_order: idx,
-      }));
-
-      const { error: liErr } = await supabase.from("invoice_line_items")
-        .insert(lineItemsPayload);
-      if (liErr) throw liErr;
-
-      // 6b. Auto-create profile for new customers if needed
-      const shouldCreateProfile =
-        !params.customerUserId &&
-        params.customerName &&
-        ((params.invoiceCategory === "booking") || (params.invoiceCategory === "purchase" && params.addToUserList));
-
-      let createdProfileId: string | null = null;
-      if (shouldCreateProfile) {
-        // Check if profile already exists by email or by name+phone
-        let existingProfile = null;
-        const normEmail = params.customerEmail ? params.customerEmail.trim().toLowerCase() : null;
-        if (normEmail) {
-          const { data } = await supabase.from("profiles")
-            .select("id, user_id")
-            .eq("email", normEmail)
-            .maybeSingle();
-          existingProfile = data;
-        }
-        // Fallback: match by display_name + phone when no email provided
-        if (!existingProfile && !normEmail && params.customerName) {
-          const q = supabase.from("profiles")
-            .select("id, user_id")
-            .eq("display_name", params.customerName);
-          if (params.customerPhone) {
-            q.eq("phone", params.customerPhone);
-          }
-          const { data } = await q.maybeSingle();
-          existingProfile = data;
-        }
-
-        if (!existingProfile) {
-          const { data: newProfile, error: profErr } = await supabase.from("profiles")
-            .insert({
-              display_name: params.customerName,
-              email: params.customerEmail ? params.customerEmail.trim().toLowerCase() : null,
-              phone: params.customerPhone || null,
-              preferred_city: params.city || null,
-              user_type: "guest",
-            })
-            .select()
-            .single();
-          if (profErr) throw profErr;
-          createdProfileId = newProfile.id;
-
-          // Link invoice and revenue to the new profile
-          await supabase.from("invoices").update({ customer_user_id: newProfile.id }).eq("id", invoice.id);
-          if (revenueId) await supabase.from("revenue_transactions").update({ user_id: newProfile.id }).eq("id", revenueId);
-        } else {
-          createdProfileId = existingProfile.id;
-          const linkId = existingProfile.user_id || existingProfile.id;
-          await supabase.from("invoices").update({ customer_user_id: linkId }).eq("id", invoice.id);
-          if (revenueId) await supabase.from("revenue_transactions").update({ user_id: linkId }).eq("id", revenueId);
-        }
-      }
-
-      // 7. If booking category, create a booking record
+      let bookingPayload = null;
       if (params.invoiceCategory === "booking") {
         if (!params.bookingDate || !params.bookingStartTime || !params.bookingEndTime) {
-          throw new Error(
-            "Booking date, start time and end time are required when invoice category is 'Booking'."
-          );
+          throw new Error("Booking date, start time and end time are required when invoice category is 'Booking'.");
         }
-
-        // Build timezone-aware ISO strings so Postgres stores the correct instant.
-        // We derive the local UTC offset from the browser so the time the admin typed
-        // is treated as local time, not UTC.
-        const tzOffset = (() => {
-          const d = new Date(`${params.bookingDate}T${params.bookingStartTime}:00`);
-          const off = -d.getTimezoneOffset(); // minutes east of UTC
-          const sign = off >= 0 ? "+" : "-";
-          const hh = String(Math.floor(Math.abs(off) / 60)).padStart(2, "0");
-          const mm = String(Math.abs(off) % 60).padStart(2, "0");
-          return `${sign}${hh}:${mm}`;
-        })();
-        const startDateTime = `${params.bookingDate}T${params.bookingStartTime}:00${tzOffset}`;
-        const endDateTime = `${params.bookingDate}T${params.bookingEndTime}:00${tzOffset}`;
-        const startD = new Date(startDateTime);
-        const endD = new Date(endDateTime);
-        const durationMinutes = Math.max(Math.round((endD.getTime() - startD.getTime()) / 60000), 0);
-
-        const bookingUserId = params.bookingUserId || params.customerUserId || createdProfileId || null;
-
-        // Duplicate guard — refuse if a confirmed/completed booking already exists
-        // for the same user + bay + start_time (prevents accounting duplicates).
-        if (bookingUserId && params.bookingBayId) {
-          const { data: existing } = await supabase
-            .from("bookings")
-            .select("id, status")
-            .eq("user_id", bookingUserId)
-            .eq("bay_id", params.bookingBayId)
-            .eq("start_time", startD.toISOString())
-            .in("status", ["confirmed", "completed", "pending"])
-            .maybeSingle();
-          if (existing) {
-            throw new Error(
-              `A booking already exists for this customer at this bay & time (status: ${existing.status}). ` +
-              `Refusing to create a duplicate. If you intended a second session, change the time or bay.`
-            );
-          }
-        }
-
-        const bookingPayload: Record<string, any> = {
-          user_id: bookingUserId,
-          city: params.city,
-          start_time: startDateTime,
-          end_time: endDateTime,
-          duration_minutes: durationMinutes,
-          status: "confirmed",
+        // Preserve the existing interpretation of staff-entered times; timestamps sent to storage are UTC.
+        const start = new Date(`${params.bookingDate}T${params.bookingStartTime}:00`);
+        const end = new Date(`${params.bookingDate}T${params.bookingEndTime}:00`);
+        bookingPayload = {
+          user_id: params.bookingUserId || params.customerUserId || null,
+          start_time: start.toISOString(), end_time: end.toISOString(),
+          duration_minutes: Math.max(Math.round((end.getTime() - start.getTime()) / 60000), 0),
+          bay_id: params.bookingBayId || null,
           session_type: params.bookingSessionType || "practice",
-          note: `Invoice ${invoiceNumber}`,
+          coach_name: params.bookingCoachName || null,
         };
-        if (params.bookingBayId) {
-          bookingPayload.bay_id = params.bookingBayId;
-        }
-        if (params.bookingCoachName) {
-          bookingPayload.coach_name = params.bookingCoachName;
-        }
-
-        const { data: booking, error: bookErr } = await supabase.from("bookings")
-          .insert(bookingPayload as any)
-          .select()
-          .single();
-        if (bookErr) throw bookErr;
-
-        // Link booking to revenue transaction (a zero-total invoice has none)
-        if (revenueId) {
-          await supabase.from("revenue_transactions")
-            .update({ booking_id: booking.id })
-            .eq("id", revenueId);
-        }
       }
-
+      const { data: invoice, error } = await supabase.rpc("create_manual_invoice_atomic", {
+        p_operation_id: crypto.randomUUID(),
+        p_invoice: {
+          city: params.city, invoice_date: invoiceDate,
+          customer_user_id: params.customerUserId || null, customer_name: params.customerName,
+          customer_email: params.customerEmail || null, customer_phone: params.customerPhone || null,
+          customer_gstin: params.customerGstin || null, customer_state: params.customerState || null,
+          customer_state_code: params.customerStateCode || null,
+          subtotal: params.subtotal, cgst_total: params.cgstTotal, sgst_total: params.sgstTotal,
+          igst_total: params.igstTotal, total: params.total,
+          invoice_type: params.invoiceType || "invoice", credit_note_for: params.creditNoteFor || null,
+          payment_method: params.paymentMethod || null, notes: params.notes || null,
+          due_date: params.dueDate || new Date().toISOString().split("T")[0],
+          invoice_category: params.invoiceCategory || "purchase", payment_reference: params.paymentReference || null,
+          amount_paid: params.amountPaid ?? params.total, payment_status: params.paymentStatus || "paid",
+          discount_type: params.discountType || null, discount_value: params.discountValue ?? 0,
+          discount_amount: params.discountAmount ?? 0,
+        },
+        p_lines: params.lineItems.map((item, idx) => ({
+          item_name: item.itemName, item_type: item.itemType, hsn_code: item.hsnCode || null,
+          sac_code: item.sacCode || null, quantity: item.quantity, unit_price: item.unitPrice,
+          gst_rate: item.gstRate, cgst_amount: item.cgstAmount, sgst_amount: item.sgstAmount,
+          igst_amount: item.igstAmount, line_total: item.lineTotal, product_id: item.productId || null, sort_order: idx,
+        })),
+        p_booking: bookingPayload,
+        p_add_profile: !params.customerUserId && Boolean(params.customerName) &&
+          (params.invoiceCategory === "booking" || (params.invoiceCategory === "purchase" && Boolean(params.addToUserList))),
+      });
+      if (error) throw error;
+      if (!invoice || typeof invoice !== "object" || Array.isArray(invoice)) throw new Error("Invoice creation returned no document");
       return invoice;
-      } catch (err) {
-        // Creation failed partway: remove the half-made invoice and void its
-        // payment entry so a retry cannot leave an un-invoiced payment behind.
-        try {
-          if (createdInvoiceId) await deleteInvoiceRecord(createdInvoiceId);
-          else await voidManualInvoiceRevenue(supabase, revenueId, invoiceNumber, "invoice_creation_failed");
-        } catch (cleanupErr) {
-          console.error("Manual invoice cleanup failed", cleanupErr);
-        }
-        throw err;
-      }
+
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invoices"] });
@@ -887,31 +658,8 @@ export function useDeleteInvoice() {
 }
 
 async function deleteInvoiceRecord(invoiceId: string): Promise<void> {
-      const { data: invoice, error: fetchErr } = await supabase.from("invoices")
-        .select("*")
-        .eq("id", invoiceId)
-        .single();
-      if (fetchErr) throw fetchErr;
-      if (!invoice) throw new Error("Invoice not found");
-
-      const parts = (invoice.invoice_number as string).split("/");
-      const seqNumber = parts.length >= 3 ? parseInt(parts[parts.length - 1], 10) : null;
-      const prefix = parts.length >= 3 ? parts[0] : "INV";
-
-      if (seqNumber && invoice.financial_year_id && invoice.business_gstin) {
-        await supabase.from("recycled_invoice_numbers").insert({
-          gstin: invoice.business_gstin,
-          financial_year_id: invoice.financial_year_id,
-          prefix,
-          number: seqNumber,
-          invoice_number_text: invoice.invoice_number,
-        });
-      }
-
-      await supabase.from("invoice_line_items").delete().eq("invoice_id", invoiceId);
-      const { error: delErr } = await supabase.from("invoices").delete().eq("id", invoiceId);
-      if (delErr) throw delErr;
-      await voidManualInvoiceRevenue(supabase, invoice.revenue_transaction_id, invoice.invoice_number, "invoice_deleted");
+  const { error } = await supabase.rpc("delete_invoice_atomic", { p_invoice_id: invoiceId });
+  if (error) throw error;
 }
 
 // ─── Reassign invoice to a different city ──────────────
