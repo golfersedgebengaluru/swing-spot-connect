@@ -1,12 +1,14 @@
 # Roadmap
 
 ## Low-effort reliability fixes (approved 6 November)
-- [ ] Restrict legacy cancellation to internal service calls; regression-test paid and hours cancellation paths
-- [ ] Verify existing CI and merge enforcement where provider access permits; keep migration-drift automation separate
-- [ ] Make manual invoice deletion/failed-creation cleanup transactional and safely retryable; leave historical outstanding/deferred entries unchanged
-- [ ] Restore transactional site-admin city assignment with internal-only access and validation
-- [ ] Surface and persist email failures without rolling back confirmed bookings or adding automatic retries
-- [ ] Run focused/full regressions, deploy changed functions and verify live permissions and available authorized flows
+- [x] Restrict legacy cancellation to internal service calls; verified live anon/member denial and service access; existing paid-cancellation regressions pass
+- [ ] Verify real CI runs and merge enforcement: GitHub connection exposes no repositories; existing test/build workflow unchanged, migration-drift automation separate
+- [x] Make manual invoice creation/deletion transactional, with explicit booking attribution, rollback and replay tests; leave historical outstanding/deferred entries unchanged
+- [x] Restore transactional site-admin city assignment with internal-only access, city validation and rollback tests
+- [x] Surface and persist email failures without rolling back confirmed bookings or adding automatic retries; deployed notification sender and calendar-sync
+- [x] Full regression suite: 109 files / 938 tests passed; preview build OK; verified current database permissions and unchanged outstanding invoice balances
+- [ ] Authorized live invoice/staff-operation end-to-end checks: requesting-user screen shows Access Denied; sandbox database role cannot execute new RPCs or assume authenticated role; no real financial records altered
+- [ ] Separate approval for deep-scan findings: scan reports checkout/finalization authorization and pricing, email authorization, and unsafe HTML rendering risks; not included in this five-fix release
 
 ## Atomic paid-booking cancellation (approved)
 - [x] Commit cancellation, loyalty reversal, signed refund, credit note and advance credit in one authorized transaction
