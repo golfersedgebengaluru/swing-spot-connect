@@ -1,7 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { submitEmailAttempt } from "../_shared/email-delivery.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") || "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
@@ -766,7 +768,7 @@ Deno.serve(async (req) => {
     const senderName = senderMap["sender_name"] || "Golfer's Edge";
 
     // Create pending log entry
-    const { data: logEntry } = await supabaseAdmin.from("email_log").insert({
+    const { data: logEntry, error: logError } = await supabaseAdmin.from("email_log").insert({
       user_id: user_id || "00000000-0000-0000-0000-000000000000",
       recipient_email: recipientEmail,
       template,
@@ -774,9 +776,10 @@ Deno.serve(async (req) => {
       status: "pending",
       metadata: { data },
     }).select("id").single();
+    if (logError || !logEntry?.id) throw new Error("Unable to record email attempt");
 
     // Send via Resend
-    const resendRes = await fetch("https://api.resend.com/emails", {
+    const resendId = await submitEmailAttempt(() => fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${RESEND_API_KEY}`,
@@ -788,35 +791,22 @@ Deno.serve(async (req) => {
         subject: finalSubject,
         html,
       }),
+    }), async (status, details) => {
+      const { error } = await supabaseAdmin.from("email_log").update({
+        status,
+        ...(status === "sent" ? { resend_id: details } : { error_message: details }),
+      }).eq("id", logEntry.id);
+      if (error) throw error;
     });
 
-    const resendData = await resendRes.json();
-
-    if (!resendRes.ok) {
-      if (logEntry?.id) {
-        await supabaseAdmin.from("email_log").update({
-          status: "failed",
-          error_message: JSON.stringify(resendData),
-        }).eq("id", logEntry.id);
-      }
-      throw new Error(`Resend error: ${JSON.stringify(resendData)}`);
-    }
-
-    if (logEntry?.id) {
-      await supabaseAdmin.from("email_log").update({
-        status: "sent",
-        resend_id: resendData.id,
-      }).eq("id", logEntry.id);
-    }
-
-    return new Response(JSON.stringify({ success: true, status: "sent", resend_id: resendData.id }), {
+    return new Response(JSON.stringify({ success: true, status: "sent", resend_id: resendId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: unknown) {
     console.error("Email send error:", error);
     const msg = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: msg }), {
-      status: 500,
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
