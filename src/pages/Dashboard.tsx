@@ -127,7 +127,6 @@ export default function Dashboard() {
     }
     setBuyingPkgId(pkg.id);
     const pkgDiscount = appliedCoupon ? calculateDiscount(appliedCoupon, pkg.price) : 0;
-    const amountToCharge = Math.max(0, pkg.price - pkgDiscount);
     try {
       // 1. Create the Razorpay order. The server prices the package and records
       // the pending purchase that the payment webhook finalizes.
