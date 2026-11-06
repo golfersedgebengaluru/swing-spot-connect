@@ -46,9 +46,10 @@ const HourPackageOrder = Coupon.extend({
 
 const OrderSchema = z.discriminatedUnion("purpose", [BookingOrder, HourPackageOrder]);
 
-const json = (payload: unknown, status = 200) =>
+// Errors are returned with 200 so the browser can show the message (project convention).
+const json = (payload: unknown, _status = 200) =>
   new Response(JSON.stringify(payload), {
-    status,
+    status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
