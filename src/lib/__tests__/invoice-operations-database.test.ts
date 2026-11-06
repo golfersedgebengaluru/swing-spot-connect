@@ -59,6 +59,14 @@ describe("transactional invoice operations",()=>{
     });
   }
   it("cancels its zero-total booking without requiring a revenue link",async()=>{await create(0);await remove();expect(await state()).toMatchObject({invoices:0,sales:0,bookings:0});});
+  it("prefers the city financial year over global and removes GST identity for an unregistered city",async()=>{
+    await db.exec(`INSERT INTO financial_years(id,label,start_date,end_date,is_active,city) VALUES('${staff}','City FY','2026-04-01','2027-03-31',true,'Bengaluru'); UPDATE gst_profiles SET is_gst_registered=false;`);
+    await create();
+    expect((await db.query("SELECT financial_year_id,business_gstin FROM invoices")).rows[0]).toEqual({financial_year_id:staff,business_gstin:""});
+  });
+  it("uses global financial year when no city year exists",async()=>{
+    await create();expect((await db.query("SELECT financial_year_id FROM invoices")).rows[0]).toEqual({financial_year_id:admin});
+  });
   it("preserves gateway revenue and unrelated bookings when a document is deleted",async()=>{
     await create();await db.exec(`UPDATE revenue_transactions SET metadata='{}'; UPDATE bookings SET manual_invoice_origin_id=NULL,note='Online booking';`);
     await remove();expect(await state()).toMatchObject({invoices:0,sales:1,bookings:1});
