@@ -129,31 +129,18 @@ export default function Dashboard() {
     const pkgDiscount = appliedCoupon ? calculateDiscount(appliedCoupon, pkg.price) : 0;
     const amountToCharge = Math.max(0, pkg.price - pkgDiscount);
     try {
-      // 1. Create Razorpay order
+      // 1. Create the Razorpay order. The server prices the package and records
+      // the pending purchase that the payment webhook finalizes.
       const orderRes = await supabase.functions.invoke("create-razorpay-order", {
         body: {
-          amount: amountToCharge,
-          currency: pkg.currency || "INR",
-          city,
-          receipt: `hours_${pkg.hours}h_${Date.now()}`,
-          booking_summary: { type: "hour_package", hours: pkg.hours, label: pkg.label, user_id: user.id },
+          purpose: "hour_package",
+          package_id: pkg.id,
+          coupon_code: pkgDiscount > 0 ? appliedCoupon?.code || undefined : undefined,
         },
       });
       if (orderRes.error || orderRes.data?.error) throw new Error(orderRes.data?.error || orderRes.error?.message || "Failed to create order");
 
-      const { order_id, key_id, currency: rzpCurrency } = orderRes.data;
-
-      // 2. Record pending purchase BEFORE opening Razorpay
-      await supabase.from("pending_purchases").insert({
-        user_id: user.id,
-        razorpay_order_id: order_id,
-        package_hours: pkg.hours,
-        package_price: pkg.price,
-        package_label: pkg.label || `${pkg.hours}h Package`,
-        currency: pkg.currency || "INR",
-        city,
-        status: "pending",
-      });
+      const { order_id, key_id, currency: rzpCurrency, amount: orderAmount } = orderRes.data;
 
       // 3. Load Razorpay
       const loaded = await loadRazorpayScript();
@@ -166,7 +153,7 @@ export default function Dashboard() {
 
         const rzp = new (window as any).Razorpay({
           key: key_id,
-          amount: Math.round(amountToCharge * 100),
+          amount: orderAmount,
           currency: rzpCurrency || "INR",
           name: "Golfer's Edge",
           description: `${pkg.hours}h Hour Package - ${pkg.label}`,
