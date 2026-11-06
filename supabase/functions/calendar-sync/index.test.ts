@@ -25,38 +25,29 @@ async function callCalendarSync(body: Record<string, unknown>, token?: string) {
 // These tests verify that the overlap check uses strict inequalities,
 // allowing back-to-back bookings (existing.end == new.start).
 
-Deno.test("calendar-sync: guest_booking with no calendar_email still checks overlap", async () => {
-  // This test verifies the endpoint responds (even if calendar isn't configured)
-  // by sending a booking request. We use a far-future date to avoid real conflicts.
-  const farFutureDate = "2099-01-15";
-  const startTime = `${farFutureDate}T04:00:00.000Z`; // 9:30 AM IST
-  const endTime = `${farFutureDate}T05:00:00.000Z`;   // 10:30 AM IST
-
+Deno.test("calendar-sync: guest_booking rejects anonymous callers", async () => {
   const { status, data } = await callCalendarSync({
     action: "guest_booking",
-    start_time: startTime,
-    end_time: endTime,
+    start_time: "2099-01-15T04:00:00.000Z",
+    end_time: "2099-01-15T05:00:00.000Z",
     duration_minutes: 60,
     city: "__test_city__",
     bay_id: null,
-    bay_name: "Test Bay",
     session_type: "practice",
     guest_name: "Test Guest",
-    guest_email: null,
-    guest_phone: null,
-    calendar_email: null,
     amount: 0,
-    currency: "INR",
-    gateway_name: "test",
   });
+  assertEquals(status, 401);
+  assertEquals(data.error, "Unauthorized");
+});
 
-  // Should succeed (no overlapping bookings in a fake city) or fail
-  // for a non-overlap reason. The key is it should NOT be 409.
-  // It may fail due to missing calendar config, but overlap check runs first.
-  // If status is 200, the booking was created in our test city.
-  // We just verify the response is valid JSON with no crash.
-  assertExists(data);
-  await consumeBody(data);
+Deno.test("calendar-sync: finalize_pending_member_booking rejects non-service callers", async () => {
+  const { status, data } = await callCalendarSync({
+    action: "finalize_pending_member_booking",
+    razorpay_order_id: "order_test_unauthorized",
+  });
+  assertEquals(status, 401);
+  assertEquals(data.error, "Unauthorized");
 });
 
 Deno.test("calendar-sync: create_booking requires auth", async () => {
