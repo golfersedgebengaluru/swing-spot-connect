@@ -460,6 +460,7 @@ export type Database = {
           end_time: string
           id: string
           invoice_id: string | null
+          manual_invoice_origin_id: string | null
           note: string | null
           parent_booking_id: string | null
           session_type: string
@@ -481,6 +482,7 @@ export type Database = {
           end_time: string
           id?: string
           invoice_id?: string | null
+          manual_invoice_origin_id?: string | null
           note?: string | null
           parent_booking_id?: string | null
           session_type?: string
@@ -502,6 +504,7 @@ export type Database = {
           end_time?: string
           id?: string
           invoice_id?: string | null
+          manual_invoice_origin_id?: string | null
           note?: string | null
           parent_booking_id?: string | null
           session_type?: string
@@ -6406,6 +6409,16 @@ export type Database = {
         Args: { _profile_id: string }
         Returns: boolean
       }
+      create_manual_invoice_atomic: {
+        Args: {
+          p_add_profile?: boolean
+          p_booking?: Json
+          p_invoice: Json
+          p_lines: Json
+          p_operation_id: string
+        }
+        Returns: Json
+      }
       customer_report: {
         Args: {
           _as_of?: string
@@ -6465,6 +6478,7 @@ export type Database = {
         Args: { p_delta: number; p_user_id: string }
         Returns: number
       }
+      delete_invoice_atomic: { Args: { p_invoice_id: string }; Returns: Json }
       generate_product_sku: {
         Args: {
           _category: string
