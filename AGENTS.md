@@ -18,3 +18,4 @@
 - Email submission checks HTTP and payload outcomes and records transport failures; notification failures never undo confirmed bookings and accepted emails are not automatically retried after log failures.
 - Checkout orders are priced, routed to a city payment account and recorded as pending rows only by the order-creation function from server records; browsers describe what they buy, never amounts, so payments cannot be underpriced or rebound.
 - Booking finalization, guest/walk-in booking creation, hour crediting and arbitrary-recipient emails accept only the service credential (staff may also record walk-ins); member hours are charged from the reserved time range, never a caller-supplied duration.
+- Browser-facing function contract changes deploy immediately but the site does not; republish the frontend in the same change so live pages never call a function with a retired request shape.
