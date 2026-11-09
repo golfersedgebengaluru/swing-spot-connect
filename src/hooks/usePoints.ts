@@ -38,6 +38,32 @@ export function usePointsTransactions(userId?: string) {
   });
 }
 
+/**
+ * Award or redeem points through the single authorized database action.
+ * The balance change and its history entry commit together; staff may award
+ * and redeem for any member, members may only redeem available rewards for
+ * themselves at the reward's listed cost. `memberRef` is the member's sign-in
+ * id, or the profile id for members registered by staff without a sign-in.
+ */
+export async function adjustMemberPoints(args: {
+  memberRef: string;
+  kind: "allocation" | "redemption";
+  points: number;
+  description?: string;
+  rewardId?: string;
+}): Promise<number> {
+  const { data, error } = await supabase.rpc("adjust_member_points", {
+    p_member_ref: args.memberRef,
+    p_kind: args.kind,
+    p_points: args.points,
+    p_description: args.description,
+    p_reward_id: args.rewardId,
+  });
+  if (error) throw new Error(error.message);
+  const total = (data as { total_points?: number } | null)?.total_points;
+  return typeof total === "number" ? total : 0;
+}
+
 export function useAllocatePoints() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -45,51 +71,14 @@ export function useAllocatePoints() {
       userId,
       points,
       description,
-      adminId,
-      isProfileId,
     }: {
       userId: string;
       points: number;
       description: string;
-      adminId: string;
+      adminId?: string;
       isProfileId?: boolean;
     }) => {
-      let newTotal: number | null = null;
-
-      if (isProfileId) {
-        // Admin-registered user (no auth user_id) — update by profile id directly
-        const { data: profile, error: fetchErr } = await supabase
-          .from("profiles")
-          .select("points")
-          .eq("id", userId)
-          .single();
-        if (fetchErr) throw fetchErr;
-        const currentPoints = profile?.points ?? 0;
-        newTotal = currentPoints + points;
-        const { error: updateErr } = await supabase
-          .from("profiles")
-          .update({ points: newTotal })
-          .eq("id", userId);
-        if (updateErr) throw updateErr;
-      } else {
-        // Normal user — use atomic RPC
-        const { data, error: updateErr } = await supabase
-          .rpc("increment_user_points" as any, { p_user_id: userId, p_delta: points });
-        if (updateErr) throw updateErr;
-        newTotal = data;
-      }
-
-      // Log transaction
-      const { error: txErr } = await supabase
-        .from("points_transactions")
-        .insert({
-          user_id: userId,
-          type: "allocation",
-          points,
-          description,
-          created_by: adminId,
-        });
-      if (txErr) throw txErr;
+      const newTotal = await adjustMemberPoints({ memberRef: userId, kind: "allocation", points, description });
 
       // Send notification (non-critical)
       supabase.from("notifications").insert({
@@ -107,7 +96,7 @@ export function useAllocatePoints() {
         data: {
           points,
           description,
-          total_points: newTotal ?? points,
+          total_points: newTotal,
         },
       });
     },
@@ -127,8 +116,6 @@ export function useRedeemPoints() {
       points,
       rewardId,
       rewardName,
-      adminId,
-      isProfileId,
     }: {
       userId: string;
       points: number;
@@ -137,43 +124,13 @@ export function useRedeemPoints() {
       adminId?: string;
       isProfileId?: boolean;
     }) => {
-      let newTotal: number | null = null;
-
-      if (isProfileId) {
-        // Admin-registered user — update by profile id directly with balance check
-        const { data: profile, error: fetchErr } = await supabase
-          .from("profiles")
-          .select("points")
-          .eq("id", userId)
-          .single();
-        if (fetchErr) throw fetchErr;
-        const currentPoints = profile?.points ?? 0;
-        if (currentPoints < points) throw new Error(`Insufficient points: have ${currentPoints}, need ${points}`);
-        newTotal = currentPoints - points;
-        const { error: updateErr } = await supabase
-          .from("profiles")
-          .update({ points: newTotal })
-          .eq("id", userId);
-        if (updateErr) throw updateErr;
-      } else {
-        const { data, error: updateErr } = await supabase
-          .rpc("decrement_user_points_safe" as any, { p_user_id: userId, p_delta: points });
-        if (updateErr) throw new Error(updateErr.message);
-        newTotal = data;
-      }
-
-      // Log transaction
-      const { error: txErr } = await supabase
-        .from("points_transactions")
-        .insert({
-          user_id: userId,
-          type: "redemption",
-          points,
-          description: `Redeemed: ${rewardName}`,
-          reward_id: rewardId || null,
-          created_by: adminId || userId,
-        });
-      if (txErr) throw txErr;
+      const newTotal = await adjustMemberPoints({
+        memberRef: userId,
+        kind: "redemption",
+        points,
+        description: rewardName,
+        rewardId,
+      });
 
       // Send notification (non-critical)
       supabase.from("notifications").insert({
@@ -191,7 +148,7 @@ export function useRedeemPoints() {
         data: {
           points,
           reward_name: rewardName,
-          total_points: newTotal ?? 0,
+          total_points: newTotal,
         },
       });
     },
