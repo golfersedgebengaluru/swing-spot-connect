@@ -88,9 +88,25 @@ function useAdminDashboardStats(cityFilter: string) {
 
       const attentionQuery = supabase.rpc("customer_report", {
         _city: cityFilter || undefined, _preset: "dashboard", _limit: 1, _as_of: now.toISOString(),
-      }).then(({ data: result, error }) => {
+      }).then(async ({ data: result, error }) => {
         if (error) throw error;
-        return parseDashboardAttention(result);
+        const parsed = parseDashboardAttention(result);
+        // One batched membership read for the listed customers (never per row).
+        const profileIds = [...new Set([...parsed.renewals, ...parsed.inactive].map(r => r.id))];
+        const corporateByProfile: Record<string, string[]> = {};
+        if (profileIds.length > 0) {
+          const { data: memberships, error: memErr } = await supabase
+            .from("corporate_account_members")
+            .select("profile_id, account:corporate_accounts(name, nickname, is_active)")
+            .in("profile_id", profileIds);
+          if (memErr) throw memErr;
+          for (const m of memberships ?? []) {
+            if (!m.account?.is_active) continue;
+            const label = m.account.nickname?.trim() || m.account.name;
+            (corporateByProfile[m.profile_id] ??= []).push(label);
+          }
+        }
+        return { ...parsed, corporateByProfile };
       });
 
       // Execute ALL independent queries in parallel
@@ -392,9 +408,16 @@ export function AdminDashboardTab({ onNavigate }: AdminDashboardTabProps = {}) {
                     {getInitials(m.display_name || m.email || "?")}
                   </div>
                   <div className="flex-1 min-w-0 overflow-hidden">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {m.display_name || m.email || "Unknown"}
-                    </p>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {m.display_name || m.email || "Unknown"}
+                      </p>
+                      {(data?.attention.corporateByProfile?.[m.id] ?? []).map((name) => (
+                        <span key={name} className="rounded px-1.5 py-px text-[9px] font-medium leading-tight bg-blue-100 text-blue-700 max-w-[140px] truncate">
+                          Corp · {name}
+                        </span>
+                      ))}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       {attentionView === "renewals" && m.next_booking ? `Next · ${format(new Date(m.next_booking), "dd MMM, HH:mm")}` : m.last_visit ? `Last visit · ${format(new Date(m.last_visit), "dd MMM yyyy")}` : "—"}
                     </p>
