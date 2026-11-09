@@ -1,5 +1,12 @@
 # Roadmap
 
+## Security batch 2 (approved 9 November: items 1–3)
+- [x] Reward points: one authorized action for staff awards and member redemptions; raw helpers service-only; direct balance edits blocked; live anon/member attempts refused
+- [x] Calendar choice: bookings, walk-ins and availability always use the bay's calendar; live Chennai availability unchanged with an outside calendar supplied
+- [x] Invoice print/viewer and event pages: stored text escaped/sanitized
+- [x] 112 files / 970 tests passed; calendar-sync deployed; site published with the change
+- [ ] Decisions pending: coach student assignment (item 4) and public quick-competition records (item 5)
+
 ## Low-effort reliability fixes (approved 6 November)
 - [x] Restrict legacy cancellation to internal service calls; verified live anon/member denial and service access; existing paid-cancellation regressions pass
 - [ ] Verify real CI runs and merge enforcement: GitHub connection exposes no repositories; existing test/build workflow unchanged, migration-drift automation separate

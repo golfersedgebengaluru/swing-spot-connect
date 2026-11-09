@@ -243,9 +243,8 @@ function createAdminClient() {
 // Prefers the bay-specific calendar, falling back to the city-level bay_config.
 async function resolveCalendarEmail(
   adminClient: ReturnType<typeof createAdminClient>,
-  opts: { bay_id?: string | null; city?: string | null; fallback?: string | null }
+  opts: { bay_id?: string | null; city?: string | null }
 ): Promise<string | null> {
-  if (opts.fallback) return opts.fallback;
   if (opts.bay_id) {
     const { data: bay } = await adminClient
       .from("bays")
@@ -970,7 +969,8 @@ Deno.serve(async (req) => {
         backdated, // true for corporate accounting entries in the past
         parent_booking_id, // set when adding a participant to an existing booking
       } = params;
-      let { calendar_email } = params;
+      // Never trust a caller-chosen calendar: always use the bay's configured one.
+      let calendar_email: string | null = null;
       const isDeferred = billing_status === "deferred";
       // Treat any start_time strictly before "now" as backdated — covers both
       // prior-date entries and same-day past-slot walk-ins. Skips Google Calendar
@@ -999,10 +999,8 @@ Deno.serve(async (req) => {
         if (bayError || !bay || bay.city !== city) return new Response(JSON.stringify({ error: "Select a bay in this city" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      // Resolve calendar mailbox server-side (guests cannot read it from the client)
-      if (!calendar_email) {
-        calendar_email = await resolveCalendarEmail(adminClient, { bay_id, city });
-      }
+      // Resolve the calendar mailbox server-side from the bay; callers cannot choose it.
+      calendar_email = await resolveCalendarEmail(adminClient, { bay_id, city });
 
       // Atomic de-duplication: the browser handler AND the razorpay webhook can
       // both invoke this endpoint concurrently for the same payment. A read-then-
@@ -1587,11 +1585,8 @@ Deno.serve(async (req) => {
     // so that public/guest users can see real-time availability
     if (action === "list_slots") {
       const { date, open_time, close_time, bay_id, city, admin_mode } = params;
-      let { calendar_email } = params;
-      if (!calendar_email) {
-        const adminClient = createAdminClient();
-        calendar_email = await resolveCalendarEmail(adminClient, { bay_id, city });
-      }
+      // Never trust a caller-chosen calendar: always use the bay's configured one.
+      const calendar_email = await resolveCalendarEmail(createAdminClient(), { bay_id, city });
       if (!calendar_email) {
         return new Response(
           JSON.stringify({ error: "Unable to resolve calendar for this bay" }),
@@ -1690,7 +1685,8 @@ Deno.serve(async (req) => {
       }
       const isParticipant = !!parent_booking_id;
 
-      let { calendar_email } = params;
+      // Never trust a caller-chosen calendar: always use the bay's configured one.
+      let calendar_email: string | null = null;
 
       // If an admin/site_admin is booking on behalf of a member, use their user_id
       let bookingUserId = userId;
@@ -1702,11 +1698,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Resolve calendar mailbox server-side so clients don't need to send it
-      if (!calendar_email) {
-        const adminClient = createAdminClient();
-        calendar_email = await resolveCalendarEmail(adminClient, { bay_id, city });
-      }
+      // Resolve the calendar mailbox server-side from the bay; callers cannot choose it.
+      calendar_email = await resolveCalendarEmail(createAdminClient(), { bay_id, city });
       if (!calendar_email) {
         return new Response(
           JSON.stringify({ error: "Unable to resolve calendar for this bay" }),

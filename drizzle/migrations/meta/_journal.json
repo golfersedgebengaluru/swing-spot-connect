@@ -127,6 +127,13 @@
       "when": 1793967928047,
       "tag": "0017_server_owned_checkout_records",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794226129270,
+      "tag": "0018_authorized_member_points",
+      "breakpoints": true
     }
   ]
 }

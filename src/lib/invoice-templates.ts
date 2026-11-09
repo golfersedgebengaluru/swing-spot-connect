@@ -93,11 +93,11 @@ function buildLineItemRows(items: any[], isIgst: boolean, currency: FormatCurren
     return `
       <tr style="border-bottom:1px solid #eee;">
         <td style="padding:6px 8px;">${idx + 1}</td>
-        <td style="padding:6px 8px;">${item.item_name} <span style="font-size:9px;padding:1px 4px;border:1px solid #ccc;border-radius:3px;margin-left:4px;">${item.item_type === "service" ? "SVC" : "PRD"}</span></td>
-        <td style="padding:6px 8px;font-size:11px;">${item.item_type === "service" ? (item.sac_code || "—") : (item.hsn_code || "—")}</td>
-        <td style="padding:6px 8px;text-align:right;">${item.quantity}</td>
+        <td style="padding:6px 8px;">${escapeHtml(item.item_name)} <span style="font-size:9px;padding:1px 4px;border:1px solid #ccc;border-radius:3px;margin-left:4px;">${item.item_type === "service" ? "SVC" : "PRD"}</span></td>
+        <td style="padding:6px 8px;font-size:11px;">${escapeHtml(item.item_type === "service" ? (item.sac_code || "—") : (item.hsn_code || "—"))}</td>
+        <td style="padding:6px 8px;text-align:right;">${escapeHtml(item.quantity)}</td>
         <td style="padding:6px 8px;text-align:right;">${currency.format(taxableAmt)}</td>
-        <td style="padding:6px 8px;text-align:right;">${item.gst_rate}%</td>
+        <td style="padding:6px 8px;text-align:right;">${escapeHtml(item.gst_rate)}%</td>
         ${isIgst
           ? `<td style="padding:6px 8px;text-align:right;">${currency.format(Number(item.igst_amount))}</td>`
           : `<td style="padding:6px 8px;text-align:right;">${currency.format(Number(item.cgst_amount))}</td>
@@ -162,7 +162,7 @@ function buildBookingInfo(inv: InvoiceData) {
       <p style="font-size:12px;margin:2px 0;"><strong>Date:</strong> ${dateStr}</p>
       <p style="font-size:12px;margin:2px 0;"><strong>Time:</strong> ${startTime} – ${endTime}</p>`;
     if (inv.booking.bay_name) {
-      info += `<p style="font-size:12px;margin:2px 0;"><strong>Location:</strong> ${inv.booking.bay_name}</p>`;
+      info += `<p style="font-size:12px;margin:2px 0;"><strong>Location:</strong> ${escapeHtml(inv.booking.bay_name)}</p>`;
     }
     info += `</div>`;
     return info;
@@ -171,8 +171,9 @@ function buildBookingInfo(inv: InvoiceData) {
   }
 }
 
-function escapeHtml(s: string) {
-  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+/** Escape any stored value before it is placed into invoice markup. */
+export function escapeHtml(value: unknown) {
+  return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 }
 
 function buildBusinessContactLine(s: EffectiveInvoiceSettings) {
@@ -271,7 +272,7 @@ function buildFooter(settings: EffectiveInvoiceSettings, inv: InvoiceData) {
 
 function logoImg(url: string, maxH = 60) {
   if (!url) return "";
-  return `<img src="${url}" alt="Logo" style="max-height:${maxH}px;max-width:180px;object-fit:contain;" />`;
+  return `<img src="${escapeHtml(url)}" alt="Logo" style="max-height:${maxH}px;max-width:180px;object-fit:contain;" />`;
 }
 
 /**
@@ -302,18 +303,18 @@ function classicTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, c
       </div>
       <div style="text-align:right;">
         <p style="font-size:11px;padding:2px 8px;border:1px solid ${inv.invoice_type === "credit_note" ? "#e11" : "#888"};border-radius:4px;display:inline-block;color:${inv.invoice_type === "credit_note" ? "#e11" : "#444"};font-weight:600;">${docType}</p>
-        <p style="font-size:14px;font-weight:600;margin-top:6px;">${inv.invoice_number}</p>
+        <p style="font-size:14px;font-weight:600;margin-top:6px;">${escapeHtml(inv.invoice_number)}</p>
         <p style="font-size:12px;color:#666;">${formatDate(inv.invoice_date)}</p>
-        ${inv.credit_note_for ? `<p style="font-size:11px;color:#666;">Against: ${inv.credit_note_for}</p>` : ""}
+        ${inv.credit_note_for ? `<p style="font-size:11px;color:#666;">Against: ${escapeHtml(inv.credit_note_for)}</p>` : ""}
       </div>
     </div>
     <hr style="border:none;border-top:1px solid #ddd;margin:12px 0;" />
     <div style="margin-bottom:16px;">
       <p style="font-size:10px;font-weight:600;text-transform:uppercase;color:#666;margin-bottom:4px;">Bill To</p>
-      <p style="font-weight:600;margin:0;">${inv.customer_name || "—"}</p>
-      ${inv.customer_email ? `<p style="font-size:12px;color:#666;margin:2px 0;">${inv.customer_email}</p>` : ""}
-      ${inv.customer_phone ? `<p style="font-size:12px;color:#666;margin:2px 0;">${inv.customer_phone}</p>` : ""}
-      ${inv.customer_gstin ? `<p style="font-size:12px;color:#666;margin:2px 0;">GSTIN: ${inv.customer_gstin}</p>` : ""}
+      <p style="font-weight:600;margin:0;">${escapeHtml(inv.customer_name || "—")}</p>
+      ${inv.customer_email ? `<p style="font-size:12px;color:#666;margin:2px 0;">${escapeHtml(inv.customer_email)}</p>` : ""}
+      ${inv.customer_phone ? `<p style="font-size:12px;color:#666;margin:2px 0;">${escapeHtml(inv.customer_phone)}</p>` : ""}
+      ${inv.customer_gstin ? `<p style="font-size:12px;color:#666;margin:2px 0;">GSTIN: ${escapeHtml(inv.customer_gstin)}</p>` : ""}
     </div>
     ${buildBookingInfo(inv)}
     <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -338,19 +339,19 @@ function modernTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, cu
         <div style="display:flex;align-items:center;gap:12px;">
           ${settings.logo_url ? logoImg(settings.logo_url, 48) : ""}
           <div>
-            <h1 style="font-size:20px;font-weight:800;margin:0;color:#111;">${inv.business_name}</h1>
-            ${isGstRegistered(inv.business_gstin) ? `<p style="font-size:11px;color:#888;margin:0;">${inv.business_gstin}</p>` : ""}
+            <h1 style="font-size:20px;font-weight:800;margin:0;color:#111;">${escapeHtml(inv.business_name)}</h1>
+            ${isGstRegistered(inv.business_gstin) ? `<p style="font-size:11px;color:#888;margin:0;">${escapeHtml(inv.business_gstin)}</p>` : ""}
           </div>
         </div>
         <div style="text-align:right;">
           <p style="font-size:18px;font-weight:800;color:${accent};margin:0;letter-spacing:2px;">${docType}</p>
-          <p style="font-size:13px;color:#444;margin:4px 0 0;">${inv.invoice_number}</p>
+          <p style="font-size:13px;color:#444;margin:4px 0 0;">${escapeHtml(inv.invoice_number)}</p>
         </div>
       </div>
       <div style="display:flex;justify-content:space-between;background:#f8f9fa;border-radius:8px;padding:16px;margin-bottom:20px;">
         <div>
           <p style="font-size:10px;text-transform:uppercase;color:#888;font-weight:600;margin:0 0 4px;">From</p>
-          <p style="font-weight:600;margin:0;">${inv.business_name}</p>
+          <p style="font-weight:600;margin:0;">${escapeHtml(inv.business_name)}</p>
           ${inv.business_address ? `<p style="font-size:12px;color:#666;margin:2px 0;">${escapeHtml(inv.business_address)}</p>` : ""}
           ${inv.business_state ? `<p style="font-size:12px;color:#666;margin:2px 0;">${escapeHtml(inv.business_state)}</p>` : ""}
           ${buildBusinessContactLine(settings)}
@@ -358,16 +359,16 @@ function modernTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, cu
         </div>
         <div>
           <p style="font-size:10px;text-transform:uppercase;color:#888;font-weight:600;margin:0 0 4px;">Bill To</p>
-          <p style="font-weight:600;margin:0;">${inv.customer_name || "—"}</p>
-          ${inv.customer_email ? `<p style="font-size:12px;color:#666;margin:2px 0;">${inv.customer_email}</p>` : ""}
-          ${inv.customer_phone ? `<p style="font-size:12px;color:#666;margin:2px 0;">${inv.customer_phone}</p>` : ""}
-          ${inv.customer_gstin ? `<p style="font-size:12px;color:#666;margin:2px 0;">GSTIN: ${inv.customer_gstin}</p>` : ""}
+          <p style="font-weight:600;margin:0;">${escapeHtml(inv.customer_name || "—")}</p>
+          ${inv.customer_email ? `<p style="font-size:12px;color:#666;margin:2px 0;">${escapeHtml(inv.customer_email)}</p>` : ""}
+          ${inv.customer_phone ? `<p style="font-size:12px;color:#666;margin:2px 0;">${escapeHtml(inv.customer_phone)}</p>` : ""}
+          ${inv.customer_gstin ? `<p style="font-size:12px;color:#666;margin:2px 0;">GSTIN: ${escapeHtml(inv.customer_gstin)}</p>` : ""}
         </div>
         <div style="text-align:right;">
           <p style="font-size:10px;text-transform:uppercase;color:#888;font-weight:600;margin:0 0 4px;">Details</p>
           <p style="font-size:12px;margin:2px 0;">Date: ${formatDate(inv.invoice_date)}</p>
-          ${inv.payment_method ? `<p style="font-size:12px;margin:2px 0;">Payment: ${inv.payment_method}</p>` : ""}
-          ${inv.credit_note_for ? `<p style="font-size:12px;margin:2px 0;">Against: ${inv.credit_note_for}</p>` : ""}
+          ${inv.payment_method ? `<p style="font-size:12px;margin:2px 0;">Payment: ${escapeHtml(inv.payment_method)}</p>` : ""}
+          ${inv.credit_note_for ? `<p style="font-size:12px;margin:2px 0;">Against: ${escapeHtml(inv.credit_note_for)}</p>` : ""}
         </div>
       </div>
       ${buildBookingInfo(inv)}
@@ -407,10 +408,10 @@ function compactTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, c
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #111;">
         <div style="display:flex;align-items:center;gap:8px;">
           ${settings.logo_url ? logoImg(settings.logo_url, 36) : ""}
-          <span style="font-size:16px;font-weight:700;">${inv.business_name}</span>
+          <span style="font-size:16px;font-weight:700;">${escapeHtml(inv.business_name)}</span>
         </div>
         <div style="text-align:right;">
-          <span style="font-weight:700;">${docType}</span> · ${inv.invoice_number} · ${formatDate(inv.invoice_date)}
+          <span style="font-weight:700;">${docType}</span> · ${escapeHtml(inv.invoice_number)} · ${formatDate(inv.invoice_date)}
         </div>
       </div>
       <div style="display:flex;gap:24px;margin-bottom:12px;font-size:11px;">
@@ -422,9 +423,9 @@ function compactTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, c
           ${settings.pan ? ` · PAN: ${escapeHtml(settings.pan)}` : ""}
         </div>
         <div style="flex:1;">
-          <span style="font-weight:600;">To:</span> ${inv.customer_name || "—"}
-          ${inv.customer_email ? ` · ${inv.customer_email}` : ""}
-          ${inv.customer_gstin ? ` · GSTIN: ${inv.customer_gstin}` : ""}
+          <span style="font-weight:600;">To:</span> ${escapeHtml(inv.customer_name || "—")}
+          ${inv.customer_email ? ` · ${escapeHtml(inv.customer_email)}` : ""}
+          ${inv.customer_gstin ? ` · GSTIN: ${escapeHtml(inv.customer_gstin)}` : ""}
         </div>
       </div>
       ${buildBookingInfo(inv)}
@@ -451,11 +452,11 @@ function compactTemplate(inv: InvoiceData, settings: EffectiveInvoiceSettings, c
             const taxableAmt = Math.round((inclusiveAmt / (1 + Number(item.gst_rate) / 100)) * 100) / 100;
             return `<tr style="border-bottom:1px solid #eee;">
               <td style="padding:3px 6px;">${idx + 1}</td>
-              <td style="padding:3px 6px;">${item.item_name}</td>
-              <td style="padding:3px 6px;">${item.item_type === "service" ? (item.sac_code || "—") : (item.hsn_code || "—")}</td>
-              <td style="padding:3px 6px;text-align:right;">${item.quantity}</td>
+              <td style="padding:3px 6px;">${escapeHtml(item.item_name)}</td>
+              <td style="padding:3px 6px;">${escapeHtml(item.item_type === "service" ? (item.sac_code || "—") : (item.hsn_code || "—"))}</td>
+              <td style="padding:3px 6px;text-align:right;">${escapeHtml(item.quantity)}</td>
               <td style="padding:3px 6px;text-align:right;">${currency.format(taxableAmt)}</td>
-              <td style="padding:3px 6px;text-align:right;">${item.gst_rate}%</td>
+              <td style="padding:3px 6px;text-align:right;">${escapeHtml(item.gst_rate)}%</td>
               ${isIgst
                 ? `<td style="padding:3px 6px;text-align:right;">${currency.format(Number(item.igst_amount))}</td>`
                 : `<td style="padding:3px 6px;text-align:right;">${currency.format(Number(item.cgst_amount))}</td>
@@ -497,7 +498,7 @@ export function openPrintWindow(html: string, title: string) {
   // window.print(). Otherwise the print dialog opens before the logo network
   // fetch completes and the logo prints blank. Fallback: 2.5s per image.
   printWindow.document.write(`
-    <html><head><title>${title}</title>
+    <html><head><title>${escapeHtml(title)}</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; color: #111; padding: 24px; }

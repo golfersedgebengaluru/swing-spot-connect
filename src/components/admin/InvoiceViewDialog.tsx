@@ -22,6 +22,7 @@ import { format, parseISO } from "date-fns";
 import { useEffectiveInvoiceSettings } from "@/hooks/useInvoiceSettings";
 import { renderInvoiceHtml, openPrintWindow } from "@/lib/invoice-templates";
 import { cn } from "@/lib/utils";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 interface Props {
   invoiceId: string | null;
@@ -549,7 +550,7 @@ export function InvoiceViewDialog({ invoiceId, onClose }: Props) {
             /* ── VIEW MODE ── */
             <div className="space-y-4">
               {invoiceSettings ? (
-                <div dangerouslySetInnerHTML={{ __html: renderInvoiceHtml(invoice, invoiceSettings, currency) }} />
+                <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderInvoiceHtml(invoice, invoiceSettings, currency)) }} />
               ) : (
                 <Loader2 className="mx-auto h-6 w-6 animate-spin" />
               )}

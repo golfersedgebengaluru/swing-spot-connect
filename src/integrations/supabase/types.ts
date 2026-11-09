@@ -6199,6 +6199,16 @@ export type Database = {
       }
     }
     Functions: {
+      adjust_member_points: {
+        Args: {
+          p_description?: string
+          p_kind: string
+          p_member_ref: string
+          p_points: number
+          p_reward_id?: string
+        }
+        Returns: Json
+      }
       admin_add_managed_member: {
         Args: {
           _caller: string
