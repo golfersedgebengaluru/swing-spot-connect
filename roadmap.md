@@ -227,3 +227,9 @@
 - [x] Run rule and regression tests: 102 files / 865 tests passed; preview build OK
 - [ ] Verify sorting visually with authorized admin access: requesting-user session still shows Access Denied
 - [answered] Q: current payment hold — none today
+
+## App calendar as booking record of truth (approved plan)
+- [ ] 1. Bay types (Standard/Bunker) + per-city Bunker hours settings + bay-type pricing
+- [ ] 2. Availability from app records, 10-min payment holds, automatic bay choice
+- [ ] 3. Block-outs and all-bays day view
+- [ ] 4. Google copy with "not on Google yet" markers; per-city switch (Chennai/Bengaluru after block re-entry)
