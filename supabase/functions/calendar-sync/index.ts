@@ -1768,6 +1768,42 @@ Deno.serve(async (req) => {
 
     // list_slots is handled above (before auth check) — this block is intentionally removed
 
+    // Staff retry for the view-only Google copy of an app-calendar booking.
+    if (action === "sync_booking_to_google") {
+      const adminClient = createAdminClient();
+      const { data: booking } = await adminClient
+        .from("bookings")
+        .select("id, city, bay_id, user_id, start_time, end_time, session_type, status, calendar_event_id, parent_booking_id")
+        .eq("id", String(params.booking_id ?? ""))
+        .maybeSingle();
+      if (!booking) return new Response(JSON.stringify({ error: "Booking not found" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const { data: allowed } = await adminClient.rpc("has_city_access", { _user_id: userId, _city: booking.city });
+      if (!allowed) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (booking.calendar_event_id) return new Response(JSON.stringify({ status: "already_synced" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (booking.parent_booking_id || !["confirmed", "pending"].includes(booking.status)) {
+        return new Response(JSON.stringify({ error: "This booking does not need a calendar entry" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const calendarEmail = await resolveCalendarEmail(adminClient, { bay_id: booking.bay_id, city: booking.city });
+      if (!calendarEmail) return new Response(JSON.stringify({ error: "No Google Calendar is set up for this bay or city" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const bay = await loadBay(adminClient, booking.bay_id);
+      const who = await resolveProfileDisplayName(adminClient, booking.user_id);
+      const isCoaching = booking.session_type === "coaching";
+      try {
+        const calTz = await getCalendarTimezone(accessToken, calendarEmail);
+        const calEvent = await createEvent(
+          accessToken, calendarEmail,
+          `${bay?.name || booking.city} - ${who || "Booking"}${isCoaching ? " (Coaching)" : ""}`,
+          booking.start_time, booking.end_time, calTz,
+          "Copy of a Golfer's Edge booking. The app calendar is the record of truth.",
+        );
+        await adminClient.from("bookings").update({ calendar_event_id: calEvent.id }).eq("id", booking.id).is("calendar_event_id", null);
+        return new Response(JSON.stringify({ status: "synced" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch (e) {
+        console.error(`[calendar-sync] sync_booking_to_google failed booking=${booking.id}: ${(e as Error).message}`);
+        return new Response(JSON.stringify({ error: "Google Calendar did not accept the entry. Please try again later." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     if (action === "create_booking") {
       const { start_time, end_time, city, bay_id, bay_name, display_name, session_type, payment_method, user_id_override, parent_booking_id } = params;
       // Hours are charged for the slot actually reserved, never a caller-supplied duration.
