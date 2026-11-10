@@ -152,7 +152,7 @@ export async function holdForOrder(admin: Admin, orderId: string | null | undefi
   return data?.id ?? null;
 }
 
-/** "Bunker Bay", "Gurugram Bay #2" → hours used for a practice booking on this bay. */
+/** Member hours used for a practice booking on this bay, or null when hours cannot be used here. */
 export function memberHoursForBay(bay: Pick<BayRecord, "member_hours_enabled" | "member_hours_rate"> | null, durationHours: number): number | null {
   if (bay && bay.member_hours_enabled === false) return null;
   const rate = Number(bay?.member_hours_rate ?? 1) || 1;

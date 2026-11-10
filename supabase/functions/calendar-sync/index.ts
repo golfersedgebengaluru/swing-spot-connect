@@ -10,6 +10,19 @@ import {
 import { recordRefund } from "../_shared/revenue-ledger.ts";
 import { enrichBookingTimezones } from "./booking-timezones.ts";
 import { cancelPaidBooking } from "./atomic-cancellation.ts";
+import {
+  busyRanges,
+  candidateBayIds,
+  cityBookingMode,
+  computeSlots,
+  holdForOrder,
+  INSERT_HOLD_MINUTES,
+  loadBay,
+  memberHoursForBay,
+  refundRazorpayPayment,
+  releaseHold,
+  reserveBay,
+} from "../_shared/app-availability.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") || "*",
@@ -1585,8 +1598,27 @@ Deno.serve(async (req) => {
     // so that public/guest users can see real-time availability
     if (action === "list_slots") {
       const { date, open_time, close_time, bay_id, city, admin_mode } = params;
+      const slotAdmin = createAdminClient();
+      const slotBay = await loadBay(slotAdmin, bay_id);
+      const slotMode = await cityBookingMode(slotAdmin, slotBay?.city ?? city);
+      if (slotMode.source === "app") {
+        if (!slotBay || !slotBay.is_active) {
+          return new Response(JSON.stringify({ error: "This bay is not available" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        // Customers see a time as open when any bay of the chosen type is free;
+        // staff (admin_mode) see the specific bay they picked.
+        const offset = getUtcOffsetForTz(`${date}T${open_time}:00`, slotMode.timezone);
+        const dayStartMs = new Date(`${date}T${open_time}:00${offset}`).getTime();
+        const dayEndMs = new Date(`${date}T${close_time}:00${offset}`).getTime();
+        const [candidates, busy] = await Promise.all([
+          candidateBayIds(slotAdmin, slotBay, !!admin_mode),
+          busyRanges(slotAdmin, slotBay.city, new Date(dayStartMs).toISOString(), new Date(dayEndMs).toISOString()),
+        ]);
+        const slots = computeSlots({ dayStartMs, dayEndMs, nowMs: Date.now(), adminMode: !!admin_mode, candidateBayIds: candidates, busy });
+        return new Response(JSON.stringify({ slots }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
       // Never trust a caller-chosen calendar: always use the bay's configured one.
-      const calendar_email = await resolveCalendarEmail(createAdminClient(), { bay_id, city });
+      const calendar_email = await resolveCalendarEmail(slotAdmin, { bay_id, city });
       if (!calendar_email) {
         return new Response(
           JSON.stringify({ error: "Unable to resolve calendar for this bay" }),
