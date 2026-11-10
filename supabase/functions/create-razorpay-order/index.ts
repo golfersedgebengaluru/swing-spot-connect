@@ -8,6 +8,7 @@ import {
   dayTypeForDate,
   isLocalDateOfStart,
 } from "../_shared/checkout-pricing.ts";
+import { cityBookingMode, loadBay, PAYMENT_HOLD_MINUTES, releaseHold, reserveBay } from "../_shared/app-availability.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") || "*",
@@ -96,17 +97,23 @@ serve(async (req) => {
     let amount: number;
     let notes: Record<string, string>;
     let stashPending: (orderId: string) => Promise<{ error: { message: string } | null }>;
+    let paymentHoldId: string | null = null;
+    // Any failure before the pending record exists must free the held slot.
+    const failWithHoldReleased = async (payload: unknown, status: number) => {
+      await releaseHold(admin, paymentHoldId);
+      return json(payload, status);
+    };
 
     if (order.purpose === "booking") {
       if (!user && !order.guest) return json({ error: "Guest contact details are required" }, 400);
-      const { data: bay } = await admin.from("bays").select("id, name, city, is_active").eq("id", order.bay_id).maybeSingle();
+      let bay = await loadBay(admin, order.bay_id);
       if (!bay || !bay.is_active) return json({ error: "This bay is not available" }, 400);
       if (!isLocalDateOfStart(order.local_date, order.start_time)) return json({ error: "Booking date does not match the selected time" }, 400);
       const dayType = dayTypeForDate(order.local_date);
       const { data: price } = await admin
         .from("bay_pricing")
         .select("price_per_hour, currency")
-        .eq("city", bay.city).eq("day_type", dayType).eq("session_type", order.session_type)
+        .eq("city", bay.city).eq("bay_type", bay.bay_type).eq("day_type", dayType).eq("session_type", order.session_type)
         .order("id").limit(1).maybeSingle();
       if (!price) return json({ error: "Price not available for this selection." }, 400);
 
@@ -119,12 +126,23 @@ serve(async (req) => {
       const charge = bookingCharge(Number(price.price_per_hour), order.duration_minutes, await applyCoupon(total));
       if (charge.amount <= 0) return json({ error: "Price not available for this selection." }, 400);
 
-      city = bay.city;
+      // App-calendar cities hold a free bay of this type for the payment window.
+      if ((await cityBookingMode(admin, bay.city)).source === "app") {
+        const reservation = await reserveBay(admin, {
+          bay, exact: false, start: startTime, end: endTime, holdMinutes: PAYMENT_HOLD_MINUTES,
+        });
+        if (!reservation) return json({ error: "This time is no longer available. Please pick another slot." }, 409);
+        paymentHoldId = reservation.hold_id;
+        if (reservation.bay_id !== bay.id) bay = (await loadBay(admin, reservation.bay_id)) ?? bay;
+      }
+      const heldBay = bay;
+
+      city = heldBay.city;
       currency = price.currency || "INR";
       amount = charge.amount;
-      notes = { bay: bay.name, city, date: order.local_date, duration: `${order.duration_minutes / 60}h`, session_type: order.session_type };
+      notes = { bay: heldBay.name, city, date: order.local_date, duration: `${order.duration_minutes / 60}h`, session_type: order.session_type };
       const common = {
-        city, bay_id: bay.id, bay_name: bay.name, start_time: startTime, end_time: endTime,
+        city, bay_id: heldBay.id, bay_name: heldBay.name, start_time: startTime, end_time: endTime,
         duration_minutes: order.duration_minutes, session_type: order.session_type,
         amount: charge.amount, currency, coupon_code: order.coupon_code ?? null,
         discount_amount: charge.discount, original_amount: charge.total,
@@ -165,12 +183,12 @@ serve(async (req) => {
       .eq("city", city)
       .eq("is_active", true)
       .maybeSingle();
-    if (!gateway) return json({ error: "No active Razorpay gateway found for this city" }, 400);
+    if (!gateway) return failWithHoldReleased({ error: "No active Razorpay gateway found for this city" }, 400);
 
     const apiKey = (gateway.api_key || "").trim();
     const citySlug = city.toUpperCase().replace(/[^A-Z0-9]/g, "_");
     const apiSecret = (Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) || gateway.api_secret || "").trim();
-    if (!apiKey || !apiSecret) return json({ error: "Razorpay API credentials not configured for this city" }, 400);
+    if (!apiKey || !apiSecret) return failWithHoldReleased({ error: "Razorpay API credentials not configured for this city" }, 400);
 
     const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
       method: "POST",
@@ -185,7 +203,7 @@ serve(async (req) => {
     if (!rzpRes.ok) {
       await rzpRes.text();
       console.error("Razorpay order creation failed — HTTP", rzpRes.status);
-      return json({ error: "Failed to create Razorpay order" }, 500);
+      return failWithHoldReleased({ error: "Failed to create Razorpay order" }, 500);
     }
     const rzpOrder = await rzpRes.json();
 
@@ -193,10 +211,16 @@ serve(async (req) => {
     const { error: stashErr } = await stashPending(rzpOrder.id);
     if (stashErr) {
       console.error("create-razorpay-order pending record failed:", stashErr.message);
-      return json({ error: "Could not start payment. Please try again." }, 500);
+      return failWithHoldReleased({ error: "Could not start payment. Please try again." }, 500);
+    }
+    if (paymentHoldId) {
+      await admin.from("bay_holds").update({ razorpay_order_id: rzpOrder.id }).eq("id", paymentHoldId);
     }
 
-    return json({ order_id: rzpOrder.id, amount: rzpOrder.amount, currency: rzpOrder.currency, key_id: apiKey, charge_amount: amount });
+    return json({
+      order_id: rzpOrder.id, amount: rzpOrder.amount, currency: rzpOrder.currency, key_id: apiKey, charge_amount: amount,
+      ...(paymentHoldId ? { hold_minutes: PAYMENT_HOLD_MINUTES } : {}),
+    });
   } catch (err) {
     if (err instanceof CheckoutError) return json({ error: err.message }, 400);
     console.error("create-razorpay-order error:", (err as Error).message);
