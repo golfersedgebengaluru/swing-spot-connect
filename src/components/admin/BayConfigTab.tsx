@@ -317,7 +317,8 @@ export function BayConfigTab() {
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {bay.open_time} – {bay.close_time} · {bay.calendar_email || "No calendar"} · Coaching: {bay.coaching_hours}h
+                        {BAY_TYPE_LABELS[bay.bay_type === "bunker" ? "bunker" : "standard"]} · {bay.open_time} – {bay.close_time} · {bay.calendar_email || "No calendar"} · Coaching: {bay.coaching_hours}h
+                        {bay.member_hours_enabled === false ? " · No member hours" : Number(bay.member_hours_rate ?? 1) !== 1 ? ` · ${bay.member_hours_rate}h per hour booked` : ""}
                         {bay.weekly_off_days?.length > 0 && (
                           <> · Off: {bay.weekly_off_days.map((d: number) => getDayShort(d)).join(", ")}</>
                         )}
