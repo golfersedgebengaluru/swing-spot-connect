@@ -1466,22 +1466,49 @@ Deno.serve(async (req) => {
       };
 
       try {
-        // Overlap check
-        const overlapQuery = adminClient
-          .from("bookings")
-          .select("id")
-          .in("status", ["confirmed", "pending"])
-          .gt("end_time", row.start_time)
-          .lt("start_time", row.end_time);
-        if (row.bay_id) overlapQuery.eq("bay_id", row.bay_id);
-        else overlapQuery.eq("city", row.city);
-        const { data: existingBookings } = await overlapQuery;
-        if (existingBookings && existingBookings.length > 0) {
-          await release("slot no longer available", "failed");
-          return new Response(
-            JSON.stringify({ error: "slot no longer available" }),
-            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
+        const memberMode = await cityBookingMode(adminClient, row.city);
+        let memberInsertHoldId: string | null = null;
+        if (memberMode.source === "app") {
+          // Turn the payment hold into a booking; if the hold ran out and the bay was
+          // taken, use another free bay of the same type, otherwise refund.
+          const requested = await loadBay(adminClient, row.bay_id);
+          const reservation = requested
+            ? await reserveBay(adminClient, {
+                bay: requested, exact: false, start: row.start_time, end: row.end_time,
+                holdMinutes: INSERT_HOLD_MINUTES, replaceHoldId: await holdForOrder(adminClient, row.razorpay_order_id),
+              })
+            : null;
+          if (!reservation) {
+            const refund = await refundRazorpayPayment(adminClient, row.city, payment_id, { reason: "slot_unavailable", order_id: row.razorpay_order_id });
+            await release(refund.ok ? "Slot taken before payment finished; refunded" : `Slot unavailable; ${refund.error}`, refund.ok ? "refunded" : "failed");
+            return new Response(
+              JSON.stringify({ error: "slot no longer available", refunded: refund.ok }),
+              { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
+          memberInsertHoldId = reservation.hold_id;
+          if (reservation.bay_id !== row.bay_id) {
+            row.bay_id = reservation.bay_id;
+            row.bay_name = (await loadBay(adminClient, reservation.bay_id))?.name ?? row.bay_name;
+          }
+        } else {
+          // Overlap check
+          const overlapQuery = adminClient
+            .from("bookings")
+            .select("id")
+            .in("status", ["confirmed", "pending"])
+            .gt("end_time", row.start_time)
+            .lt("start_time", row.end_time);
+          if (row.bay_id) overlapQuery.eq("bay_id", row.bay_id);
+          else overlapQuery.eq("city", row.city);
+          const { data: existingBookings } = await overlapQuery;
+          if (existingBookings && existingBookings.length > 0) {
+            await release("slot no longer available", "failed");
+            return new Response(
+              JSON.stringify({ error: "slot no longer available" }),
+              { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
         }
 
         const bayLabel = row.bay_name || row.city;
@@ -1503,6 +1530,7 @@ Deno.serve(async (req) => {
           })
           .select()
           .single();
+        await releaseHold(adminClient, memberInsertHoldId);
 
         if (bookingError) {
           if ((bookingError as any).code === "23P01") {
