@@ -229,7 +229,7 @@
 - [answered] Q: current payment hold — none today
 
 ## App calendar as booking record of truth (approved plan)
-- [ ] 1. Bay types (Standard/Bunker) + per-city Bunker hours settings + bay-type pricing
-- [ ] 2. Availability from app records, 10-min payment holds, automatic bay choice
+- [~] 1. Bay types + Bunker hours settings + bay-type pricing — database and admin screens done; booking screens not yet filtering price by bay type
+- [~] 2. App availability, 10-min holds, auto bay choice — server code written, NOT deployed or tested; booking screens (bay-type picker, 10-min payment window) not done
 - [ ] 3. Block-outs and all-bays day view
 - [ ] 4. Google copy with "not on Google yet" markers; per-city switch (Chennai/Bengaluru after block re-entry)
