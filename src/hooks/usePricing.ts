@@ -23,6 +23,7 @@ export function useUpsertBayPricing() {
     mutationFn: async (row: {
       id?: string;
       city: string;
+      bay_type: string;
       day_type: string;
       session_type: string;
       label: string;
@@ -32,7 +33,7 @@ export function useUpsertBayPricing() {
     }) => {
       const { error } = await supabase
         .from("bay_pricing")
-        .upsert(row, { onConflict: "city,day_type,session_type" });
+        .upsert(row, { onConflict: "city,bay_type,day_type,session_type" });
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["bay_pricing"] }),
