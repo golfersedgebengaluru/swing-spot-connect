@@ -973,7 +973,10 @@ Deno.serve(async (req) => {
           return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
       }
-      const {
+      // bay_id / bay_name may be reassigned when an app-calendar city moves a paid
+      // booking to another free bay of the same type.
+      // deno-lint-ignore prefer-const
+      let {
         payment_id, order_id,
         start_time, end_time, duration_minutes, city, bay_id, bay_name,
         session_type, guest_name, guest_email, guest_phone, num_players,
@@ -1052,7 +1055,39 @@ Deno.serve(async (req) => {
 
       // Check for overlapping bookings (skip for backdated accounting entries
       // and for participant add-ons that ride on an existing booking's slot).
-      if (!isBackdated && !isParticipant) {
+      // App-calendar cities reserve a free bay from app records: a paid checkout
+      // may move to another bay of the same type; staff walk-ins keep their bay.
+      const guestMode = await cityBookingMode(adminClient, city);
+      let guestInsertHoldId: string | null = null;
+      if (guestMode.source === "app" && !isBackdated && !isParticipant) {
+        const requested = await loadBay(adminClient, bay_id);
+        const paymentHoldId = await holdForOrder(adminClient, order_id);
+        const reservation = requested
+          ? await reserveBay(adminClient, {
+              bay: requested, exact: !order_id, start: start_time, end: end_time,
+              holdMinutes: INSERT_HOLD_MINUTES, replaceHoldId: paymentHoldId,
+            })
+          : null;
+        if (!reservation) {
+          if (order_id) {
+            const refund = await refundRazorpayPayment(adminClient, city, payment_id, { reason: "slot_unavailable", order_id });
+            await adminClient.from("pending_guest_bookings")
+              .update({ status: refund.ok ? "refunded" : "failed", error_message: refund.ok ? "Slot taken before payment finished; refunded" : `Slot unavailable; ${refund.error}` })
+              .eq("razorpay_order_id", order_id);
+            console.warn(`[calendar-sync] guest slot unavailable order=${order_id} refunded=${refund.ok}`);
+          }
+          return new Response(
+            JSON.stringify({ error: "This slot is no longer available. Please refresh and try again.", refunded: !!order_id }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        guestInsertHoldId = reservation.hold_id;
+        if (reservation.bay_id !== bay_id) {
+          bay_id = reservation.bay_id;
+          bay_name = (await loadBay(adminClient, bay_id))?.name ?? bay_name;
+        }
+        calendar_email = await resolveCalendarEmail(adminClient, { bay_id, city });
+      } else if (!isBackdated && !isParticipant) {
         const overlapQuery = adminClient
           .from("bookings")
           .select("id")
@@ -1172,6 +1207,7 @@ Deno.serve(async (req) => {
         })
         .select()
         .single();
+      await releaseHold(adminClient, guestInsertHoldId);
 
 
       if (bookingError) {
