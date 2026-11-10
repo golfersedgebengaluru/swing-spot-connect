@@ -226,3 +226,4 @@
 - [x] Make every Users table column except Actions clickable with direction indicators; export follows the same ordering
 - [x] Run rule and regression tests: 102 files / 865 tests passed; preview build OK
 - [ ] Verify sorting visually with authorized admin access: requesting-user session still shows Access Denied
+- [answered] Q: current payment hold — none today
