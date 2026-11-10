@@ -147,8 +147,50 @@ export type Database = {
           },
         ]
       }
+      bay_blockouts: {
+        Row: {
+          bay_id: string | null
+          city: string
+          created_at: string
+          created_by: string | null
+          end_time: string
+          id: string
+          reason: string
+          start_time: string
+        }
+        Insert: {
+          bay_id?: string | null
+          city: string
+          created_at?: string
+          created_by?: string | null
+          end_time: string
+          id?: string
+          reason?: string
+          start_time: string
+        }
+        Update: {
+          bay_id?: string | null
+          city?: string
+          created_at?: string
+          created_by?: string | null
+          end_time?: string
+          id?: string
+          reason?: string
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bay_blockouts_bay_id_fkey"
+            columns: ["bay_id"]
+            isOneToOne: false
+            referencedRelation: "bays"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bay_config: {
         Row: {
+          availability_source: string
           calendar_email: string | null
           cancellation_fee_pct: number
           city: string
@@ -157,9 +199,11 @@ export type Database = {
           id: string
           is_active: boolean
           open_time: string
+          timezone: string
           updated_at: string
         }
         Insert: {
+          availability_source?: string
           calendar_email?: string | null
           cancellation_fee_pct?: number
           city: string
@@ -168,9 +212,11 @@ export type Database = {
           id?: string
           is_active?: boolean
           open_time?: string
+          timezone?: string
           updated_at?: string
         }
         Update: {
+          availability_source?: string
           calendar_email?: string | null
           cancellation_fee_pct?: number
           city?: string
@@ -179,9 +225,54 @@ export type Database = {
           id?: string
           is_active?: boolean
           open_time?: string
+          timezone?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      bay_holds: {
+        Row: {
+          bay_id: string
+          city: string
+          created_at: string
+          end_time: string
+          expires_at: string
+          id: string
+          razorpay_order_id: string | null
+          released_at: string | null
+          start_time: string
+        }
+        Insert: {
+          bay_id: string
+          city: string
+          created_at?: string
+          end_time: string
+          expires_at: string
+          id?: string
+          razorpay_order_id?: string | null
+          released_at?: string | null
+          start_time: string
+        }
+        Update: {
+          bay_id?: string
+          city?: string
+          created_at?: string
+          end_time?: string
+          expires_at?: string
+          id?: string
+          razorpay_order_id?: string | null
+          released_at?: string | null
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bay_holds_bay_id_fkey"
+            columns: ["bay_id"]
+            isOneToOne: false
+            referencedRelation: "bays"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bay_holidays: {
         Row: {
@@ -293,6 +384,7 @@ export type Database = {
       }
       bay_pricing: {
         Row: {
+          bay_type: string
           city: string
           created_at: string
           currency: string
@@ -305,6 +397,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bay_type?: string
           city: string
           created_at?: string
           currency?: string
@@ -317,6 +410,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bay_type?: string
           city?: string
           created_at?: string
           currency?: string
@@ -347,6 +441,7 @@ export type Database = {
       }
       bays: {
         Row: {
+          bay_type: string
           calendar_email: string | null
           city: string
           close_time: string
@@ -360,6 +455,8 @@ export type Database = {
           extended_open_time: string | null
           id: string
           is_active: boolean
+          member_hours_enabled: boolean
+          member_hours_rate: number
           name: string
           open_time: string
           peak_end: string | null
@@ -369,6 +466,7 @@ export type Database = {
           weekly_off_days: number[]
         }
         Insert: {
+          bay_type?: string
           calendar_email?: string | null
           city: string
           close_time?: string
@@ -382,6 +480,8 @@ export type Database = {
           extended_open_time?: string | null
           id?: string
           is_active?: boolean
+          member_hours_enabled?: boolean
+          member_hours_rate?: number
           name: string
           open_time?: string
           peak_end?: string | null
@@ -391,6 +491,7 @@ export type Database = {
           weekly_off_days?: number[]
         }
         Update: {
+          bay_type?: string
           calendar_email?: string | null
           city?: string
           close_time?: string
@@ -404,6 +505,8 @@ export type Database = {
           extended_open_time?: string | null
           id?: string
           is_active?: boolean
+          member_hours_enabled?: boolean
+          member_hours_rate?: number
           name?: string
           open_time?: string
           peak_end?: string | null
@@ -6315,6 +6418,33 @@ export type Database = {
           revenue_id: string
         }[]
       }
+      bay_busy_ranges: {
+        Args: {
+          p_city: string
+          p_exclude_hold?: string
+          p_from: string
+          p_to: string
+        }
+        Returns: {
+          bay_id: string
+          end_time: string
+          kind: string
+          start_time: string
+        }[]
+      }
+      bay_day_schedule: {
+        Args: { p_city: string; p_from: string; p_to: string }
+        Returns: {
+          bay_id: string
+          end_time: string
+          id: string
+          kind: string
+          label: string
+          on_google: boolean
+          session_type: string
+          start_time: string
+        }[]
+      }
       can_read_coaching_session: {
         Args: { _session_id: string }
         Returns: boolean
@@ -6649,6 +6779,21 @@ export type Database = {
       release_pending_guest_booking: {
         Args: { _error?: string; _order_id: string }
         Returns: undefined
+      }
+      reserve_bay_slot: {
+        Args: {
+          p_bay_type: string
+          p_city: string
+          p_end: string
+          p_exclude_hold?: string
+          p_hold_minutes?: number
+          p_preferred_bay: string
+          p_start: string
+        }
+        Returns: {
+          bay_id: string
+          hold_id: string
+        }[]
       }
       resolve_product_for_revenue: {
         Args: {

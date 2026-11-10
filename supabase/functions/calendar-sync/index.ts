@@ -10,6 +10,19 @@ import {
 import { recordRefund } from "../_shared/revenue-ledger.ts";
 import { enrichBookingTimezones } from "./booking-timezones.ts";
 import { cancelPaidBooking } from "./atomic-cancellation.ts";
+import {
+  busyRanges,
+  candidateBayIds,
+  cityBookingMode,
+  computeSlots,
+  holdForOrder,
+  INSERT_HOLD_MINUTES,
+  loadBay,
+  memberHoursForBay,
+  refundRazorpayPayment,
+  releaseHold,
+  reserveBay,
+} from "../_shared/app-availability.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") || "*",
@@ -960,7 +973,10 @@ Deno.serve(async (req) => {
           return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
       }
-      const {
+      // bay_id / bay_name may be reassigned when an app-calendar city moves a paid
+      // booking to another free bay of the same type.
+      // deno-lint-ignore prefer-const
+      let {
         payment_id, order_id,
         start_time, end_time, duration_minutes, city, bay_id, bay_name,
         session_type, guest_name, guest_email, guest_phone, num_players,
@@ -1039,7 +1055,39 @@ Deno.serve(async (req) => {
 
       // Check for overlapping bookings (skip for backdated accounting entries
       // and for participant add-ons that ride on an existing booking's slot).
-      if (!isBackdated && !isParticipant) {
+      // App-calendar cities reserve a free bay from app records: a paid checkout
+      // may move to another bay of the same type; staff walk-ins keep their bay.
+      const guestMode = await cityBookingMode(adminClient, city);
+      let guestInsertHoldId: string | null = null;
+      if (guestMode.source === "app" && !isBackdated && !isParticipant) {
+        const requested = await loadBay(adminClient, bay_id);
+        const paymentHoldId = await holdForOrder(adminClient, order_id);
+        const reservation = requested
+          ? await reserveBay(adminClient, {
+              bay: requested, exact: !order_id, start: start_time, end: end_time,
+              holdMinutes: INSERT_HOLD_MINUTES, replaceHoldId: paymentHoldId,
+            })
+          : null;
+        if (!reservation) {
+          if (order_id) {
+            const refund = await refundRazorpayPayment(adminClient, city, payment_id, { reason: "slot_unavailable", order_id });
+            await adminClient.from("pending_guest_bookings")
+              .update({ status: refund.ok ? "refunded" : "failed", error_message: refund.ok ? "Slot taken before payment finished; refunded" : `Slot unavailable; ${refund.error}` })
+              .eq("razorpay_order_id", order_id);
+            console.warn(`[calendar-sync] guest slot unavailable order=${order_id} refunded=${refund.ok}`);
+          }
+          return new Response(
+            JSON.stringify({ error: "This slot is no longer available. Please refresh and try again.", refunded: !!order_id }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        guestInsertHoldId = reservation.hold_id;
+        if (reservation.bay_id !== bay_id) {
+          bay_id = reservation.bay_id;
+          bay_name = (await loadBay(adminClient, bay_id))?.name ?? bay_name;
+        }
+        calendar_email = await resolveCalendarEmail(adminClient, { bay_id, city });
+      } else if (!isBackdated && !isParticipant) {
         const overlapQuery = adminClient
           .from("bookings")
           .select("id")
@@ -1159,6 +1207,7 @@ Deno.serve(async (req) => {
         })
         .select()
         .single();
+      await releaseHold(adminClient, guestInsertHoldId);
 
 
       if (bookingError) {
@@ -1417,22 +1466,49 @@ Deno.serve(async (req) => {
       };
 
       try {
-        // Overlap check
-        const overlapQuery = adminClient
-          .from("bookings")
-          .select("id")
-          .in("status", ["confirmed", "pending"])
-          .gt("end_time", row.start_time)
-          .lt("start_time", row.end_time);
-        if (row.bay_id) overlapQuery.eq("bay_id", row.bay_id);
-        else overlapQuery.eq("city", row.city);
-        const { data: existingBookings } = await overlapQuery;
-        if (existingBookings && existingBookings.length > 0) {
-          await release("slot no longer available", "failed");
-          return new Response(
-            JSON.stringify({ error: "slot no longer available" }),
-            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
+        const memberMode = await cityBookingMode(adminClient, row.city);
+        let memberInsertHoldId: string | null = null;
+        if (memberMode.source === "app") {
+          // Turn the payment hold into a booking; if the hold ran out and the bay was
+          // taken, use another free bay of the same type, otherwise refund.
+          const requested = await loadBay(adminClient, row.bay_id);
+          const reservation = requested
+            ? await reserveBay(adminClient, {
+                bay: requested, exact: false, start: row.start_time, end: row.end_time,
+                holdMinutes: INSERT_HOLD_MINUTES, replaceHoldId: await holdForOrder(adminClient, row.razorpay_order_id),
+              })
+            : null;
+          if (!reservation) {
+            const refund = await refundRazorpayPayment(adminClient, row.city, payment_id, { reason: "slot_unavailable", order_id: row.razorpay_order_id });
+            await release(refund.ok ? "Slot taken before payment finished; refunded" : `Slot unavailable; ${refund.error}`, refund.ok ? "refunded" : "failed");
+            return new Response(
+              JSON.stringify({ error: "slot no longer available", refunded: refund.ok }),
+              { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
+          memberInsertHoldId = reservation.hold_id;
+          if (reservation.bay_id !== row.bay_id) {
+            row.bay_id = reservation.bay_id;
+            row.bay_name = (await loadBay(adminClient, reservation.bay_id))?.name ?? row.bay_name;
+          }
+        } else {
+          // Overlap check
+          const overlapQuery = adminClient
+            .from("bookings")
+            .select("id")
+            .in("status", ["confirmed", "pending"])
+            .gt("end_time", row.start_time)
+            .lt("start_time", row.end_time);
+          if (row.bay_id) overlapQuery.eq("bay_id", row.bay_id);
+          else overlapQuery.eq("city", row.city);
+          const { data: existingBookings } = await overlapQuery;
+          if (existingBookings && existingBookings.length > 0) {
+            await release("slot no longer available", "failed");
+            return new Response(
+              JSON.stringify({ error: "slot no longer available" }),
+              { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
         }
 
         const bayLabel = row.bay_name || row.city;
@@ -1454,6 +1530,7 @@ Deno.serve(async (req) => {
           })
           .select()
           .single();
+        await releaseHold(adminClient, memberInsertHoldId);
 
         if (bookingError) {
           if ((bookingError as any).code === "23P01") {
@@ -1585,8 +1662,27 @@ Deno.serve(async (req) => {
     // so that public/guest users can see real-time availability
     if (action === "list_slots") {
       const { date, open_time, close_time, bay_id, city, admin_mode } = params;
+      const slotAdmin = createAdminClient();
+      const slotBay = await loadBay(slotAdmin, bay_id);
+      const slotMode = await cityBookingMode(slotAdmin, slotBay?.city ?? city);
+      if (slotMode.source === "app") {
+        if (!slotBay || !slotBay.is_active) {
+          return new Response(JSON.stringify({ error: "This bay is not available" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        // Customers see a time as open when any bay of the chosen type is free;
+        // staff (admin_mode) see the specific bay they picked.
+        const offset = getUtcOffsetForTz(`${date}T${open_time}:00`, slotMode.timezone);
+        const dayStartMs = new Date(`${date}T${open_time}:00${offset}`).getTime();
+        const dayEndMs = new Date(`${date}T${close_time}:00${offset}`).getTime();
+        const [candidates, busy] = await Promise.all([
+          candidateBayIds(slotAdmin, slotBay, !!admin_mode),
+          busyRanges(slotAdmin, slotBay.city, new Date(dayStartMs).toISOString(), new Date(dayEndMs).toISOString()),
+        ]);
+        const slots = computeSlots({ dayStartMs, dayEndMs, nowMs: Date.now(), adminMode: !!admin_mode, candidateBayIds: candidates, busy });
+        return new Response(JSON.stringify({ slots }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
       // Never trust a caller-chosen calendar: always use the bay's configured one.
-      const calendar_email = await resolveCalendarEmail(createAdminClient(), { bay_id, city });
+      const calendar_email = await resolveCalendarEmail(slotAdmin, { bay_id, city });
       if (!calendar_email) {
         return new Response(
           JSON.stringify({ error: "Unable to resolve calendar for this bay" }),
@@ -1672,6 +1768,42 @@ Deno.serve(async (req) => {
 
     // list_slots is handled above (before auth check) — this block is intentionally removed
 
+    // Staff retry for the view-only Google copy of an app-calendar booking.
+    if (action === "sync_booking_to_google") {
+      const adminClient = createAdminClient();
+      const { data: booking } = await adminClient
+        .from("bookings")
+        .select("id, city, bay_id, user_id, start_time, end_time, session_type, status, calendar_event_id, parent_booking_id")
+        .eq("id", String(params.booking_id ?? ""))
+        .maybeSingle();
+      if (!booking) return new Response(JSON.stringify({ error: "Booking not found" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const { data: allowed } = await adminClient.rpc("has_city_access", { _user_id: userId, _city: booking.city });
+      if (!allowed) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (booking.calendar_event_id) return new Response(JSON.stringify({ status: "already_synced" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (booking.parent_booking_id || !["confirmed", "pending"].includes(booking.status)) {
+        return new Response(JSON.stringify({ error: "This booking does not need a calendar entry" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const calendarEmail = await resolveCalendarEmail(adminClient, { bay_id: booking.bay_id, city: booking.city });
+      if (!calendarEmail) return new Response(JSON.stringify({ error: "No Google Calendar is set up for this bay or city" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const bay = await loadBay(adminClient, booking.bay_id);
+      const who = await resolveProfileDisplayName(adminClient, booking.user_id);
+      const isCoaching = booking.session_type === "coaching";
+      try {
+        const calTz = await getCalendarTimezone(accessToken, calendarEmail);
+        const calEvent = await createEvent(
+          accessToken, calendarEmail,
+          `${bay?.name || booking.city} - ${who || "Booking"}${isCoaching ? " (Coaching)" : ""}`,
+          booking.start_time, booking.end_time, calTz,
+          "Copy of a Golfer's Edge booking. The app calendar is the record of truth.",
+        );
+        await adminClient.from("bookings").update({ calendar_event_id: calEvent.id }).eq("id", booking.id).is("calendar_event_id", null);
+        return new Response(JSON.stringify({ status: "synced" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch (e) {
+        console.error(`[calendar-sync] sync_booking_to_google failed booking=${booking.id}: ${(e as Error).message}`);
+        return new Response(JSON.stringify({ error: "Google Calendar did not accept the entry. Please try again later." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     if (action === "create_booking") {
       const { start_time, end_time, city, bay_id, bay_name, display_name, session_type, payment_method, user_id_override, parent_booking_id } = params;
       // Hours are charged for the slot actually reserved, never a caller-supplied duration.
@@ -1698,9 +1830,17 @@ Deno.serve(async (req) => {
         }
       }
 
+      const requestedBay = await loadBay(createAdminClient(), bay_id);
+      const bookingMode = await cityBookingMode(createAdminClient(), requestedBay?.city ?? city);
+      const appCalendar = bookingMode.source === "app";
+      if (appCalendar && (!requestedBay || !requestedBay.is_active)) {
+        return new Response(JSON.stringify({ error: "This bay is not available" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
       // Resolve the calendar mailbox server-side from the bay; callers cannot choose it.
+      // App-calendar cities only copy bookings to Google, so a missing calendar is not fatal.
       calendar_email = await resolveCalendarEmail(createAdminClient(), { bay_id, city });
-      if (!calendar_email) {
+      if (!calendar_email && !appCalendar) {
         return new Response(
           JSON.stringify({ error: "Unable to resolve calendar for this bay" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -1711,7 +1851,7 @@ Deno.serve(async (req) => {
       const paidViaGateway = !!payment_method && payment_method !== "hours";
 
       // Get the calendar's timezone for consistent formatting
-      const calTz = await getCalendarTimezone(accessToken, calendar_email);
+      const calTz = appCalendar ? bookingMode.timezone : await getCalendarTimezone(accessToken, calendar_email!);
 
       // Get bay config for coaching mode
       let coachingMode = "instant";
@@ -1732,7 +1872,12 @@ Deno.serve(async (req) => {
       const durationHours = duration_minutes / 60;
       // Coaching: coaching_hours is the per-hour multiplier (e.g. 2 means 2h deducted per 1h booked).
       // Scale by actual booking duration so multi-hour coaching sessions deduct correctly.
-      const hoursNeeded = isCoaching ? coachingHours * durationHours : durationHours;
+      // Practice: the bay's "hours used per hour booked" (1 unless staff changed it, e.g. Bunker Bay).
+      const practiceHours = memberHoursForBay(requestedBay, durationHours);
+      if (!isCoaching && practiceHours === null) {
+        return new Response(JSON.stringify({ error: "Member hours can't be used for this bay. Please pay to book it." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const hoursNeeded = isCoaching ? coachingHours * durationHours : practiceHours!;
 
       // Only check/deduct balance for non-pending, non-gateway-paid bookings
       if (!needsApproval && !paidViaGateway) {
@@ -1753,7 +1898,27 @@ Deno.serve(async (req) => {
 
       // Check no overlap with existing bookings for this specific bay (both confirmed and pending block slots).
       // Skip overlap check for participant add-ons — they ride on an existing booking's slot.
-      if (!isParticipant) {
+      // App-calendar cities pick (and briefly hold) a free bay from app records instead.
+      let insertHoldId: string | null = null;
+      let bookedBayId: string | null = bay_id || null;
+      let bayLabel = bay_name || city;
+      if (appCalendar && !isParticipant) {
+        const staffChoseBay = bookingUserId !== userId;
+        const reservation = await reserveBay(adminClient, {
+          bay: requestedBay!, exact: staffChoseBay, start: start_time, end: end_time, holdMinutes: INSERT_HOLD_MINUTES,
+        });
+        if (!reservation) {
+          return new Response(
+            JSON.stringify({ error: "This slot is no longer available. Please refresh and try again." }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        insertHoldId = reservation.hold_id;
+        bookedBayId = reservation.bay_id;
+        const bookedBay = bookedBayId === requestedBay!.id ? requestedBay : await loadBay(adminClient, bookedBayId);
+        bayLabel = bookedBay?.name || bayLabel;
+        calendar_email = await resolveCalendarEmail(adminClient, { bay_id: bookedBayId, city });
+      } else if (!isParticipant) {
         const overlapQuery = adminClient
           .from("bookings")
           .select("*")
@@ -1780,7 +1945,6 @@ Deno.serve(async (req) => {
       // Defer Calendar event creation until AFTER the booking row is committed
       // so a slot collision (caught by bookings_no_overlap_per_bay) never leaks
       // an orphan Google Calendar event.
-      const bayLabel = bay_name || city;
       const calSummary = needsApproval
         ? `⏳ Pending Coaching Approval - ${display_name || "Member"}`
         : `${bayLabel} - ${display_name || "Member"}${isCoaching ? " (Coaching)" : ""}`;
@@ -1803,10 +1967,11 @@ Deno.serve(async (req) => {
         parent_booking_id: parent_booking_id || null,
         note: noteSuffix,
       };
-      if (bay_id) bookingInsert.bay_id = bay_id;
+      if (bookedBayId) bookingInsert.bay_id = bookedBayId;
 
 
       const { data: booking, error: bookingError } = await adminClient.from("bookings").insert(bookingInsert).select().single();
+      await releaseHold(adminClient, insertHoldId);
       if (bookingError) {
         if ((bookingError as any).code === "23P01") {
           console.warn(`[calendar-sync v3] create_booking db_overlap_blocked user=${bookingUserId} bay=${bay_id} start=${start_time}`);
@@ -1820,7 +1985,7 @@ Deno.serve(async (req) => {
 
       // Create Google Calendar event AFTER booking is committed, then patch the id.
       let calEventId: string | null = null;
-      if (!isParticipant) {
+      if (!isParticipant && calendar_email) {
         try {
           const calEvent = await createEvent(accessToken, calendar_email, calSummary, start_time, end_time, calTz, calDesc);
           calEventId = calEvent.id;

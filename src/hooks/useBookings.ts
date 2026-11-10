@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -13,7 +13,7 @@ export function useBays() {
       // should query `bays` separately with an explicit column list.
       const { data, error } = await supabase
         .from("bays")
-        .select("id, city, name, sort_order, is_active, open_time, close_time, coaching_mode, coaching_hours, coaching_cancellation_refund_hours, currency, peak_start, peak_end, weekly_off_days, extended_open_time, extended_close_time, extended_hours_enabled, hours_overrides:bay_hours_overrides(day_of_week, open_time, close_time)")
+        .select("id, city, name, sort_order, is_active, open_time, close_time, coaching_mode, coaching_hours, coaching_cancellation_refund_hours, currency, peak_start, peak_end, weekly_off_days, extended_open_time, extended_close_time, extended_hours_enabled, bay_type, member_hours_enabled, member_hours_rate, hours_overrides:bay_hours_overrides(day_of_week, open_time, close_time)")
         .order("city")
         .order("sort_order");
       if (error) throw error;
@@ -29,12 +29,21 @@ export function useBayConfig() {
       // calendar_email intentionally excluded — see useBays note.
       const { data, error } = await supabase
         .from("bay_config")
-        .select("id, city, open_time, close_time, is_active, cancellation_fee_pct")
+        .select("id, city, open_time, close_time, is_active, cancellation_fee_pct, availability_source, timezone")
         .order("city");
       if (error) throw error;
       return data as any[];
     },
   });
+}
+
+/** Cities whose availability comes from the app calendar (bookings, holds, block-outs). */
+export function useAppCalendarCities() {
+  const { data } = useBayConfig();
+  return useMemo(
+    () => new Set((data ?? []).filter((c: { availability_source?: string }) => c.availability_source === "app").map((c: { city: string }) => c.city)),
+    [data],
+  );
 }
 
 export function useAvailableSlots(

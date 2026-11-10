@@ -17,6 +17,7 @@ import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useAllProducts } from "@/hooks/useProducts";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
+import { BAY_TYPE_LABELS, bayTypeOf, type BayType } from "@/lib/bay-types";
 
 const DAY_TYPES = [
   { key: "weekday", label: "Weekday" },
@@ -52,20 +53,33 @@ function BayPricingSection() {
   const { data: cities = [] } = useAllCities();
 
   const effectiveCity = globalCity || selectedCity || cities[0] || "";
+  const [bayType, setBayType] = useState<BayType>("standard");
+  // Bunker pricing is only offered where the city actually has a Bunker bay (or already has Bunker prices).
+  const cityHasBunker = useMemo(
+    () => (bays ?? []).some((b: any) => b.city === effectiveCity && bayTypeOf(b) === "bunker")
+      || (pricing ?? []).some((p: any) => p.city === effectiveCity && p.bay_type === "bunker"),
+    [bays, pricing, effectiveCity],
+  );
+  const effectiveBayType: BayType = cityHasBunker ? bayType : "standard";
+  const switchBayType = (next: BayType) => { setBayType(next); setEdits({}); setServiceEdits({}); };
 
-  // Derive session types dynamically from existing pricing data for this city
-  const cityPricing = useMemo(() =>
+  // Session types are shared by every bay type in the city; prices are per bay type.
+  const allCityPricing = useMemo(() =>
     (pricing ?? []).filter((p: any) => p.city === effectiveCity),
     [pricing, effectiveCity]
+  );
+  const cityPricing = useMemo(() =>
+    allCityPricing.filter((p: any) => (p.bay_type ?? "standard") === effectiveBayType),
+    [allCityPricing, effectiveBayType]
   );
 
   const sessionTypes = useMemo(() => {
     const seen = new Map<string, string>();
-    cityPricing.forEach((p: any) => {
+    allCityPricing.forEach((p: any) => {
       if (!seen.has(p.session_type)) seen.set(p.session_type, p.label);
     });
     return Array.from(seen.entries()).map(([key, label]) => ({ key, label }));
-  }, [cityPricing]);
+  }, [allCityPricing]);
 
   const pricingMap = useMemo(() => {
     const map: Record<string, any> = {};
@@ -114,6 +128,7 @@ function BayPricingSection() {
         promises.push(
           upsert.mutateAsync({
             city: effectiveCity,
+            bay_type: effectiveBayType,
             day_type: day.key,
             session_type: session.key,
             label: session.label,
@@ -154,6 +169,7 @@ function BayPricingSection() {
         DAY_TYPES.map((d) =>
           upsert.mutateAsync({
             city: effectiveCity,
+            bay_type: effectiveBayType,
             day_type: d.key,
             session_type: key,
             label,
@@ -213,6 +229,22 @@ function BayPricingSection() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        )}
+
+        {cityHasBunker && (
+          <div>
+            <Label>Bay type</Label>
+            <Select value={effectiveBayType} onValueChange={(v) => switchBayType(v as BayType)}>
+              <SelectTrigger className="mt-1 max-w-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="standard">{BAY_TYPE_LABELS.standard}</SelectItem>
+                <SelectItem value="bunker">{BAY_TYPE_LABELS.bunker}</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">A price of 0 means customers can't pay for that option on this bay type.</p>
           </div>
         )}
 
@@ -298,7 +330,7 @@ function BayPricingSection() {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Delete "{session.label}"?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                This will remove all pricing rows for this session type in {effectiveCity}. This action cannot be undone.
+                                This will remove this session type's {cityHasBunker ? `${BAY_TYPE_LABELS[effectiveBayType]} ` : ""}prices in {effectiveCity}. This action cannot be undone.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
