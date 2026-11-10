@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { MapPin, Plus, Pencil, Trash2, Loader2, LayoutGrid, Percent } from "lucide-react";
 import { WeeklyOffEditor, HolidayEditor, PeakHoursEditor, DayHoursOverrideEditor } from "./BayScheduleEditors";
+import { AvailabilitySourceEditor } from "./AvailabilitySourceEditor";
+import { BAY_TYPE_LABELS, type BayType } from "@/lib/bay-types";
 import { useEffect } from "react";
 
 function CancellationFeeEditor({ city }: { city: string }) {
@@ -102,6 +104,9 @@ interface BayForm {
   extended_hours_enabled: boolean;
   extended_open_time: string;
   extended_close_time: string;
+  bay_type: BayType;
+  member_hours_enabled: boolean;
+  member_hours_rate: number;
 }
 
 const emptyForm: BayForm = {
@@ -119,6 +124,9 @@ const emptyForm: BayForm = {
   extended_hours_enabled: false,
   extended_open_time: "07:00",
   extended_close_time: "23:00",
+  bay_type: "standard",
+  member_hours_enabled: true,
+  member_hours_rate: 1,
 };
 
 export function BayConfigTab() {
@@ -130,7 +138,7 @@ export function BayConfigTab() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bays")
-        .select("id, city, name, sort_order, is_active, open_time, close_time, coaching_mode, coaching_hours, coaching_cancellation_refund_hours, currency, peak_start, peak_end, weekly_off_days, extended_open_time, extended_close_time, extended_hours_enabled, created_at, updated_at, hours_overrides:bay_hours_overrides(day_of_week, open_time, close_time)")
+        .select("id, city, name, sort_order, is_active, open_time, close_time, coaching_mode, coaching_hours, coaching_cancellation_refund_hours, currency, peak_start, peak_end, weekly_off_days, extended_open_time, extended_close_time, extended_hours_enabled, bay_type, member_hours_enabled, member_hours_rate, created_at, updated_at, hours_overrides:bay_hours_overrides(day_of_week, open_time, close_time)")
         .order("city")
         .order("sort_order");
       if (error) throw error;
@@ -168,6 +176,10 @@ export function BayConfigTab() {
       toast({ title: "Validation Error", description: "Cancellation refund hours cannot exceed coaching hours per session.", variant: "destructive" });
       return;
     }
+    if (!(editing.member_hours_rate > 0 && editing.member_hours_rate <= 10)) {
+      toast({ title: "Validation Error", description: "Hours used per hour booked must be between 0.5 and 10.", variant: "destructive" });
+      return;
+    }
     // Validate extended hours window is non-empty when enabled
     if (editing.extended_hours_enabled) {
       if (!editing.extended_open_time || !editing.extended_close_time) {
@@ -194,6 +206,9 @@ export function BayConfigTab() {
       extended_hours_enabled: editing.extended_hours_enabled,
       extended_open_time: editing.extended_hours_enabled ? editing.extended_open_time : null,
       extended_close_time: editing.extended_hours_enabled ? editing.extended_close_time : null,
+      bay_type: editing.bay_type,
+      member_hours_enabled: editing.member_hours_enabled,
+      member_hours_rate: editing.member_hours_rate,
     };
 
     if (editing.id) {
@@ -322,6 +337,7 @@ export function BayConfigTab() {
 
               {/* City-level schedule management */}
               <Separator className="my-4" />
+              <AvailabilitySourceEditor city={city} />
               <CancellationFeeEditor city={city} />
               <HolidayEditor city={city} />
             </CardContent>
@@ -340,6 +356,42 @@ export function BayConfigTab() {
               <div>
                 <Label>Bay Name</Label>
                 <Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} placeholder="Bay #1" />
+              </div>
+              <div>
+                <Label>Bay Type</Label>
+                <Select value={editing.bay_type} onValueChange={(v) => setEditing({ ...editing, bay_type: v as BayType })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="standard">{BAY_TYPE_LABELS.standard}</SelectItem>
+                    <SelectItem value="bunker">{BAY_TYPE_LABELS.bunker}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">Customers pick a bay type; any free bay of that type is booked. Each type has its own prices.</p>
+              </div>
+              <div className="rounded-md border border-border p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm">Members can use hours here</Label>
+                    <p className="text-xs text-muted-foreground">When off, members pay for this bay instead of using their hours.</p>
+                  </div>
+                  <Switch
+                    checked={editing.member_hours_enabled}
+                    onCheckedChange={(v) => setEditing({ ...editing, member_hours_enabled: v })}
+                  />
+                </div>
+                {editing.member_hours_enabled && (
+                  <div>
+                    <Label className="text-xs">Hours used per hour booked</Label>
+                    <Input
+                      type="number" step="0.5" min="0.5" max="10"
+                      value={editing.member_hours_rate || ""}
+                      onChange={(e) => setEditing({ ...editing, member_hours_rate: Number(e.target.value) })}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">For example 1.5 means a 1-hour booking uses 1.5 member hours.</p>
+                  </div>
+                )}
               </div>
               <div>
                 <Label>Google Calendar Email</Label>
