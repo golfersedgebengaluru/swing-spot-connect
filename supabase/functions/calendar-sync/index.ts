@@ -1730,9 +1730,17 @@ Deno.serve(async (req) => {
         }
       }
 
+      const requestedBay = await loadBay(createAdminClient(), bay_id);
+      const bookingMode = await cityBookingMode(createAdminClient(), requestedBay?.city ?? city);
+      const appCalendar = bookingMode.source === "app";
+      if (appCalendar && (!requestedBay || !requestedBay.is_active)) {
+        return new Response(JSON.stringify({ error: "This bay is not available" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
       // Resolve the calendar mailbox server-side from the bay; callers cannot choose it.
+      // App-calendar cities only copy bookings to Google, so a missing calendar is not fatal.
       calendar_email = await resolveCalendarEmail(createAdminClient(), { bay_id, city });
-      if (!calendar_email) {
+      if (!calendar_email && !appCalendar) {
         return new Response(
           JSON.stringify({ error: "Unable to resolve calendar for this bay" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -1743,7 +1751,7 @@ Deno.serve(async (req) => {
       const paidViaGateway = !!payment_method && payment_method !== "hours";
 
       // Get the calendar's timezone for consistent formatting
-      const calTz = await getCalendarTimezone(accessToken, calendar_email);
+      const calTz = appCalendar ? bookingMode.timezone : await getCalendarTimezone(accessToken, calendar_email!);
 
       // Get bay config for coaching mode
       let coachingMode = "instant";
@@ -1764,7 +1772,12 @@ Deno.serve(async (req) => {
       const durationHours = duration_minutes / 60;
       // Coaching: coaching_hours is the per-hour multiplier (e.g. 2 means 2h deducted per 1h booked).
       // Scale by actual booking duration so multi-hour coaching sessions deduct correctly.
-      const hoursNeeded = isCoaching ? coachingHours * durationHours : durationHours;
+      // Practice: the bay's "hours used per hour booked" (1 unless staff changed it, e.g. Bunker Bay).
+      const practiceHours = memberHoursForBay(requestedBay, durationHours);
+      if (!isCoaching && practiceHours === null) {
+        return new Response(JSON.stringify({ error: "Member hours can't be used for this bay. Please pay to book it." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const hoursNeeded = isCoaching ? coachingHours * durationHours : practiceHours!;
 
       // Only check/deduct balance for non-pending, non-gateway-paid bookings
       if (!needsApproval && !paidViaGateway) {
@@ -1785,7 +1798,27 @@ Deno.serve(async (req) => {
 
       // Check no overlap with existing bookings for this specific bay (both confirmed and pending block slots).
       // Skip overlap check for participant add-ons — they ride on an existing booking's slot.
-      if (!isParticipant) {
+      // App-calendar cities pick (and briefly hold) a free bay from app records instead.
+      let insertHoldId: string | null = null;
+      let bookedBayId: string | null = bay_id || null;
+      let bayLabel = bay_name || city;
+      if (appCalendar && !isParticipant) {
+        const staffChoseBay = bookingUserId !== userId;
+        const reservation = await reserveBay(adminClient, {
+          bay: requestedBay!, exact: staffChoseBay, start: start_time, end: end_time, holdMinutes: INSERT_HOLD_MINUTES,
+        });
+        if (!reservation) {
+          return new Response(
+            JSON.stringify({ error: "This slot is no longer available. Please refresh and try again." }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        insertHoldId = reservation.hold_id;
+        bookedBayId = reservation.bay_id;
+        const bookedBay = bookedBayId === requestedBay!.id ? requestedBay : await loadBay(adminClient, bookedBayId);
+        bayLabel = bookedBay?.name || bayLabel;
+        calendar_email = await resolveCalendarEmail(adminClient, { bay_id: bookedBayId, city });
+      } else if (!isParticipant) {
         const overlapQuery = adminClient
           .from("bookings")
           .select("*")
@@ -1812,7 +1845,6 @@ Deno.serve(async (req) => {
       // Defer Calendar event creation until AFTER the booking row is committed
       // so a slot collision (caught by bookings_no_overlap_per_bay) never leaks
       // an orphan Google Calendar event.
-      const bayLabel = bay_name || city;
       const calSummary = needsApproval
         ? `⏳ Pending Coaching Approval - ${display_name || "Member"}`
         : `${bayLabel} - ${display_name || "Member"}${isCoaching ? " (Coaching)" : ""}`;
@@ -1835,10 +1867,11 @@ Deno.serve(async (req) => {
         parent_booking_id: parent_booking_id || null,
         note: noteSuffix,
       };
-      if (bay_id) bookingInsert.bay_id = bay_id;
+      if (bookedBayId) bookingInsert.bay_id = bookedBayId;
 
 
       const { data: booking, error: bookingError } = await adminClient.from("bookings").insert(bookingInsert).select().single();
+      await releaseHold(adminClient, insertHoldId);
       if (bookingError) {
         if ((bookingError as any).code === "23P01") {
           console.warn(`[calendar-sync v3] create_booking db_overlap_blocked user=${bookingUserId} bay=${bay_id} start=${start_time}`);
@@ -1852,7 +1885,7 @@ Deno.serve(async (req) => {
 
       // Create Google Calendar event AFTER booking is committed, then patch the id.
       let calEventId: string | null = null;
-      if (!isParticipant) {
+      if (!isParticipant && calendar_email) {
         try {
           const calEvent = await createEvent(accessToken, calendar_email, calSummary, start_time, end_time, calTz, calDesc);
           calEventId = calEvent.id;
