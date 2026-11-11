@@ -27,7 +27,8 @@ beforeAll(async () => {
     CREATE TABLE public.bookings(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid, city text, bay_id uuid,
       start_time timestamptz, end_time timestamptz, status text DEFAULT 'confirmed', parent_booking_id uuid, note text,
       session_type text DEFAULT 'practice', calendar_event_id text);
-    CREATE TABLE public.league_bay_blocks(id serial PRIMARY KEY, bay_id uuid, blocked_from timestamptz, blocked_to timestamptz);`);
+    CREATE TABLE public.league_bay_blocks(id serial PRIMARY KEY, bay_id uuid, blocked_from timestamptz, blocked_to timestamptz);
+    GRANT SELECT (id, city) ON public.bays TO authenticated;`);
   await db.exec(readFileSync("drizzle/migrations/0019_app_calendar_record_of_truth.sql", "utf8").replace(/--> statement-breakpoint/g, ""));
   await db.exec(`INSERT INTO bays(id, city, name, sort_order, bay_type) VALUES
     ('${bay1}','Gurugram','Bay #1',1,'standard'),('${bay2}','Gurugram','Bay #2',2,'standard'),
