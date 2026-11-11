@@ -104,7 +104,7 @@ describe("reserve_bay_slot", () => {
   it("counts league blocks and ignores cancelled bookings and back-to-back times", async () => {
     await db.exec(`INSERT INTO league_bay_blocks(bay_id, blocked_from, blocked_to) VALUES ('${bay1}','${START}','${END}')`);
     await book(bay2, START, END, "cancelled");
-    expect((await reserve())?.bay_id).toBe(bay2);
+    expect((await reserve({ hold: null }))?.bay_id).toBe(bay2);
     await book(bay1, END, "2026-12-01T15:30:00Z");
     expect((await reserve({ type: null, preferred: bay2 }))?.bay_id).toBe(bay2);
   });
