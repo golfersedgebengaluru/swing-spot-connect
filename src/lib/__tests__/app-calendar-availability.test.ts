@@ -102,3 +102,22 @@ describe("day view", () => {
     expect(colA[1]).toMatchObject({ top: 13 * 60, height: 60 }); // 7–8 PM
   });
 });
+
+describe("Day View repeating blocks", () => {
+  it("shows an all-bays repeating block in every bay column", async () => {
+    const { placeItemsForBay: place } = await import("@/lib/day-schedule");
+    const dayStart = new Date("2026-11-30T18:30:00Z");
+    const item = { kind: "recurring_blockout", id: "s1", bay_id: null, start_time: "2026-12-01T13:30:00Z", end_time: "2026-12-01T14:30:00Z", label: null, session_type: null, on_google: true };
+    expect(place([item], "bay-a", dayStart, 0, 24 * 60)).toHaveLength(1);
+    expect(place([item], "bay-b", dayStart, 0, 24 * 60)).toHaveLength(1);
+  });
+
+  it("checks repeat days, times and dates before saving", async () => {
+    const { recurringBlockError, weekdayOf } = await import("@/lib/day-schedule");
+    expect(weekdayOf("2026-12-01")).toBe(2);
+    expect(recurringBlockError({ days: [], from: "19:00", to: "20:00", startsOn: "2026-12-01", endsOn: "" })).toBe("Pick at least one day");
+    expect(recurringBlockError({ days: [2], from: "20:00", to: "19:00", startsOn: "2026-12-01", endsOn: "" })).toBe("End time must be after start time");
+    expect(recurringBlockError({ days: [2], from: "19:00", to: "20:00", startsOn: "2026-12-01", endsOn: "2026-11-30" })).toBe("End date must be on or after the start date");
+    expect(recurringBlockError({ days: [2], from: "19:00", to: "20:00", startsOn: "2026-12-01", endsOn: "" })).toBeNull();
+  });
+});

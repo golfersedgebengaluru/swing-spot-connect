@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,11 +18,13 @@ import { useBayHolidays } from "@/hooks/useBayHolidays";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
-  SLOT_MINUTES, bayDayWindow, formatTimeInZone, placeItemsForBay, zonedTimeToUtc, type DayBayHours, type ScheduleItem,
+  SLOT_MINUTES, bayDayWindow, formatTimeInZone, isBlockoutKind, placeItemsForBay, recurringBlockError, weekdayOf, zonedTimeToUtc,
+  type DayBayHours, type ScheduleItem,
 } from "@/lib/day-schedule";
 
 const PX_PER_MIN = 1; // 30 px per half hour
 const ALL_BAYS = "all";
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 interface DayBay extends DayBayHours { id: string; name: string; sort_order?: number | null }
 
@@ -106,6 +109,22 @@ export function AdminDayViewTab() {
     onError: (e: Error) => toast({ title: "Could not remove block-out", description: e.message, variant: "destructive" }),
   });
 
+  const [seriesToRemove, setSeriesToRemove] = useState<ScheduleItem | null>(null);
+  const removeOccurrence = useMutation({
+    mutationFn: async (scope: "day" | "following") => {
+      if (!seriesToRemove) return;
+      const { error } = await supabase.rpc("remove_bay_blockout_occurrence", { p_series: seriesToRemove.id, p_date: date, p_scope: scope });
+      if (error) throw error;
+    },
+    onSuccess: (_d, scope) => {
+      setSeriesToRemove(null);
+      refresh();
+      queryClient.invalidateQueries({ queryKey: ["available_slots"] });
+      toast({ title: scope === "day" ? "Removed for this day" : "Removed from this day on" });
+    },
+    onError: (e: Error) => toast({ title: "Could not remove block-out", description: e.message, variant: "destructive" }),
+  });
+
   const syncToGoogle = useMutation({
     mutationFn: async (bookingId: string) => {
       const res = await supabase.functions.invoke("calendar-sync", { body: { action: "sync_booking_to_google", booking_id: bookingId } });
@@ -121,9 +140,40 @@ export function AdminDayViewTab() {
   const [blockFrom, setBlockFrom] = useState("");
   const [blockTo, setBlockTo] = useState("");
   const [blockReason, setBlockReason] = useState("");
+  const [repeatWeekly, setRepeatWeekly] = useState(false);
+  const [repeatDays, setRepeatDays] = useState<number[]>([]);
+  const [repeatStart, setRepeatStart] = useState("");
+  const [repeatEnd, setRepeatEnd] = useState("");
+  const openBlockDialog = () => {
+    setBlockFrom(minutesLabelToInput(windowStart));
+    setBlockTo(minutesLabelToInput(windowStart + 60));
+    setRepeatWeekly(false);
+    setRepeatDays([weekdayOf(date)]);
+    setRepeatStart(date);
+    setRepeatEnd("");
+    setBlockOpen(true);
+  };
   const addBlockout = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Please sign in again");
+      if (repeatWeekly) {
+        const problem = recurringBlockError({ days: repeatDays, from: blockFrom, to: blockTo, startsOn: repeatStart, endsOn: repeatEnd });
+        if (problem) throw new Error(problem);
+        const { data, error } = await supabase.from("bay_blockout_series").insert({
+          city,
+          bay_id: blockBay === ALL_BAYS ? null : blockBay,
+          days_of_week: [...repeatDays].sort((a, b) => a - b),
+          start_local: blockFrom,
+          end_local: blockTo,
+          starts_on: repeatStart,
+          ends_on: repeatEnd || null,
+          reason: blockReason.trim().slice(0, 200),
+          created_by: user.id,
+        }).select("id");
+        if (error) throw error;
+        if (!data?.length) throw new Error("You don't have permission to block time in this city");
+        return;
+      }
       if (!blockFrom || !blockTo || blockTo <= blockFrom) throw new Error("End time must be after start time");
       const { error } = await supabase.from("bay_blockouts").insert({
         city,
@@ -140,7 +190,7 @@ export function AdminDayViewTab() {
       setBlockReason("");
       refresh();
       queryClient.invalidateQueries({ queryKey: ["available_slots"] });
-      toast({ title: "Time blocked" });
+      toast({ title: repeatWeekly ? "Repeating block saved" : "Time blocked" });
     },
     onError: (e: Error) => toast({ title: "Could not block time", description: e.message, variant: "destructive" }),
   });
@@ -184,7 +234,7 @@ export function AdminDayViewTab() {
             <Button variant="outline" size="icon" aria-label="Next day" onClick={() => shiftDay(1)}><ChevronRight className="h-4 w-4" /></Button>
           </div>
           <Button variant="outline" onClick={() => setDate(format(new Date(), "yyyy-MM-dd"))}>Today</Button>
-          <Button onClick={() => { setBlockFrom(minutesLabelToInput(windowStart)); setBlockTo(minutesLabelToInput(windowStart + 60)); setBlockOpen(true); }} disabled={!city}>
+          <Button onClick={openBlockDialog} disabled={!city}>
             <Plus className="h-4 w-4 mr-1" /> Block time
           </Button>
           {usesApp && missingOnGoogle > 0 && (
@@ -235,18 +285,22 @@ export function AdminDayViewTab() {
                           "absolute inset-x-1 overflow-hidden rounded-md border px-1.5 py-0.5 text-[11px] leading-tight",
                           item.kind === "booking" && "border-primary/40 bg-primary/10 text-foreground",
                           item.kind === "hold" && "border-dashed border-border bg-muted text-muted-foreground",
-                          item.kind === "blockout" && "border-destructive/40 bg-destructive/10 text-foreground",
+                          isBlockoutKind(item.kind) && "border-destructive/40 bg-destructive/10 text-foreground",
                         )}
                         style={{ top: item.top * PX_PER_MIN, height: Math.max(item.height * PX_PER_MIN - 2, 14) }}
                         title={`${item.label ?? ""} · ${formatTimeInZone(item.start_time, timezone)} – ${formatTimeInZone(item.end_time, timezone)}`}
                       >
                         <div className="flex items-start justify-between gap-1">
                           <span className="font-medium truncate">
-                            {item.kind === "blockout" ? (item.label || "Blocked") : item.label}
+                            {isBlockoutKind(item.kind) ? (item.label || "Blocked") : item.label}
                             {item.kind === "booking" && item.session_type === "coaching" ? " · Coaching" : ""}
                           </span>
-                          {item.kind === "blockout" && (
-                            <button aria-label="Remove block-out" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => removeBlockout.mutate(item.id)}>
+                          {isBlockoutKind(item.kind) && (
+                            <button
+                              aria-label="Remove block-out"
+                              className="shrink-0 text-muted-foreground hover:text-destructive"
+                              onClick={() => (item.kind === "recurring_blockout" ? setSeriesToRemove(item) : removeBlockout.mutate(item.id))}
+                            >
                               <Trash2 className="h-3 w-3" />
                             </button>
                           )}
@@ -264,7 +318,8 @@ export function AdminDayViewTab() {
                         </div>
                         <div className="text-muted-foreground">
                           {formatTimeInZone(item.start_time, timezone)} – {formatTimeInZone(item.end_time, timezone)}
-                          {item.kind === "blockout" && item.bay_id === null ? " · all bays" : ""}
+                          {isBlockoutKind(item.kind) && item.bay_id === null ? " · all bays" : ""}
+                          {item.kind === "recurring_blockout" ? " · weekly" : ""}
                         </div>
                       </div>
                     ))}
@@ -287,7 +342,7 @@ export function AdminDayViewTab() {
       <Dialog open={blockOpen} onOpenChange={setBlockOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><CalendarOff className="h-4 w-4" /> Block time · {format(new Date(`${date}T12:00:00`), "EEE d MMM")}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><CalendarOff className="h-4 w-4" /> Block time{repeatWeekly ? "" : ` · ${format(new Date(`${date}T12:00:00`), "EEE d MMM")}`}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div>
@@ -310,6 +365,45 @@ export function AdminDayViewTab() {
                 <Input id="block-to" type="time" step={1800} value={blockTo} onChange={(e) => setBlockTo(e.target.value)} />
               </div>
             </div>
+            <div className="space-y-2 rounded-md border border-border p-3">
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={repeatWeekly} onCheckedChange={(v) => setRepeatWeekly(v === true)} />
+                Repeat weekly
+              </label>
+              {repeatWeekly && (
+                <>
+                  <div className="flex flex-wrap gap-1" role="group" aria-label="Repeat on">
+                    {WEEKDAYS.map((name, day) => {
+                      const on = repeatDays.includes(day);
+                      return (
+                        <Button
+                          key={name}
+                          type="button"
+                          size="sm"
+                          variant={on ? "default" : "outline"}
+                          aria-pressed={on}
+                          className="h-8 w-11 px-0"
+                          onClick={() => setRepeatDays(on ? repeatDays.filter((d) => d !== day) : [...repeatDays, day])}
+                        >
+                          {name}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs" htmlFor="repeat-start">Starts</Label>
+                      <Input id="repeat-start" type="date" value={repeatStart} onChange={(e) => setRepeatStart(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label className="text-xs" htmlFor="repeat-end">Ends (optional)</Label>
+                      <Input id="repeat-end" type="date" min={repeatStart} value={repeatEnd} onChange={(e) => setRepeatEnd(e.target.value)} />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Leave the end date empty to repeat with no end.</p>
+                </>
+              )}
+            </div>
             <div>
               <Label className="text-xs" htmlFor="block-reason">Reason (optional)</Label>
               <Input id="block-reason" maxLength={200} value={blockReason} onChange={(e) => setBlockReason(e.target.value)} placeholder="e.g. Maintenance" />
@@ -321,6 +415,22 @@ export function AdminDayViewTab() {
             <Button onClick={() => addBlockout.mutate()} disabled={addBlockout.isPending}>
               {addBlockout.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />} Block
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!seriesToRemove} onOpenChange={(open) => !open && setSeriesToRemove(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove repeating block</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {seriesToRemove?.label || "Blocked"} · {seriesToRemove ? `${formatTimeInZone(seriesToRemove.start_time, timezone)} – ${formatTimeInZone(seriesToRemove.end_time, timezone)}` : ""}
+          </p>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setSeriesToRemove(null)}>Cancel</Button>
+            <Button variant="outline" disabled={removeOccurrence.isPending} onClick={() => removeOccurrence.mutate("day")}>Only this day</Button>
+            <Button variant="destructive" disabled={removeOccurrence.isPending} onClick={() => removeOccurrence.mutate("following")}>This and following days</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
