@@ -438,7 +438,9 @@ export default function Bookings() {
                           >
                             {createBooking.isPending ? (
                               <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Booking...</>
-                            ) : !needsApproval && (hoursNotAccepted || (balance?.remaining ?? 0) < (hoursToDeduct ?? 0)) ? (
+                            ) : !needsApproval && hoursNotAccepted ? (
+                              "Hours not accepted for this bay"
+                            ) : !needsApproval && (balance?.remaining ?? 0) < (hoursToDeduct ?? 0) ? (
                               "Insufficient Hours"
                             ) : needsApproval ? (
                               "Request Coaching Session"
