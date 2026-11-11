@@ -162,7 +162,7 @@ export function AdminDayViewTab() {
         const { data, error } = await supabase.from("bay_blockout_series").insert({
           city,
           bay_id: blockBay === ALL_BAYS ? null : blockBay,
-          days_of_week: [...repeatDays].sort(),
+          days_of_week: [...repeatDays].sort((a, b) => a - b),
           start_local: blockFrom,
           end_local: blockTo,
           starts_on: repeatStart,
