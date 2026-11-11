@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { getDayName } from "@/lib/bay-schedule-utils";
 import { useBayHolidays, useAddBayHoliday, useDeleteBayHoliday } from "@/hooks/useBayHolidays";
 import { useBayPeakHours, useAddBayPeakHour, useDeleteBayPeakHour } from "@/hooks/useBayPeakHours";
 import { useBayHoursOverrides, useUpsertBayHoursOverride, useDeleteBayHoursOverride } from "@/hooks/useBayHoursOverrides";
+import { dayHoursError, pendingDayHours, type PendingDayHours } from "@/lib/day-hours";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -28,30 +29,43 @@ const DAY_OPTIONS = [
 
 interface WeeklyOffEditorProps {
   bayId: string;
-  city: string;
   weeklyOffDays: number[];
 }
 
-export function WeeklyOffEditor({ bayId, city, weeklyOffDays }: WeeklyOffEditorProps) {
+export function WeeklyOffEditor({ bayId, weeklyOffDays }: WeeklyOffEditorProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  // The dialog passes a snapshot taken when it opened; keep our own copy so a
+  // second tick builds on the first instead of overwriting it.
+  const [days, setDays] = useState<number[]>(weeklyOffDays);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { setDays(weeklyOffDays); }, [bayId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleDay = async (day: number) => {
-    const newDays = weeklyOffDays.includes(day)
-      ? weeklyOffDays.filter((d) => d !== day)
-      : [...weeklyOffDays, day].sort();
+    if (saving) return;
+    const newDays = days.includes(day)
+      ? days.filter((d) => d !== day)
+      : [...days, day].sort((a, b) => a - b);
 
-    const { error } = await supabase
+    setSaving(true);
+    const { data, error } = await supabase
       .from("bays")
       .update({ weekly_off_days: newDays })
-      .eq("id", bayId);
+      .eq("id", bayId)
+      .select("id");
+    setSaving(false);
 
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    if (error || !data || data.length === 0) {
+      toast({
+        title: "Weekly off days not saved",
+        description: error?.message ?? "You don't have permission to change this bay.",
+        variant: "destructive",
+      });
       return;
     }
+    setDays(newDays);
     queryClient.invalidateQueries({ queryKey: ["bays"] });
-    toast({ title: "Weekly off days updated" });
+    toast({ title: "Weekly off days saved" });
   };
 
   return (
@@ -64,7 +78,8 @@ export function WeeklyOffEditor({ bayId, city, weeklyOffDays }: WeeklyOffEditorP
             className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm cursor-pointer hover:bg-muted/50"
           >
             <Checkbox
-              checked={weeklyOffDays.includes(day.value)}
+              checked={days.includes(day.value)}
+              disabled={saving}
               onCheckedChange={() => toggleDay(day.value)}
             />
             <span>{day.label.slice(0, 3)}</span>
@@ -84,6 +99,7 @@ interface HolidayEditorProps {
 }
 
 export function HolidayEditor({ city, bayId }: HolidayEditorProps) {
+  const { toast } = useToast();
   const { data: holidays = [], isLoading } = useBayHolidays(city);
   const addHoliday = useAddBayHoliday();
   const deleteHoliday = useDeleteBayHoliday();
@@ -94,14 +110,22 @@ export function HolidayEditor({ city, bayId }: HolidayEditorProps) {
 
   const handleAdd = () => {
     if (!newDate) return;
-    addHoliday.mutate({
-      bay_id: scope === "bay" && bayId ? bayId : null,
-      city,
-      holiday_date: newDate,
-      label: newLabel || "Holiday",
-    });
-    setNewDate("");
-    setNewLabel("");
+    addHoliday.mutate(
+      {
+        bay_id: scope === "bay" && bayId ? bayId : null,
+        city,
+        holiday_date: newDate,
+        label: newLabel || "Holiday",
+      },
+      {
+        onSuccess: () => {
+          toast({ title: "Holiday saved", description: `${city}: ${newDate}` });
+          setNewDate("");
+          setNewLabel("");
+        },
+        onError: (e) => toast({ title: "Holiday not saved", description: (e as Error).message, variant: "destructive" }),
+      },
+    );
   };
 
   const futureHolidays = holidays.filter((h) => h.holiday_date >= new Date().toISOString().split("T")[0]);
@@ -133,7 +157,7 @@ export function HolidayEditor({ city, bayId }: HolidayEditorProps) {
           </div>
         )}
         <Button size="sm" onClick={handleAdd} disabled={!newDate || addHoliday.isPending}>
-          <Plus className="h-4 w-4" />
+          <Plus className="mr-1 h-4 w-4" /> Add
         </Button>
       </div>
 
@@ -147,7 +171,9 @@ export function HolidayEditor({ city, bayId }: HolidayEditorProps) {
                 <span className="text-muted-foreground">— {h.label}</span>
                 {h.bay_id && <Badge variant="outline" className="text-xs">Bay-specific</Badge>}
               </div>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => deleteHoliday.mutate(h.id)}>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => deleteHoliday.mutate(h.id, {
+                onError: (e) => toast({ title: "Holiday not removed", description: (e as Error).message, variant: "destructive" }),
+              })}>
                 <Trash2 className="h-3 w-3 text-destructive" />
               </Button>
             </div>
@@ -166,6 +192,7 @@ interface PeakHoursEditorProps {
 }
 
 export function PeakHoursEditor({ bayId }: PeakHoursEditorProps) {
+  const { toast } = useToast();
   const { data: peakHours = [], isLoading } = useBayPeakHours(bayId);
   const addPeakHour = useAddBayPeakHour();
   const deletePeakHour = useDeleteBayPeakHour();
@@ -176,13 +203,23 @@ export function PeakHoursEditor({ bayId }: PeakHoursEditorProps) {
 
   const handleAdd = () => {
     if (!newStart || !newEnd) return;
-    addPeakHour.mutate({
-      bay_id: bayId,
-      day_of_week: newDayOfWeek === "default" ? null : Number(newDayOfWeek),
-      peak_start: newStart,
-      peak_end: newEnd,
-      sort_order: peakHours.length,
-    });
+    if (newStart >= newEnd) {
+      toast({ title: "Peak hours not saved", description: "End time must be after start time.", variant: "destructive" });
+      return;
+    }
+    addPeakHour.mutate(
+      {
+        bay_id: bayId,
+        day_of_week: newDayOfWeek === "default" ? null : Number(newDayOfWeek),
+        peak_start: newStart,
+        peak_end: newEnd,
+        sort_order: peakHours.length,
+      },
+      {
+        onSuccess: () => toast({ title: "Peak hours saved" }),
+        onError: (e) => toast({ title: "Peak hours not saved", description: (e as Error).message, variant: "destructive" }),
+      },
+    );
   };
 
   // Group by day_of_week for display
@@ -208,7 +245,9 @@ export function PeakHoursEditor({ bayId }: PeakHoursEditorProps) {
         {defaultHours.map((p) => (
           <div key={p.id} className="flex items-center gap-2 text-sm">
             <span>{p.peak_start} – {p.peak_end}</span>
-            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => deletePeakHour.mutate(p.id)}>
+            <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => deletePeakHour.mutate(p.id, {
+              onError: (e) => toast({ title: "Peak hours not removed", description: (e as Error).message, variant: "destructive" }),
+            })}>
               <Trash2 className="h-3 w-3 text-destructive" />
             </Button>
           </div>
@@ -222,7 +261,9 @@ export function PeakHoursEditor({ bayId }: PeakHoursEditorProps) {
           {hours.map((p) => (
             <div key={p.id} className="flex items-center gap-2 text-sm">
               <span>{p.peak_start} – {p.peak_end}</span>
-              <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => deletePeakHour.mutate(p.id)}>
+              <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => deletePeakHour.mutate(p.id, {
+              onError: (e) => toast({ title: "Peak hours not removed", description: (e as Error).message, variant: "destructive" }),
+            })}>
                 <Trash2 className="h-3 w-3 text-destructive" />
               </Button>
             </div>
@@ -255,7 +296,7 @@ export function PeakHoursEditor({ bayId }: PeakHoursEditorProps) {
           <Input type="time" value={newEnd} onChange={(e) => setNewEnd(e.target.value)} className="w-[110px]" />
         </div>
         <Button size="sm" onClick={handleAdd} disabled={!newStart || !newEnd || addPeakHour.isPending}>
-          <Plus className="h-4 w-4" />
+          <Plus className="mr-1 h-4 w-4" /> Add
         </Button>
       </div>
 
@@ -268,9 +309,17 @@ export function PeakHoursEditor({ bayId }: PeakHoursEditorProps) {
 
 interface DayHoursOverrideEditorProps {
   bayId: string;
+  /** The bay's normal hours, used when one field of a day entry is left blank. */
+  bayOpen: string;
+  bayClose: string;
+  /** Reports what is typed but not yet added, so the dialog's Save can store it too. */
+  onPendingChange?: (pending: PendingDayHours | null) => void;
+  /** Bump to clear the typed entry after the dialog saved it. */
+  resetKey?: number;
 }
 
-export function DayHoursOverrideEditor({ bayId }: DayHoursOverrideEditorProps) {
+export function DayHoursOverrideEditor({ bayId, bayOpen, bayClose, onPendingChange, resetKey }: DayHoursOverrideEditorProps) {
+  const { toast } = useToast();
   const { data: overrides = [] } = useBayHoursOverrides(bayId);
   const upsert = useUpsertBayHoursOverride();
   const del = useDeleteBayHoursOverride();
@@ -279,20 +328,33 @@ export function DayHoursOverrideEditor({ bayId }: DayHoursOverrideEditorProps) {
   const [newOpen, setNewOpen] = useState<string>("");
   const [newClose, setNewClose] = useState<string>("");
 
+  useEffect(() => {
+    onPendingChange?.(pendingDayHours(Number(newDay), newOpen, newClose));
+  }, [newDay, newOpen, newClose, onPendingChange]);
+
+  useEffect(() => {
+    if (resetKey === undefined) return;
+    setNewOpen("");
+    setNewClose("");
+  }, [resetKey]);
+
   const handleAdd = () => {
-    if (!newOpen && !newClose) return;
+    const entry = pendingDayHours(Number(newDay), newOpen, newClose);
+    if (!entry) return;
+    const err = dayHoursError(entry, bayOpen, bayClose);
+    if (err) {
+      toast({ title: "Day hours not saved", description: err, variant: "destructive" });
+      return;
+    }
     upsert.mutate(
-      {
-        bay_id: bayId,
-        day_of_week: Number(newDay),
-        open_time: newOpen || null,
-        close_time: newClose || null,
-      },
+      { bay_id: bayId, ...entry },
       {
         onSuccess: () => {
+          toast({ title: "Day hours saved", description: `${getDayName(entry.day_of_week)}: ${entry.open_time ?? "default"} – ${entry.close_time ?? "default"}` });
           setNewOpen("");
           setNewClose("");
         },
+        onError: (e) => toast({ title: "Day hours not saved", description: (e as Error).message, variant: "destructive" }),
       },
     );
   };
@@ -314,7 +376,15 @@ export function DayHoursOverrideEditor({ bayId }: DayHoursOverrideEditorProps) {
               <span>
                 {o.open_time ? o.open_time.slice(0, 5) : "default"} – {o.close_time ? o.close_time.slice(0, 5) : "default"}
               </span>
-              <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => del.mutate(o.id)}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5"
+                aria-label={`Remove ${getDayName(o.day_of_week)} hours`}
+                onClick={() => del.mutate(o.id, {
+                  onError: (e) => toast({ title: "Day hours not removed", description: (e as Error).message, variant: "destructive" }),
+                })}
+              >
                 <Trash2 className="h-3 w-3 text-destructive" />
               </Button>
             </div>
@@ -326,7 +396,7 @@ export function DayHoursOverrideEditor({ bayId }: DayHoursOverrideEditorProps) {
         <div>
           <Label className="text-xs">Day</Label>
           <Select value={newDay} onValueChange={setNewDay}>
-            <SelectTrigger className="w-[120px]">
+            <SelectTrigger className="w-[120px]" aria-label="Day">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -337,18 +407,17 @@ export function DayHoursOverrideEditor({ bayId }: DayHoursOverrideEditorProps) {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Open</Label>
-          <Input type="time" value={newOpen} onChange={(e) => setNewOpen(e.target.value)} className="w-[110px]" />
+          <Label className="text-xs" htmlFor="day-hours-open">Open</Label>
+          <Input id="day-hours-open" type="time" value={newOpen} onChange={(e) => setNewOpen(e.target.value)} className="w-[110px]" />
         </div>
         <div>
-          <Label className="text-xs">Close</Label>
-          <Input type="time" value={newClose} onChange={(e) => setNewClose(e.target.value)} className="w-[110px]" />
+          <Label className="text-xs" htmlFor="day-hours-close">Close</Label>
+          <Input id="day-hours-close" type="time" value={newClose} onChange={(e) => setNewClose(e.target.value)} className="w-[110px]" />
         </div>
         <Button size="sm" onClick={handleAdd} disabled={(!newOpen && !newClose) || upsert.isPending}>
-          <Plus className="h-4 w-4" />
+          <Plus className="mr-1 h-4 w-4" /> Add
         </Button>
       </div>
     </div>
   );
 }
-
