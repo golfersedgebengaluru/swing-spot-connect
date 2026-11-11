@@ -250,3 +250,9 @@
 - [ ] Gurugram go-live: Bunker/Standard prices, payment account, invoice/GST profile (owner to supply), then switch on app calendar
 - [ ] Chennai/Bengaluru: re-enter Google-only blocks as app block-outs, then switch each city
 - [ ] Visual check of Day View with a staff account (current preview account has no staff access)
+
+## Adjust Hours dialog is hours-only (approved)
+- [x] Remove Paid By and Amount Collected from the Adjust Hours dialog; Add Hours confirms on hours + reason + note
+- [x] Drop the now-unreachable offline hours-sale ledger write from that dialog (members buy hours by gateway; cash sales go through Finance)
+- [x] Tests: dialog render guard + revenue single-writer rule; 119 files / 1033 tests passed; build OK
+- [ ] Visual check in the live Users screen with an admin account (minted preview session is not an admin)
