@@ -100,7 +100,7 @@ serve(async (req) => {
     let currency: string;
     let amount: number;
     let notes: Record<string, string>;
-    let stashPending: (orderId: string) => Promise<{ error: { message: string } | null }>;
+    let stashPending: (orderId: string) => PromiseLike<{ error: { message: string } | null }>;
     // Any failure before the pending record exists must free the held slot.
     const failWithHoldReleased = async (payload: unknown, status: number) => {
       await releaseHold(admin, paymentHoldId);
