@@ -83,7 +83,7 @@ export function useAvailableSlots(
         try { const body = await (res.error as any).context?.json?.(); errorMsg = body?.error || res.error.message || errorMsg; } catch { errorMsg = res.error.message || errorMsg; }
         throw new Error(errorMsg);
       }
-      return res.data.slots as { time: string; available: boolean }[];
+      return res.data.slots as SlotAvailability[];
     },
     ...rest,
   });
