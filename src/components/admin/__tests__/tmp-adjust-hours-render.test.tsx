@@ -51,13 +51,13 @@ async function openSelect(trigger: HTMLElement, name: string) {
 
 describe("Adjust Hours dialog", () => {
   it("collects no payment details in either action, and still gates Confirm", async () => {
-    const { container } = renderDialog();
+    renderDialog();
     await screen.findByRole("dialog");
     const confirm = () => screen.getByRole("button", { name: "Confirm" });
     const noPaymentFields = () => {
       expect(screen.queryByText("Paid By")).toBeNull();
       expect(screen.queryByText("Amount Collected")).toBeNull();
-      expect(container.ownerDocument.body.textContent).not.toMatch(/Paid By|Amount Collected/);
+      expect(document.body.textContent).not.toMatch(/Paid By|Amount Collected/);
     };
 
     noPaymentFields();
@@ -70,9 +70,9 @@ describe("Adjust Hours dialog", () => {
     expect(screen.queryByLabelText(/Service Date/)).toBeNull();
 
     // Fill the remaining fields; Confirm must enable with no payment info
-    typeInto(container.querySelector('input[type="number"]') as HTMLInputElement, "2");
+    typeInto(document.querySelector('input[type="number"]') as HTMLInputElement, "2");
     await openSelect(screen.getAllByRole("combobox")[1], "Correction");
-    typeInto(container.querySelector('input[placeholder*="audit trail"]') as HTMLInputElement, "playwright check");
+    typeInto(document.querySelector('input[placeholder*="audit trail"]') as HTMLInputElement, "playwright check");
     noPaymentFields();
     await waitFor(() => expect(confirm()).toBeEnabled(), { timeout: 2500 });
   });
