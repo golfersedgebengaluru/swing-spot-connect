@@ -57,7 +57,8 @@ const json = (payload: unknown, _status = 200) =>
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  let admin: ReturnType<typeof createClient> | null = null;
+  // Set once a slot is held so the catch below can free it.
+  let releaseHeldSlot: (() => Promise<void>) | null = null;
   let paymentHoldId: string | null = null;
   try {
     if (Number(req.headers.get("content-length") || 0) > MAX_BODY_BYTES) {
@@ -69,7 +70,8 @@ serve(async (req) => {
     const order = parsed.data;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    releaseHeldSlot = () => releaseHold(admin, paymentHoldId);
 
     // Guests may create booking orders; everything else requires a signed-in member.
     const authHeader = req.headers.get("Authorization");
@@ -224,7 +226,7 @@ serve(async (req) => {
       ...(paymentHoldId ? { hold_minutes: PAYMENT_HOLD_MINUTES } : {}),
     });
   } catch (err) {
-    if (admin && paymentHoldId) await releaseHold(admin, paymentHoldId).catch(() => {});
+    if (paymentHoldId && releaseHeldSlot) await releaseHeldSlot().catch(() => {});
     if (err instanceof CheckoutError) return json({ error: err.message }, 400);
     console.error("create-razorpay-order error:", (err as Error).message);
     return json({ error: "Internal server error" }, 500);
