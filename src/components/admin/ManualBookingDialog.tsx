@@ -17,6 +17,7 @@ import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useBays, useCities, useAvailableSlots } from "@/hooks/useBookings";
 import { getBookableWindow } from "@/lib/extended-hours";
+import { bayTypeOf, practiceHoursFor, priceRowFor } from "@/lib/bay-types";
 import { Switch } from "@/components/ui/switch";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useBayPricing } from "@/hooks/usePricing";
@@ -973,7 +974,9 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
                     <span className="font-medium">{hoursBalance?.toFixed(1)}h</span>
                   </div>
                   {!canPayWithHours && (
-                    <p className="text-xs text-destructive mt-2">Insufficient hours balance. Switch to manual payment.</p>
+                    <p className="text-xs text-destructive mt-2">
+                      {hoursAccepted ? "Insufficient hours balance. Switch to manual payment." : "This bay doesn't accept member hours for practice. Switch to manual payment."}
+                    </p>
                   )}
                 </CardContent>
               </Card>
