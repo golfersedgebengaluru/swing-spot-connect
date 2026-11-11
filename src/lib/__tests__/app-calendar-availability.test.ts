@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeSlots, memberHoursForBay } from "../../../supabase/functions/_shared/app-availability";
+import { computeSlots, memberHoursForBay } from "../../../supabase/functions/_shared/app-slots";
 import { bayChoices, canStartAt, practiceHoursFor, priceRowFor } from "@/lib/bay-types";
 import { placeItemsForBay, zonedTimeToUtc } from "@/lib/day-schedule";
 
