@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemberHoursManager } from "../MemberHoursManager";
@@ -16,6 +16,14 @@ vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "staff-
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock("@/hooks/useMemberHours", () => ({ useHoursTransactions: () => ({ data: [], isLoading: false }) }));
 vi.mock("@/hooks/useNotificationEmail", () => ({ sendNotificationEmail: vi.fn() }));
+
+beforeAll(() => {
+  const proto = Element.prototype as any;
+  proto.hasPointerCapture = () => false;
+  proto.setPointerCapture = () => {};
+  proto.releasePointerCapture = () => {};
+  proto.scrollIntoView = () => {};
+});
 
 const member = { id: "m1", user_id: "u1", display_name: "A Bhamini Nair", preferred_city: "Bangalore", hours_purchased: 0, hours_used: 0 };
 
