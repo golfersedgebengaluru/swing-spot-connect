@@ -68,31 +68,24 @@ describe("shop orders", () => {
   });
 });
 
-describe("offline hours purchases", () => {
+describe("adjust hours dialog", () => {
   const src = read("components/admin/MemberHoursManager.tsx");
 
-  it("capture what was collected instead of recording zero", () => {
-    expect(src).not.toMatch(/transaction_type: "payment" as any/);
-    expect(src).toMatch(/amount: Number\(adjustment\.amount\)/);
-    expect(src).toMatch(/Amount Collected/);
-    expect(src).toMatch(/Paid By/);
+  it("collects no payment details — it only adjusts hours", () => {
+    expect(src).not.toMatch(/Paid By/);
+    expect(src).not.toMatch(/Amount Collected/);
+    expect(src).not.toMatch(/payment_method/);
+    expect(src).not.toMatch(/recordRevenue/);
   });
 
-  it("only record a sale when money changed hands", () => {
-    expect(src).toMatch(/adjustment\.amount > 0/);
-    expect(src).toMatch(/Complimentary/);
+  it("still requires hours, a reason and a note before confirming", () => {
+    expect(src).toMatch(/form\.hours > 0/);
+    expect(src).toMatch(/Boolean\(form\.reason\)/);
+    expect(src).toMatch(/Boolean\(form\.note\.trim\(\)\)/);
   });
 
-  it("attribute the sale to a city", () => {
-    expect(src).toMatch(/city: member\.preferred_city \|\| selectedCity \|\| null/);
-  });
-
-  it("are keyed to the hours transaction so a retry can't double-count", () => {
-    expect(src).toMatch(/sourceRef: `hours_purchase:\$\{transaction\.id\}`/);
-  });
-
-  it("blocks confirming a purchase with no amount or payment method", () => {
-    expect(src).toMatch(/!isPurchase \|\| \(Boolean\(form\.payment_method\) && \(complimentary \|\| form\.amount > 0\)\)/);
+  it("still requires a service date for deductions", () => {
+    expect(src).toMatch(/!isDeduction \|\| Boolean\(form\.service_date\)/);
   });
 });
 
