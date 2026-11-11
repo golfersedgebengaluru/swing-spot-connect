@@ -28,25 +28,43 @@ function renderDialog() {
   );
 }
 
-describe("Adjust Hours dialog rendering", () => {
-  it("shows no payment fields and still gates Confirm", async () => {
-    renderDialog();
-    const dlg = await screen.findByRole("dialog");
-    expect(dlg).toBeInTheDocument();
-    expect(screen.queryByText("Paid By")).toBeNull();
-    expect(screen.queryByText("Amount Collected")).toBeNull();
-    const confirm = screen.getByRole("button", { name: "Confirm" });
-    expect(confirm).toBeDisabled();
-    // hours + note
-    fireEvent.change(screen.getByLabelText(/Hours/), { target: { value: "1" } });
-    fireEvent.change(screen.getByPlaceholderText(/audit trail/), { target: { value: "check" } });
-    // open the Reason select by keyboard
-    const reason = screen.getAllByRole("combobox")[1];
-    fireEvent.keyDown(reason, { code: "Space", key: " " });
-    await waitFor(() => expect(screen.queryByRole("listbox")).toBeTruthy(), { timeout: 3000 }).catch(() => {});
-    const opt = screen.queryByRole("option", { name: "Correction" });
-    if (opt) fireEvent.click(opt);
-    expect(screen.queryByText("Paid By")).toBeNull();
-    expect(screen.queryByText("Amount Collected")).toBeNull();
+function typeInto(el: HTMLInputElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+  setter?.call(el, value);
+  fireEvent.input(el, { target: { value } });
+}
+
+async function openSelect(trigger: HTMLElement, name: string) {
+  fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse", isTrusted: true });
+  await waitFor(() => expect(screen.queryByRole("option", { name })).toBeTruthy(), { timeout: 2500 });
+  fireEvent.click(screen.getByRole("option", { name }));
+}
+
+describe("Adjust Hours dialog", () => {
+  it("collects no payment details in either action, and still gates Confirm", async () => {
+    const { container } = renderDialog();
+    await screen.findByRole("dialog");
+    const confirm = () => screen.getByRole("button", { name: "Confirm" });
+    const noPaymentFields = () => {
+      expect(screen.queryByText("Paid By")).toBeNull();
+      expect(screen.queryByText("Amount Collected")).toBeNull();
+      expect(container.ownerDocument.body.textContent).not.toMatch(/Paid By|Amount Collected/);
+    };
+
+    noPaymentFields();
+    expect(confirm()).toBeDisabled();
+
+    // Action -> Add Hours (the view that used to show Paid By / Amount Collected)
+    const combos = screen.getAllByRole("combobox");
+    await openSelect(combos[0], "Add Hours");
+    noPaymentFields();
+    expect(screen.queryByLabelText(/Service Date/)).toBeNull();
+
+    // Fill the remaining fields; Confirm must enable with no payment info
+    typeInto(container.querySelector('input[type="number"]') as HTMLInputElement, "2");
+    await openSelect(screen.getAllByRole("combobox")[1], "Correction");
+    typeInto(container.querySelector('input[placeholder*="audit trail"]') as HTMLInputElement, "playwright check");
+    noPaymentFields();
+    await waitFor(() => expect(confirm()).toBeEnabled(), { timeout: 2500 });
   });
 });
