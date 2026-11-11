@@ -1,5 +1,12 @@
 # Roadmap
 
+## Repeating block-outs (11 November)
+- [x] Weekly repeat with chosen days, start date and optional end date; one bay or all bays; booking availability and Day View follow it
+- [x] Remove "only this day" or "this and following days"; staff own-city only
+- [x] 118 files / 1034 tests passed; live Bengaluru availability unchanged; public access refused
+- [ ] Day View visual check: test account lacks staff access
+- [ ] Chennai set-up: waiting on answers to the Chennai questions (bookings vs blocks, Mondays, early hours, one-off entries)
+
 ## Opening-hours gaps (approved 11 November)
 - [x] Server re-checks customer bookings against opening hours, off days and holidays; staff override
 - [x] Day View shows each bay's full hours (incl. early access, day-specific hours, holidays) and greys out closed times
