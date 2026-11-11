@@ -9,6 +9,7 @@ import {
   isLocalDateOfStart,
 } from "../_shared/checkout-pricing.ts";
 import { cityBookingMode, loadBay, PAYMENT_HOLD_MINUTES, releaseHold, reserveBay } from "../_shared/app-availability.ts";
+import { customerOpeningHoursError } from "../_shared/opening-hours.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") || "*",
@@ -126,12 +127,20 @@ serve(async (req) => {
       const startTime = new Date(startMs).toISOString();
       if (bookingDurationMinutes(startTime, endTime) !== order.duration_minutes) return json({ error: "Invalid booking duration" }, 400);
 
+      // Checkout is customer-only: the time must be inside the bay's opening hours
+      // (holidays, off days, day-specific and extended hours). Staff use walk-ins.
+      const bookingMode = await cityBookingMode(admin, bay.city);
+      const hoursError = await customerOpeningHoursError(admin, {
+        bayId: bay.id, startIso: startTime, endIso: endTime, timeZone: bookingMode.timezone, userId: user?.id ?? null,
+      });
+      if (hoursError) return json({ error: hoursError }, 400);
+
       const total = Number(price.price_per_hour) * (order.duration_minutes / 60);
       const charge = bookingCharge(Number(price.price_per_hour), order.duration_minutes, await applyCoupon(total));
       if (charge.amount <= 0) return json({ error: "Price not available for this selection." }, 400);
 
       // App-calendar cities hold a free bay of this type for the payment window.
-      if ((await cityBookingMode(admin, bay.city)).source === "app") {
+      if (bookingMode.source === "app") {
         const reservation = await reserveBay(admin, {
           bay, exact: false, start: startTime, end: endTime, holdMinutes: PAYMENT_HOLD_MINUTES,
         });

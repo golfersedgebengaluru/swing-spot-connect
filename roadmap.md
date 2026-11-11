@@ -1,5 +1,11 @@
 # Roadmap
 
+## Opening-hours gaps (approved 11 November)
+- [x] Server re-checks customer bookings against opening hours, off days and holidays; staff override
+- [x] Day View shows each bay's full hours (incl. early access, day-specific hours, holidays) and greys out closed times
+- [x] 117 files / 1017 tests passed; functions deployed; live out-of-hours checkouts refused with no hold created
+- [ ] Day View visual check: test account lacks staff access
+
 ## Security batch 2 (approved 9 November: items 1–3)
 - [x] Reward points: one authorized action for staff awards and member redemptions; raw helpers service-only; direct balance edits blocked; live anon/member attempts refused
 - [x] Calendar choice: bookings, walk-ins and availability always use the bay's calendar; live Chennai availability unchanged with an outside calendar supplied

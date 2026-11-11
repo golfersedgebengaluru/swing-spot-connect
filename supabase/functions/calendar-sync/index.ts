@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isServiceRoleToken } from "../_shared/trusted-caller.ts";
+import { customerOpeningHoursError } from "../_shared/opening-hours.ts";
 import { bookingDurationMinutes } from "../_shared/checkout-pricing.ts";
 import { resolveProfileDisplayName } from "./profile-lookup.ts";
 import { resolveCorporateTag } from "./corporate-tag.ts";
@@ -1821,13 +1822,10 @@ Deno.serve(async (req) => {
       let calendar_email: string | null = null;
 
       // If an admin/site_admin is booking on behalf of a member, use their user_id
+      const { data: callerIsStaff } = await createAdminClient().rpc("is_admin_or_site_admin", { _user_id: userId });
       let bookingUserId = userId;
-      if (user_id_override && user_id_override !== userId) {
-        const adminClient = createAdminClient();
-        const { data: callerIsAdminOrSA } = await adminClient.rpc("is_admin_or_site_admin", { _user_id: userId });
-        if (callerIsAdminOrSA) {
-          bookingUserId = user_id_override;
-        }
+      if (user_id_override && user_id_override !== userId && callerIsStaff) {
+        bookingUserId = user_id_override;
       }
 
       const requestedBay = await loadBay(createAdminClient(), bay_id);
@@ -1852,6 +1850,18 @@ Deno.serve(async (req) => {
 
       // Get the calendar's timezone for consistent formatting
       const calTz = appCalendar ? bookingMode.timezone : await getCalendarTimezone(accessToken, calendar_email!);
+
+      // Customers may only book inside the bay's opening hours; staff may override.
+      if (!callerIsStaff && !isParticipant) {
+        const hoursError = bay_id
+          ? await customerOpeningHoursError(createAdminClient(), {
+              bayId: bay_id, startIso: start_time, endIso: end_time, timeZone: calTz, userId,
+            })
+          : "Please choose a bay";
+        if (hoursError) {
+          return new Response(JSON.stringify({ error: hoursError }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+      }
 
       // Get bay config for coaching mode
       let coachingMode = "instant";
