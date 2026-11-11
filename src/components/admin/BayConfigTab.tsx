@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAdmin } from "@/hooks/useAdmin";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,9 @@ import { MapPin, Plus, Pencil, Trash2, Loader2, LayoutGrid, Percent } from "luci
 import { WeeklyOffEditor, HolidayEditor, PeakHoursEditor, DayHoursOverrideEditor } from "./BayScheduleEditors";
 import { AvailabilitySourceEditor } from "./AvailabilitySourceEditor";
 import { BAY_TYPE_LABELS, type BayType } from "@/lib/bay-types";
+import { dayHoursError, type PendingDayHours } from "@/lib/day-hours";
+import { saveBayHoursOverride } from "@/hooks/useBayHoursOverrides";
+import { getDayName } from "@/lib/bay-schedule-utils";
 import { useEffect } from "react";
 
 function CancellationFeeEditor({ city }: { city: string }) {
@@ -160,6 +163,11 @@ export function BayConfigTab() {
   const [editing, setEditing] = useState<BayForm | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [newCity, setNewCity] = useState("");
+  // Day-specific hours typed in the dialog but not yet added with "Add".
+  const [pendingDayHours, setPendingDayHours] = useState<PendingDayHours | null>(null);
+  const [dayHoursResetKey, setDayHoursResetKey] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const onPendingDayHours = useCallback((p: PendingDayHours | null) => setPendingDayHours(p), []);
 
   // Site admins only see their assigned cities
   const bays = isAdmin
@@ -191,6 +199,18 @@ export function BayConfigTab() {
         return;
       }
     }
+    if (editing.open_time >= editing.close_time) {
+      toast({ title: "Validation Error", description: "Closing time must be after opening time.", variant: "destructive" });
+      return;
+    }
+    const dayHours = editing.id ? pendingDayHours : null;
+    if (dayHours) {
+      const err = dayHoursError(dayHours, editing.open_time, editing.close_time);
+      if (err) {
+        toast({ title: `${getDayName(dayHours.day_of_week)} hours not saved`, description: err, variant: "destructive" });
+        return;
+      }
+    }
     const payload: Record<string, unknown> = {
       city: editing.city,
       name: editing.name,
@@ -211,19 +231,45 @@ export function BayConfigTab() {
       member_hours_rate: editing.member_hours_rate,
     };
 
-    if (editing.id) {
-      const { error } = await supabase.from("bays").update(payload as never).eq("id", editing.id);
-      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-      toast({ title: "Bay updated" });
-    } else {
-      const { error } = await supabase.from("bays").insert(payload as never);
-      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-      toast({ title: "Bay created" });
+    setSaving(true);
+    try {
+      if (editing.id) {
+        const { data, error } = await supabase.from("bays").update(payload as never).eq("id", editing.id).select("id");
+        // A write blocked by permissions returns no row and no error; never report it as saved.
+        if (error || !data || data.length === 0) {
+          toast({ title: "Bay not saved", description: error?.message ?? "You don't have permission to change this bay.", variant: "destructive" });
+          return;
+        }
+        if (dayHours) {
+          try {
+            await saveBayHoursOverride({ bay_id: editing.id, ...dayHours });
+            setDayHoursResetKey((k) => k + 1);
+          } catch (e) {
+            queryClient.invalidateQueries({ queryKey: ["bays"] });
+            toast({ title: `Bay saved, but ${getDayName(dayHours.day_of_week)} hours were not`, description: (e as Error).message, variant: "destructive" });
+            return;
+          }
+          queryClient.invalidateQueries({ queryKey: ["bay_hours_overrides"] });
+        }
+        toast({
+          title: "Bay updated",
+          description: dayHours
+            ? `${getDayName(dayHours.day_of_week)} hours: ${dayHours.open_time ?? "default"} – ${dayHours.close_time ?? "default"}`
+            : undefined,
+        });
+      } else {
+        const { error } = await supabase.from("bays").insert(payload as never);
+        if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+        toast({ title: "Bay created" });
+      }
+    } finally {
+      setSaving(false);
     }
     queryClient.invalidateQueries({ queryKey: ["bays"] });
     queryClient.invalidateQueries({ queryKey: ["bay_config"] });
     setEditing(null);
     setIsNew(false);
+    setPendingDayHours(null);
   };
 
   const handleDelete = async (id: string) => {
@@ -347,7 +393,7 @@ export function BayConfigTab() {
       })}
 
       {/* Edit/Create dialog */}
-      <Dialog open={!!editing} onOpenChange={(open) => { if (!open) { setEditing(null); setIsNew(false); } }}>
+      <Dialog open={!!editing} onOpenChange={(open) => { if (!open) { setEditing(null); setIsNew(false); setPendingDayHours(null); } }}>
         <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{isNew ? "Add Bay" : "Edit Bay"} — {editing?.city}</DialogTitle>
@@ -493,17 +539,25 @@ export function BayConfigTab() {
               {editing.id && (
                 <>
                   <Separator />
-                  <WeeklyOffEditor bayId={editing.id} city={editing.city} weeklyOffDays={(editing as any).weekly_off_days ?? []} />
+                  <WeeklyOffEditor bayId={editing.id} weeklyOffDays={(editing as any).weekly_off_days ?? []} />
                   <Separator />
-                  <DayHoursOverrideEditor bayId={editing.id} />
+                  <DayHoursOverrideEditor
+                    bayId={editing.id}
+                    bayOpen={editing.open_time}
+                    bayClose={editing.close_time}
+                    onPendingChange={onPendingDayHours}
+                    resetKey={dayHoursResetKey}
+                  />
                   <Separator />
                   <PeakHoursEditor bayId={editing.id} />
                 </>
               )}
 
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => { setEditing(null); setIsNew(false); }}>Cancel</Button>
-                <Button onClick={handleSave} disabled={!editing.name || !editing.city}>Save</Button>
+                <Button variant="outline" onClick={() => { setEditing(null); setIsNew(false); setPendingDayHours(null); }}>Cancel</Button>
+                <Button onClick={handleSave} disabled={!editing.name || !editing.city || saving}>
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                </Button>
               </div>
             </div>
           )}
