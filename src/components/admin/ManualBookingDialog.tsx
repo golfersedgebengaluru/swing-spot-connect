@@ -17,6 +17,7 @@ import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useBays, useCities, useAvailableSlots } from "@/hooks/useBookings";
 import { getBookableWindow } from "@/lib/extended-hours";
+import { bayTypeOf, practiceHoursFor, priceRowFor } from "@/lib/bay-types";
 import { Switch } from "@/components/ui/switch";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useBayPricing } from "@/hooks/usePricing";
@@ -169,10 +170,10 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
     const dayType = isWeekend ? "weekend" : "weekday";
     if (sessionType === "coaching") {
       // Use coaching rate from bay_pricing (e.g. coaching_60)
-      return bayPricing.find((p: any) => p.city === selectedCity && p.day_type === dayType && p.session_type.includes("coaching")) ?? null;
+      return priceRowFor(bayPricing, selectedCity, bayTypeOf(currentBay), dayType, (s) => s.includes("coaching"));
     }
-    return bayPricing.find((p: any) => p.city === selectedCity && p.day_type === dayType && p.session_type === playerSessionType) ?? null;
-  }, [selectedCity, bayPricing, selectedDate, playerSessionType, sessionType]);
+    return priceRowFor(bayPricing, selectedCity, bayTypeOf(currentBay), dayType, (s) => s === playerSessionType);
+  }, [selectedCity, bayPricing, selectedDate, playerSessionType, sessionType, currentBay]);
 
   const totalCost = currentPrice ? currentPrice.price_per_hour * (duration / 60) : 0;
 
@@ -304,8 +305,11 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
 
   const canProceedFromCustomer = customerMode === "existing" ? !!selectedProfile : (!!guestName.trim() && (!!guestEmail.trim() || !!guestPhone.trim()));
   const canProceedFromSlot = !!selectedCity && !!currentBay && !!selectedDate && !!startTime;
-  const hoursNeeded = sessionType === "coaching" ? (currentBay?.coaching_hours ?? 1) : duration / 60;
-  const canPayWithHours = paymentMode === "hours" && hoursBalance !== null && hoursBalance >= hoursNeeded;
+  // Practice hours follow the bay's setting; null means this bay is pay-only.
+  const practiceHours = practiceHoursFor(currentBay, duration);
+  const hoursNeeded = sessionType === "coaching" ? (currentBay?.coaching_hours ?? 1) : (practiceHours ?? 0);
+  const hoursAccepted = sessionType === "coaching" || practiceHours !== null;
+  const canPayWithHours = paymentMode === "hours" && hoursAccepted && hoursBalance !== null && hoursBalance >= hoursNeeded;
   const canConfirm = billingLoading || billingError ? false : isCorporate
     ? !!corporateAccount
     : paymentMode === "hours" ? canPayWithHours : !!selectedPaymentMethod;
@@ -970,7 +974,9 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
                     <span className="font-medium">{hoursBalance?.toFixed(1)}h</span>
                   </div>
                   {!canPayWithHours && (
-                    <p className="text-xs text-destructive mt-2">Insufficient hours balance. Switch to manual payment.</p>
+                    <p className="text-xs text-destructive mt-2">
+                      {hoursAccepted ? "Insufficient hours balance. Switch to manual payment." : "This bay doesn't accept member hours for practice. Switch to manual payment."}
+                    </p>
                   )}
                 </CardContent>
               </Card>

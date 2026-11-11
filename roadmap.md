@@ -229,7 +229,11 @@
 - [answered] Q: current payment hold — none today
 
 ## App calendar as booking record of truth (approved plan)
-- [~] 1. Bay types + Bunker hours settings + bay-type pricing — database and admin screens done; booking screens not yet filtering price by bay type
-- [~] 2. App availability, 10-min holds, auto bay choice — server code written, NOT deployed or tested; booking screens (bay-type picker, 10-min payment window) not done
-- [ ] 3. Block-outs and all-bays day view
-- [ ] 4. Google copy with "not on Google yet" markers; per-city switch (Chennai/Bengaluru after block re-entry)
+- [x] 1. Bay types + Bunker hours settings + bay-type pricing (database, admin screens, all booking screens)
+- [x] 2. App availability, 10-min payment holds, auto bay choice by type; checkout closes at 10 min; late payment books if free, else refunds
+- [x] 3. Staff Day View (all bays) with block-outs
+- [x] 4. "Not on Google yet" markers with retry; per-city switch in Locations
+- [ ] Publish the site (pricing screen on live site needs it)
+- [ ] Gurugram go-live: Bunker/Standard prices, payment account, invoice/GST profile (owner to supply), then switch on app calendar
+- [ ] Chennai/Bengaluru: re-enter Google-only blocks as app block-outs, then switch each city
+- [ ] Visual check of Day View with a staff account (current preview account has no staff access)

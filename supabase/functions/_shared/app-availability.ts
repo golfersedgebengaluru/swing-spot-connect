@@ -6,23 +6,15 @@ export const PAYMENT_HOLD_MINUTES = 10;
 /** Short hold that covers the gap between picking a bay and inserting the booking row. */
 export const INSERT_HOLD_MINUTES = 2;
 
+import type { BusyRange } from "./app-slots.ts";
+export { computeSlots, memberHoursForBay } from "./app-slots.ts";
+export type { BusyRange, SlotResult } from "./app-slots.ts";
+
 export type AvailabilitySource = "google" | "app";
 
 export interface CityBookingMode {
   source: AvailabilitySource;
   timezone: string;
-}
-
-export interface BusyRange {
-  bay_id: string;
-  start_time: string;
-  end_time: string;
-  kind?: string;
-}
-
-export interface SlotResult {
-  time: string;
-  available: boolean;
 }
 
 // deno-lint-ignore no-explicit-any
@@ -80,36 +72,6 @@ export async function busyRanges(admin: Admin, city: string, fromIso: string, to
   return (data ?? []) as BusyRange[];
 }
 
-/**
- * 30-minute slots from opening time to (close − 60 min). A slot is open when at
- * least one candidate bay has no busy range overlapping it.
- */
-export function computeSlots(opts: {
-  dayStartMs: number;
-  dayEndMs: number;
-  nowMs: number;
-  adminMode: boolean;
-  candidateBayIds: string[];
-  busy: BusyRange[];
-}): SlotResult[] {
-  const step = 30 * 60_000;
-  const nowDate = new Date(opts.nowMs);
-  const earliest = nowDate.getUTCMinutes() < 30
-    ? Date.UTC(nowDate.getUTCFullYear(), nowDate.getUTCMonth(), nowDate.getUTCDate(), nowDate.getUTCHours(), 30)
-    : Date.UTC(nowDate.getUTCFullYear(), nowDate.getUTCMonth(), nowDate.getUTCDate(), nowDate.getUTCHours() + 1, 0);
-  const ranges = opts.busy.map((b) => ({ bay: b.bay_id, start: Date.parse(b.start_time), end: Date.parse(b.end_time) }));
-  const slots: SlotResult[] = [];
-  for (let t = opts.dayStartMs; t <= opts.dayEndMs - 60 * 60_000; t += step) {
-    const end = t + step;
-    const someBayFree = opts.candidateBayIds.some(
-      (id) => !ranges.some((r) => r.bay === id && t < r.end && end > r.start),
-    );
-    const isPast = !opts.adminMode && t < earliest;
-    slots.push({ time: new Date(t).toISOString(), available: someBayFree && !isPast });
-  }
-  return slots;
-}
-
 export interface Reservation {
   bay_id: string;
   hold_id: string | null;
@@ -150,13 +112,6 @@ export async function holdForOrder(admin: Admin, orderId: string | null | undefi
   if (!orderId) return null;
   const { data } = await admin.from("bay_holds").select("id").eq("razorpay_order_id", orderId).maybeSingle();
   return data?.id ?? null;
-}
-
-/** Member hours used for a practice booking on this bay, or null when hours cannot be used here. */
-export function memberHoursForBay(bay: Pick<BayRecord, "member_hours_enabled" | "member_hours_rate"> | null, durationHours: number): number | null {
-  if (bay && bay.member_hours_enabled === false) return null;
-  const rate = Number(bay?.member_hours_rate ?? 1) || 1;
-  return Math.round(rate * durationHours * 100) / 100;
 }
 
 /** Return a captured Razorpay payment when the paid slot can no longer be booked. */

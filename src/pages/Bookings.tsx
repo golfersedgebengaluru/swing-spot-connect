@@ -11,7 +11,8 @@ import { CalendarIcon, Clock, MapPin, Loader2, AlertTriangle, LayoutGrid, Gradua
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { useBays, useAvailableSlots, useCreateBooking, useUserHoursBalance, useUserProfile, useUpdatePreferredCity, useCities } from "@/hooks/useBookings";
+import { useBays, useAvailableSlots, useCreateBooking, useUserHoursBalance, useUserProfile, useUpdatePreferredCity, useCities, useAppCalendarCities } from "@/hooks/useBookings";
+import { bayChoices, canStartAt, practiceHoursFor } from "@/lib/bay-types";
 import { useBayHolidays } from "@/hooks/useBayHolidays";
 import { isDateBlocked, getBlockedReason } from "@/lib/bay-schedule-utils";
 import { getBookableWindow } from "@/lib/extended-hours";
@@ -48,8 +49,13 @@ export default function Bookings() {
   }, [bays, effectiveCity]);
 
   // Auto-select bay if only one
-  const effectiveBayId = cityBays.length === 1 ? cityBays[0].id : selectedBayId;
-  const currentBay = cityBays.find((b: any) => b.id === effectiveBayId);
+  // App-calendar cities offer one choice per bay type; the server picks a free bay.
+  const appCalendarCities = useAppCalendarCities();
+  const choices = useMemo(() => bayChoices(cityBays, appCalendarCities.has(effectiveCity)), [cityBays, appCalendarCities, effectiveCity]);
+  const effectiveBayId = choices.length === 1 ? choices[0].bay.id : selectedBayId;
+  const currentChoice = choices.find((c) => c.bay.id === effectiveBayId);
+  const currentBay = currentChoice?.bay;
+  const bayLabel = currentChoice?.label ?? "";
 
   const dateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined;
 
@@ -87,8 +93,10 @@ export default function Bookings() {
     if (sessionType === "coaching" && currentBay) {
       return currentBay.coaching_hours ?? 1;
     }
-    return duration / 60;
+    return practiceHoursFor(currentBay, duration);
   }, [sessionType, currentBay, duration]);
+  // Practice on a bay set to "pay only" (e.g. Bunker Bay) can't use member hours.
+  const hoursNotAccepted = hoursToDeduct === null;
 
   // Whether this booking needs approval
   const needsApproval = sessionType === "coaching" && currentBay?.coaching_mode === "approval_required";
@@ -96,13 +104,7 @@ export default function Bookings() {
   const canBook = useMemo(() => {
     if (!selectedSlot || !slots) return false;
     const slotIndex = slots.findIndex((s) => s.time === selectedSlot);
-    if (slotIndex === -1) return false;
-    const slotsNeeded = duration / 30;
-    for (let i = 0; i < slotsNeeded; i++) {
-      const s = slots[slotIndex + i];
-      if (!s || !s.available) return false;
-    }
-    return true;
+    return canStartAt(slots, slotIndex, duration);
   }, [selectedSlot, slots, duration]);
 
   const endTime = useMemo(() => {
@@ -122,13 +124,13 @@ export default function Bookings() {
         duration_minutes: duration,
         city: effectiveCity,
         bay_id: currentBay.id,
-        bay_name: currentBay.name,
+        bay_name: bayLabel,
         session_type: sessionType,
       });
       if (needsApproval) {
         toast({ title: "Coaching Request Submitted!", description: `Your coaching session is pending admin approval. You'll be notified once it's confirmed.` });
       } else {
-        toast({ title: "Bay Booked!", description: `${currentBay.name} is confirmed for ${format(new Date(selectedSlot), "PPp")}.` });
+        toast({ title: "Bay Booked!", description: `${bayLabel} is confirmed for ${format(new Date(selectedSlot), "PPp")}.` });
       }
       setSelectedSlot(null);
     } catch (err: any) {
@@ -229,7 +231,7 @@ export default function Bookings() {
               </Card>
 
               {/* Bay Selector - only show if city has multiple bays */}
-              {effectiveCity && cityBays.length > 1 && (
+              {effectiveCity && choices.length > 1 && (
                 <Card className="shadow-elegant">
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
@@ -242,9 +244,9 @@ export default function Bookings() {
                         <SelectValue placeholder="Select bay" />
                       </SelectTrigger>
                       <SelectContent>
-                        {cityBays.map((bay: any) => (
-                          <SelectItem key={bay.id} value={bay.id}>
-                            {bay.name}
+                        {choices.map((c) => (
+                          <SelectItem key={c.bay.id} value={c.bay.id}>
+                            {c.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -259,9 +261,9 @@ export default function Bookings() {
               )}
 
               {/* Show hours for single bay */}
-              {effectiveCity && cityBays.length === 1 && currentBay && (
+              {effectiveCity && choices.length === 1 && currentBay && (
                 <div className="px-1 text-xs text-muted-foreground">
-                  {currentBay.name} · {currentBay.open_time} – {currentBay.close_time}
+                  {bayLabel} · {currentBay.open_time} – {currentBay.close_time}
                 </div>
               )}
 
@@ -394,12 +396,7 @@ export default function Bookings() {
                           const timeStr = format(t, "h:mm a");
                           const isSelected = selectedSlot === slot.time;
                           const slotIdx = slots.findIndex((s) => s.time === slot.time);
-                          const slotsNeeded = duration / 30;
-                          let canStart = slot.available;
-                          for (let i = 1; i < slotsNeeded && canStart; i++) {
-                            const next = slots[slotIdx + i];
-                            if (!next || !next.available) canStart = false;
-                          }
+                          const canStart = canStartAt(slots, slotIdx, duration);
 
                           return (
                             <Button
@@ -424,7 +421,7 @@ export default function Bookings() {
                         <div className="mt-6 rounded-lg border border-border bg-muted/50 p-4">
                           <h3 className="font-medium text-foreground mb-2">Booking Summary</h3>
                           <div className="space-y-1 text-sm text-muted-foreground">
-                            <p><span className="font-medium text-foreground">Bay:</span> {currentBay.name}</p>
+                            <p><span className="font-medium text-foreground">Bay:</span> {bayLabel}</p>
                             <p><span className="font-medium text-foreground">City:</span> {effectiveCity}</p>
                             <p><span className="font-medium text-foreground">Session:</span> {sessionType === "coaching" ? "Coaching" : "Practice"}
                               {needsApproval && <Badge variant="outline" className="ml-2 text-amber-600 border-amber-300">Needs Approval</Badge>}
@@ -432,16 +429,18 @@ export default function Bookings() {
                             <p><span className="font-medium text-foreground">Date:</span> {format(new Date(selectedSlot), "PPP")}</p>
                             <p><span className="font-medium text-foreground">Time:</span> {format(new Date(selectedSlot), "h:mm a")} – {endTime ? format(new Date(endTime), "h:mm a") : ""}</p>
                             <p><span className="font-medium text-foreground">Duration:</span> {duration / 60}h</p>
-                            <p><span className="font-medium text-foreground">Hours deducted:</span> {needsApproval ? "Deducted on approval" : `${hoursToDeduct}h`}</p>
+                            <p><span className="font-medium text-foreground">Hours deducted:</span> {needsApproval ? "Deducted on approval" : hoursNotAccepted ? "Not available — this bay is pay-per-use" : `${hoursToDeduct}h`}</p>
                           </div>
                           <Button
                             className="mt-4 w-full"
                             onClick={handleBook}
-                            disabled={!canBook || createBooking.isPending || (!needsApproval && (balance?.remaining ?? 0) < hoursToDeduct)}
+                            disabled={!canBook || createBooking.isPending || (!needsApproval && (hoursNotAccepted || (balance?.remaining ?? 0) < (hoursToDeduct ?? 0)))}
                           >
                             {createBooking.isPending ? (
                               <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Booking...</>
-                            ) : !needsApproval && (balance?.remaining ?? 0) < hoursToDeduct ? (
+                            ) : !needsApproval && hoursNotAccepted ? (
+                              "Hours not accepted for this bay"
+                            ) : !needsApproval && (balance?.remaining ?? 0) < (hoursToDeduct ?? 0) ? (
                               "Insufficient Hours"
                             ) : needsApproval ? (
                               "Request Coaching Session"

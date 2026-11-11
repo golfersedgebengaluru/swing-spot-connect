@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
+import type { SlotAvailability } from "@/lib/bay-types";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -83,7 +84,7 @@ export function useAvailableSlots(
         try { const body = await (res.error as any).context?.json?.(); errorMsg = body?.error || res.error.message || errorMsg; } catch { errorMsg = res.error.message || errorMsg; }
         throw new Error(errorMsg);
       }
-      return res.data.slots as { time: string; available: boolean }[];
+      return res.data.slots as SlotAvailability[];
     },
     ...rest,
   });

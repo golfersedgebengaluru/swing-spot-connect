@@ -71,3 +71,32 @@ export function practiceHoursFor(
   const rate = Number(bay?.member_hours_rate ?? 1) || 1;
   return Math.round(rate * (durationMinutes / 60) * 100) / 100;
 }
+
+export interface SlotAvailability {
+  time: string;
+  available: boolean;
+  /** App-calendar cities list the bays free in this half hour. */
+  free_bays?: string[];
+}
+
+/**
+ * Whether a booking of `durationMinutes` can start at slot `index`: every half
+ * hour must be open and, when the server lists free bays, one bay must stay
+ * free for the whole booking (customers are never moved mid-session).
+ */
+export function canStartAt(slots: SlotAvailability[] | null | undefined, index: number, durationMinutes: number): boolean {
+  if (!slots || index < 0) return false;
+  const needed = Math.max(1, Math.ceil(durationMinutes / 30));
+  let common: Set<string> | null = null;
+  for (let i = 0; i < needed; i++) {
+    const slot = slots[index + i];
+    if (!slot || !slot.available) return false;
+    if (slot.free_bays) {
+      common = common === null
+        ? new Set(slot.free_bays)
+        : new Set(slot.free_bays.filter((id) => common!.has(id)));
+      if (common.size === 0) return false;
+    }
+  }
+  return true;
+}

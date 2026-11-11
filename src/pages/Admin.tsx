@@ -8,6 +8,7 @@ import { AdminEdgeRewardsTab } from "@/components/admin/AdminEdgeRewardsTab";
 import { AdminAllUsersTab } from "@/components/admin/AdminAllUsersTab";
 import { AdminPagesTab } from "@/components/admin/AdminPagesTab";
 import { AdminBookingLogsTab } from "@/components/admin/AdminBookingLogsTab";
+import { AdminDayViewTab } from "@/components/admin/AdminDayViewTab";
 import { AdminSettingsTab } from "@/components/admin/AdminSettingsTab";
 
 import { AdminEmailLogsTab } from "@/components/admin/AdminEmailLogsTab";
@@ -89,6 +90,7 @@ const tabComponents: Record<string, React.ComponentType<any>> = {
   pages: AdminPagesTab,
   bayconfig: BayConfigTab,
   bookinglogs: AdminBookingLogsTab,
+  dayview: AdminDayViewTab,
   payments: AdminPaymentsTab,
   pricing: AdminPricingTab,
   emails: AdminEmailLogsTab,
