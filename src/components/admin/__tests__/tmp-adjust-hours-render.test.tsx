@@ -44,6 +44,7 @@ function typeInto(el: HTMLInputElement, value: string) {
 
 async function openSelect(trigger: HTMLElement, name: string) {
   fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse", isTrusted: true });
+  fireEvent.keyDown(trigger, { key: "Enter", code: "Enter" });
   await waitFor(() => expect(screen.queryByRole("option", { name })).toBeTruthy(), { timeout: 2500 });
   fireEvent.click(screen.getByRole("option", { name }));
 }
