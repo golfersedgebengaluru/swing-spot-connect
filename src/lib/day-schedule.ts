@@ -67,6 +67,26 @@ export interface ScheduleItem {
   on_google: boolean;
 }
 
+/** One-off and weekly repeating block-outs both stop bookings. */
+export function isBlockoutKind(kind: string): boolean {
+  return kind === "blockout" || kind === "recurring_blockout";
+}
+
+/** Weekday (0 = Sunday) of a "yyyy-MM-dd" date. */
+export function weekdayOf(date: string): number {
+  const [y, m, d] = date.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+/** Validates a weekly repeating block before it is saved; returns an error message or null. */
+export function recurringBlockError(opts: { days: number[]; from: string; to: string; startsOn: string; endsOn: string }): string | null {
+  if (!opts.days.length) return "Pick at least one day";
+  if (!opts.from || !opts.to || opts.to <= opts.from) return "End time must be after start time";
+  if (!opts.startsOn) return "Choose a start date";
+  if (opts.endsOn && opts.endsOn < opts.startsOn) return "End date must be on or after the start date";
+  return null;
+}
+
 export interface PlacedItem extends ScheduleItem {
   /** Minutes from the top of the grid. */
   top: number;
@@ -86,7 +106,7 @@ export function placeItemsForBay(
 ): PlacedItem[] {
   const dayStartMs = dayStartUtc.getTime();
   return items
-    .filter((i) => i.bay_id === bayId || (i.kind === "blockout" && i.bay_id === null))
+    .filter((i) => i.bay_id === bayId || (isBlockoutKind(i.kind) && i.bay_id === null))
     .map((i) => {
       const start = Math.max(windowStartMin, (Date.parse(i.start_time) - dayStartMs) / 60_000);
       const end = Math.min(windowEndMin, (Date.parse(i.end_time) - dayStartMs) / 60_000);
