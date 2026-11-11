@@ -18,7 +18,8 @@ import {
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { useBays, useAvailableSlots, useCreateBooking, useUserHoursBalance, useCities, useUserProfile } from "@/hooks/useBookings";
+import { useBays, useAvailableSlots, useCreateBooking, useUserHoursBalance, useCities, useUserProfile, useAppCalendarCities } from "@/hooks/useBookings";
+import { bayChoices, bayTypeOf, canStartAt, practiceHoursFor, priceRowFor } from "@/lib/bay-types";
 import { getBookableWindow } from "@/lib/extended-hours";
 import { useBayPricing } from "@/hooks/usePricing";
 import { useBayHolidays } from "@/hooks/useBayHolidays";
@@ -80,8 +81,13 @@ export default function PublicBooking() {
     return (bays ?? []).filter((b: any) => b.city === selectedCity && b.is_active);
   }, [bays, selectedCity]);
 
-  const effectiveBayId = cityBays.length === 1 ? cityBays[0]?.id : selectedBayId;
-  const currentBay = cityBays.find((b: any) => b.id === effectiveBayId);
+  // App-calendar cities offer one choice per bay type; the server picks a free bay.
+  const appCalendarCities = useAppCalendarCities();
+  const choices = useMemo(() => bayChoices(cityBays, appCalendarCities.has(selectedCity)), [cityBays, appCalendarCities, selectedCity]);
+  const effectiveBayId = choices.length === 1 ? choices[0]?.bay.id : selectedBayId;
+  const currentChoice = choices.find((c) => c.bay.id === effectiveBayId);
+  const currentBay = currentChoice?.bay;
+  const bayLabel = currentChoice?.label ?? "the bay";
 
   const dateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined;
 
@@ -105,11 +111,8 @@ export default function PublicBooking() {
     if (!selectedCity || !bayPricing) return null;
     const isWeekend = selectedDate ? [0, 6].includes(selectedDate.getDay()) : false;
     const dayType = isWeekend ? "weekend" : "weekday";
-    const match = bayPricing.find(
-      (p: any) => p.city === selectedCity && p.day_type === dayType && p.session_type === sessionType
-    );
-    return match;
-  }, [selectedCity, bayPricing, selectedDate, sessionType]);
+    return priceRowFor(bayPricing, selectedCity, bayTypeOf(currentBay), dayType, (s) => s === sessionType);
+  }, [selectedCity, bayPricing, selectedDate, sessionType, currentBay]);
 
   const totalCost = currentPrice ? currentPrice.price_per_hour * (duration / 60) : 0;
   const finalBookingTotal = Math.max(0, totalCost - couponDiscount);
@@ -120,8 +123,13 @@ export default function PublicBooking() {
   }, [selectedSlot, duration]);
 
   const canProceedToPayment = selectedCity && currentBay && selectedDate && selectedSlot;
-  const hoursNeeded = duration / 60;
-  const hasEnoughHours = (balance?.remaining ?? 0) >= hoursNeeded;
+  // null when this bay can't be booked with member hours (e.g. Bunker Bay set to pay only).
+  const hoursNeeded = practiceHoursFor(currentBay, duration);
+  const hoursAllowed = !!user && hoursNeeded !== null;
+  const hasEnoughHours = hoursNeeded !== null && (balance?.remaining ?? 0) >= hoursNeeded;
+  useEffect(() => {
+    if (!hoursAllowed && paymentMethod === "hours") setPaymentMethod("pay");
+  }, [hoursAllowed, paymentMethod]);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -158,7 +166,7 @@ export default function PublicBooking() {
     setIsProcessing(true);
 
     try {
-      if (user && paymentMethod === "hours") {
+      if (hoursAllowed && paymentMethod === "hours") {
         // Member booking with hours — no payment needed
         await createBooking.mutateAsync({
           start_time: selectedSlot,
@@ -166,7 +174,7 @@ export default function PublicBooking() {
           duration_minutes: duration,
           city: selectedCity,
           bay_id: currentBay.id,
-          bay_name: currentBay.name,
+          bay_name: bayLabel,
           session_type: sessionType,
         });
         setBookingComplete(true);
@@ -202,7 +210,7 @@ export default function PublicBooking() {
           throw new Error(orderRes.data?.error || orderRes.error?.message || "Failed to create payment order");
         }
 
-        const { order_id, key_id, currency: rzpCurrency, amount: orderAmount } = orderRes.data;
+        const { order_id, key_id, currency: rzpCurrency, amount: orderAmount, hold_minutes: holdMinutes } = orderRes.data;
 
         // 2. Load Razorpay checkout script
         const loaded = await loadRazorpayScript();
@@ -232,8 +240,10 @@ export default function PublicBooking() {
             amount: orderAmount,
             currency: rzpCurrency || "INR",
             name: "Golfer's Edge",
-            description: `${currentBay.name} · ${duration / 60}h ${sessionType}`,
+            description: `${bayLabel} · ${duration / 60}h ${sessionType}`,
             order_id: order_id,
+            // The slot is held only while the payment window is open.
+            ...(holdMinutes ? { timeout: Number(holdMinutes) * 60 } : {}),
             handler: async (response: any) => {
               try {
                 setIsProcessing(true);
@@ -335,13 +345,13 @@ export default function PublicBooking() {
               </h2>
               <p className="mt-2 text-muted-foreground">
                 {confirmationPending
-                  ? `We've received your payment. Your session at ${currentBay?.name ?? "the bay"} is being confirmed — you'll get a confirmation email shortly.`
-                  : `Your session at ${currentBay?.name} on ${selectedDate ? format(selectedDate, "PPP") : ""} has been confirmed.`}
+                  ? `We've received your payment. Your session at ${bayLabel} is being confirmed — you'll get a confirmation email shortly.`
+                  : `Your session at ${bayLabel} on ${selectedDate ? format(selectedDate, "PPP") : ""} has been confirmed.`}
               </p>
 
               <div className="mt-6 space-y-2 text-sm text-left rounded-lg bg-muted/50 p-4">
                 <p><span className="font-medium">City:</span> {selectedCity}</p>
-                <p><span className="font-medium">Bay:</span> {currentBay?.name}</p>
+                <p><span className="font-medium">Bay:</span> {bayLabel}</p>
                 <p><span className="font-medium">Time:</span> {selectedSlot && format(new Date(selectedSlot), "h:mm a")} – {endTime && format(new Date(endTime), "h:mm a")}</p>
                 <p><span className="font-medium">Duration:</span> {duration / 60}h</p>
               </div>
@@ -437,7 +447,7 @@ export default function PublicBooking() {
               </Card>
 
               {/* Bay */}
-              {selectedCity && cityBays.length > 1 && (
+              {selectedCity && choices.length > 1 && (
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2">
@@ -448,7 +458,7 @@ export default function PublicBooking() {
                     <Select value={effectiveBayId} onValueChange={(v) => { setSelectedBayId(v); setSelectedSlot(null); }}>
                       <SelectTrigger><SelectValue placeholder="Select bay" /></SelectTrigger>
                       <SelectContent>
-                        {cityBays.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                        {choices.map((c) => <SelectItem key={c.bay.id} value={c.bay.id}>{c.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </CardContent>
@@ -566,12 +576,7 @@ export default function PublicBooking() {
                           const t = new Date(slot.time);
                           const isSelected = selectedSlot === slot.time;
                           const slotIdx = slots.findIndex((s) => s.time === slot.time);
-                          const slotsNeeded = duration / 30;
-                          let canStart = slot.available;
-                          for (let i = 1; i < slotsNeeded && canStart; i++) {
-                            const next = slots[slotIdx + i];
-                            if (!next || !next.available) canStart = false;
-                          }
+                          const canStart = canStartAt(slots, slotIdx, duration);
                           return (
                             <Button
                               key={slot.time}
@@ -622,7 +627,7 @@ export default function PublicBooking() {
                   <CardTitle className="text-base">Booking Summary</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Bay</span><span className="font-medium">{currentBay?.name}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Bay</span><span className="font-medium">{bayLabel}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">City</span><span className="font-medium">{selectedCity}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span className="font-medium">{selectedDate && format(selectedDate, "PPP")}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Time</span><span className="font-medium">{selectedSlot && format(new Date(selectedSlot), "h:mm a")} – {endTime && format(new Date(endTime), "h:mm a")}</span></div>
@@ -719,7 +724,7 @@ export default function PublicBooking() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {/* Hours option - only for logged in members */}
-                  {user && (
+                  {hoursAllowed && (
                     <button
                       onClick={() => { setPaymentMethod("hours"); setTermsAccepted(false); }}
                       className={cn(
