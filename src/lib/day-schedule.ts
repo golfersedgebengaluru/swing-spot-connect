@@ -1,6 +1,9 @@
 // Pure helpers for the staff all-bays day view. Times are always shown in the
 // centre's timezone, never the viewer's device timezone.
 
+import { getBlockedReason } from "@/lib/bay-schedule-utils";
+import { getBookableWindow, type BayHoursOverride } from "@/lib/extended-hours";
+
 export const SLOT_MINUTES = 30;
 
 function validZone(timeZone: string): string {
@@ -91,4 +94,39 @@ export function placeItemsForBay(
     })
     .filter((i) => i.height > 0)
     .sort((a, b) => a.top - b.top);
+}
+
+export interface DayBayHours {
+  open_time: string;
+  close_time: string;
+  weekly_off_days?: number[] | null;
+  extended_hours_enabled?: boolean | null;
+  extended_open_time?: string | null;
+  extended_close_time?: string | null;
+  hours_overrides?: BayHoursOverride[] | null;
+}
+
+export interface BayDayWindow {
+  /** Minutes since midnight; null when the bay is closed all day. */
+  open: number | null;
+  close: number | null;
+  closedReason: string | null;
+}
+
+/**
+ * The bay's bookable hours on `date` ("yyyy-MM-dd"), using the same rules as
+ * the booking pages: day-specific hours, extended hours, weekly off days and holidays.
+ */
+export function bayDayWindow(
+  bay: DayBayHours & { id: string },
+  date: string,
+  holidays: Array<{ bay_id: string | null; city: string; holiday_date: string; label?: string | null }>,
+): BayDayWindow {
+  const day = new Date(`${date}T12:00:00`);
+  const closedReason = getBlockedReason(day, bay.weekly_off_days ?? [], holidays.map((h) => ({ ...h, label: h.label ?? undefined })), bay.id);
+  if (closedReason) return { open: null, close: null, closedReason };
+  const window = getBookableWindow(bay, true, day);
+  if (!window) return { open: null, close: null, closedReason: "Hours not set" };
+  const close = hhmmToMinutes(window.closeTime, 23 * 60);
+  return { open: hhmmToMinutes(window.openTime, 6 * 60), close: close === 0 ? 24 * 60 : close, closedReason: null };
 }

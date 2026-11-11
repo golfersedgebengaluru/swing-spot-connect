@@ -13,16 +13,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { useBayConfig, useBays } from "@/hooks/useBookings";
+import { useBayHolidays } from "@/hooks/useBayHolidays";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
-  SLOT_MINUTES, formatTimeInZone, hhmmToMinutes, placeItemsForBay, zonedTimeToUtc, type ScheduleItem,
+  SLOT_MINUTES, bayDayWindow, formatTimeInZone, placeItemsForBay, zonedTimeToUtc, type DayBayHours, type ScheduleItem,
 } from "@/lib/day-schedule";
 
 const PX_PER_MIN = 1; // 30 px per half hour
 const ALL_BAYS = "all";
 
-interface DayBay { id: string; name: string; open_time?: string | null; close_time?: string | null; extended_open_time?: string | null; extended_close_time?: string | null; sort_order?: number | null }
+interface DayBay extends DayBayHours { id: string; name: string; sort_order?: number | null }
 
 /** All bays of one city for one day, read from app records (the booking record of truth). */
 export function AdminDayViewTab() {
@@ -67,11 +68,18 @@ export function AdminDayViewTab() {
     },
   });
 
+  const { data: holidays = [] } = useBayHolidays(city || undefined);
+  // Each bay's hours for this date, using the same rules as the booking pages.
+  const bayWindows = useMemo(
+    () => new Map(bays.map((b) => [b.id, bayDayWindow(b, date, holidays)])),
+    [bays, date, holidays],
+  );
+
   // Visible window: earliest opening to latest closing, widened to fit any entry.
   const [windowStart, windowEnd] = useMemo(() => {
-    let start = Math.min(...bays.map((b) => hhmmToMinutes(b.extended_open_time || b.open_time, 6 * 60)), 24 * 60);
-    let end = Math.max(...bays.map((b) => hhmmToMinutes(b.extended_close_time || b.close_time, 23 * 60)), 0);
-    if (!bays.length) { start = 6 * 60; end = 23 * 60; }
+    const open = [...bayWindows.values()].filter((w) => w.open !== null);
+    let start = open.length ? Math.min(...open.map((w) => w.open!)) : 6 * 60;
+    let end = open.length ? Math.max(...open.map((w) => w.close!)) : 23 * 60;
     for (const i of items) {
       start = Math.min(start, Math.max(0, (Date.parse(i.start_time) - dayStartUtc.getTime()) / 60_000));
       end = Math.max(end, Math.min(24 * 60, (Date.parse(i.end_time) - dayStartUtc.getTime()) / 60_000));
@@ -79,7 +87,7 @@ export function AdminDayViewTab() {
     start = Math.floor(start / SLOT_MINUTES) * SLOT_MINUTES;
     end = Math.ceil(end / SLOT_MINUTES) * SLOT_MINUTES;
     return [start, Math.max(end, start + SLOT_MINUTES)];
-  }, [bays, items, dayStartUtc]);
+  }, [bayWindows, items, dayStartUtc]);
 
   const rows = useMemo(() => {
     const out: number[] = [];
@@ -205,12 +213,20 @@ export function AdminDayViewTab() {
                   </div>
                 ))}
               </div>
-              {bays.map((bay) => (
+              {bays.map((bay) => {
+                const hours = bayWindows.get(bay.id);
+                const isOpen = (m: number) => hours?.open != null && m >= hours.open && m < hours.close!;
+                return (
                 <div key={bay.id} className="w-48 shrink-0 border-r border-border">
-                  <div className="flex h-10 items-center border-b border-border px-2 text-sm font-medium truncate">{bay.name}</div>
+                  <div className="flex h-10 flex-col justify-center border-b border-border px-2">
+                    <span className="text-sm font-medium truncate">{bay.name}</span>
+                    <span className="text-[10px] text-muted-foreground truncate">
+                      {hours?.closedReason ?? (hours?.open != null ? `Open ${minutesLabel(hours.open)} – ${minutesLabel(hours.close!)}` : "")}
+                    </span>
+                  </div>
                   <div className="relative" style={{ height: (windowEnd - windowStart) * PX_PER_MIN }}>
                     {rows.map((m) => (
-                      <div key={m} className="border-b border-border/50" style={{ height: SLOT_MINUTES * PX_PER_MIN }} />
+                      <div key={m} className={cn("border-b border-border/50", !isOpen(m) && "bg-muted/70")} style={{ height: SLOT_MINUTES * PX_PER_MIN }} />
                     ))}
                     {placeItemsForBay(items, bay.id, dayStartUtc, windowStart, windowEnd).map((item) => (
                       <div
@@ -254,7 +270,8 @@ export function AdminDayViewTab() {
                     ))}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -264,6 +281,7 @@ export function AdminDayViewTab() {
         <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm border border-primary/40 bg-primary/10" /> Booking</span>
         <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm border border-dashed border-border bg-muted" /> Payment in progress</span>
         <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm border border-destructive/40 bg-destructive/10" /> Blocked</span>
+        <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-sm border border-border bg-muted/70" /> Closed</span>
       </div>
 
       <Dialog open={blockOpen} onOpenChange={setBlockOpen}>
