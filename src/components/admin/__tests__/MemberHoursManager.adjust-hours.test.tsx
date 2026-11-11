@@ -3,11 +3,14 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemberHoursManager } from "../MemberHoursManager";
 
+// Adjust Hours is an hours-only correction tool: it must never ask for money.
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: () => ({
-      select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }),
-        order: () => Promise.resolve({ data: [], error: null }) }),
+      select: () => ({
+        eq: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }),
+        order: () => Promise.resolve({ data: [], error: null }),
+      }),
       insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: { id: "t1" }, error: null }) }) }),
     }),
   },
@@ -25,7 +28,14 @@ beforeAll(() => {
   proto.scrollIntoView = () => {};
 });
 
-const member = { id: "m1", user_id: "u1", display_name: "A Bhamini Nair", preferred_city: "Bangalore", hours_purchased: 0, hours_used: 0 };
+const member = {
+  id: "m1",
+  user_id: "u1",
+  display_name: "A Bhamini Nair",
+  preferred_city: "Bangalore",
+  hours_purchased: 0,
+  hours_used: 0,
+};
 
 function renderDialog() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -53,6 +63,7 @@ describe("Adjust Hours dialog", () => {
   it("collects no payment details in either action, and still gates Confirm", async () => {
     renderDialog();
     await screen.findByRole("dialog");
+
     const confirm = () => screen.getByRole("button", { name: "Confirm" });
     const noPaymentFields = () => {
       expect(screen.queryByText("Paid By")).toBeNull();
@@ -63,16 +74,15 @@ describe("Adjust Hours dialog", () => {
     noPaymentFields();
     expect(confirm()).toBeDisabled();
 
-    // Action -> Add Hours (the view that used to show Paid By / Amount Collected)
-    const combos = screen.getAllByRole("combobox");
-    await openSelect(combos[0], "Add Hours");
+    // "Add Hours" is the action that used to show Paid By / Amount Collected.
+    await openSelect(screen.getAllByRole("combobox")[0], "Add Hours");
     noPaymentFields();
     expect(screen.queryByLabelText(/Service Date/)).toBeNull();
 
-    // Fill the remaining fields; Confirm must enable with no payment info
     typeInto(document.querySelector('input[type="number"]') as HTMLInputElement, "2");
     await openSelect(screen.getAllByRole("combobox")[1], "Correction");
-    typeInto(document.querySelector('input[placeholder*="audit trail"]') as HTMLInputElement, "playwright check");
+    typeInto(document.querySelector('input[placeholder*="audit trail"]') as HTMLInputElement, "correction note");
+
     noPaymentFields();
     await waitFor(() => expect(confirm()).toBeEnabled(), { timeout: 2500 });
   });
