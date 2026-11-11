@@ -147,6 +147,59 @@ export type Database = {
           },
         ]
       }
+      bay_blockout_series: {
+        Row: {
+          bay_id: string | null
+          city: string
+          created_at: string
+          created_by: string | null
+          days_of_week: number[]
+          end_local: string
+          ends_on: string | null
+          id: string
+          reason: string
+          skipped_dates: string[]
+          start_local: string
+          starts_on: string
+        }
+        Insert: {
+          bay_id?: string | null
+          city: string
+          created_at?: string
+          created_by?: string | null
+          days_of_week: number[]
+          end_local: string
+          ends_on?: string | null
+          id?: string
+          reason?: string
+          skipped_dates?: string[]
+          start_local: string
+          starts_on: string
+        }
+        Update: {
+          bay_id?: string | null
+          city?: string
+          created_at?: string
+          created_by?: string | null
+          days_of_week?: number[]
+          end_local?: string
+          ends_on?: string | null
+          id?: string
+          reason?: string
+          skipped_dates?: string[]
+          start_local?: string
+          starts_on?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bay_blockout_series_bay_id_fkey"
+            columns: ["bay_id"]
+            isOneToOne: false
+            referencedRelation: "bays"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bay_blockouts: {
         Row: {
           bay_id: string | null
@@ -6418,6 +6471,16 @@ export type Database = {
           revenue_id: string
         }[]
       }
+      bay_blockout_series_ranges: {
+        Args: { p_city: string; p_from: string; p_to: string }
+        Returns: {
+          bay_id: string
+          end_time: string
+          reason: string
+          series_id: string
+          start_time: string
+        }[]
+      }
       bay_busy_ranges: {
         Args: {
           p_city: string
@@ -6778,6 +6841,10 @@ export type Database = {
       }
       release_pending_guest_booking: {
         Args: { _error?: string; _order_id: string }
+        Returns: undefined
+      }
+      remove_bay_blockout_occurrence: {
+        Args: { p_date: string; p_scope: string; p_series: string }
         Returns: undefined
       }
       reserve_bay_slot: {
