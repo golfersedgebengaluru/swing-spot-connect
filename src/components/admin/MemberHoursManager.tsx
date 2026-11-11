@@ -11,10 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useHoursTransactions } from "@/hooks/useMemberHours";
 import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
 import { supabase } from "@/integrations/supabase/client";
-import { recordRevenue } from "@/lib/revenue";
 
 const ADJUST_REASONS = ["Correction", "Comp", "Refund", "Walk-in", "Missed booking", "Other"] as const;
-const PURCHASE_PAYMENT_METHODS = ["Cash", "UPI", "Card", "Bank Transfer", "Cheque", "Complimentary"] as const;
 
 type Member = {
   id: string;
@@ -31,8 +29,6 @@ type Adjustment = {
   note: string;
   reason: string;
   service_date: string;
-  amount: number;
-  payment_method: string;
 };
 
 function HoursHistory({ userId }: { userId: string }) {
@@ -56,18 +52,15 @@ function HoursHistory({ userId }: { userId: string }) {
 
 function AdjustHoursForm({ member, onSave, onCancel }: { member: Member; onSave: (data: Adjustment) => void; onCancel: () => void }) {
   const today = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState<Adjustment>({ type: "deduction", hours: 0, note: "", reason: "", service_date: today, amount: 0, payment_method: "" });
-  const isPurchase = form.type === "purchase";
+  const [form, setForm] = useState<Adjustment>({ type: "deduction", hours: 0, note: "", reason: "", service_date: today });
   const isDeduction = form.type === "deduction";
-  const complimentary = form.payment_method === "Complimentary";
-  const valid = form.hours > 0 && Boolean(form.reason) && Boolean(form.note.trim()) && (!isDeduction || Boolean(form.service_date)) && (!isPurchase || (Boolean(form.payment_method) && (complimentary || form.amount > 0)));
+  const valid = form.hours > 0 && Boolean(form.reason) && Boolean(form.note.trim()) && (!isDeduction || Boolean(form.service_date));
   return (
     <div className="space-y-4">
       <div className="rounded-md bg-muted p-3 text-sm"><p>{member.display_name || "Member"}</p><p className="text-muted-foreground">Remaining: {member.hours_purchased - member.hours_used} hrs</p></div>
       <div><Label>Action</Label><Select value={form.type} onValueChange={(type) => setForm({ ...form, type })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="deduction">Deduct Hours</SelectItem><SelectItem value="purchase">Add Hours</SelectItem><SelectItem value="adjustment">Adjustment</SelectItem></SelectContent></Select></div>
       <div><Label>Hours</Label><Input type="number" min="0" step="0.5" value={form.hours || ""} onChange={(event) => setForm({ ...form, hours: Number(event.target.value) })} onBlur={() => form.hours < 0 && setForm({ ...form, hours: 0 })} /></div>
       <div><Label>Reason</Label><Select value={form.reason} onValueChange={(reason) => setForm({ ...form, reason })}><SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger><SelectContent>{ADJUST_REASONS.map((reason) => <SelectItem key={reason} value={reason}>{reason}</SelectItem>)}</SelectContent></Select></div>
-      {isPurchase && <div className="grid gap-3 sm:grid-cols-2"><div><Label>Paid By</Label><Select value={form.payment_method} onValueChange={(payment_method) => setForm({ ...form, payment_method, amount: payment_method === "Complimentary" ? 0 : form.amount })}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger><SelectContent>{PURCHASE_PAYMENT_METHODS.map((method) => <SelectItem key={method} value={method}>{method}</SelectItem>)}</SelectContent></Select></div><div><Label>Amount Collected</Label><Input type="number" min="0" step="0.01" disabled={complimentary} value={form.amount || ""} onChange={(event) => setForm({ ...form, amount: Number(event.target.value) })} onBlur={() => form.amount < 0 && setForm({ ...form, amount: 0 })} /></div></div>}
       {isDeduction && <div><Label>Service Date</Label><Input type="date" max={today} value={form.service_date} onChange={(event) => setForm({ ...form, service_date: event.target.value })} /></div>}
       <div><Label>Note</Label><Input value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder="Details for the audit trail" /></div>
       <div className="flex justify-end gap-2"><Button variant="outline" onClick={onCancel}>Cancel</Button><Button disabled={!valid} onClick={() => onSave({ ...form, note: form.note.trim() })}>Confirm</Button></div>
@@ -101,13 +94,6 @@ export function MemberHoursManager({ member, mode, selectedCity, onClose }: { me
     if (writeResult.error) throw writeResult.error;
     const { data: transaction, error: transactionError } = await supabase.from("hours_transactions").insert({ user_id: memberId, type: adjustment.type, hours: adjustment.hours, note: adjustment.note, reason: adjustment.reason, service_date: adjustment.type === "deduction" ? adjustment.service_date : null, created_by: user?.id }).select("id").single();
     if (transactionError) throw transactionError;
-    if (adjustment.type === "purchase" && adjustment.amount > 0) {
-      try {
-        await recordRevenue({ sourceRef: `hours_purchase:${transaction.id}`, transactionType: "purchase", amount: Number(adjustment.amount), description: `Prepaid hours purchase - ${adjustment.hours}h (${adjustment.note})`, city: member.preferred_city || selectedCity || null, userId: memberId, hoursTransactionId: transaction.id, gatewayName: adjustment.payment_method || "Offline", metadata: { offline: true, hours: adjustment.hours, payment_method: adjustment.payment_method || null } });
-      } catch (error) {
-        toast({ title: "Hours added, but the sale wasn't recorded", description: error instanceof Error ? error.message : "Please record this payment again from Finance.", variant: "destructive" });
-      }
-    }
     if (adjustment.type === "deduction") {
       const remaining = nextPurchased - nextUsed;
       const notification = await supabase.from("notifications").insert({ user_id: memberId, title: "Hours Deducted", message: `${adjustment.hours} hour(s) have been deducted. You have ${remaining} hour(s) remaining.`, type: "usage" });
