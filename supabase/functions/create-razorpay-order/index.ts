@@ -57,6 +57,8 @@ const json = (payload: unknown, _status = 200) =>
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  let admin: ReturnType<typeof createClient> | null = null;
+  let paymentHoldId: string | null = null;
   try {
     if (Number(req.headers.get("content-length") || 0) > MAX_BODY_BYTES) {
       return json({ error: "Request body too large" }, 413);
@@ -67,7 +69,7 @@ serve(async (req) => {
     const order = parsed.data;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     // Guests may create booking orders; everything else requires a signed-in member.
     const authHeader = req.headers.get("Authorization");
@@ -97,10 +99,10 @@ serve(async (req) => {
     let amount: number;
     let notes: Record<string, string>;
     let stashPending: (orderId: string) => Promise<{ error: { message: string } | null }>;
-    let paymentHoldId: string | null = null;
     // Any failure before the pending record exists must free the held slot.
     const failWithHoldReleased = async (payload: unknown, status: number) => {
       await releaseHold(admin, paymentHoldId);
+      paymentHoldId = null;
       return json(payload, status);
     };
 
@@ -222,6 +224,7 @@ serve(async (req) => {
       ...(paymentHoldId ? { hold_minutes: PAYMENT_HOLD_MINUTES } : {}),
     });
   } catch (err) {
+    if (admin && paymentHoldId) await releaseHold(admin, paymentHoldId).catch(() => {});
     if (err instanceof CheckoutError) return json({ error: err.message }, 400);
     console.error("create-razorpay-order error:", (err as Error).message);
     return json({ error: "Internal server error" }, 500);

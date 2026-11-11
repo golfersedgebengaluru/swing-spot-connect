@@ -23,6 +23,8 @@ export interface BusyRange {
 export interface SlotResult {
   time: string;
   available: boolean;
+  /** Bays free for this half hour; a longer booking needs one bay free in every slot. */
+  free_bays: string[];
 }
 
 // deno-lint-ignore no-explicit-any
@@ -101,11 +103,11 @@ export function computeSlots(opts: {
   const slots: SlotResult[] = [];
   for (let t = opts.dayStartMs; t <= opts.dayEndMs - 60 * 60_000; t += step) {
     const end = t + step;
-    const someBayFree = opts.candidateBayIds.some(
+    const freeBays = opts.candidateBayIds.filter(
       (id) => !ranges.some((r) => r.bay === id && t < r.end && end > r.start),
     );
     const isPast = !opts.adminMode && t < earliest;
-    slots.push({ time: new Date(t).toISOString(), available: someBayFree && !isPast });
+    slots.push({ time: new Date(t).toISOString(), available: freeBays.length > 0 && !isPast, free_bays: freeBays });
   }
   return slots;
 }
