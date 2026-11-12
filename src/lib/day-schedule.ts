@@ -150,3 +150,22 @@ export function bayDayWindow(
   const close = hhmmToMinutes(window.closeTime, 23 * 60);
   return { open: hhmmToMinutes(window.openTime, 6 * 60), close: close === 0 ? 24 * 60 : close, closedReason: null };
 }
+
+/** A half-hour slot staff picked on the calendar; date is yyyy-MM-dd, time is HH:mm (city-local). */
+export interface CalendarSlot {
+  city: string;
+  bayId: string;
+  date: string;
+  time: string;
+}
+
+/** True when no booking, payment hold or block-out on the column overlaps the half hour starting at `minute`. */
+export function isSlotFree(placed: PlacedItem[], windowStartMin: number, minute: number): boolean {
+  return !placed.some((p) => windowStartMin + p.top < minute + SLOT_MINUTES && windowStartMin + p.top + p.height > minute);
+}
+
+/** Minutes after midnight as an HH:mm input value, capped at the last half hour of the day. */
+export function minutesToInputTime(minutes: number): string {
+  const m = Math.min(Math.max(0, minutes), 23 * 60 + 30);
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
