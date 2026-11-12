@@ -35,7 +35,6 @@ const tabTitles: Record<string, string> = {
   pages: "Page Settings",
   bayconfig: "Locations",
   bookinglogs: "Bookings",
-  dayview: "Day View",
   payments: "Payments",
   pricing: "Pricing",
   emails: "Emails",

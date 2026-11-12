@@ -8,7 +8,6 @@ import { AdminEdgeRewardsTab } from "@/components/admin/AdminEdgeRewardsTab";
 import { AdminAllUsersTab } from "@/components/admin/AdminAllUsersTab";
 import { AdminPagesTab } from "@/components/admin/AdminPagesTab";
 import { AdminBookingLogsTab } from "@/components/admin/AdminBookingLogsTab";
-import { AdminDayViewTab } from "@/components/admin/AdminDayViewTab";
 import { AdminSettingsTab } from "@/components/admin/AdminSettingsTab";
 
 import { AdminEmailLogsTab } from "@/components/admin/AdminEmailLogsTab";
@@ -90,7 +89,6 @@ const tabComponents: Record<string, React.ComponentType<any>> = {
   pages: AdminPagesTab,
   bayconfig: BayConfigTab,
   bookinglogs: AdminBookingLogsTab,
-  dayview: AdminDayViewTab,
   payments: AdminPaymentsTab,
   pricing: AdminPricingTab,
   emails: AdminEmailLogsTab,
@@ -114,6 +112,7 @@ export default function Admin() {
     const urlTab = searchParams.get("tab");
     if (isLeaguesOnly) return "leagues";
     if (urlTab === "members") return "allusers";
+    if (urlTab === "dayview") return "bookinglogs"; // Day View now lives in Bookings › Calendar
     if (urlTab && tabComponents[urlTab]) return urlTab;
     return coachOnly ? "coaching" : "dashboard";
   });
