@@ -6,12 +6,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ClipboardList, Download, Loader2, ChevronLeft, ChevronRight, Plus, UserPlus } from "lucide-react";
+import { CalendarClock, ClipboardList, Download, Loader2, ChevronLeft, ChevronRight, Plus, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAllBookings, useBays, useApproveBooking, useRejectBooking, useAdminCancelBooking, useAllCities } from "@/hooks/useBookings";
 import { ManualBookingDialog } from "./ManualBookingDialog";
+import { BookingsCalendar } from "./BookingsCalendar";
+import type { CalendarSlot } from "@/lib/day-schedule";
 import { useAdmin } from "@/hooks/useAdmin";
 import { useActiveFinancialYear } from "@/hooks/useRevenue";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, addMonths, parseISO, isWithinInterval } from "date-fns";
@@ -74,6 +77,9 @@ export function AdminBookingLogsTab() {
   const PAGE_SIZE = 50;
   const [manualBookingOpen, setManualBookingOpen] = useState(false);
   const [participantOf, setParticipantOf] = useState<any | null>(null);
+  const [slotPrefill, setSlotPrefill] = useState<CalendarSlot | null>(null);
+  // Notification links filter the list, so they open on the List tab.
+  const [view, setView] = useState(() => (searchParams.get("status") || searchParams.get("type") ? "list" : "calendar"));
 
 
   // Auto-apply filters from URL params (e.g. from notification click)
@@ -218,25 +224,39 @@ export function AdminBookingLogsTab() {
     URL.revokeObjectURL(url);
   };
 
-  if (isLoading) return <Loader2 className="mx-auto h-8 w-8 animate-spin" />;
-
   const pendingCount = (bookings ?? []).filter((b: any) => b.status === "pending").length;
 
   return (
     <>
     {/* Manual Booking Button */}
     <div className="flex justify-end mb-4">
-      <Button onClick={() => setManualBookingOpen(true)} className="gap-1.5">
+      <Button onClick={() => { setParticipantOf(null); setSlotPrefill(null); setManualBookingOpen(true); }} className="gap-1.5">
         <Plus className="h-4 w-4" /> Manual Booking
       </Button>
     </div>
 
     <ManualBookingDialog
       open={manualBookingOpen}
-      onOpenChange={(o) => { setManualBookingOpen(o); if (!o) setParticipantOf(null); }}
+      onOpenChange={(o) => { setManualBookingOpen(o); if (!o) { setParticipantOf(null); setSlotPrefill(null); } }}
       participantOf={participantOf}
+      prefill={slotPrefill}
     />
 
+    <Tabs value={view} onValueChange={setView}>
+      <TabsList className="mb-4">
+        <TabsTrigger value="calendar" className="gap-1.5"><CalendarClock className="h-4 w-4" /> Calendar</TabsTrigger>
+        <TabsTrigger value="list" className="gap-1.5">
+          <ClipboardList className="h-4 w-4" /> List
+          {pendingCount > 0 && <Badge className="ml-1 h-4 px-1 text-[10px] bg-amber-500/15 text-amber-600 border-amber-300">{pendingCount}</Badge>}
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="calendar">
+        <BookingsCalendar onSlotClick={(slot) => { setParticipantOf(null); setSlotPrefill(slot); setManualBookingOpen(true); }} />
+      </TabsContent>
+
+      <TabsContent value="list">
+    {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
 
     <Card>
       <CardHeader>
@@ -476,6 +496,9 @@ export function AdminBookingLogsTab() {
         })()}
       </CardContent>
     </Card>
+    )}
+      </TabsContent>
+    </Tabs>
 
     <CancellationDispositionDialog
       booking={cancelTarget}

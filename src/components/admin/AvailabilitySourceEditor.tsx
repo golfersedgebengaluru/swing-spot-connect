@@ -59,7 +59,7 @@ export function AvailabilitySourceEditor({ city }: { city: string }) {
             <AlertDialogTitle>{confirming ? `Use the app calendar for ${city}?` : `Go back to Google Calendar for ${city}?`}</AlertDialogTitle>
             <AlertDialogDescription>
               {confirming
-                ? "Times blocked directly in Google Calendar will stop counting. Add them as block-outs in the Day View first. Customers will pick a bay type and the app will choose a free bay."
+                ? "Times blocked directly in Google Calendar will stop counting. Add them as block-outs in Bookings › Calendar first. Customers will pick a bay type and the app will choose a free bay."
                 : "Open slots will be read from Google Calendar again. Block-outs added in the app will stop counting."}
             </AlertDialogDescription>
           </AlertDialogHeader>

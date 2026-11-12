@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   CalendarDays,
-  CalendarClock,
   Users,
   MapPin,
   Gift,
@@ -47,7 +46,6 @@ interface AdminSidebarProps {
 const coreItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, adminOrSiteAdminOnly: true },
   { id: "bookinglogs", label: "Bookings", icon: CalendarDays, adminOrSiteAdminOnly: true },
-  { id: "dayview", label: "Day View", icon: CalendarClock, adminOrSiteAdminOnly: true },
   { id: "leagues", label: "Leagues", icon: Trophy, adminOrSiteAdminOnly: true },
   { id: "coaching", label: "Training", icon: GraduationCap },
 ];

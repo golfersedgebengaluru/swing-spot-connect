@@ -35,6 +35,7 @@ import { useAdvanceBalance, useDrawdownAdvance } from "@/hooks/useAdvanceAccount
 import { useProfileBillingInfo } from "@/hooks/useCorporateAccounts";
 import { Building2 } from "lucide-react";
 import { resolveCorporateSelection } from "@/lib/corporate-selection";
+import type { CalendarSlot } from "@/lib/day-schedule";
 
 type Step = "customer" | "slot" | "payment" | "confirm";
 type CustomerMode = "existing" | "new";
@@ -44,9 +45,10 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   participantOf?: any | null; // when set, dialog adds a participant to this existing booking
+  prefill?: CalendarSlot | null; // slot picked on the Bookings calendar
 }
 
-export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props) {
+export function ManualBookingDialog({ open, onOpenChange, participantOf, prefill }: Props) {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -117,6 +119,17 @@ export function ManualBookingDialog({ open, onOpenChange, participantOf }: Props
     setDuration(participantOf.duration_minutes || 60);
     setSessionType(participantOf.session_type || "practice");
   }, [open, participantOf]);
+
+  // Prefill city, bay, date and start time from a calendar slot; staff can still change them.
+  useEffect(() => {
+    if (!open || !prefill || participantOf) return;
+    const [h, m] = prefill.time.split(":");
+    setSelectedCity(prefill.city);
+    setSelectedBayId(prefill.bayId);
+    setSelectedDate(new Date(`${prefill.date}T00:00:00`));
+    setStartHour(h);
+    setStartMinute(m);
+  }, [open, prefill, participantOf]);
 
 
   const cityBays = useMemo(() => (bays ?? []).filter((b: any) => b.city === selectedCity && b.is_active), [bays, selectedCity]);

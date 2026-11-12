@@ -18,8 +18,8 @@ import { useBayHolidays } from "@/hooks/useBayHolidays";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
-  SLOT_MINUTES, bayDayWindow, formatTimeInZone, isBlockoutKind, placeItemsForBay, recurringBlockError, weekdayOf, zonedTimeToUtc,
-  type DayBayHours, type ScheduleItem,
+  SLOT_MINUTES, bayDayWindow, formatTimeInZone, isBlockoutKind, isSlotFree, minutesToInputTime, placeItemsForBay, recurringBlockError,
+  weekdayOf, zonedTimeToUtc, type CalendarSlot, type DayBayHours, type ScheduleItem,
 } from "@/lib/day-schedule";
 
 const PX_PER_MIN = 1; // 30 px per half hour
@@ -28,8 +28,13 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 interface DayBay extends DayBayHours { id: string; name: string; sort_order?: number | null }
 
+interface Props {
+  /** Called when staff click a free, open half-hour slot. */
+  onSlotClick?: (slot: CalendarSlot) => void;
+}
+
 /** All bays of one city for one day, read from app records (the booking record of truth). */
-export function AdminDayViewTab() {
+export function BookingsCalendar({ onSlotClick }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -145,8 +150,8 @@ export function AdminDayViewTab() {
   const [repeatStart, setRepeatStart] = useState("");
   const [repeatEnd, setRepeatEnd] = useState("");
   const openBlockDialog = () => {
-    setBlockFrom(minutesLabelToInput(windowStart));
-    setBlockTo(minutesLabelToInput(windowStart + 60));
+    setBlockFrom(minutesToInputTime(windowStart));
+    setBlockTo(minutesToInputTime(windowStart + 60));
     setRepeatWeekly(false);
     setRepeatDays([weekdayOf(date)]);
     setRepeatStart(date);
@@ -209,9 +214,10 @@ export function AdminDayViewTab() {
     <div className="space-y-4">
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Day View</CardTitle>
+          <CardTitle className="text-base">Calendar</CardTitle>
           <p className="text-sm text-muted-foreground">
             Every bay for one day, from app bookings and block-outs. Times are shown in {timezone}.
+            {onSlotClick ? " Click a free time to make a booking." : ""}
             {!usesApp && city ? " This city still takes availability from Google Calendar; block-outs here count once the city is switched to the app calendar." : ""}
           </p>
         </CardHeader>
@@ -266,6 +272,7 @@ export function AdminDayViewTab() {
               {bays.map((bay) => {
                 const hours = bayWindows.get(bay.id);
                 const isOpen = (m: number) => hours?.open != null && m >= hours.open && m < hours.close!;
+                const placed = placeItemsForBay(items, bay.id, dayStartUtc, windowStart, windowEnd);
                 return (
                 <div key={bay.id} className="w-48 shrink-0 border-r border-border">
                   <div className="flex h-10 flex-col justify-center border-b border-border px-2">
@@ -276,9 +283,20 @@ export function AdminDayViewTab() {
                   </div>
                   <div className="relative" style={{ height: (windowEnd - windowStart) * PX_PER_MIN }}>
                     {rows.map((m) => (
-                      <div key={m} className={cn("border-b border-border/50", !isOpen(m) && "bg-muted/70")} style={{ height: SLOT_MINUTES * PX_PER_MIN }} />
+                      onSlotClick && isOpen(m) && isSlotFree(placed, windowStart, m) ? (
+                        <button
+                          key={m}
+                          type="button"
+                          aria-label={`Book ${bay.name} at ${minutesLabel(m)}`}
+                          className="block w-full border-b border-border/50 hover:bg-primary/5 focus-visible:bg-primary/10 focus-visible:outline-none"
+                          style={{ height: SLOT_MINUTES * PX_PER_MIN }}
+                          onClick={() => onSlotClick({ city, bayId: bay.id, date, time: minutesToInputTime(m) })}
+                        />
+                      ) : (
+                        <div key={m} className={cn("border-b border-border/50", !isOpen(m) && "bg-muted/70")} style={{ height: SLOT_MINUTES * PX_PER_MIN }} />
+                      )
                     ))}
-                    {placeItemsForBay(items, bay.id, dayStartUtc, windowStart, windowEnd).map((item) => (
+                    {placed.map((item) => (
                       <div
                         key={`${item.kind}-${item.id}`}
                         className={cn(
@@ -436,9 +454,4 @@ export function AdminDayViewTab() {
       </Dialog>
     </div>
   );
-}
-
-function minutesLabelToInput(minutes: number): string {
-  const m = Math.min(minutes, 23 * 60 + 30);
-  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 }
