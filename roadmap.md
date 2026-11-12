@@ -1,5 +1,12 @@
 # Roadmap
 
+## Bookings calendar (approved 12 November)
+- [x] Day View moved into Bookings as a Calendar tab (opens first) next to List; Manual Booking button kept at the top; removed from the sidebar (old links open Bookings)
+- [x] Clicking a free, open time fills in the city, bay, date and start time in Manual Booking; booked, blocked and closed times are not clickable
+- [x] Notification links with filters open on the List tab; pending count shown on the List tab
+- [x] 120 files / 1037 tests passed
+- [ ] Visual check with a staff account (preview account has no staff access)
+
 ## Repeating block-outs (11 November)
 - [x] Weekly repeat with chosen days, start date and optional end date; one bay or all bays; booking availability and Day View follow it
 - [x] Remove "only this day" or "this and following days"; staff own-city only
