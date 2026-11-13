@@ -162,6 +162,13 @@
       "when": 1794563963049,
       "tag": "0022_restrict_coach_rosters_and_competition_reads",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1794575963539,
+      "tag": "0023_void_offline_revenue_on_invoice_delete",
+      "breakpoints": true
     }
   ]
 }
