@@ -297,4 +297,24 @@ describe("aligned date and city scope", () => {
       expect(rows[0].customer_status).toBe('pre-registered');
     } finally { await db.exec(`UPDATE profiles SET preferred_city=NULL,user_type='guest' WHERE id='${blank}'`); }
   });
+
+  it("counts hours-paid sessions as visits once deductions are linked to their booking", async () => {
+    const member = "00000000-0000-0000-0000-000000000091", past = "00000000-0000-0000-0000-000000000092";
+    const next = "00000000-0000-0000-0000-000000000093", hours = "00000000-0000-0000-0000-000000000094";
+    const dashboard = async () => (await report("_city=>'Bengaluru',_preset=>'dashboard',_limit=>1,_as_of=>'2026-10-30 06:00Z'")) as unknown as { first_visits: string[] };
+    await db.exec(`ALTER TABLE hours_transactions ADD COLUMN IF NOT EXISTS type text; ALTER TABLE revenue_transactions ADD COLUMN IF NOT EXISTS transaction_type text;
+      INSERT INTO profiles(id,display_name,created_at,user_type,preferred_city) VALUES('${member}','Hours Member',now(),'birdie','Bengaluru');
+      INSERT INTO bookings(id,user_id,start_time,status,billing_status,city) VALUES('${past}','${member}','2026-09-10 05:00Z','confirmed','immediate','Bengaluru'),('${next}','${member}','2026-10-30 06:01Z','confirmed','immediate','Bengaluru');
+      INSERT INTO hours_transactions(id,user_id,booking_id,type) VALUES('${hours}','${member}',null,'deduction');
+      INSERT INTO revenue_transactions(id,user_id,booking_id,status,city,amount,currency,transaction_type,hours_transaction_id) VALUES('${hours}','${member}','${past}','confirmed','Bengaluru',0,'INR','hours_deduction','${hours}');`);
+    try {
+      expect((await dashboard()).first_visits).toContain(next);
+      await db.exec(readFileSync("drizzle/migrations/0021_link_hours_deductions_to_bookings.sql", "utf8"));
+      expect((await dashboard()).first_visits).not.toContain(next);
+      const row = (await report("_city=>'Bengaluru',_search=>'Hours Member',_as_of=>'2026-10-30 06:00Z'")).rows[0];
+      expect(row.lifetime_visits).toBe(1);
+    } finally {
+      await db.exec(`DELETE FROM revenue_transactions WHERE id='${hours}'; DELETE FROM hours_transactions WHERE id='${hours}'; DELETE FROM bookings WHERE user_id='${member}'; DELETE FROM profiles WHERE id='${member}';`);
+    }
+  });
 });
