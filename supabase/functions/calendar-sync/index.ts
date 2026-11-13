@@ -2022,6 +2022,7 @@ Deno.serve(async (req) => {
 
         const { data: htxn } = await adminClient.from("hours_transactions").insert({
           user_id: bookingUserId,
+          booking_id: booking.id,
           type: "deduction",
           hours: hoursNeeded,
           note: `${isCoaching ? "Coaching" : "Bay"} booking - ${bayLabel} - ${formatShortDate(start_time, calTz)}`,
@@ -2276,6 +2277,7 @@ Deno.serve(async (req) => {
 
       const { data: htxn } = await adminClient.from("hours_transactions").insert({
         user_id: booking.user_id,
+        booking_id: booking_id,
         type: "deduction",
         hours: hoursNeeded,
         note: `Coaching approved - ${bayName} - ${formatShortDate(booking.start_time, calTz)}`,

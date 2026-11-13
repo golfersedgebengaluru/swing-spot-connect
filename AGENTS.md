@@ -26,3 +26,4 @@
 - Customer checkout and member-hours bookings re-check opening hours, off days and holidays server-side with the same rules as the booking pages (never stricter); staff bookings skip the check so staff can override, and the Bookings calendar derives each bay's hours from the same rules.
 - Repeating block-outs are stored as one weekly rule (with skipped days and an optional end date) and expanded in the city's timezone inside the shared busy-range and day-schedule reads; never materialize occurrences, so open-ended blocks cannot run out.
 - Staff calendar is a tab inside Bookings (no separate sidebar page); clicking a free slot only prefills Manual Booking, so every staff booking still goes through the same dialog and its checks.
+- Every booking-driven hours deduction stores its booking link; customer-report visits count hours-paid sessions only through that link, so never record a booking deduction without it.
