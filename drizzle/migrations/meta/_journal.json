@@ -152,15 +152,8 @@
     {
       "idx": 21,
       "version": "7",
-      "when": 1794380475885,
-      "tag": "0021_link_hours_deductions_to_bookings",
-      "breakpoints": true
-    },
-    {
-      "idx": 22,
-      "version": "7",
       "when": 1794542232001,
-      "tag": "0022_link_hours_deductions_to_bookings",
+      "tag": "0021_link_hours_deductions_to_bookings",
       "breakpoints": true
     }
   ]
