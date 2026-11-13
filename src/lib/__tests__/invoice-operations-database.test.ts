@@ -17,7 +17,7 @@ beforeAll(async()=>{
   await db.exec(`CREATE TABLE test_numbers(n int); INSERT INTO test_numbers VALUES(41);
     CREATE FUNCTION get_next_invoice_number(text,uuid,text,int,text) RETURNS text LANGUAGE plpgsql AS $$ DECLARE n int; BEGIN UPDATE test_numbers SET n=test_numbers.n+1 RETURNING test_numbers.n INTO n; RETURN $3||'/'||n; END $$;
     CREATE FUNCTION record_revenue(p_source_ref text,p_transaction_type text,p_amount numeric,p_description text,p_city text DEFAULT NULL,p_currency text DEFAULT NULL,p_user_id uuid DEFAULT NULL,p_booking_id uuid DEFAULT NULL,p_product_id uuid DEFAULT NULL,p_hours_transaction_id uuid DEFAULT NULL,p_gateway_name text DEFAULT NULL,p_revenue_date date DEFAULT NULL,p_guest_name text DEFAULT NULL,p_guest_email text DEFAULT NULL,p_metadata jsonb DEFAULT '{}') RETURNS uuid LANGUAGE plpgsql AS $$ DECLARE r uuid; BEGIN IF p_amount=0 THEN RETURN NULL; END IF; INSERT INTO revenue_transactions(source_ref,transaction_type,amount,description,city,user_id,gateway_name,revenue_date,metadata) VALUES(p_source_ref,p_transaction_type,p_amount,p_description,p_city,p_user_id,p_gateway_name,p_revenue_date,p_metadata) RETURNING id INTO r; RETURN r; END $$;`);
-  for(const file of ["0014_restrict_legacy_cancellation_and_restore_staff_assignment.sql","0015_atomic_manual_invoice_operations.sql","0016_correct_atomic_invoice_recycling.sql"]) await db.exec(readFileSync(`drizzle/migrations/${file}`,"utf8"));
+  for(const file of ["0014_restrict_legacy_cancellation_and_restore_staff_assignment.sql","0015_atomic_manual_invoice_operations.sql","0016_correct_atomic_invoice_recycling.sql","0023_void_offline_revenue_on_invoice_delete.sql"]) await db.exec(readFileSync(`drizzle/migrations/${file}`,"utf8"));
 },30000);
 afterAll(async()=>db?.close());
 beforeEach(async()=>{
@@ -67,9 +67,18 @@ describe("transactional invoice operations",()=>{
   it("uses global financial year when no city year exists",async()=>{
     await create();expect((await db.query("SELECT financial_year_id FROM invoices")).rows[0]).toEqual({financial_year_id:admin});
   });
-  it("preserves gateway revenue and unrelated bookings when a document is deleted",async()=>{
-    await create();await db.exec(`UPDATE revenue_transactions SET metadata='{}'; UPDATE bookings SET manual_invoice_origin_id=NULL,note='Online booking';`);
-    await remove();expect(await state()).toMatchObject({invoices:0,sales:1,bookings:1});
+  it("refuses to delete an invoice for an online gateway payment and leaves the payment and booking untouched",async()=>{
+    await create();await db.exec(`UPDATE revenue_transactions SET metadata='{}',gateway_name='razorpay',gateway_order_ref='order_1'; UPDATE bookings SET manual_invoice_origin_id=NULL,note='Online booking';`);
+    const before=await state();await expect(remove()).rejects.toThrow("credit note");expect(await state()).toEqual(before);
+  });
+  it("deleting an automatic invoice for an offline ₹1,800 walk-in also cancels its payment entry but keeps the booking",async()=>{
+    await create(1800);await db.exec(`UPDATE revenue_transactions SET metadata='{}',gateway_name='In-Store Payment'; UPDATE bookings SET manual_invoice_origin_id=NULL,note='Walk-in';`);
+    await remove();expect(await state()).toMatchObject({invoices:0,sales:0,bookings:1});
+    expect((await db.query("SELECT status,metadata->>'voided_reason' reason FROM revenue_transactions")).rows[0]).toEqual({status:"failed",reason:"invoice_deleted"});
+  });
+  it("deleting a credit note does not cancel the refund entry it points to",async()=>{
+    await create();await db.exec(`UPDATE revenue_transactions SET metadata='{}',transaction_type='refund'; UPDATE invoices SET invoice_type='credit_note'; UPDATE bookings SET manual_invoice_origin_id=NULL,note='Online booking';`);
+    await remove();expect(await state()).toMatchObject({invoices:0,sales:1});
   });
   it("ordinary users and staff outside the invoice city cannot change documents",async()=>{
     await create();const before=await state();await db.exec(`SET test.actor='${member}'`);await expect(remove()).rejects.toThrow("Administrator");

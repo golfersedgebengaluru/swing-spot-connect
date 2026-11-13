@@ -111,7 +111,7 @@ function InvoiceListSection({ city }: { city: string }) {
     setDeleteConfirmId(null);
     try {
       await deleteInvoice.mutateAsync(id);
-      toast({ title: "Invoice deleted", description: "Invoice number will be reused." });
+      toast({ title: "Invoice deleted", description: "Its payment entry was removed and the invoice number will be reused." });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
@@ -320,7 +320,7 @@ function InvoiceListSection({ city }: { city: string }) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Permanently delete this invoice?</AlertDialogTitle>
-            <AlertDialogDescription>The invoice number will be recycled for the next invoice. This cannot be undone.</AlertDialogDescription>
+            <AlertDialogDescription>Its payment entry is removed from revenue too, and the invoice number will be recycled for the next invoice. Invoices for online payments cannot be deleted; issue a credit note instead. This cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>No – Keep Invoice</AlertDialogCancel>
