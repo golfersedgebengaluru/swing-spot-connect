@@ -6787,6 +6787,7 @@ export type Database = {
         Args: { _member_id: string }
         Returns: Json
       }
+      qc_public_board: { Args: { _competition_id: string }; Returns: Json }
       record_consent: {
         Args: {
           _consent_type: string
