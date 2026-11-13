@@ -151,6 +151,36 @@ export function useQCAttempts(competitionId: string | null) {
   });
 }
 
+export type QCPublicBoard = { players: QCPlayer[]; attempts: QCAttempt[] };
+
+/** Parse the display-only leaderboard payload returned by qc_public_board. */
+export function parseQCPublicBoard(raw: unknown): QCPublicBoard | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const obj = raw as { players?: unknown; attempts?: unknown };
+  return {
+    players: Array.isArray(obj.players) ? (obj.players as QCPlayer[]) : [],
+    attempts: Array.isArray(obj.attempts) ? (obj.attempts as QCAttempt[]) : [],
+  };
+}
+
+/**
+ * Public leaderboard data for one competition. Players and attempts are not
+ * readable table-wide, so visitors read them through a display-only function
+ * and poll, because table change events are delivered to staff only.
+ */
+export function useQCPublicBoard(competitionId: string | null) {
+  return useQuery({
+    queryKey: ["qc-public-board", competitionId],
+    enabled: !!competitionId,
+    refetchInterval: 5000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("qc_public_board", { _competition_id: competitionId! });
+      if (error) throw error;
+      return parseQCPublicBoard(data) ?? { players: [], attempts: [] };
+    },
+  });
+}
+
 /** Live updates for players + attempts. */
 export function useQCRealtime(competitionId: string | null) {
   const qc = useQueryClient();
@@ -160,9 +190,11 @@ export function useQCRealtime(competitionId: string | null) {
       .channel(`qc-${competitionId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "quick_competition_players", filter: `competition_id=eq.${competitionId}` }, () => {
         qc.invalidateQueries({ queryKey: ["qc-players", competitionId] });
+        qc.invalidateQueries({ queryKey: ["qc-public-board", competitionId] });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "quick_competition_attempts", filter: `competition_id=eq.${competitionId}` }, () => {
         qc.invalidateQueries({ queryKey: ["qc-attempts", competitionId] });
+        qc.invalidateQueries({ queryKey: ["qc-public-board", competitionId] });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "quick_competition_categories", filter: `competition_id=eq.${competitionId}` }, () => {
         qc.invalidateQueries({ queryKey: ["qc-categories", competitionId] });

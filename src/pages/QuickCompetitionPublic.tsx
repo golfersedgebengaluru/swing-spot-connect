@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { Trophy, Target, Loader2, Download } from "lucide-react";
 import {
-  useQuickCompetition, useQCPlayers, useQCAttempts, useQCCategories, useQCRealtime,
+  useQuickCompetition, useQCPublicBoard, useQCCategories, useQCRealtime,
   buildLeaderboards, buildLeaderboardsByCategory,
   type QCCategoryWinners, type QCRunnersUp,
 } from "@/hooks/useQuickCompetitions";
@@ -61,8 +61,9 @@ export default function QuickCompetitionPublic() {
   const { id } = useParams<{ id: string }>();
   const competitionId = id ?? null;
   const { data: comp, isLoading } = useQuickCompetition(competitionId);
-  const { data: players = [] } = useQCPlayers(competitionId);
-  const { data: attempts = [] } = useQCAttempts(competitionId);
+  const { data: board } = useQCPublicBoard(competitionId);
+  const players = board?.players ?? [];
+  const attempts = board?.attempts ?? [];
   const { data: categories = [] } = useQCCategories(competitionId);
   useQCRealtime(competitionId);
 
