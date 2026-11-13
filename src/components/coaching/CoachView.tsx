@@ -1,11 +1,10 @@
 import { useMemo, useState, Fragment } from "react";
 import { format, parseISO } from "date-fns";
-import { Plus, Pencil, GraduationCap, Users } from "lucide-react";
+import { Plus, Pencil, GraduationCap } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   useMyCoachSessions,
   useMyAssignedStudents,
-  useMyCoachRow,
   useCoaches,
   type CoachingSession,
 } from "@/hooks/useCoaching";
