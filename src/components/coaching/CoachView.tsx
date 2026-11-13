@@ -1,11 +1,10 @@
 import { useMemo, useState, Fragment } from "react";
 import { format, parseISO } from "date-fns";
-import { Plus, Pencil, GraduationCap, Users } from "lucide-react";
+import { Plus, Pencil, GraduationCap } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   useMyCoachSessions,
   useMyAssignedStudents,
-  useMyCoachRow,
   useCoaches,
   type CoachingSession,
 } from "@/hooks/useCoaching";
@@ -14,13 +13,10 @@ import { Button } from "@/components/ui/button";
 import { ScrollableTable } from "@/components/ui/scrollable-table";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SessionFormDialog } from "@/components/coaching/SessionFormDialog";
-import { ManageCoachStudents } from "@/components/coaching/ManageCoachStudents";
 
 function StudentList({ onPick }: { onPick: (id: string, label: string) => void }) {
   const { data: sessions, isLoading } = useMyCoachSessions();
   const { data: assigned } = useMyAssignedStudents();
-  const { data: myCoach } = useMyCoachRow();
-  const [showRoster, setShowRoster] = useState(false);
 
   const groups = useMemo(() => {
     const m = new Map<string, { id: string; label: string; count: number; last: string | null }>();
@@ -48,21 +44,9 @@ function StudentList({ onPick }: { onPick: (id: string, label: string) => void }
 
   return (
     <div className="space-y-3">
-      {myCoach?.id && (
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <p className="text-xs text-muted-foreground">
-            Add or remove the students you coach. They'll show up here and in the New Session form.
-          </p>
-          <Button size="sm" variant="outline" onClick={() => setShowRoster((v) => !v)}>
-            <Users className="mr-1.5 h-3.5 w-3.5" />
-            {showRoster ? "Hide roster" : "Manage students"}
-          </Button>
-        </div>
-      )}
-
-      {showRoster && myCoach?.id && (
-        <ManageCoachStudents coachId={myCoach.id} coachLabel="you" />
-      )}
+      <p className="text-xs text-muted-foreground">
+        Your students are assigned by the front desk. They'll show up here and in the New Session form.
+      </p>
 
       {isLoading ? (
         <div className="text-sm text-muted-foreground">Loading…</div>
@@ -71,7 +55,7 @@ function StudentList({ onPick }: { onPick: (id: string, label: string) => void }
           <GraduationCap className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
           <p className="font-medium">No students yet</p>
           <p className="text-sm text-muted-foreground mt-1">
-            Click <strong>Manage students</strong> above to add the players you coach, then log your first session.
+            Ask the front desk to assign the players you coach, then log your first session.
           </p>
         </Card>
       ) : (
