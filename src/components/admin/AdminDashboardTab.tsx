@@ -362,7 +362,7 @@ export function AdminDashboardTab({ onNavigate }: AdminDashboardTabProps = {}) {
                             Hours
                           </span>
                         )}
-                        {b.firstVisitHere && <span className="rounded px-1.5 py-px text-[10px] font-medium bg-accent text-accent-foreground">First visit here</span>}
+                        {b.firstVisitHere && <span className="rounded px-1.5 py-px text-[9px] font-medium leading-tight bg-green-100 text-green-700">First visit here</span>}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {b.bayName} · {timeStr}
