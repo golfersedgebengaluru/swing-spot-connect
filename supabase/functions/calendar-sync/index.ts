@@ -845,10 +845,10 @@ async function generateAddToCalendarUrl(
       console.error("ICS upload failed:", upErr.message);
       return null;
     }
-    // 90 days is plenty — bookings are usually <= a few weeks out
+    // Link works until a day after the session; cancellation deletes the file.
     const { data, error: signErr } = await client.storage
       .from("booking-ics")
-      .createSignedUrl(path, 60 * 60 * 24 * 90);
+      .createSignedUrl(path, icsLinkLifetimeSeconds(params.end));
     if (signErr || !data?.signedUrl) {
       console.error("ICS sign failed:", signErr?.message);
       return null;
@@ -885,13 +885,17 @@ async function generateCancelCalendarUrl(
         contentType: "text/calendar; charset=utf-8; method=CANCEL",
         upsert: true,
       });
+    // The booking is cancelled: remove the original invite so any previously
+    // emailed "Add to calendar" link stops working.
+    const { error: rmErr } = await client.storage.from("booking-ics").remove([`${bookingId}.ics`]);
+    if (rmErr) console.error("Original ICS removal failed:", rmErr.message);
     if (upErr) {
       console.error("Cancel ICS upload failed:", upErr.message);
       return null;
     }
     const { data, error: signErr } = await client.storage
       .from("booking-ics")
-      .createSignedUrl(path, 60 * 60 * 24 * 30);
+      .createSignedUrl(path, icsLinkLifetimeSeconds(params.end, new Date(), 30));
     if (signErr || !data?.signedUrl) {
       console.error("Cancel ICS sign failed:", signErr?.message);
       return null;
