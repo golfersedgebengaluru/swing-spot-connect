@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { safeAppRedirect } from "../_shared/app-origins.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,9 +27,11 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const emailRaw = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
-    const redirectTo = typeof body?.redirect_to === "string" && body.redirect_to.length < 500
-      ? body.redirect_to
-      : `${req.headers.get("origin") || ""}/reset-password`;
+    // The recovery link carries a sign-in token, so it may only land on our own site.
+    const redirectTo = safeAppRedirect(
+      body?.redirect_to ?? `${req.headers.get("origin") || ""}/reset-password`,
+      "/reset-password",
+    );
 
     if (!emailRaw || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw)) {
       // Silently succeed on bad input — don't leak validation specifics
@@ -47,7 +50,6 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!profile?.email) {
-      console.log("[request-password-reset] no profile for", emailRaw);
       return json({ success: true });
     }
 

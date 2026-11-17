@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import { format } from "date-fns";
+import { neutralizeFormula } from "./spreadsheet-safe";
 
 export interface UsageRow {
   kind: "booking" | "coaching";
@@ -41,10 +42,10 @@ export function exportCorporateUsageExcel(items: UsageRow[], meta: UsageReportMe
   const summary = [
     ["Corporate Usage Report"],
     [],
-    ["Account", meta.accountName],
-    ["City", meta.city ?? "(all)"],
+    ["Account", neutralizeFormula(meta.accountName)],
+    ["City", neutralizeFormula(meta.city ?? "(all)")],
     ["Period", `${meta.startDate} → ${meta.endDate}`],
-    ["Billing Item", meta.billingProductName ?? "—"],
+    ["Billing Item", neutralizeFormula(meta.billingProductName ?? "—")],
     ["Unit Price", unit || ""],
     ["GST Rate", meta.gstRate != null ? `${meta.gstRate}%` : ""],
     ["Billable Sessions", sessionCount],
@@ -59,11 +60,11 @@ export function exportCorporateUsageExcel(items: UsageRow[], meta: UsageReportMe
     i + 1,
     safeDate(r.start_time),
     r.kind,
-    r.user_name ?? "",
-    r.city ?? "",
-    r.bay_name ?? "",
+    neutralizeFormula(r.user_name ?? ""),
+    neutralizeFormula(r.city ?? ""),
+    neutralizeFormula(r.bay_name ?? ""),
     r.duration_minutes ?? "",
-    r.session_type ?? "",
+    neutralizeFormula(r.session_type ?? ""),
     r.cancelled ? "Cancelled" : "Billable",
   ]);
 

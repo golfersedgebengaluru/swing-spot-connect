@@ -1408,8 +1408,13 @@ Deno.serve(async (req) => {
         const codeId = url.searchParams.get('code_id')
         if (!codeId) return err('code_id query param required')
 
-        const { data: before } = await supabase.from('league_join_codes').select('*').eq('id', codeId).single()
-        const { error } = await supabase.from('league_join_codes').update({ revoked_at: new Date().toISOString() }).eq('id', codeId)
+        // The code must belong to the league in the route — the role check above
+        // only proves the caller administers *this* league.
+        const { data: before } = await supabase.from('league_join_codes').select('*')
+          .eq('id', codeId).eq('league_id', route.leagueId).maybeSingle()
+        if (!before) return err('Join code not found', 404)
+        const { error } = await supabase.from('league_join_codes').update({ revoked_at: new Date().toISOString() })
+          .eq('id', codeId).eq('league_id', route.leagueId)
         if (error) return err(error.message, 500)
 
         await audit(supabase, tenantId, route.leagueId, user.id, role!, 'JoinCodeRevoked', 'join_code', codeId, before, { ...before, revoked_at: new Date().toISOString() })
@@ -4088,12 +4093,27 @@ Deno.serve(async (req) => {
         ? Array.from(new Set(
             (invite_emails as unknown[])
               .map((e) => String(e || '').trim().toLowerCase())
-              .filter((e) => e.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))
+              .filter((e) => e.length > 0 && e.length <= 254 && /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]+$/.test(e))
               .filter((e) => e !== captainEmail)
           ))
         : []
       if (cleanedInviteEmails.length > size - 1) {
         return err(`At most ${size - 1} invite emails for a team of ${size}`)
+      }
+      if (cleanedInviteEmails.length > 0) {
+        // Invite emails go out from our sender, so only a confirmed account may
+        // name recipients, and each address is invited at most once per league
+        // (a player can only be on one team per league anyway).
+        if (!user.email_confirmed_at) return err('Please confirm your email address before inviting teammates', 403)
+        const { data: alreadyInvited } = await supabase
+          .from('legacy_league_team_invites')
+          .select('email')
+          .eq('league_id', route.leagueId)
+          .in('email', cleanedInviteEmails)
+        if (alreadyInvited && alreadyInvited.length > 0) {
+          const taken = Array.from(new Set(alreadyInvited.map((r: { email: string }) => r.email))).join(', ')
+          return err(`Already invited to a team in this league: ${taken}`, 409)
+        }
       }
       // League validation
       const { data: league } = await supabase

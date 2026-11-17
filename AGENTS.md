@@ -27,3 +27,5 @@
 - Repeating block-outs are stored as one weekly rule (with skipped days and an optional end date) and expanded in the city's timezone inside the shared busy-range and day-schedule reads; never materialize occurrences, so open-ended blocks cannot run out.
 - Staff calendar is a tab inside Bookings (no separate sidebar page); clicking a free slot only prefills Manual Booking, so every staff booking still goes through the same dialog and its checks.
 - Every booking-driven hours deduction stores its booking link; customer-report visits count hours-paid sessions only through that link, so never record a booking deduction without it.
+- Database lookups about a person (roles, coach, city assignment, age, consent) answer only for that person, staff or server code, and operations that take the acting user as a parameter are callable only by server functions, so nobody can probe or act as someone else.
+- Staff spreadsheet exports pass people-entered text through the shared formula neutralizer, so names and notes always open as plain text.

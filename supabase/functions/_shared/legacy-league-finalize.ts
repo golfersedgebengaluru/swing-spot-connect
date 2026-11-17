@@ -181,7 +181,7 @@ export async function finalizeLegacyTeamRegistration(input: LegacyTeamFinalizeIn
         status: "pending",
       });
       if (invErr && invErr.code !== "23505") {
-        console.error("[legacy-finalize] invite insert failed:", email, invErr.message);
+        console.error("[legacy-finalize] invite insert failed:", invErr.code, invErr.message);
       }
     }
   }

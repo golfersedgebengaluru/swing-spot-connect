@@ -22,6 +22,7 @@ import { useProductCategories } from "@/hooks/useProductCategories";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, subYears, addMonths } from "date-fns";
 import { RevenueUserBreakdown } from "./RevenueUserBreakdown";
 import { SalesByProductReport } from "./SalesByProductReport";
+import { safeCsv } from "@/lib/spreadsheet-safe";
 
 type Period = "week" | "month" | "quarter" | "year" | "custom";
 
@@ -218,7 +219,7 @@ export function AdminRevenueTab() {
       t.gateway_payment_ref || "",
       t.status,
     ]);
-    const csv = [headers, ...rows].map((r) => r.map((c: any) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csv = safeCsv([headers, ...rows]);
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

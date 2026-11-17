@@ -6508,6 +6508,7 @@ export type Database = {
           start_time: string
         }[]
       }
+      caller_may_inspect_other_users: { Args: never; Returns: boolean }
       can_read_coaching_session: {
         Args: { _session_id: string }
         Returns: boolean

@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { CustomerFinanceDialog } from "./CustomerFinanceDialog";
+import { safeCsv } from "@/lib/spreadsheet-safe";
 
 interface Props {
   city?: string;
@@ -66,7 +67,7 @@ export function AdvanceAccountsReport({ city }: Props) {
       b.display_name, b.email, b.balance.toFixed(2),
       format(new Date(b.last_transaction_date), "yyyy-MM-dd"), b.city,
     ]);
-    const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
+    const csv = safeCsv([headers, ...rows]);
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
