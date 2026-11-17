@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isServiceRoleToken } from "../_shared/trusted-caller.ts";
 import { customerOpeningHoursError } from "../_shared/opening-hours.ts";
+import { icsLinkLifetimeSeconds } from "../_shared/ics-link.ts";
 import { bookingDurationMinutes } from "../_shared/checkout-pricing.ts";
 import { resolveProfileDisplayName } from "./profile-lookup.ts";
 import { resolveCorporateTag } from "./corporate-tag.ts";
