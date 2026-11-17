@@ -169,6 +169,13 @@
       "when": 1794575963539,
       "tag": "0023_void_offline_revenue_on_invoice_delete",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794893214142,
+      "tag": "0024_restrict_person_lookups_and_team_operations",
+      "breakpoints": true
     }
   ]
 }
