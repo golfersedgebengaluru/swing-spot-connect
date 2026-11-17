@@ -30,6 +30,7 @@ beforeAll(async () => {
   await db.exec(readFileSync("supabase/migrations/20260909131704_7440667c-42ed-4c4c-91a0-3807bb0b4053.sql", "utf8"));
   await db.exec(readFileSync("drizzle/migrations/0012_atomic_paid_booking_cancellation.sql", "utf8"));
   await db.exec(readFileSync("drizzle/migrations/0013_restrict_cancellation_receipt_grants.sql", "utf8"));
+  await db.exec(readFileSync("drizzle/migrations/0025_single_credit_note_number_per_cancellation.sql", "utf8"));
 }, 30000);
 afterAll(async () => { await db?.close(); });
 beforeEach(async () => {
@@ -60,6 +61,12 @@ describe("atomic paid cancellation", () => {
     expect(await state()).toEqual({ booking: "cancelled", invoice: "cancelled", points: 15, credits: 1, refunds: 1, notes: 1, receipts: 1 });
     expect((await db.query(`SELECT amount,currency,city,original_transaction_id FROM revenue_transactions WHERE transaction_type='refund'`)).rows[0]).toEqual({ amount: "-1250", currency: "INR", city: "Bengaluru", original_transaction_id: sale });
     expect((await db.query(`SELECT line_total,quantity FROM invoice_line_items WHERE invoice_id<>'${invoice}'`)).rows).toEqual([{ line_total: "1250", quantity: "1" }]);
+  });
+  it("uses exactly one credit note number per cancellation, so the next credit note follows directly", async () => {
+    const before = Number((await db.query<{ n: string }>(`SELECT nextval('cn_sequence') AS n`)).rows[0].n);
+    await cancel();
+    expect((await db.query(`SELECT invoice_number FROM invoices WHERE invoice_type='credit_note'`)).rows).toEqual([{ invoice_number: `CN/${before + 1}` }]);
+    expect(Number((await db.query<{ n: string }>(`SELECT nextval('cn_sequence') AS n`)).rows[0].n)).toBe(before + 2);
   });
   for (const table of ["advance_transactions", "invoices", "invoice_line_items", "booking_cancellation_receipts"]) {
     it(`rolls back booking, points, refund and documents when ${table} insertion fails`, async () => {

@@ -176,6 +176,13 @@
       "when": 1794893214142,
       "tag": "0024_restrict_person_lookups_and_team_operations",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1794901372793,
+      "tag": "0025_single_credit_note_number_per_cancellation",
+      "breakpoints": true
     }
   ]
 }
