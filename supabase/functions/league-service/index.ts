@@ -1408,8 +1408,13 @@ Deno.serve(async (req) => {
         const codeId = url.searchParams.get('code_id')
         if (!codeId) return err('code_id query param required')
 
-        const { data: before } = await supabase.from('league_join_codes').select('*').eq('id', codeId).single()
-        const { error } = await supabase.from('league_join_codes').update({ revoked_at: new Date().toISOString() }).eq('id', codeId)
+        // The code must belong to the league in the route — the role check above
+        // only proves the caller administers *this* league.
+        const { data: before } = await supabase.from('league_join_codes').select('*')
+          .eq('id', codeId).eq('league_id', route.leagueId).maybeSingle()
+        if (!before) return err('Join code not found', 404)
+        const { error } = await supabase.from('league_join_codes').update({ revoked_at: new Date().toISOString() })
+          .eq('id', codeId).eq('league_id', route.leagueId)
         if (error) return err(error.message, 500)
 
         await audit(supabase, tenantId, route.leagueId, user.id, role!, 'JoinCodeRevoked', 'join_code', codeId, before, { ...before, revoked_at: new Date().toISOString() })
