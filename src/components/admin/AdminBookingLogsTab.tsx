@@ -20,6 +20,7 @@ import { useActiveFinancialYear } from "@/hooks/useRevenue";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, addMonths, parseISO, isWithinInterval } from "date-fns";
 import { useAdminCity } from "@/contexts/AdminCityContext";
 import { CancellationDispositionDialog } from "@/components/CancellationDispositionDialog";
+import { safeCsv } from "@/lib/spreadsheet-safe";
 
 type Period = "all" | "week" | "month" | "quarter" | "year" | "fy" | "custom";
 
@@ -214,7 +215,7 @@ export function AdminBookingLogsTab() {
       (b.status === "cancelled" || b.status === "rejected") && b.updated_at ? format(new Date(b.updated_at), "yyyy-MM-dd HH:mm") : "",
       b.note ?? "",
     ]);
-    const csvContent = [headers, ...rows].map((r) => r.map((c: string) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csvContent = safeCsv([headers, ...rows]);
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
