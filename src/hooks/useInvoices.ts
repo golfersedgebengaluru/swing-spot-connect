@@ -311,6 +311,7 @@ export function useCreateInvoice() {
           sac_code: item.sacCode || null, quantity: item.quantity, unit_price: item.unitPrice,
           gst_rate: item.gstRate, cgst_amount: item.cgstAmount, sgst_amount: item.sgstAmount,
           igst_amount: item.igstAmount, line_total: item.lineTotal, product_id: item.productId || null, sort_order: idx,
+          membership_starts_on: item.membershipMonths ? item.membershipStartsOn || invoiceDate : null,
         })),
         p_booking: bookingPayload,
         p_add_profile: !params.customerUserId && Boolean(params.customerName) &&
@@ -327,6 +328,8 @@ export function useCreateInvoice() {
       qc.invalidateQueries({ queryKey: ["bookings"] });
       qc.invalidateQueries({ queryKey: ["profiles"] });
       qc.invalidateQueries({ queryKey: ["profile_search"] });
+      qc.invalidateQueries({ queryKey: ["memberships"] });
+      qc.invalidateQueries({ queryKey: ["member_hours"] });
     },
   });
 }

@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { HoursBalanceBadge } from "@/components/admin/HoursBalanceBadge";
 import { identityKeys, shouldShowMemberSection } from "@/lib/member-utils";
 import { CustomerSummary } from "@/components/admin/CustomerSummary";
+import { MembershipsCard } from "@/components/admin/MembershipsCard";
 import { useCustomerReport } from "@/hooks/useCustomerReport";
 
 type Profile = {
@@ -174,6 +175,8 @@ function Member360Content() {
         <Card><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><UserRound className="h-5 w-5" />Profile</CardTitle></CardHeader><CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"><Field label="Name" value={profile.display_name} /><Field label="Email" value={profile.email} /><Field label="Phone" value={profile.phone} /><Field label="City" value={profile.preferred_city} /><Field label="Member since" value={dateLabel(membershipQuery.data?.memberSince)} /></CardContent></Card>
 
         {membershipQuery.isLoading ? <SectionSkeleton /> : hours && <Card><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Clock className="h-5 w-5" />Membership</CardTitle></CardHeader><CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4"><Field label="Plan" value="Hours package" /><Field label="Status" value={remaining > 0 ? "Active" : "Depleted"} /><Field label="Purchased" value={`${hours.hours_purchased} hrs`} /><Field label="Used" value={`${hours.hours_used} hrs`} /><div><p className="text-xs text-muted-foreground">Remaining</p><HoursBalanceBadge remaining={remaining} className="mt-1" /></div></CardContent></Card>}
+
+        <MembershipsCard keys={keys} />
 
         {bookingsQuery.isLoading ? <SectionSkeleton /> : <Card><CardHeader><CardTitle className="flex items-center justify-between gap-2 text-lg"><span className="flex items-center gap-2"><CalendarDays className="h-5 w-5" />Bookings</span><Link className="text-sm font-normal text-primary" to={`/admin?tab=bookinglogs&user=${profile.user_id ?? profile.id}`}>View history</Link></CardTitle></CardHeader><CardContent className="space-y-4"><div className="grid grid-cols-2 gap-4"><Field label="Last visit" value={dateLabel(customerSummary?.last_visit)} /><Field label="Next booking" value={dateLabel(customerSummary?.next_booking)} /></div>{bookings.length > 0 ? <div className="space-y-2">{bookings.slice(0, 5).map((booking) => <div key={booking.id} className="flex items-center justify-between gap-3 border-t pt-2 text-sm"><span>{new Date(booking.start_time).toLocaleString()}</span><span className="capitalize text-muted-foreground">{booking.session_type} · {booking.status}</span></div>)}</div> : <p className="text-sm text-muted-foreground">No bookings on file.</p>}</CardContent></Card>}
 

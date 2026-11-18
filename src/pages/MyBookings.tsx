@@ -39,6 +39,7 @@ import { bookingTimeDisplay } from "@/lib/booking-time";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMyBookings, useCancelBooking, useUserHoursBalance, useBays } from "@/hooks/useBookings";
 import { useHoursTransactions } from "@/hooks/useMemberHours";
+import { useCustomerMemberships } from "@/hooks/useMemberships";
 import { useToast } from "@/hooks/use-toast";
 import { Navigate, useNavigate } from "react-router-dom";
 import { sendNotificationEmail } from "@/hooks/useNotificationEmail";
@@ -73,6 +74,9 @@ export default function MyBookings() {
   const { data: bookings, isLoading, error: bookingsError, refetch: refetchBookings } = useMyBookings();
   const { data: balance } = useUserHoursBalance();
   const { data: hoursTx = [] } = useHoursTransactions(user?.id);
+  const { data: memberships = [] } = useCustomerMemberships([user?.id]);
+  const todayDay = format(new Date(), "yyyy-MM-dd");
+  const currentMemberships = memberships.filter((m) => m.status === "active" && m.ends_on >= todayDay);
   const { data: bays } = useBays();
   const cancelBooking = useCancelBooking();
   const { toast } = useToast();
@@ -365,6 +369,23 @@ export default function MyBookings() {
               </CardContent>
             </Card>
           </div>
+
+          {currentMemberships.length > 0 && (
+            <div className="mb-6 space-y-2">
+              {currentMemberships.map((m) => (
+                <Card key={m.id} className="bg-card shadow-md rounded-xl">
+                  <CardContent className="flex flex-wrap items-center justify-between gap-2 p-4 text-sm">
+                    <span className="font-medium text-foreground">{m.label} membership</span>
+                    <span className="text-muted-foreground">
+                      {m.starts_on > todayDay ? `Starts ${format(new Date(`${m.starts_on}T00:00:00`), "d MMM yyyy")} · ` : ""}
+                      Valid until {format(new Date(`${m.ends_on}T00:00:00`), "d MMM yyyy")}
+                      {Number(m.hours) > 0 ? ` · ${Number(m.hours_remaining)} of ${Number(m.hours)} hrs left` : ""}
+                    </span>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
 
           {/* Filters & Actions */}
           <div className="flex flex-wrap items-center gap-3 mb-4">

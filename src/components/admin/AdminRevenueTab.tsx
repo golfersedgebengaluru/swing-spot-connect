@@ -107,6 +107,7 @@ function getPeriodDates(period: Period, fyStartDate?: string): { start: string; 
 // System-level types that always exist regardless of categories
 const SYSTEM_TYPES: Record<string, { label: string; color: string }> = {
   refund: { label: "Refund", color: "bg-red-100 text-red-800" },
+  membership: { label: "Membership (earned)", color: "bg-amber-100 text-amber-800" },
 };
 
 // Color palette for dynamically generated category types
@@ -268,6 +269,12 @@ export function AdminRevenueTab() {
                 <p className="mt-1 font-display text-lg font-bold text-foreground truncate">
                   {loadingSummary ? "…" : (summary?.totalRevenue ?? 0).toLocaleString()}
                 </p>
+                {!loadingSummary && ((summary?.membershipEarned ?? 0) !== 0 || (summary?.membershipDeferred ?? 0) > 0) && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Memberships earned {currencySymbol}{(summary?.membershipEarned ?? 0).toLocaleString()}
+                    {" · "}Received, not yet earned {currencySymbol}{(summary?.membershipDeferred ?? 0).toLocaleString()}
+                  </p>
+                )}
                 {revenueChange !== null && (
                   <p className={`mt-1 text-[11px] flex items-center gap-1 ${revenueChange >= 0 ? "text-green-600" : "text-red-600"}`}>
                     {revenueChange >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}

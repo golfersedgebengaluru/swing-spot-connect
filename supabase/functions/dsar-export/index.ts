@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 const TABLES = [
-  "profiles", "bookings", "orders", "member_hours", "hours_transactions",
+  "profiles", "bookings", "orders", "member_hours", "hours_transactions", "memberships",
   "points_transactions", "revenue_transactions", "invoices", "gifted_rewards",
   "email_preferences", "email_log", "notifications", "community_posts",
   "consent_log", "dsar_requests", "deletion_requests", "grievance_tickets",

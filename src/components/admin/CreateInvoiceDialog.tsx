@@ -188,6 +188,9 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
         unitPrice: Number(product.price),
         gstRate: Number(product.gst_rate) || 0,
         productId: product.id,
+        ...(product.membership_validity_months
+          ? { membershipMonths: Number(product.membership_validity_months), membershipStartsOn: format(invoiceDate, "yyyy-MM-dd") }
+          : {}),
       },
     ]);
     setCatalogueSearch("");
@@ -259,6 +262,18 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
           description: `Add a tax code to these items in the catalogue first: ${uncoded.join(", ")}.`,
           variant: "destructive",
         });
+        return;
+      }
+    }
+    const membershipLines = lineItems.filter((li) => li.membershipMonths);
+    if (membershipLines.length > 0) {
+      if (!customerUserId && !customerProfileId) {
+        toast({ title: "Choose the customer", description: "A membership must belong to a customer from the list so their hours can be added.", variant: "destructive" });
+        return;
+      }
+      const invoiceDay = format(invoiceDate, "yyyy-MM-dd");
+      if (membershipLines.some((li) => !li.membershipStartsOn || li.membershipStartsOn < invoiceDay)) {
+        toast({ title: "Check the membership start date", description: "It cannot be before the invoice date.", variant: "destructive" });
         return;
       }
     }
@@ -637,6 +652,20 @@ export function CreateInvoiceDialog({ open, onOpenChange, city }: Props) {
                             </Badge>
                             <span className="truncate max-w-[150px]">{item.itemName}</span>
                           </div>
+                          {item.membershipMonths ? (
+                            <label className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                              Starts
+                              <Input
+                                type="date"
+                                aria-label={`${item.itemName} start date`}
+                                className="h-6 w-32 px-1 text-[11px]"
+                                min={format(invoiceDate, "yyyy-MM-dd")}
+                                value={lineItems[idx].membershipStartsOn ?? ""}
+                                onChange={(e) => updateLineItem(idx, "membershipStartsOn", e.target.value)}
+                              />
+                              · {item.membershipMonths} mo
+                            </label>
+                          ) : null}
                         </td>
                         <td className="py-2 px-2 text-xs text-muted-foreground">
                           {item.itemType === "service" ? item.sacCode : item.hsnCode}

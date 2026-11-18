@@ -183,6 +183,13 @@
       "when": 1794901372793,
       "tag": "0025_single_credit_note_number_per_cancellation",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1795001697248,
+      "tag": "0026_membership_validity_and_hours",
+      "breakpoints": true
     }
   ]
 }

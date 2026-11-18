@@ -117,6 +117,9 @@ export interface GstLineItem {
   unitPrice: number;
   gstRate: number;
   productId?: string;
+  /** Set for membership items: validity in months and the chosen first day (defaults to the invoice date). */
+  membershipMonths?: number;
+  membershipStartsOn?: string;
 }
 
 export interface CalculatedLineItem extends GstLineItem {

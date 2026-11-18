@@ -11,6 +11,8 @@ import { useExpenseCategories } from "@/hooks/useExpenseCategories";
 import { supabase } from "@/integrations/supabase/client";
 import { reportDayRange } from "@/lib/report-period";
 import { fetchAllPaged } from "@/lib/supabase-paging";
+import { applyMembershipRecognition } from "@/lib/membership-recognition";
+import { fetchMembershipTerms } from "@/hooks/useMemberships";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from "date-fns";
 
@@ -39,17 +41,19 @@ function useRevenueForPeriod(city: string, startDate?: string, endDate?: string)
       // Same business-date period and full paging as the revenue summary, so
       // P&L and the revenue report can never disagree.
       const { fromDay, toDay } = reportDayRange(startDate!, endDate!);
-      const data = await fetchAllPaged<any>((from, to) =>
+      const [rows, terms] = await Promise.all([fetchAllPaged<any>((from, to) =>
         supabase
-          .from("revenue_transactions" as any)
-          .select("amount, transaction_type")
+          .from("revenue_transactions")
+          .select("id, amount, transaction_type")
           .eq("city", city)
           .eq("status", "confirmed")
           .gte("revenue_date", fromDay)
           .lte("revenue_date", toDay)
           .order("revenue_date", { ascending: true })
           .range(from, to),
-      );
+      ), fetchMembershipTerms(toDay, city)]);
+      // Memberships count month by month over their validity, same as the revenue report.
+      const data = applyMembershipRecognition(rows, terms, fromDay, toDay).rows;
 
       let revenue = 0;
       let refunds = 0;

@@ -74,13 +74,17 @@ export function useUpdateHourPackage() {
       price?: number;
       currency?: string;
       is_active?: boolean;
+      membership_validity_months?: number | null;
     }) => {
       const { id, ...updates } = row;
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("hour_packages")
         .update(updates)
-        .eq("id", id);
+        .eq("id", id)
+        .select("id");
       if (error) throw error;
+      // A permission-blocked update returns no error and no row.
+      if (!data || data.length === 0) throw new Error("This package could not be saved. You may not have permission.");
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["hour_packages"] }),
   });

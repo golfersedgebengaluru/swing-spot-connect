@@ -30,3 +30,4 @@
 - Database lookups about a person (roles, coach, city assignment, age, consent) answer only for that person, staff or server code, and operations that take the acting user as a parameter are callable only by server functions, so nobody can probe or act as someone else.
 - Staff spreadsheet exports pass people-entered text through the shared formula neutralizer, so names and notes always open as plain text.
 - Allocate invoice and credit-note numbers once into a variable before building the row; never call a numbering function inside a `(row).*` expansion, which runs it once per column and skips numbers.
+- Membership sales are recorded once per sale in the memberships ledger (fixed amount, term and hours) and every revenue screen spreads them through the shared recognition module; invoices, GST and cash rows stay unchanged, and membership hours follow the aggregate balance soonest-ending first so expiry and cancellation only remove that sale's own unused hours.

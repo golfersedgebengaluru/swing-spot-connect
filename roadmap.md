@@ -1,5 +1,15 @@
 # Roadmap
 
+## Membership revenue spread (approved 18 November)
+- [x] "Valid for (months)" and "Hours included" on catalogue services; "Valid for" on online hour packages; each new sale stores its start/end (staff may pick a later start in person; online starts on sale date)
+- [x] Revenue report, dashboard and P&L count memberships month by month (prorated first/last month, equal full months); revenue card shows earned and "received, not yet earned"; invoices/GST unchanged; past sales unchanged
+- [x] Membership hours used soonest-ending first; per-city "Expire unused membership hours" switch (off by default); hourly expiry job
+- [x] In-person membership invoices add hours automatically; deleting the invoice removes them
+- [x] Cancel membership on the customer profile (refund, one credit note, unused hours removed, retry-safe)
+- [x] Tests: 13 spreading rules + 15 database rules; full suite 126 files / 1,100 tests
+- [ ] Set validity on the Birdie catalogue item and online package (owner to enter months)
+- [ ] Staff-screen visual check: preview account has no staff access
+
 ## Bookings calendar (approved 12 November)
 - [x] Day View moved into Bookings as a Calendar tab (opens first) next to List; Manual Booking button kept at the top; removed from the sidebar (old links open Bookings)
 - [x] Clicking a free, open time fills in the city, bay, date and start time in Manual Booking; booked, blocked and closed times are not clickable

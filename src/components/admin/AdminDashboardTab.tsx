@@ -1,4 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { applyMembershipRecognition } from "@/lib/membership-recognition";
+import { fetchMembershipTerms } from "@/hooks/useMemberships";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CalendarDays, Users, IndianRupee, Clock, Loader2 } from "lucide-react";
@@ -54,7 +56,7 @@ function useAdminDashboardStats(cityFilter: string) {
       const revenueRows = fetchAllPaged<any>((from, to) => {
         let q = supabase
           .from("revenue_transactions")
-          .select("amount, transaction_type")
+          .select("id, amount, transaction_type")
           .eq("status", "confirmed")
           .gte("revenue_date", monthFromDay)
           .lte("revenue_date", monthToDay)
@@ -117,6 +119,7 @@ function useAdminDashboardStats(cityFilter: string) {
         hoursData,
         { data: bookingsData },
         attention,
+        membershipTerms,
       ] = await Promise.all([
         totalBookingsQuery,
         membersQuery,
@@ -124,12 +127,15 @@ function useAdminDashboardStats(cityFilter: string) {
         hoursRows,
         upcomingQuery,
         attentionQuery,
+        fetchMembershipTerms(monthToDay, cityFilter || undefined),
       ]);
 
       // Net revenue. Refunds are stored negative, so they subtract themselves;
       // legacy rows stored positive are normalised here so old months still net
       // out correctly.
-      const revenue = revData.reduce((sum: number, t: any) => {
+      // Memberships count month by month over their validity, same as the revenue report.
+      const recognized = applyMembershipRecognition(revData, membershipTerms, monthFromDay, monthToDay).rows;
+      const revenue = recognized.reduce((sum: number, t: any) => {
         const amount = Number(t.amount ?? 0);
         if (t.transaction_type === "refund") return sum - Math.abs(amount);
         return sum + amount;

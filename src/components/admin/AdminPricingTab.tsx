@@ -393,6 +393,9 @@ function HourPackagesSection() {
         ...(changes.label !== undefined && { label: changes.label }),
         ...(changes.price !== undefined && { price: parseFloat(changes.price) || 0 }),
         ...(changes.is_active !== undefined && { is_active: changes.is_active }),
+        ...(changes.membership_validity_months !== undefined && {
+          membership_validity_months: Math.round(Number(changes.membership_validity_months)) || null,
+        }),
       });
       setEdits((prev) => {
         const next = { ...prev };
@@ -445,6 +448,18 @@ function HourPackagesSection() {
                   className="mt-0.5"
                   value={getField(pkg, "price")}
                   onChange={(e) => handleField(pkg.id, "price", e.target.value)}
+                />
+              </div>
+              <div className="w-32">
+                <Label className="text-xs">Valid for (months)</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={60}
+                  className="mt-0.5"
+                  placeholder="No expiry"
+                  value={getField(pkg, "membership_validity_months") || ""}
+                  onChange={(e) => handleField(pkg.id, "membership_validity_months", e.target.value)}
                 />
               </div>
               <div className="flex items-center gap-2">

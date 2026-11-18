@@ -57,6 +57,8 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     reorder_quantity: product?.reorder_quantity ?? "",
     duration_minutes: product?.duration_minutes ?? "",
     bookable: product?.bookable ?? false,
+    membership_validity_months: product?.membership_validity_months ?? "",
+    membership_hours: product?.membership_hours ?? "",
     city: product?.city ?? (isSiteAdmin && assignedCities.length === 1 ? assignedCities[0] : ""),
     corporate_account_id: product?.corporate_account_id ?? null,
     vendor_id: product?.vendor_id ?? null,
@@ -171,6 +173,9 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
       reorder_quantity: isProduct ? (Number(form.reorder_quantity) || null) : null,
       duration_minutes: !isProduct ? (Number(form.duration_minutes) || null) : null,
       bookable: !isProduct ? form.bookable : false,
+      // A validity period makes this service a membership: its revenue is spread over the term.
+      membership_validity_months: !isProduct ? (Math.round(Number(form.membership_validity_months)) || null) : null,
+      membership_hours: !isProduct && Number(form.membership_validity_months) ? (Number(form.membership_hours) || 0) : null,
       city: cityValue,
       corporate_account_id: form.corporate_account_id || null,
       // Optional, and only meaningful for physical products.
@@ -427,6 +432,28 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
               <Label>Bookable (appears in booking flow)</Label>
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Membership valid for (months)</Label>
+              <Input type="number" min={1} max={60} value={form.membership_validity_months || ""}
+                onChange={(e) => setForm({ ...form, membership_validity_months: e.target.value })}
+                onBlur={() => {
+                  const n = Math.round(Number(form.membership_validity_months));
+                  setForm({ ...form, membership_validity_months: n >= 1 && n <= 60 ? String(n) : "" });
+                }}
+                placeholder="Leave empty if not a membership" />
+            </div>
+            <div>
+              <Label>Hours included</Label>
+              <Input type="number" min={0} value={form.membership_hours || ""} disabled={!form.membership_validity_months}
+                onChange={(e) => setForm({ ...form, membership_hours: e.target.value })} placeholder="e.g. 25" />
+            </div>
+          </div>
+          {!!form.membership_validity_months && (
+            <p className="text-xs text-muted-foreground">
+              Selling this on an invoice adds the hours to the customer automatically, and its revenue is counted month by month over the validity period. The invoice and GST stay on the full amount.
+            </p>
+          )}
         </div>
       )}
 

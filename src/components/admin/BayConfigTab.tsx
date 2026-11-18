@@ -84,6 +84,59 @@ function CancellationFeeEditor({ city }: { city: string }) {
     </div>
   );
 }
+
+/** Per-city switch: remove a membership's unused hours once its validity ends. Off keeps them. */
+function MembershipHoursExpiryEditor({ city }: { city: string }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: enabled, isLoading } = useQuery({
+    queryKey: ["bay_config", "membership_hours_auto_expire", city],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bay_config")
+        .select("membership_hours_auto_expire")
+        .eq("city", city)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.membership_hours_auto_expire ?? false;
+    },
+  });
+  const [saving, setSaving] = useState(false);
+
+  const save = async (value: boolean) => {
+    setSaving(true);
+    const { data, error } = await supabase
+      .from("bay_config")
+      .update({ membership_hours_auto_expire: value })
+      .eq("city", city)
+      .select("membership_hours_auto_expire");
+    setSaving(false);
+    if (error || !data || data.length === 0) {
+      toast({ title: "Not saved", description: error?.message ?? "This setting could not be saved for this city.", variant: "destructive" });
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["bay_config"] });
+    toast({ title: value ? "Membership hours will expire" : "Membership hours will be kept", description: city });
+  };
+
+  return (
+    <div className="rounded-md border border-border p-3 space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <Label className="text-sm" htmlFor={`membership-expiry-${city}`}>Expire unused membership hours</Label>
+        <Switch
+          id={`membership-expiry-${city}`}
+          checked={!!enabled}
+          disabled={isLoading || saving}
+          onCheckedChange={save}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        When on, hours a member has not used are removed the day after their membership ends. When off, those hours stay
+        on their balance. Applies to memberships ending after you change it.
+      </p>
+    </div>
+  );
+}
 import { getDayShort } from "@/lib/bay-schedule-utils";
 import { useBays } from "@/hooks/useBookings";
 import { CURRENCIES, getCurrencySymbol } from "@/lib/currencies";
@@ -386,6 +439,7 @@ export function BayConfigTab() {
               <Separator className="my-4" />
               <AvailabilitySourceEditor city={city} />
               <CancellationFeeEditor city={city} />
+              <MembershipHoursExpiryEditor city={city} />
               <HolidayEditor city={city} />
             </CardContent>
           </Card>

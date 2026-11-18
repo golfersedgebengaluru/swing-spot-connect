@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {
   rpc: mocks.rpc,
-  from: (table: string) => { const chain: Record<string, unknown> = {}; for (const key of ['select','eq','gte','lt','lte','order','limit','range']) chain[key] = () => chain;
+  from: (table: string) => { const chain: Record<string, unknown> = {}; for (const key of ['select','eq','neq','gte','lt','lte','order','limit','range']) chain[key] = () => chain;
     chain.in = (col: string, vals: unknown) => { mocks.filters.push([table, col, vals]); return chain; };
     chain.then = (resolve: (v: unknown) => void) => resolve({ data: mocks.tables[table] ?? [], count:0, error:null }); return chain; },
 }}));

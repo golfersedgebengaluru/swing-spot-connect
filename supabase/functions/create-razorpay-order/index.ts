@@ -172,7 +172,7 @@ serve(async (req) => {
     } else {
       if (!user) return json({ error: "Please sign in to buy hours" }, 401);
       const [{ data: pkg }, { data: profile }] = await Promise.all([
-        admin.from("hour_packages").select("id, hours, price, currency, label, is_active").eq("id", order.package_id).maybeSingle(),
+        admin.from("hour_packages").select("id, hours, price, currency, label, is_active, membership_validity_months").eq("id", order.package_id).maybeSingle(),
         admin.from("profiles").select("preferred_city").eq("user_id", user.id).maybeSingle(),
       ]);
       if (!pkg || !pkg.is_active) return json({ error: "This package is not available" }, 400);
@@ -187,6 +187,8 @@ serve(async (req) => {
       stashPending = (orderId) => admin.from("pending_purchases").insert({
         user_id: user!.id, razorpay_order_id: orderId, package_hours: pkg.hours, package_price: pkg.price,
         package_label: pkg.label || `${pkg.hours}h Package`, currency, city, status: "pending",
+        // Snapshot the validity so later package edits cannot change what this buyer got.
+        membership_validity_months: pkg.membership_validity_months ?? null,
       });
     }
 

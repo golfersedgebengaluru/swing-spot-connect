@@ -251,6 +251,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          membership_hours_auto_expire: boolean
           open_time: string
           timezone: string
           updated_at: string
@@ -264,6 +265,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          membership_hours_auto_expire?: boolean
           open_time?: string
           timezone?: string
           updated_at?: string
@@ -277,6 +279,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          membership_hours_auto_expire?: boolean
           open_time?: string
           timezone?: string
           updated_at?: string
@@ -2084,6 +2087,7 @@ export type Database = {
           id: string
           is_active: boolean
           label: string
+          membership_validity_months: number | null
           price: number
           service_product_id: string | null
           sort_order: number
@@ -2096,6 +2100,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           label?: string
+          membership_validity_months?: number | null
           price?: number
           service_product_id?: string | null
           sort_order?: number
@@ -2108,6 +2113,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           label?: string
+          membership_validity_months?: number | null
           price?: number
           service_product_id?: string | null
           sort_order?: number
@@ -4284,6 +4290,125 @@ export type Database = {
         }
         Relationships: []
       }
+      memberships: {
+        Row: {
+          amount: number
+          cancel_note: string | null
+          cancelled_by: string | null
+          cancelled_on: string | null
+          city: string
+          created_at: string
+          created_by: string | null
+          credit_note_id: string | null
+          ends_on: string
+          hours: number
+          hours_closed: number
+          hours_closed_at: string | null
+          hours_remaining: number
+          hours_state: string
+          id: string
+          invoice_line_item_id: string | null
+          label: string
+          product_id: string | null
+          refund_amount: number | null
+          refund_transaction_id: string | null
+          revenue_transaction_id: string | null
+          sold_on: string
+          starts_on: string
+          status: string
+          updated_at: string
+          user_id: string
+          validity_months: number
+        }
+        Insert: {
+          amount: number
+          cancel_note?: string | null
+          cancelled_by?: string | null
+          cancelled_on?: string | null
+          city: string
+          created_at?: string
+          created_by?: string | null
+          credit_note_id?: string | null
+          ends_on: string
+          hours?: number
+          hours_closed?: number
+          hours_closed_at?: string | null
+          hours_remaining?: number
+          hours_state?: string
+          id?: string
+          invoice_line_item_id?: string | null
+          label: string
+          product_id?: string | null
+          refund_amount?: number | null
+          refund_transaction_id?: string | null
+          revenue_transaction_id?: string | null
+          sold_on: string
+          starts_on: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          validity_months: number
+        }
+        Update: {
+          amount?: number
+          cancel_note?: string | null
+          cancelled_by?: string | null
+          cancelled_on?: string | null
+          city?: string
+          created_at?: string
+          created_by?: string | null
+          credit_note_id?: string | null
+          ends_on?: string
+          hours?: number
+          hours_closed?: number
+          hours_closed_at?: string | null
+          hours_remaining?: number
+          hours_state?: string
+          id?: string
+          invoice_line_item_id?: string | null
+          label?: string
+          product_id?: string | null
+          refund_amount?: number | null
+          refund_transaction_id?: string | null
+          revenue_transaction_id?: string | null
+          sold_on?: string
+          starts_on?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          validity_months?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memberships_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memberships_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memberships_refund_transaction_id_fkey"
+            columns: ["refund_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "revenue_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memberships_revenue_transaction_id_fkey"
+            columns: ["revenue_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "revenue_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nominations: {
         Row: {
           created_at: string
@@ -4827,6 +4952,7 @@ export type Database = {
           error_message: string | null
           hours_transaction_id: string | null
           id: string
+          membership_validity_months: number | null
           package_hours: number
           package_label: string
           package_price: number
@@ -4843,6 +4969,7 @@ export type Database = {
           error_message?: string | null
           hours_transaction_id?: string | null
           id?: string
+          membership_validity_months?: number | null
           package_hours: number
           package_label?: string
           package_price: number
@@ -4859,6 +4986,7 @@ export type Database = {
           error_message?: string | null
           hours_transaction_id?: string | null
           id?: string
+          membership_validity_months?: number | null
           package_hours?: number
           package_label?: string
           package_price?: number
@@ -5019,6 +5147,8 @@ export type Database = {
           in_stock: boolean | null
           item_type: string
           legacy_sku: string | null
+          membership_hours: number | null
+          membership_validity_months: number | null
           name: string
           opening_stock: number | null
           price: number
@@ -5050,6 +5180,8 @@ export type Database = {
           in_stock?: boolean | null
           item_type?: string
           legacy_sku?: string | null
+          membership_hours?: number | null
+          membership_validity_months?: number | null
           name: string
           opening_stock?: number | null
           price?: number
@@ -5081,6 +5213,8 @@ export type Database = {
           in_stock?: boolean | null
           item_type?: string
           legacy_sku?: string | null
+          membership_hours?: number | null
+          membership_validity_months?: number | null
           name?: string
           opening_stock?: number | null
           price?: number
@@ -6230,6 +6364,8 @@ export type Database = {
           in_stock: boolean | null
           item_type: string | null
           legacy_sku: string | null
+          membership_hours: number | null
+          membership_validity_months: number | null
           name: string | null
           opening_stock: number | null
           price: number | null
@@ -6260,6 +6396,8 @@ export type Database = {
           in_stock?: boolean | null
           item_type?: string | null
           legacy_sku?: string | null
+          membership_hours?: number | null
+          membership_validity_months?: number | null
           name?: string | null
           opening_stock?: number | null
           price?: number | null
@@ -6290,6 +6428,8 @@ export type Database = {
           in_stock?: boolean | null
           item_type?: string | null
           legacy_sku?: string | null
+          membership_hours?: number | null
+          membership_validity_months?: number | null
           name?: string | null
           opening_stock?: number | null
           price?: number | null
@@ -6521,6 +6661,16 @@ export type Database = {
         Args: { p_booking_id: string; p_cancelled_by?: string }
         Returns: Json
       }
+      cancel_membership: {
+        Args: {
+          p_cancelled_on: string
+          p_membership_id: string
+          p_note: string
+          p_refund_amount: number
+          p_refund_method: string
+        }
+        Returns: Json
+      }
       cancel_paid_booking_atomic: {
         Args: {
           p_actor: string
@@ -6584,6 +6734,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      close_membership_hours: {
+        Args: {
+          p_actor: string
+          p_membership_id: string
+          p_note: string
+          p_state: string
+        }
+        Returns: number
+      }
       complete_hour_purchase: {
         Args: {
           p_amount: number
@@ -6622,6 +6781,24 @@ export type Database = {
           p_operation_id: string
         }
         Returns: Json
+      }
+      create_membership_record: {
+        Args: {
+          p_actor: string
+          p_amount: number
+          p_city: string
+          p_credit_hours: boolean
+          p_customer: string
+          p_hours: number
+          p_label: string
+          p_line: string
+          p_months: number
+          p_product: string
+          p_revenue: string
+          p_sold_on: string
+          p_starts_on: string
+        }
+        Returns: string
       }
       customer_report: {
         Args: {
@@ -6683,6 +6860,7 @@ export type Database = {
         Returns: number
       }
       delete_invoice_atomic: { Args: { p_invoice_id: string }; Returns: Json }
+      expire_membership_hours: { Args: never; Returns: number }
       generate_product_sku: {
         Args: {
           _category: string
@@ -6778,6 +6956,15 @@ export type Database = {
           status: string
           user_id: string
         }[]
+      }
+      member_hours_key: { Args: { p_customer: string }; Returns: string }
+      membership_end_date: {
+        Args: { p_months: number; p_start: string }
+        Returns: string
+      }
+      membership_hours_clamp: {
+        Args: { p_balance: number; p_key: string }
+        Returns: undefined
       }
       needs_reconsent: { Args: { _user_id: string }; Returns: Json }
       promote_legacy_team_member: {

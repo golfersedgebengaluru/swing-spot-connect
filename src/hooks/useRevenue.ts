@@ -1,4 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { applyMembershipRecognition, isEarnedMembershipRow } from "@/lib/membership-recognition";
+import { fetchMembershipTerms } from "@/hooks/useMemberships";
 import { supabase } from "@/integrations/supabase/client";
 import { reportDayRange } from "@/lib/report-period";
 import { fetchAllPaged, fetchAllByIds } from "@/lib/supabase-paging";
@@ -224,7 +226,14 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
         return q.range(from, to);
       });
 
-      const confirmed = transactions.filter((t) => t.status === "confirmed");
+      // Memberships count month by month over their validity, not on the sale day.
+      const recognition = applyMembershipRecognition(
+        transactions.filter((t) => t.status === "confirmed"),
+        await fetchMembershipTerms(toDay, city),
+        fromDay,
+        toDay,
+      );
+      const confirmed: any[] = recognition.rows;
 
       // Refunds are stored as negative amounts. `totalRefunds` is still reported
       // as a positive magnitude (that is what the screens display), and legacy
@@ -297,7 +306,7 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
       // SKU it was earned in. All of that arithmetic lives in one place —
       // `@/lib/sales-by-product` — so the tiles, the SKU drill-down and the
       // vendor view can never drift apart.
-      const unresolvedTxns = confirmed.filter((t) => !(t as any).product_id);
+      const unresolvedTxns = confirmed.filter((t) => !(t as any).product_id && !isEarnedMembershipRow(t.id));
 
       // Invoice line fallback for rows with no product of their own.
       const linesByTransaction = new Map<string, SalesInvoiceLine[]>();
@@ -322,12 +331,14 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
           const lineItems = await fetchAllByIds<any>(invoiceIds, (batch) =>
             supabase
               .from("invoice_line_items")
-              .select("invoice_id, line_total, product_id")
+              .select("id, invoice_id, line_total, product_id")
               .in("invoice_id", batch),
           );
           for (const li of lineItems) {
             const txnId = txnByInvoice.get(li.invoice_id);
             if (!txnId) continue;
+            // Membership lines are counted through their earned rows instead.
+            if (recognition.membershipLineIds.has(li.id)) continue;
             linesByTransaction.set(txnId, [...(linesByTransaction.get(txnId) ?? []), li]);
             if (li.product_id) fallbackProductIds.push(li.product_id);
           }
@@ -371,6 +382,8 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
         byVendor: sales.byVendor,
         byUser,
         byGuest,
+        membershipEarned: recognition.earned,
+        membershipDeferred: recognition.deferred,
         totalCount: transactions.length,
       };
     },
