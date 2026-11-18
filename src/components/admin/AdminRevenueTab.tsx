@@ -271,8 +271,9 @@ export function AdminRevenueTab() {
                 </p>
                 {!loadingSummary && ((summary?.membershipEarned ?? 0) !== 0 || (summary?.membershipDeferred ?? 0) > 0) && (
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    Memberships earned {currencySymbol}{(summary?.membershipEarned ?? 0).toLocaleString()}
+                    Memberships earned {currencySymbol}{(summary?.membershipEarned ?? 0).toLocaleString()} (before GST)
                     {" · "}Received, not yet earned {currencySymbol}{(summary?.membershipDeferred ?? 0).toLocaleString()}
+                    {(summary?.membershipGst ?? 0) !== 0 && <>{" · "}Membership GST invoiced {currencySymbol}{(summary?.membershipGst ?? 0).toLocaleString()} (not revenue)</>}
                   </p>
                 )}
                 {revenueChange !== null && (

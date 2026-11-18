@@ -2,11 +2,11 @@
 
 ## Membership revenue spread (approved 18 November)
 - [x] "Valid for (months)" and "Hours included" on catalogue services; "Valid for" on online hour packages; each new sale stores its start/end (staff may pick a later start in person; online starts on sale date)
-- [x] Revenue report, dashboard and P&L count memberships month by month (prorated first/last month, equal full months); revenue card shows earned and "received, not yet earned"; invoices/GST unchanged; past sales unchanged
+- [x] Revenue report, dashboard and P&L count memberships month by month before GST (prorated first/last month, equal full months); revenue card shows earned, "received, not yet earned" and membership GST separately; invoices/GST unchanged; past sales unchanged
 - [x] Membership hours used soonest-ending first; per-city "Expire unused membership hours" switch (off by default); hourly expiry job
 - [x] In-person membership invoices add hours automatically; deleting the invoice removes them
 - [x] Cancel membership on the customer profile (refund, one credit note, unused hours removed, retry-safe)
-- [x] Tests: 13 spreading rules + 15 database rules; full suite 126 files / 1,100 tests
+- [x] Tests: 16 spreading rules + 16 database rules; full suite 126 files / 1,104 tests passed
 - [ ] Set validity on the Birdie catalogue item and online package (owner to enter months)
 - [ ] Staff-screen visual check: preview account has no staff access
 

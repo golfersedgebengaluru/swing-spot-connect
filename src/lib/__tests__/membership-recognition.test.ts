@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  applyMembershipRecognition, deferredAt, membershipEndDate, membershipSchedule, recognizedInRange, type MembershipTerm,
+  applyMembershipRecognition, deferredAt, membershipGstInRange, membershipEndDate, membershipSchedule, recognizedInRange, type MembershipTerm,
 } from "@/lib/membership-recognition";
 
 const term = (over: Partial<MembershipTerm>): MembershipTerm => ({
@@ -100,5 +100,30 @@ describe("revenue rows for a period", () => {
     const rows = [{ id: "old", amount: 25000, transaction_type: "purchase" }];
     const r = applyMembershipRecognition(rows, [], "2026-08-01", "2026-08-31");
     expect(r.rows).toEqual(rows);
+  });
+});
+
+describe("spreading the amount before GST", () => {
+  const gst = (over: Partial<MembershipTerm> = {}) => term({ amount: 35400, taxable_amount: 30000, gst_amount: 5400, ...over });
+
+  it("spreads only the value before GST", () => {
+    expect(membershipSchedule(gst()).map((x) => x.amount)).toEqual([10000, 10000, 10000]);
+    expect(deferredAt(gst(), "2026-09-30")).toBe(20000);
+  });
+
+  it("keeps the GST in the invoice month and out of revenue", () => {
+    const rows = [{ id: "sale1", amount: 35400, transaction_type: "payment" }];
+    const r = applyMembershipRecognition(rows, [gst()], "2026-09-01", "2026-09-30");
+    expect(r.rows.reduce((a, x) => a + Number(x.amount), 0)).toBe(10000);
+    expect(r.gst).toBe(5400);
+    expect(membershipGstInRange(gst(), "2026-10-01", "2026-10-31")).toBe(0);
+  });
+
+  it("reduces revenue and GST by the refund's own split on cancellation", () => {
+    const m = gst({ status: "cancelled", cancelled_on: "2026-10-15", refund_amount: 11800 });
+    // Refund 11,800 = 10,000 before GST + 1,800 GST.
+    expect(recognizedInRange(m, "2026-10-01", "2026-10-31")).toBe(10000);
+    expect(recognizedInRange(m, "2026-01-01", "2026-12-31")).toBe(20000);
+    expect(membershipGstInRange(m, "2026-10-01", "2026-10-31")).toBe(-1800);
   });
 });

@@ -384,6 +384,7 @@ export function useRevenueSummary(startDate?: string, endDate?: string, city?: s
         byGuest,
         membershipEarned: recognition.earned,
         membershipDeferred: recognition.deferred,
+        membershipGst: recognition.gst,
         totalCount: transactions.length,
       };
     },

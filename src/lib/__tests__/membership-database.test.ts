@@ -40,6 +40,7 @@ beforeAll(async () => {
     CREATE TABLE invoice_line_items(id uuid PRIMARY KEY,invoice_id uuid,item_name text,quantity numeric,unit_price numeric,line_total numeric,gst_rate numeric,cgst_amount numeric,sgst_amount numeric,igst_amount numeric,product_id uuid,sort_order int,created_at timestamptz);
     CREATE SEQUENCE doc_seq START 1061; CREATE FUNCTION get_next_invoice_number(text,uuid,text,int,text) RETURNS text LANGUAGE sql AS $$ SELECT $3||'/'||nextval('doc_seq') $$;`);
   await db.exec(readFileSync("drizzle/migrations/0026_membership_validity_and_hours.sql", "utf8"));
+  await db.exec(readFileSync("drizzle/migrations/0027_membership_pre_gst_spread.sql", "utf8"));
 }, 30000);
 afterAll(async () => { await db?.close(); });
 
@@ -72,6 +73,12 @@ describe("selling a membership in person", () => {
     expect(await balance()).toEqual({ purchased: 25, used: 0 });
     const m = await one<any>(`SELECT starts_on::text, ends_on::text, amount::float, hours::float, hours_remaining::float FROM memberships`);
     expect(m).toEqual({ starts_on: "2026-09-01", ends_on: "2026-11-30", amount: 25000, hours: 25, hours_remaining: 25 });
+  });
+
+  it("records the value before GST from the invoice line", async () => {
+    await sellInPerson([{ product: birdie, total: 25000 }]);
+    const m = await one<any>(`SELECT taxable_amount::float t, gst_amount::float g FROM memberships`);
+    expect(m).toEqual({ t: 21186.44, g: 3813.56 });
   });
 
   it("lets staff choose a later start date", async () => {

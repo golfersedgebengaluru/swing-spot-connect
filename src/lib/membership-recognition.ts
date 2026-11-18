@@ -5,10 +5,11 @@
  * Rules (owner-approved):
  *  - Full calendar months inside the term earn equal shares; the first and last
  *    months are prorated by the days of the term that fall in them.
- *  - The amount spread is the same amount the revenue report counts for the sale.
+ *  - The amount spread is the sale's value before GST (from its invoice line); the
+ *    GST stays with the invoice and is never revenue.
  *  - On cancellation, what was earned in earlier months stays; everything not yet
- *    earned, minus the refund, is recognised in the cancellation month (it can be
- *    negative when the refund exceeds the unearned part).
+ *    earned, minus the refund's value before GST, is recognised in the cancellation
+ *    month (it can be negative when the refund exceeds the unearned part).
  *  - Invoices and GST are untouched: this only changes when revenue is reported.
  *
  * Dates are business days ("YYYY-MM-DD") and all arithmetic is in UTC days, so
@@ -25,7 +26,11 @@ export interface MembershipTerm {
   refund_transaction_id: string | null;
   invoice_line_item_id: string | null;
   sold_on: string;
+  /** Amount paid, including GST. */
   amount: number | string;
+  /** Amount before GST; this is what is spread. */
+  taxable_amount?: number | string | null;
+  gst_amount?: number | string | null;
   starts_on: string;
   ends_on: string;
   status: "active" | "cancelled" | "void" | string;
@@ -40,6 +45,17 @@ export interface RecognitionSlice {
 }
 
 const DAY_MS = 86_400_000;
+
+/** Value before GST: the part of the sale that is revenue. */
+export function taxableOf(m: MembershipTerm): number {
+  return m.taxable_amount === undefined || m.taxable_amount === null ? Number(m.amount ?? 0) || 0 : Number(m.taxable_amount) || 0;
+}
+/** The refund's value before GST, in the same proportion as the sale (as on its credit note). */
+export function refundTaxableOf(m: MembershipTerm): number {
+  const amount = Number(m.amount ?? 0) || 0;
+  const refund = Number(m.refund_amount ?? 0) || 0;
+  return amount > 0 ? Math.round(((refund * taxableOf(m)) / amount) * 100) / 100 : 0;
+}
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const num = (v: unknown) => Number(v ?? 0) || 0;
 
@@ -72,7 +88,7 @@ export function membershipEndDate(start: string, months: number): string {
 
 /** Earned amount per calendar month of the term, before any cancellation. */
 function baseSchedule(m: MembershipTerm): RecognitionSlice[] {
-  const amount = num(m.amount);
+  const amount = taxableOf(m);
   const start = dayMs(m.starts_on);
   const end = dayMs(m.ends_on);
   if (end < start) return [{ from: m.starts_on, to: m.starts_on, amount: round2(amount) }];
@@ -101,7 +117,7 @@ export function membershipSchedule(m: MembershipTerm): RecognitionSlice[] {
   const cancelMonth = monthStartMs(cancel);
   const before = slices.filter((s) => dayMs(s.to) < cancelMonth);
   const earnedBefore = before.reduce((s, x) => s + x.amount, 0);
-  const kept = num(m.amount) - num(m.refund_amount);
+  const kept = taxableOf(m) - refundTaxableOf(m);
   const from = Math.min(Math.max(cancelMonth, dayMs(m.starts_on)), cancel);
   return [...before, { from: msDay(from), to: m.cancelled_on, amount: round2(kept - earnedBefore) }];
 }
@@ -122,12 +138,21 @@ export function recognizedInRange(m: MembershipTerm, fromDay: string, toDay: str
   return round2(total);
 }
 
-/** Money received for this membership that is not yet earned at the end of `day`. */
+/** Value before GST received for this membership but not yet earned at the end of `day`. */
 export function deferredAt(m: MembershipTerm, day: string): number {
   if (m.status === "void" || dayMs(m.sold_on) > dayMs(day)) return 0;
-  const refunded = m.status === "cancelled" && m.cancelled_on && dayMs(m.cancelled_on) <= dayMs(day) ? num(m.refund_amount) : 0;
+  const refunded = m.status === "cancelled" && m.cancelled_on && dayMs(m.cancelled_on) <= dayMs(day) ? refundTaxableOf(m) : 0;
   const earned = recognizedInRange(m, "1900-01-01", day);
-  return round2(num(m.amount) - refunded - earned);
+  return round2(taxableOf(m) - refunded - earned);
+}
+
+/** GST on memberships invoiced in the range, less GST on their refund credit notes in the range. */
+export function membershipGstInRange(m: MembershipTerm, fromDay: string, toDay: string): number {
+  if (m.status === "void") return 0;
+  const inRange = (d: string | null) => !!d && dayMs(d) >= dayMs(fromDay) && dayMs(d) <= dayMs(toDay);
+  const gst = num(m.amount) - taxableOf(m);
+  const refundGst = num(m.refund_amount) - refundTaxableOf(m);
+  return round2((inRange(m.sold_on) ? gst : 0) - (m.status === "cancelled" && inRange(m.cancelled_on) ? refundGst : 0));
 }
 
 export interface RecognizableRow {
@@ -142,10 +167,12 @@ export interface RecognitionResult<T extends RecognizableRow> {
   rows: (T | RecognizableRow)[];
   /** Invoice lines that are memberships; their value is in the earned rows instead. */
   membershipLineIds: Set<string>;
-  /** Membership revenue earned in the period. */
+  /** Membership revenue (before GST) earned in the period. */
   earned: number;
-  /** Received for memberships but not yet earned at the end of the period. */
+  /** Received for memberships (before GST) but not yet earned at the end of the period. */
   deferred: number;
+  /** GST on memberships invoiced in the period, net of refund credit notes. Not revenue. */
+  gst: number;
 }
 
 export const MEMBERSHIP_EARNED_TYPE = "membership";
@@ -185,9 +212,11 @@ export function applyMembershipRecognition<T extends RecognizableRow>(
 
   let earned = 0;
   let deferred = 0;
+  let gst = 0;
   for (const m of live) {
     const amount = recognizedInRange(m, fromDay, toDay);
     deferred += deferredAt(m, toDay);
+    gst += membershipGstInRange(m, fromDay, toDay);
     if (amount === 0) continue;
     earned += amount;
     out.push({
@@ -200,5 +229,5 @@ export function applyMembershipRecognition<T extends RecognizableRow>(
       revenue_date: toDay,
     });
   }
-  return { rows: out, membershipLineIds, earned: round2(earned), deferred: round2(deferred) };
+  return { rows: out, membershipLineIds, earned: round2(earned), deferred: round2(deferred), gst: round2(gst) };
 }

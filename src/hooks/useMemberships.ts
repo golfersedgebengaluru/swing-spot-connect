@@ -7,7 +7,7 @@ import type { Database } from "@/integrations/supabase/types";
 export type MembershipRow = Database["public"]["Tables"]["memberships"]["Row"];
 
 const TERM_COLUMNS =
-  "id, user_id, city, label, product_id, revenue_transaction_id, refund_transaction_id, invoice_line_item_id, sold_on, amount, starts_on, ends_on, status, cancelled_on, refund_amount";
+  "id, user_id, city, label, product_id, revenue_transaction_id, refund_transaction_id, invoice_line_item_id, sold_on, amount, taxable_amount, gst_amount, starts_on, ends_on, status, cancelled_on, refund_amount";
 
 /**
  * Every membership that can affect a report ending on `toDay`: sold by then and not voided.

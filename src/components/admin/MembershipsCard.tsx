@@ -49,7 +49,8 @@ function CancelMembershipDialog({ membership, symbol, onClose }: { membership: M
   const amount = Number(membership.amount);
 
   const earned = useMemo(
-    () => (cancelledOn ? recognizedInRange({ ...membership, status: "active" }, "1900-01-01", cancelledOn) : 0),
+    // Shown against the amount paid (incl. GST) so staff can judge a refund in the money the customer paid.
+    () => (cancelledOn ? recognizedInRange({ ...membership, status: "active", taxable_amount: membership.amount }, "1900-01-01", cancelledOn) : 0),
     [membership, cancelledOn],
   );
   const unearned = Math.max(Math.round((amount - earned) * 100) / 100, 0);
@@ -94,8 +95,8 @@ function CancelMembershipDialog({ membership, symbol, onClose }: { membership: M
             <Input id="cancel-date" type="date" min={membership.sold_on} max={today} value={cancelledOn} onChange={(e) => setCancelledOn(e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-3 rounded-md bg-muted/40 p-3 text-sm">
-            <div><p className="text-xs text-muted-foreground">Earned so far</p><p className="font-medium">{money(earned)}</p></div>
-            <div><p className="text-xs text-muted-foreground">Not yet earned</p><p className="font-medium">{money(unearned)}</p></div>
+            <div><p className="text-xs text-muted-foreground">Used so far (of amount paid)</p><p className="font-medium">{money(earned)}</p></div>
+            <div><p className="text-xs text-muted-foreground">Not yet used</p><p className="font-medium">{money(unearned)}</p></div>
           </div>
           <div>
             <Label htmlFor="refund-amount">Refund amount ({symbol})</Label>

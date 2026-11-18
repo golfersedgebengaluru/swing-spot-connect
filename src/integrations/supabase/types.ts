@@ -4301,6 +4301,7 @@ export type Database = {
           created_by: string | null
           credit_note_id: string | null
           ends_on: string
+          gst_amount: number
           hours: number
           hours_closed: number
           hours_closed_at: string | null
@@ -4316,6 +4317,7 @@ export type Database = {
           sold_on: string
           starts_on: string
           status: string
+          taxable_amount: number
           updated_at: string
           user_id: string
           validity_months: number
@@ -4330,6 +4332,7 @@ export type Database = {
           created_by?: string | null
           credit_note_id?: string | null
           ends_on: string
+          gst_amount?: number
           hours?: number
           hours_closed?: number
           hours_closed_at?: string | null
@@ -4345,6 +4348,7 @@ export type Database = {
           sold_on: string
           starts_on: string
           status?: string
+          taxable_amount?: number
           updated_at?: string
           user_id: string
           validity_months: number
@@ -4359,6 +4363,7 @@ export type Database = {
           created_by?: string | null
           credit_note_id?: string | null
           ends_on?: string
+          gst_amount?: number
           hours?: number
           hours_closed?: number
           hours_closed_at?: string | null
@@ -4374,6 +4379,7 @@ export type Database = {
           sold_on?: string
           starts_on?: string
           status?: string
+          taxable_amount?: number
           updated_at?: string
           user_id?: string
           validity_months?: number
