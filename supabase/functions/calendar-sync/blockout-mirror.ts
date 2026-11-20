@@ -45,7 +45,7 @@ const hms = (t: string) => {
   const [h = "00", m = "00", s = "00"] = t.split(":");
   return `${h.padStart(2, "0")}:${m.padStart(2, "0")}:${s.slice(0, 2).padStart(2, "0")}`;
 };
-const ymd = (date: string) => date.replaceAll("-", "");
+const ymd = (date: string) => date.replace(/-/g, "");
 const dow = (date: string) => {
   const [y, m, d] = date.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
@@ -119,7 +119,7 @@ export function seriesEventBody(s: MirrorSeries, bays: MirrorBay[], timeZone: st
     .filter((d) => d >= first && (!s.ends_on || d <= s.ends_on) && days.includes(dow(d)))
     .sort();
   const recurrence = [rrule];
-  if (skipped.length) recurrence.push(`EXDATE;TZID=${timeZone}:${skipped.map((d) => `${ymd(d)}T${start.replaceAll(":", "")}`).join(",")}`);
+  if (skipped.length) recurrence.push(`EXDATE;TZID=${timeZone}:${skipped.map((d) => `${ymd(d)}T${start.replace(/:/g, "")}`).join(",")}`);
   return {
     summary: summaryFor(s.bay_id, bays, s.reason),
     description: DESCRIPTION,
