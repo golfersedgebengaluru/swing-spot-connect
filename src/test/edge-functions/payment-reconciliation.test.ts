@@ -156,8 +156,8 @@ describe("reconcile-pending-payments cron job", () => {
     expect(reconcilerSrc).toMatch(/resolveOrCreateLegacyRegistration\(/);
   });
 
-  it("marks long-pending rows whose Razorpay status is not paid as failed", () => {
-    expect(reconcilerSrc).toMatch(/Razorpay order status=/);
+  it("marks long-pending rows whose gateway status is not paid as failed", () => {
+    expect(reconcilerSrc).toMatch(/\$\{gatewayLabel\(row\.payment_gateway\)\} order status=/);
     expect(reconcilerSrc).toMatch(/status:\s*"failed"/);
   });
 

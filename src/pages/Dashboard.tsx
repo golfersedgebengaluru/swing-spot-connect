@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { waitForPaymentFinalization } from "@/hooks/usePaymentFinalization";
+import { PAYMENT_CANCELLED, payForOrder, type CheckoutOrder } from "@/lib/online-checkout";
 import { EmailPreferencesCard } from "@/components/EmailPreferencesCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -106,18 +107,6 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
-  const loadRazorpayScript = (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      if (document.getElementById("razorpay-script")) { resolve(true); return; }
-      const script = document.createElement("script");
-      script.id = "razorpay-script";
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-  };
-
   const handleBuyHours = async (pkg: any) => {
     if (!user) return;
     const city = profile?.preferred_city;
@@ -128,8 +117,8 @@ export default function Dashboard() {
     setBuyingPkgId(pkg.id);
     const pkgDiscount = appliedCoupon ? calculateDiscount(appliedCoupon, pkg.price) : 0;
     try {
-      // 1. Create the Razorpay order. The server prices the package and records
-      // the pending purchase that the payment webhook finalizes.
+      // 1. Create the payment order. The server prices the package and records
+      // the pending purchase that the payment alert finalizes.
       const orderRes = await supabase.functions.invoke("create-razorpay-order", {
         body: {
           purpose: "hour_package",
@@ -138,54 +127,26 @@ export default function Dashboard() {
         },
       });
       if (orderRes.error || orderRes.data?.error) throw new Error(orderRes.data?.error || orderRes.error?.message || "Failed to create order");
+      const checkoutOrder = orderRes.data as CheckoutOrder;
 
-      const { order_id, key_id, currency: rzpCurrency, amount: orderAmount } = orderRes.data;
-
-      // 3. Load Razorpay
-      const loaded = await loadRazorpayScript();
-      if (!loaded) throw new Error("Failed to load payment gateway");
-
-      // 4. Open checkout
-      await new Promise<void>((resolve, reject) => {
-        let settled = false;
-        const finish = (fn: () => void) => { if (!settled) { settled = true; fn(); } };
-
-        const rzp = new (window as any).Razorpay({
-          key: key_id,
-          amount: orderAmount,
-          currency: rzpCurrency || "INR",
-          name: "Golfer's Edge",
-          description: `${pkg.hours}h Hour Package - ${pkg.label}`,
-          order_id,
-          notes: { type: "hour_package", user_id: user.id, hours: String(pkg.hours), city },
-          handler: async (response: any) => {
-            try {
-              // Webhook (authoritative) finalizes via pending_purchases →
-              // complete_hour_purchase RPC. Browser just polls.
-              const result = await waitForPaymentFinalization(
-                "pending_purchases",
-                response.razorpay_order_id,
-              );
-              if (result.status === "failed") throw new Error(result.error_message || "Purchase failed");
-              queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
-              queryClient.invalidateQueries({ queryKey: ["member_hours"] });
-              finish(() => resolve());
-            } catch (err) {
-              console.error("Finalization wait failed, cron will reconcile:", err);
-              finish(() => resolve()); // Payment succeeded; webhook/cron will finish it.
-            }
-          },
-          theme: { color: "#16a34a" },
-          modal: { ondismiss: () => finish(() => reject(new Error("Payment cancelled"))) },
-        });
-        rzp.on("payment.failed", (r: any) => {
-          // Mark pending purchase as failed
-          supabase.from("pending_purchases").update({ status: "failed", error_message: r?.error?.description || "Payment failed" }).eq("razorpay_order_id", order_id);
-          finish(() => reject(new Error(r?.error?.description || "Payment failed")));
-        });
-        setBuyingPkgId(null);
-        rzp.open();
+      // 2. Open the payment window (Razorpay or Cashfree, whichever the city uses).
+      setBuyingPkgId(null);
+      await payForOrder(checkoutOrder, {
+        description: `${pkg.hours}h Hour Package - ${pkg.label}`,
+        notes: { type: "hour_package", user_id: user.id, hours: String(pkg.hours), city },
       });
+
+      // 3. The server (authoritative) finalizes via the pending purchase →
+      // complete_hour_purchase. The browser just waits.
+      try {
+        const result = await waitForPaymentFinalization("pending_purchases", checkoutOrder.order_id);
+        if (result.status === "failed") throw new Error(result.error_message || "Purchase failed");
+        queryClient.invalidateQueries({ queryKey: ["user_hours_balance"] });
+        queryClient.invalidateQueries({ queryKey: ["member_hours"] });
+      } catch (err) {
+        console.error("Finalization wait failed, cron will reconcile:", err);
+        // Payment succeeded; the payment alert or cron will finish it.
+      }
 
       // Redeem coupon if applied
       if (pkgDiscount > 0 && appliedCoupon?.coupon_id) {
@@ -204,7 +165,7 @@ export default function Dashboard() {
 
       toast({ title: "Hours Purchased!", description: `${pkg.hours} hours have been added to your balance.` });
     } catch (err: any) {
-      if (err.message !== "Payment cancelled") {
+      if (err.message !== PAYMENT_CANCELLED) {
         toast({ title: "Purchase Failed", description: err.message, variant: "destructive" });
       }
     } finally {

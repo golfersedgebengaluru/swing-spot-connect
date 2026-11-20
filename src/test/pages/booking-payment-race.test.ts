@@ -16,16 +16,20 @@ const calendarSyncSrc = readFileSync(
 // tried to create the booking — hit its own booking as a slot conflict and
 // showed "Booking Failed" on a booking that was in fact confirmed.
 describe("member paid booking: server finalizes, browser only waits", () => {
-  it("never creates a booking from the browser inside the Razorpay handler", () => {
-    const handlerStart = pageSrc.indexOf("handler: async (response: any)");
-    const handlerEnd = pageSrc.indexOf("prefill:", handlerStart);
-    expect(handlerStart).toBeGreaterThan(0);
-    expect(handlerEnd).toBeGreaterThan(handlerStart);
-    const handler = pageSrc.slice(handlerStart, handlerEnd);
-    expect(handler).not.toMatch(/createBooking\.mutateAsync/);
-    expect(handler).not.toMatch(/revenue_transactions/);
+  it("never creates a booking from the browser once the payment window reports success", () => {
+    const paidStart = pageSrc.indexOf("await payForOrder(checkoutOrder");
+    const paidEnd = pageSrc.indexOf("setBookingComplete(true)", paidStart);
+    expect(paidStart).toBeGreaterThan(0);
+    expect(paidEnd).toBeGreaterThan(paidStart);
+    const paidFlow = pageSrc.slice(paidStart, paidEnd);
+    expect(paidFlow).not.toMatch(/createBooking\.mutateAsync/);
+    expect(paidFlow).not.toMatch(/revenue_transactions/);
     // And it must not mark the pending row completed itself.
-    expect(handler).not.toMatch(/status:\s*"completed"/);
+    expect(paidFlow).not.toMatch(/status:\s*"completed"/);
+    // The shared payment window (Razorpay or Cashfree) only reports payment.
+    const checkoutSrc = readFileSync(resolve(__dirname, "../../lib/online-checkout.ts"), "utf-8");
+    expect(checkoutSrc).not.toMatch(/\.from\(/);
+    expect(checkoutSrc).not.toMatch(/createBooking|revenue_transactions/);
   });
 
   it("waits on pending_bookings for members and pending_guest_bookings for guests", () => {
@@ -35,7 +39,7 @@ describe("member paid booking: server finalizes, browser only waits", () => {
   });
 
   it("treats a slow server as 'payment received', not as a booking failure", () => {
-    expect(pageSrc).toMatch(/if \(result\.status === "timeout"\) finalizationTimedOut = true/);
+    expect(pageSrc).toMatch(/const finalizationTimedOut = result\.status === "timeout"/);
     expect(pageSrc).toMatch(/setConfirmationPending\(finalizationTimedOut\)/);
     expect(pageSrc).toMatch(/being confirmed/);
   });

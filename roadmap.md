@@ -1,5 +1,12 @@
 # Roadmap
 
+## Cashfree alongside Razorpay — stage 1 (approved 20 November)
+- [ ] Admin Payments: add Cashfree per city (App ID, Secret Key, test/live) and choose which gateway takes online payments; can't pick one without keys or switch it off while in use
+- [ ] Bay bookings (members and guests) and hour packages/memberships pay through the city's chosen gateway; prices still set by the server; 10-minute hold kept
+- [ ] Cashfree payment alerts, a confirm step after the payment window, and the regular unfinished-payment check finish Cashfree payments; late payments for a gone slot refunded through the gateway that took them
+- [ ] Revenue and invoices record Cashfree as the gateway; leagues and quick competitions stay on Razorpay
+- [ ] Tests, deploy, publish; owner enters Cashfree keys and makes a test payment
+
 ## Membership revenue spread (approved 18 November)
 - [x] "Valid for (months)" and "Hours included" on catalogue services; "Valid for" on online hour packages; each new sale stores its start/end (staff may pick a later start in person; online starts on sale date)
 - [x] Revenue report, dashboard and P&L count memberships month by month before GST (prorated first/last month, equal full months); revenue card shows earned, "received, not yet earned" and membership GST separately; invoices/GST unchanged; past sales unchanged

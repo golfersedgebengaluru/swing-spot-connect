@@ -1,7 +1,8 @@
 // Cron-driven safety-net reconciler.
 // Every few minutes, finds pending_guest_bookings / pending_purchases /
 // pending_legacy_league_team_registrations older than RECONCILE_AGE_MIN that
-// are still 'pending', asks Razorpay if the order was captured, and finalizes
+// are still 'pending', asks the gateway that took the checkout (Razorpay, or
+// Cashfree for bookings and hour packages) if the order was paid, and finalizes
 // (or marks failed) accordingly. This protects against browser-side handler
 // failures AND missing/late Razorpay webhooks.
 
@@ -9,6 +10,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { finalizeLegacyTeamRegistration, resolveOrCreateLegacyRegistration } from "../_shared/legacy-league-finalize.ts";
 import { finalizeQcEntry } from "../_shared/qc-finalize.ts";
 import { hasValidReconcileSecret } from "../_shared/reconcile-auth.ts";
+import { fetchCashfreeOrderPayment } from "../_shared/cashfree.ts";
+import {
+  asCheckoutGateway,
+  cashfreeCreds,
+  type CheckoutGatewayName,
+  type GatewayCredentials,
+  loadGatewayCredentials,
+} from "../_shared/gateway-credentials.ts";
 
 const RECONCILE_AGE_MIN = 3; // ignore very-fresh rows (browser may still be finalizing)
 const MAX_AGE_HOURS = 24;    // stop trying after a day
@@ -87,23 +96,34 @@ Deno.serve(async (req) => {
   };
 
 
-  // Cache gateway creds per (city)
-  const gatewayCache = new Map<string, { key_id: string; key_secret: string } | null>();
-  async function getGateway(city: string) {
-    if (gatewayCache.has(city)) return gatewayCache.get(city)!;
-    const { data } = await admin
-      .from("payment_gateways")
-      .select("api_key, api_secret")
-      .eq("city", city)
-      .eq("name", "razorpay")
-      .eq("is_active", true)
-      .maybeSingle();
-    const creds = data?.api_key && data?.api_secret
-      ? { key_id: data.api_key as string, key_secret: data.api_secret as string }
-      : null;
-    gatewayCache.set(city, creds);
-    return creds;
+  // Cache gateway creds per (gateway, city). Lookups ignore whether the gateway
+  // still takes new checkouts: a checkout is always checked where it was paid.
+  const gatewayCache = new Map<string, GatewayCredentials | null>();
+  async function getGateway(city: string, gateway: CheckoutGatewayName) {
+    const key = `${gateway}:${city}`;
+    if (!gatewayCache.has(key)) gatewayCache.set(key, await loadGatewayCredentials(admin, city, gateway));
+    return gatewayCache.get(key)!;
   }
+
+  // One order lookup for both gateways, in Razorpay's shape ('paid' = captured).
+  async function lookupOrder(
+    city: string,
+    gatewayName: unknown,
+    orderId: string,
+  ): Promise<{ order: { status: string } | null; payment: { id: string } | null; error?: string }> {
+    const gateway = asCheckoutGateway(gatewayName);
+    const creds = await getGateway(city, gateway);
+    if (!creds) return { order: null, payment: null, error: `no ${gateway} gateway for ${city}` };
+    if (gateway === "cashfree") {
+      const r = await fetchCashfreeOrderPayment(cashfreeCreds(creds), orderId);
+      if (r.error && !r.paid) return { order: null, payment: null, error: r.error };
+      // Paid but the payment id is not readable yet: wait for the next run.
+      if (r.paid && !r.paymentId) return { order: null, payment: null, error: r.error ?? "payment id unavailable" };
+      return { order: { status: r.paid ? "paid" : r.status }, payment: r.paymentId ? { id: r.paymentId } : null };
+    }
+    return fetchRazorpayOrder(orderId, creds.keyId, creds.keySecret);
+  }
+  const gatewayLabel = (name: unknown) => (asCheckoutGateway(name) === "cashfree" ? "Cashfree" : "Razorpay");
 
   // ── 1. Guest bookings ──────────────────────────────────────────
   const { data: guestRows } = await admin
@@ -117,16 +137,7 @@ Deno.serve(async (req) => {
   for (const row of guestRows ?? []) {
     summary.guest_bookings.checked++;
     try {
-      const creds = await getGateway(row.city);
-      if (!creds) {
-        summary.guest_bookings.errors.push(`no gateway for ${row.city}`);
-        continue;
-      }
-      const { order, payment, error } = await fetchRazorpayOrder(
-        row.razorpay_order_id,
-        creds.key_id,
-        creds.key_secret,
-      );
+      const { order, payment, error } = await lookupOrder(row.city, row.payment_gateway, row.razorpay_order_id);
       if (error || !order) {
         summary.guest_bookings.errors.push(`${row.razorpay_order_id}: ${error}`);
         continue;
@@ -155,7 +166,7 @@ Deno.serve(async (req) => {
           payment_id: payment?.id ?? "cron_reconciled",
           amount: row.amount,
           currency: row.currency,
-          gateway_name: "razorpay",
+          gateway_name: asCheckoutGateway(row.payment_gateway),
           coupon_code: row.coupon_code || null,
           discount_amount: row.discount_amount || 0,
           original_amount: row.original_amount || null,
@@ -176,19 +187,17 @@ Deno.serve(async (req) => {
   const failCutoff = new Date(Date.now() - 30 * 60_000).toISOString();
   const { data: maybeFailed } = await admin
     .from("pending_guest_bookings")
-    .select("id, razorpay_order_id, city")
+    .select("id, razorpay_order_id, city, payment_gateway")
     .in("status", RECOVERABLE_STATUSES)
     .lt("created_at", failCutoff)
     .gt("created_at", cutoffIso)
     .limit(50);
   for (const row of maybeFailed ?? []) {
-    const creds = await getGateway(row.city);
-    if (!creds) continue;
-    const { order } = await fetchRazorpayOrder(row.razorpay_order_id, creds.key_id, creds.key_secret);
+    const { order } = await lookupOrder(row.city, row.payment_gateway, row.razorpay_order_id);
     if (order && order.status !== "paid") {
       await admin.from("pending_guest_bookings").update({
         status: "failed",
-        error_message: `Razorpay order status=${order.status} after 30 min`,
+        error_message: `${gatewayLabel(row.payment_gateway)} order status=${order.status} after 30 min`,
       }).eq("id", row.id);
       summary.guest_bookings.failed++;
     }
@@ -197,7 +206,7 @@ Deno.serve(async (req) => {
   // ── 1b. Signed-in member bookings ──────────────────────────────
   const { data: memberRows } = await admin
     .from("pending_bookings")
-    .select("id, razorpay_order_id, city, created_at")
+    .select("id, razorpay_order_id, city, created_at, payment_gateway")
     .in("status", RECOVERABLE_STATUSES)
     .lt("created_at", sinceIso)
     .gt("created_at", cutoffIso)
@@ -206,16 +215,7 @@ Deno.serve(async (req) => {
   for (const row of memberRows ?? []) {
     summary.member_bookings.checked++;
     try {
-      const creds = await getGateway(row.city);
-      if (!creds) {
-        summary.member_bookings.errors.push(`no gateway for ${row.city}`);
-        continue;
-      }
-      const { order, payment, error } = await fetchRazorpayOrder(
-        row.razorpay_order_id,
-        creds.key_id,
-        creds.key_secret,
-      );
+      const { order, payment, error } = await lookupOrder(row.city, row.payment_gateway, row.razorpay_order_id);
 
       // Trust payment_events as a signed, verified fallback when the live
       // Razorpay lookup fails (e.g. rotated keys). payment_events rows are
@@ -268,19 +268,17 @@ Deno.serve(async (req) => {
   // Flip member pending rows to 'failed' when Razorpay confirms not paid after 30 min
   const { data: memberMaybeFailed } = await admin
     .from("pending_bookings")
-    .select("id, razorpay_order_id, city")
+    .select("id, razorpay_order_id, city, payment_gateway")
     .in("status", RECOVERABLE_STATUSES)
     .lt("created_at", failCutoff)
     .gt("created_at", cutoffIso)
     .limit(50);
   for (const row of memberMaybeFailed ?? []) {
-    const creds = await getGateway(row.city);
-    if (!creds) continue;
-    const { order } = await fetchRazorpayOrder(row.razorpay_order_id, creds.key_id, creds.key_secret);
+    const { order } = await lookupOrder(row.city, row.payment_gateway, row.razorpay_order_id);
     if (order && order.status !== "paid") {
       await admin.from("pending_bookings").update({
         status: "failed",
-        error_message: `Razorpay order status=${order.status} after 30 min`,
+        error_message: `${gatewayLabel(row.payment_gateway)} order status=${order.status} after 30 min`,
       }).eq("id", row.id);
       summary.member_bookings.failed++;
     }
@@ -299,13 +297,11 @@ Deno.serve(async (req) => {
   for (const row of hpRows ?? []) {
     summary.hour_purchases.checked++;
     try {
-      const creds = await getGateway(row.city);
-      if (!creds) continue;
-      const { order, payment } = await fetchRazorpayOrder(
-        row.razorpay_order_id,
-        creds.key_id,
-        creds.key_secret,
-      );
+      const { order, payment, error } = await lookupOrder(row.city, row.payment_gateway, row.razorpay_order_id);
+      if (error && !order) {
+        summary.hour_purchases.errors.push(`${row.razorpay_order_id}: ${error}`);
+        continue;
+      }
       if (!order || order.status !== "paid") {
         summary.hour_purchases.still_pending++;
         continue;
@@ -353,13 +349,8 @@ Deno.serve(async (req) => {
         summary.legacy_teams.errors.push(`${row.razorpay_order_id}: no city`);
         continue;
       }
-      const creds = await getGateway(cityName);
-      if (!creds) continue;
-      const { order, payment } = await fetchRazorpayOrder(
-        row.razorpay_order_id,
-        creds.key_id,
-        creds.key_secret,
-      );
+      // League and quick-competition entries are paid through Razorpay only.
+      const { order, payment } = await lookupOrder(cityName, "razorpay", row.razorpay_order_id);
       if (!order || order.status !== "paid") {
         summary.legacy_teams.still_pending++;
         continue;
@@ -425,13 +416,8 @@ Deno.serve(async (req) => {
         summary.qc_entries.errors.push(`${row.razorpay_order_id}: no city on competition`);
         continue;
       }
-      const creds = await getGateway(cityName);
-      if (!creds) continue;
-      const { order, payment } = await fetchRazorpayOrder(
-        row.razorpay_order_id,
-        creds.key_id,
-        creds.key_secret,
-      );
+      // League and quick-competition entries are paid through Razorpay only.
+      const { order, payment } = await lookupOrder(cityName, "razorpay", row.razorpay_order_id);
       if (!order || order.status !== "paid") {
         summary.qc_entries.still_pending++;
         continue;

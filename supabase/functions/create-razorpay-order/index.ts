@@ -10,6 +10,9 @@ import {
 } from "../_shared/checkout-pricing.ts";
 import { cityBookingMode, loadBay, PAYMENT_HOLD_MINUTES, releaseHold, reserveBay } from "../_shared/app-availability.ts";
 import { customerOpeningHoursError } from "../_shared/opening-hours.ts";
+import { cashfreeCustomerId, cashfreeCustomerPhone, createCashfreeOrder, newCashfreeOrderId } from "../_shared/cashfree.ts";
+import { cashfreeCreds, type CheckoutGatewayName, loadCheckoutGateway } from "../_shared/gateway-credentials.ts";
+import { safeAppRedirect } from "../_shared/app-origins.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") || "*",
@@ -27,6 +30,8 @@ const Coupon = z.object({
 
 // Callers describe WHAT they are buying; the price, payment account and the
 // pending checkout record are all derived here from server-side records.
+// The city's chosen gateway (Razorpay or Cashfree) takes the payment; the
+// function keeps its original name so published pages keep working.
 const BookingOrder = Coupon.extend({
   purpose: z.literal("booking"),
   bay_id: z.string().uuid(),
@@ -101,7 +106,18 @@ serve(async (req) => {
     let currency: string;
     let amount: number;
     let notes: Record<string, string>;
-    let stashPending: (orderId: string) => PromiseLike<{ error: { message: string } | null }>;
+    let stashPending: (orderId: string, gateway: CheckoutGatewayName) => PromiseLike<{ error: { message: string } | null }>;
+    // Who is paying — Cashfree requires a phone number for every order.
+    let payer: { userId: string | null; name: string | null; email: string | null; phone: string | null };
+    const memberPayer = async () => {
+      const { data: p } = await admin.from("profiles").select("display_name, phone").eq("user_id", user!.id).maybeSingle();
+      return {
+        userId: user!.id,
+        name: p?.display_name || (user!.user_metadata?.display_name as string | undefined) || null,
+        email: user!.email ?? null,
+        phone: p?.phone ?? null,
+      };
+    };
     // Any failure before the pending record exists must free the held slot.
     const failWithHoldReleased = async (payload: unknown, status: number) => {
       await releaseHold(admin, paymentHoldId);
@@ -160,13 +176,16 @@ serve(async (req) => {
         amount: charge.amount, currency, coupon_code: order.coupon_code ?? null,
         discount_amount: charge.discount, original_amount: charge.total,
       };
+      payer = user
+        ? await memberPayer()
+        : { userId: null, name: order.guest!.name, email: order.guest!.email, phone: order.guest!.phone };
       stashPending = user
-        ? (orderId) => admin.from("pending_bookings").insert({
-            ...common, razorpay_order_id: orderId, user_id: user!.id,
+        ? (orderId, gateway) => admin.from("pending_bookings").insert({
+            ...common, razorpay_order_id: orderId, payment_gateway: gateway, user_id: user!.id,
             display_name: (user!.user_metadata?.display_name as string | undefined) || user!.email || null,
           })
-        : (orderId) => admin.from("pending_guest_bookings").insert({
-            ...common, razorpay_order_id: orderId,
+        : (orderId, gateway) => admin.from("pending_guest_bookings").insert({
+            ...common, razorpay_order_id: orderId, payment_gateway: gateway,
             guest_name: order.guest!.name, guest_email: order.guest!.email, guest_phone: order.guest!.phone,
           });
     } else {
@@ -184,58 +203,85 @@ serve(async (req) => {
       city = profile.preferred_city;
       currency = pkg.currency || "INR";
       notes = { type: "hour_package", hours: String(pkg.hours), label: pkg.label || "", user_id: user.id };
-      stashPending = (orderId) => admin.from("pending_purchases").insert({
-        user_id: user!.id, razorpay_order_id: orderId, package_hours: pkg.hours, package_price: pkg.price,
+      payer = await memberPayer();
+      stashPending = (orderId, gateway) => admin.from("pending_purchases").insert({
+        user_id: user!.id, razorpay_order_id: orderId, payment_gateway: gateway, package_hours: pkg.hours, package_price: pkg.price,
         package_label: pkg.label || `${pkg.hours}h Package`, currency, city, status: "pending",
         // Snapshot the validity so later package edits cannot change what this buyer got.
         membership_validity_months: pkg.membership_validity_months ?? null,
       });
     }
 
-    const { data: gateway } = await admin
-      .from("payment_gateways")
-      .select("api_key, api_secret, city, is_active")
-      .eq("city", city)
-      .eq("is_active", true)
-      .maybeSingle();
-    if (!gateway) return failWithHoldReleased({ error: "No active Razorpay gateway found for this city" }, 400);
+    const gateway = await loadCheckoutGateway(admin, city);
+    if (!gateway) return failWithHoldReleased({ error: "Online payment isn't set up for this city yet" }, 400);
 
-    const apiKey = (gateway.api_key || "").trim();
-    const citySlug = city.toUpperCase().replace(/[^A-Z0-9]/g, "_");
-    const apiSecret = (Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) || gateway.api_secret || "").trim();
-    if (!apiKey || !apiSecret) return failWithHoldReleased({ error: "Razorpay API credentials not configured for this city" }, 400);
-
-    const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Basic ${btoa(`${apiKey}:${apiSecret}`)}` },
-      body: JSON.stringify({
-        amount: Math.round(amount * 100),
+    let orderId: string;
+    let checkout: Record<string, unknown>;
+    if (gateway.name === "cashfree") {
+      const phone = cashfreeCustomerPhone(payer.phone);
+      if (!phone) {
+        return failWithHoldReleased({
+          error: payer.userId
+            ? "Please add your mobile number in your profile before paying online."
+            : "Please enter a valid mobile number.",
+        }, 400);
+      }
+      orderId = newCashfreeOrderId();
+      const created = await createCashfreeOrder(cashfreeCreds(gateway), {
+        orderId,
+        amount,
         currency,
-        receipt: `${order.purpose === "booking" ? "booking" : "hours"}_${Date.now()}`,
-        notes,
-      }),
-    });
-    if (!rzpRes.ok) {
-      await rzpRes.text();
-      console.error("Razorpay order creation failed — HTTP", rzpRes.status);
-      return failWithHoldReleased({ error: "Failed to create Razorpay order" }, 500);
+        customer: { id: cashfreeCustomerId(payer.userId, phone), phone, name: payer.name, email: payer.email },
+        note: Object.values(notes).filter(Boolean).join(" · "),
+        tags: { city, purpose: order.purpose },
+        notifyUrl: `${supabaseUrl}/functions/v1/cashfree-webhook`,
+        returnUrl: returnUrlFor(req.headers.get("origin"), order.purpose === "booking" ? "/book" : "/dashboard"),
+        // Cashfree's shortest allowed expiry; a payment after the slot hold ends is refunded if the slot is gone.
+        expiresAt: new Date(Date.now() + 16 * 60_000).toISOString(),
+      });
+      if (!created.ok) {
+        console.error("Cashfree order creation failed — HTTP", created.status);
+        return failWithHoldReleased({ error: "Failed to create payment order" }, 500);
+      }
+      checkout = {
+        gateway: "cashfree", order_id: orderId, payment_session_id: created.paymentSessionId,
+        mode: gateway.testMode ? "sandbox" : "production", currency, charge_amount: amount,
+      };
+    } else {
+      const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Basic ${btoa(`${gateway.keyId}:${gateway.keySecret}`)}` },
+        body: JSON.stringify({
+          amount: Math.round(amount * 100),
+          currency,
+          receipt: `${order.purpose === "booking" ? "booking" : "hours"}_${Date.now()}`,
+          notes,
+        }),
+      });
+      if (!rzpRes.ok) {
+        await rzpRes.text();
+        console.error("Razorpay order creation failed — HTTP", rzpRes.status);
+        return failWithHoldReleased({ error: "Failed to create Razorpay order" }, 500);
+      }
+      const rzpOrder = await rzpRes.json();
+      orderId = rzpOrder.id;
+      checkout = {
+        gateway: "razorpay", order_id: rzpOrder.id, amount: rzpOrder.amount, currency: rzpOrder.currency,
+        key_id: gateway.keyId, charge_amount: amount,
+      };
     }
-    const rzpOrder = await rzpRes.json();
 
-    // The pending record is what the webhook finalizes; without it no payment may be taken.
-    const { error: stashErr } = await stashPending(rzpOrder.id);
+    // The pending record is what the payment alert finalizes; without it no payment may be taken.
+    const { error: stashErr } = await stashPending(orderId, gateway.name);
     if (stashErr) {
       console.error("create-razorpay-order pending record failed:", stashErr.message);
       return failWithHoldReleased({ error: "Could not start payment. Please try again." }, 500);
     }
     if (paymentHoldId) {
-      await admin.from("bay_holds").update({ razorpay_order_id: rzpOrder.id }).eq("id", paymentHoldId);
+      await admin.from("bay_holds").update({ razorpay_order_id: orderId }).eq("id", paymentHoldId);
     }
 
-    return json({
-      order_id: rzpOrder.id, amount: rzpOrder.amount, currency: rzpOrder.currency, key_id: apiKey, charge_amount: amount,
-      ...(paymentHoldId ? { hold_minutes: PAYMENT_HOLD_MINUTES } : {}),
-    });
+    return json({ ...checkout, ...(paymentHoldId ? { hold_minutes: PAYMENT_HOLD_MINUTES } : {}) });
   } catch (err) {
     if (paymentHoldId && releaseHeldSlot) await releaseHeldSlot().catch(() => {});
     if (err instanceof CheckoutError) return json({ error: err.message }, 400);
@@ -245,3 +291,6 @@ serve(async (req) => {
 });
 
 class CheckoutError extends Error {}
+
+/** Where Cashfree sends the customer if a payment method leaves the window: the page they paid from, on our own site. */
+const returnUrlFor = (origin: string | null, path: string) => safeAppRedirect(`${origin ?? ""}${path}`, path);

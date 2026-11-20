@@ -29,7 +29,7 @@ import {
   INSERT_HOLD_MINUTES,
   loadBay,
   memberHoursForBay,
-  refundRazorpayPayment,
+  refundCheckoutPayment,
   releaseHold,
   reserveBay,
 } from "../_shared/app-availability.ts";
@@ -1107,7 +1107,10 @@ Deno.serve(async (req) => {
           : null;
         if (!reservation) {
           if (order_id) {
-            const refund = await refundRazorpayPayment(adminClient, city, payment_id, { reason: "slot_unavailable", order_id });
+            const refund = await refundCheckoutPayment(adminClient, {
+              city, gateway: params.gateway_name, orderId: order_id, paymentId: payment_id, amount: Number(params.amount) || 0,
+              notes: { reason: "slot_unavailable", order_id },
+            });
             await adminClient.from("pending_guest_bookings")
               .update({ status: refund.ok ? "refunded" : "failed", error_message: refund.ok ? "Slot taken before payment finished; refunded" : `Slot unavailable; ${refund.error}` })
               .eq("razorpay_order_id", order_id);
@@ -1516,7 +1519,10 @@ Deno.serve(async (req) => {
               })
             : null;
           if (!reservation) {
-            const refund = await refundRazorpayPayment(adminClient, row.city, payment_id, { reason: "slot_unavailable", order_id: row.razorpay_order_id });
+            const refund = await refundCheckoutPayment(adminClient, {
+              city: row.city, gateway: row.payment_gateway, orderId: row.razorpay_order_id, paymentId: payment_id, amount: Number(row.amount) || 0,
+              notes: { reason: "slot_unavailable", order_id: row.razorpay_order_id },
+            });
             await release(refund.ok ? "Slot taken before payment finished; refunded" : `Slot unavailable; ${refund.error}`, refund.ok ? "refunded" : "failed");
             return new Response(
               JSON.stringify({ error: "slot no longer available", refunded: refund.ok }),
@@ -1588,7 +1594,7 @@ Deno.serve(async (req) => {
             amount: row.amount || 0,
             currency: row.currency || "INR",
             user_id: row.user_id,
-            gateway_name: "razorpay",
+            gateway_name: row.payment_gateway || "razorpay",
             gateway_order_ref: row.razorpay_order_id,
             gateway_payment_ref: payment_id || "webhook_reconciled",
             booking_id: booking.id,
@@ -1652,7 +1658,7 @@ Deno.serve(async (req) => {
             hoursRemaining: "N/A (paid via gateway)",
             addToCalendarUrl: addToCalendarUrlRecovered,
             memberNameFallback: row.display_name || "A member",
-            paymentMethod: "razorpay",
+            paymentMethod: row.payment_gateway || "razorpay",
           },
           bookingNotifyHelpers,
         );

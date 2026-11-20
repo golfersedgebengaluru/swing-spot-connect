@@ -31,6 +31,7 @@ import { CouponInput } from "@/components/shop/CouponInput";
 import { ValidateCouponResult, calculateDiscount, getSessionId, useRedeemCoupon } from "@/hooks/useCoupons";
 import { BookingTerms } from "@/components/BookingTerms";
 import { waitForPaymentFinalization } from "@/hooks/usePaymentFinalization";
+import { PAYMENT_CANCELLED, payForOrder, type CheckoutOrder } from "@/lib/online-checkout";
 
 type Step = "select" | "payment" | "confirm";
 
@@ -145,22 +146,6 @@ export default function PublicBooking() {
     return isDateBlocked(date, weeklyOffDays, holidays, currentBay.id);
   };
 
-  // Load Razorpay script
-  const loadRazorpayScript = (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      if (document.getElementById("razorpay-script")) {
-        resolve(true);
-        return;
-      }
-      const script = document.createElement("script");
-      script.id = "razorpay-script";
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-  };
-
   const handleConfirmBooking = async () => {
     if (!selectedSlot || !endTime || !currentBay) return;
     setIsProcessing(true);
@@ -180,7 +165,7 @@ export default function PublicBooking() {
         setBookingComplete(true);
         toast({ title: "Booking Confirmed!", description: "Hours have been deducted from your balance." });
       } else {
-        // Payment flow via Razorpay
+        // Online payment through the city's chosen gateway (Razorpay or Cashfree)
         const amountToCharge = finalBookingTotal;
         if (amountToCharge <= 0) {
           toast({ title: "Error", description: "Price not available for this selection.", variant: "destructive" });
@@ -188,9 +173,9 @@ export default function PublicBooking() {
           return;
         }
 
-        // 1. Create the Razorpay order. The server prices the booking, picks the
+        // 1. Create the payment order. The server prices the booking, picks the
         // city's payment account and records the pending checkout itself; the
-        // Razorpay webhook (with the cron reconciler as backstop) is the ONLY
+        // gateway's payment alert (with the cron reconciler as backstop) is the ONLY
         // thing that creates the booking, revenue row, calendar event and emails.
         const orderRes = await supabase.functions.invoke("create-razorpay-order", {
           body: {
@@ -210,88 +195,27 @@ export default function PublicBooking() {
           throw new Error(orderRes.data?.error || orderRes.error?.message || "Failed to create payment order");
         }
 
-        const { order_id, key_id, currency: rzpCurrency, amount: orderAmount, hold_minutes: holdMinutes } = orderRes.data;
+        const checkoutOrder = orderRes.data as CheckoutOrder;
 
-        // 2. Load Razorpay checkout script
-        const loaded = await loadRazorpayScript();
-        if (!loaded) {
-          throw new Error("Failed to load payment gateway. Please try again.");
-        }
-
-        // 3. Open Razorpay Checkout
-        let finalizationTimedOut = false;
-        await new Promise<void>((resolve, reject) => {
-          let settled = false;
-
-          const finishResolve = () => {
-            if (settled) return;
-            settled = true;
-            resolve();
-          };
-
-          const finishReject = (error: Error) => {
-            if (settled) return;
-            settled = true;
-            reject(error);
-          };
-
-          const options = {
-            key: key_id,
-            amount: orderAmount,
-            currency: rzpCurrency || "INR",
-            name: "Golfer's Edge",
-            description: `${bayLabel} · ${duration / 60}h ${sessionType}`,
-            order_id: order_id,
-            // The slot is held only while the payment window is open.
-            ...(holdMinutes ? { timeout: Number(holdMinutes) * 60 } : {}),
-            handler: async (response: any) => {
-              try {
-                setIsProcessing(true);
-                setIsFinalizing(true);
-
-                // The webhook (authoritative) finalizes the booking, revenue row,
-                // calendar event and emails for BOTH guests and signed-in members.
-                // The browser only polls the pending row — it never creates the
-                // booking itself. This removes the browser-vs-webhook race that
-                // used to show "Booking Failed" on an already-confirmed booking.
-                const result = await waitForPaymentFinalization(
-                  user ? "pending_bookings" : "pending_guest_bookings",
-                  response.razorpay_order_id,
-                );
-                if (result.status === "failed") {
-                  throw new Error(result.error_message || "Booking failed");
-                }
-                // 'timeout' is OK: webhook/cron will finalize within a few minutes.
-                if (result.status === "timeout") finalizationTimedOut = true;
-
-                finishResolve();
-              } catch (err) {
-                finishReject(err instanceof Error ? err : new Error("Booking failed"));
-              }
-            },
-
-            prefill: {
-              name: user ? undefined : guestName,
-              email: user ? undefined : guestEmail,
-              contact: user ? undefined : guestPhone,
-            },
-            theme: { color: "#16a34a" },
-            modal: {
-              ondismiss: () => {
-                finishReject(new Error("Payment cancelled"));
-              },
-            },
-          };
-
-          const rzp = new (window as any).Razorpay(options);
-
-          rzp.on("payment.failed", (response: any) => {
-            finishReject(new Error(response?.error?.description || "Payment failed"));
-          });
-
-          setIsProcessing(false);
-          rzp.open();
+        // 2. Open the payment window. The slot is held only while it is open.
+        await payForOrder(checkoutOrder, {
+          description: `${bayLabel} · ${duration / 60}h ${sessionType}`,
+          prefill: user ? undefined : { name: guestName, email: guestEmail, contact: guestPhone },
         });
+
+        // 3. The server (authoritative) finalizes the booking, revenue row,
+        // calendar event and emails for BOTH guests and signed-in members.
+        // The browser only polls the pending row — it never creates the booking.
+        setIsFinalizing(true);
+        const result = await waitForPaymentFinalization(
+          user ? "pending_bookings" : "pending_guest_bookings",
+          checkoutOrder.order_id,
+        );
+        if (result.status === "failed") {
+          throw new Error(result.error_message || "Booking failed");
+        }
+        // 'timeout' is OK: the payment alert or cron will finalize within a few minutes.
+        const finalizationTimedOut = result.status === "timeout";
 
         // Redeem coupon if applied
         if (appliedCoupon?.coupon_id) {
@@ -320,7 +244,7 @@ export default function PublicBooking() {
 
       }
     } catch (err: any) {
-      if (err.message !== "Payment cancelled") {
+      if (err.message !== PAYMENT_CANCELLED) {
         toast({ title: "Booking Failed", description: err.message, variant: "destructive" });
       }
     } finally {
@@ -765,7 +689,7 @@ export default function PublicBooking() {
                     <div className="flex-1">
                       <p className="font-medium text-foreground">Pay Now</p>
                       <p className="text-sm text-muted-foreground">
-                        {finalBookingTotal > 0 ? `₹${finalBookingTotal.toLocaleString()}` : "Price TBD"} · Razorpay / UPI / Card
+                        {finalBookingTotal > 0 ? `₹${finalBookingTotal.toLocaleString()}` : "Price TBD"} · Pay online: UPI / Card
                       </p>
                     </div>
                   </button>

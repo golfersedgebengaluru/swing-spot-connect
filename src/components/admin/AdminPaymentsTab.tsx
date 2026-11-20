@@ -20,11 +20,19 @@ import {
   type GatewayChanges,
   type SafePaymentGateway,
 } from "@/lib/payment-gateways";
+import {
+  CashfreeNote,
+  CheckoutGatewayBadge,
+  CheckoutGatewayChoice,
+  GATEWAY_KEY_LABELS,
+  NoCheckoutGatewayNotice,
+} from "@/components/admin/CheckoutGatewayChoice";
 
 type Gateway = SafePaymentGateway;
 
 const GATEWAY_TEMPLATES = [
   { name: "razorpay", display_name: "Razorpay" },
+  { name: "cashfree", display_name: "Cashfree" },
   { name: "stripe", display_name: "Stripe" },
   { name: "paypal", display_name: "PayPal" },
 ];
@@ -142,7 +150,8 @@ export function AdminPaymentsTab() {
             <CreditCard className="h-5 w-5" /> Payment Gateways
           </CardTitle>
           <CardDescription>
-            Configure payment gateways per city. Each city can have its own active gateway.
+            Configure payment gateways per city. In each city one gateway takes online bookings and hour packages;
+            leagues and quick competitions always use Razorpay.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -184,6 +193,7 @@ export function AdminPaymentsTab() {
               {cityGateways.length === 0 && (
                 <p className="text-sm text-muted-foreground">No gateways configured for this city yet.</p>
               )}
+              <NoCheckoutGatewayNotice city={city} gateways={cityGateways} />
               {cityGateways.map((gw) => {
                 const merged = getEdit(gw);
                 const hasChanges = !!edits[gw.id];
@@ -193,15 +203,22 @@ export function AdminPaymentsTab() {
                       <div className="flex items-center gap-3">
                         <span className="font-medium">{gw.display_name}</span>
                         {gw.is_active && <Badge className="bg-green-500/15 text-green-600 border-green-300">Active</Badge>}
+                        <CheckoutGatewayBadge gateway={gw} />
                         {merged.is_test_mode && <Badge variant="outline" className="text-amber-600 border-amber-300">Test Mode</Badge>}
                       </div>
                       <div className="flex items-center gap-2">
-                        <Switch checked={gw.is_active} onCheckedChange={() => handleToggleActive(gw)} />
+                        <Switch
+                          checked={gw.is_active}
+                          disabled={gw.use_for_checkout}
+                          aria-label={`${gw.display_name} on or off`}
+                          onCheckedChange={() => handleToggleActive(gw)}
+                        />
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label={`Remove ${gw.display_name}`}
                           onClick={() => deleteGateway.mutate(gw.id)}
-                          disabled={deleteGateway.isPending}
+                          disabled={deleteGateway.isPending || gw.use_for_checkout}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -210,7 +227,7 @@ export function AdminPaymentsTab() {
 
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <Label>API Key {gw.name === "razorpay" && "(Key ID)"}</Label>
+                        <Label>{GATEWAY_KEY_LABELS[gw.name]?.key ?? "API Key"}</Label>
                         <Input
                           type="password"
                           placeholder={gw.has_api_key ? "Configured — enter a replacement" : `Enter ${gw.display_name} API key`}
@@ -219,7 +236,7 @@ export function AdminPaymentsTab() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>API Secret {gw.name === "razorpay" && "(Key Secret)"}</Label>
+                        <Label>{GATEWAY_KEY_LABELS[gw.name]?.secret ?? "API Secret"}</Label>
                         <Input
                           type="password"
                           placeholder={gw.has_api_secret ? "Configured — enter a replacement" : `Enter ${gw.display_name} API secret`}
@@ -243,6 +260,9 @@ export function AdminPaymentsTab() {
                         </p>
                       </div>
                     )}
+
+                    <CashfreeNote gateway={gw} />
+                    <CheckoutGatewayChoice city={city} gateway={gw} cityGateways={cityGateways} hasUnsavedChanges={hasChanges} />
 
                     <div className="flex items-center justify-between pt-2">
                       <div className="flex items-center gap-2">

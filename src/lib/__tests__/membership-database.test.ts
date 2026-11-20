@@ -41,6 +41,9 @@ beforeAll(async () => {
     CREATE SEQUENCE doc_seq START 1061; CREATE FUNCTION get_next_invoice_number(text,uuid,text,int,text) RETURNS text LANGUAGE sql AS $$ SELECT $3||'/'||nextval('doc_seq') $$;`);
   await db.exec(readFileSync("drizzle/migrations/0026_membership_validity_and_hours.sql", "utf8"));
   await db.exec(readFileSync("drizzle/migrations/0027_membership_pre_gst_spread.sql", "utf8"));
+  await db.exec(`CREATE TABLE payment_gateways(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),name text,city text,tenant_id uuid,api_key text,api_secret text,is_active boolean,updated_at timestamptz);
+    CREATE TABLE pending_bookings(razorpay_order_id text); CREATE TABLE pending_guest_bookings(razorpay_order_id text);`);
+  await db.exec(readFileSync("drizzle/migrations/0029_cashfree_checkout_gateway.sql", "utf8").replace(/--> statement-breakpoint/g, ""));
 }, 30000);
 afterAll(async () => { await db?.close(); });
 
@@ -190,6 +193,14 @@ describe("buying a membership package online", () => {
     expect(await balance()).toEqual({ purchased: 25, used: 0 });
     const m = (await db.query<any>(`SELECT amount::float a, hours::float h, validity_months v FROM memberships`)).rows;
     expect(m).toEqual([{ a: 30000, h: 25, v: 3 }]);
+  });
+
+  it("records the gateway that took the money", async () => {
+    await db.exec(`INSERT INTO pending_purchases(razorpay_order_id,package_label,status,payment_gateway) VALUES('cf_1','10h','pending','cashfree'),('order_3','10h','pending','razorpay')`);
+    await db.query(`SELECT complete_hour_purchase($1,10,5000,'INR','cf_1','111','10h','Chennai')`, [member]);
+    await db.query(`SELECT complete_hour_purchase($1,10,5000,'INR','order_3','pay_3','10h','Chennai')`, [member]);
+    const rows = (await db.query<{ ref: string; gw: string }>(`SELECT gateway_order_ref ref, gateway_name gw FROM revenue_transactions ORDER BY 1`)).rows;
+    expect(rows).toEqual([{ ref: "cf_1", gw: "cashfree" }, { ref: "order_3", gw: "razorpay" }]);
   });
 
   it("packages without a validity period behave exactly as before", async () => {

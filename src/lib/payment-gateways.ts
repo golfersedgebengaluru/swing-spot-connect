@@ -11,6 +11,8 @@ export interface SafePaymentGateway {
   display_name: string;
   is_active: boolean;
   is_test_mode: boolean;
+  /** This gateway takes the city's new online payments (bookings, hour packages). */
+  use_for_checkout: boolean;
   sort_order: number;
   city: string | null;
   tenant_id: string | null;
@@ -54,4 +56,8 @@ export async function updatePaymentGateway(gatewayId: string, updates: GatewayCh
 
 export async function deletePaymentGateway(gatewayId: string) {
   return invokeGatewayOperation({ action: "delete", gateway_id: gatewayId });
+}
+/** Switch the city's online payments to this gateway (it must be on, with keys saved). */
+export async function chooseCheckoutGateway(gatewayId: string) {
+  return invokeGatewayOperation({ action: "use_for_checkout", gateway_id: gatewayId });
 }

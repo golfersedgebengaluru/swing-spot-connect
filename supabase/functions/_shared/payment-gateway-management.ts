@@ -7,6 +7,7 @@ export type GatewayRecord = {
   webhook_secret: string | null;
   is_active: boolean;
   is_test_mode: boolean;
+  use_for_checkout?: boolean | null;
   sort_order: number;
   city: string | null;
   tenant_id: string | null;
@@ -32,6 +33,7 @@ export function toSafeGateway(row: GatewayRecord) {
     display_name: row.display_name,
     is_active: row.is_active,
     is_test_mode: row.is_test_mode,
+    use_for_checkout: row.use_for_checkout === true,
     sort_order: row.sort_order,
     city: row.city,
     tenant_id: row.tenant_id,
@@ -57,3 +59,20 @@ export function buildGatewayUpdate(input: GatewayUpdateInput): Record<string, un
   for (const field of input.clear_credentials ?? []) update[field] = null;
   return update;
 }
+/** Messages set_checkout_gateway raises on purpose; anything else stays a generic failure. */
+export const CHECKOUT_SWITCH_MESSAGES = [
+  "Gateway not found",
+  "Only a city payment account can take online payments",
+  "This gateway cannot take online payments",
+  "Switch this gateway on first",
+  "Save this gateway's keys first",
+];
+
+export function checkoutSwitchMessage(error: { message?: string } | null | undefined): string | null {
+  const message = error?.message ?? "";
+  return CHECKOUT_SWITCH_MESSAGES.find((m) => message.includes(m)) ?? null;
+}
+
+/** The gateway taking online payments cannot be switched off, emptied of keys or removed. */
+export const CHECKOUT_GATEWAY_LOCKED =
+  "This gateway takes the city's online payments. Choose another gateway for online payments first.";

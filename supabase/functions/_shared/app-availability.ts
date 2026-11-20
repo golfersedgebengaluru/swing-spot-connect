@@ -7,6 +7,8 @@ export const PAYMENT_HOLD_MINUTES = 10;
 export const INSERT_HOLD_MINUTES = 2;
 
 import type { BusyRange } from "./app-slots.ts";
+import { refundCashfreeOrder } from "./cashfree.ts";
+import { asCheckoutGateway, cashfreeCreds, loadGatewayCredentials } from "./gateway-credentials.ts";
 export { computeSlots, memberHoursForBay } from "./app-slots.ts";
 export type { BusyRange, SlotResult } from "./app-slots.ts";
 
@@ -114,22 +116,38 @@ export async function holdForOrder(admin: Admin, orderId: string | null | undefi
   return data?.id ?? null;
 }
 
-/** Return a captured Razorpay payment when the paid slot can no longer be booked. */
-export async function refundRazorpayPayment(admin: Admin, city: string, paymentId: string | null | undefined, notes: Record<string, string>): Promise<{ ok: boolean; error?: string }> {
-  if (!paymentId || paymentId === "webhook_reconciled") return { ok: false, error: "No payment reference to refund" };
-  const { data: gateway } = await admin
-    .from("payment_gateways")
-    .select("api_key, api_secret")
-    .eq("city", city).eq("is_active", true)
-    .maybeSingle();
-  const apiKey = (gateway?.api_key || "").trim();
-  const citySlug = city.toUpperCase().replace(/[^A-Z0-9]/g, "_");
-  const apiSecret = (Deno.env.get(`RAZORPAY_SECRET_${citySlug}`) || gateway?.api_secret || "").trim();
-  if (!apiKey || !apiSecret) return { ok: false, error: "Payment account not configured" };
+/**
+ * Return a captured checkout payment when the paid slot can no longer be booked.
+ * Always refunds through the gateway that took the money, even if the city has
+ * since switched gateways or turned that one off.
+ */
+export async function refundCheckoutPayment(admin: Admin, opts: {
+  city: string;
+  gateway: unknown;
+  orderId: string | null | undefined;
+  paymentId: string | null | undefined;
+  amount: number | null | undefined;
+  notes: Record<string, string>;
+}): Promise<{ ok: boolean; error?: string }> {
+  const gateway = asCheckoutGateway(opts.gateway);
+  const creds = await loadGatewayCredentials(admin, opts.city, gateway);
+  if (!creds) return { ok: false, error: "Payment account not configured" };
+
+  if (gateway === "cashfree") {
+    if (!opts.orderId || !opts.amount || opts.amount <= 0) return { ok: false, error: "No payment reference to refund" };
+    return refundCashfreeOrder(cashfreeCreds(creds), {
+      orderId: opts.orderId, amount: Number(opts.amount), note: opts.notes.reason ?? "refund",
+    });
+  }
+
+  const paymentId = opts.paymentId;
+  if (!paymentId || paymentId === "webhook_reconciled" || paymentId === "cron_reconciled") {
+    return { ok: false, error: "No payment reference to refund" };
+  }
   const res = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}/refund`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Basic ${btoa(`${apiKey}:${apiSecret}`)}` },
-    body: JSON.stringify({ notes }),
+    headers: { "Content-Type": "application/json", Authorization: `Basic ${btoa(`${creds.keyId}:${creds.keySecret}`)}` },
+    body: JSON.stringify({ notes: opts.notes }),
   });
   if (!res.ok) {
     const body = await res.text();

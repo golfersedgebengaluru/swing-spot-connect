@@ -204,6 +204,13 @@
       "when": 1795156852370,
       "tag": "0028_blockout_google_copy",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1795178663175,
+      "tag": "0029_cashfree_checkout_gateway",
+      "breakpoints": true
     }
   ]
 }

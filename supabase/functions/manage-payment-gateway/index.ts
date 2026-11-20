@@ -4,6 +4,8 @@ import { z } from "https://esm.sh/zod@3";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import {
   buildGatewayUpdate,
+  CHECKOUT_GATEWAY_LOCKED,
+  checkoutSwitchMessage,
   toSafeGateway,
   type GatewayRecord,
 } from "../_shared/payment-gateway-management.ts";
@@ -21,7 +23,7 @@ const requestSchema = z.discriminatedUnion("action", [
     action: z.literal("create"),
     target: scopeSchema,
     gateway: z.object({
-      name: z.enum(["razorpay", "stripe", "paypal"]),
+      name: z.enum(["razorpay", "cashfree", "stripe", "paypal"]),
       display_name: z.string().trim().min(1).max(100),
       is_active: z.boolean().optional(),
       is_test_mode: z.boolean().optional(),
@@ -46,6 +48,8 @@ const requestSchema = z.discriminatedUnion("action", [
     }),
   }),
   z.object({ action: z.literal("delete"), gateway_id: z.string().uuid() }),
+  // Make this city gateway the one that takes new online checkouts.
+  z.object({ action: z.literal("use_for_checkout"), gateway_id: z.string().uuid() }),
 ]);
 
 type AdminClient = ReturnType<typeof createClient>;
@@ -124,7 +128,7 @@ serve(async (req) => {
       if (!(await canManageTarget(adminClient, user.id, parsed.data.target))) return response({ error: "Access denied" });
       let query = adminClient
         .from("payment_gateways")
-        .select("id, name, display_name, api_key, api_secret, webhook_secret, is_active, is_test_mode, sort_order, city, tenant_id")
+        .select("id, name, display_name, api_key, api_secret, webhook_secret, is_active, is_test_mode, use_for_checkout, sort_order, city, tenant_id")
         .order("sort_order");
       if (parsed.data.target.scope === "city") query = query.eq("city", parsed.data.target.scope_id).is("tenant_id", null);
       if (parsed.data.target.scope === "tenant") query = query.eq("tenant_id", parsed.data.target.scope_id);
@@ -156,7 +160,7 @@ serve(async (req) => {
 
     const { data: existing, error: existingError } = await adminClient
       .from("payment_gateways")
-      .select("id, city, tenant_id")
+      .select("id, city, tenant_id, use_for_checkout")
       .eq("id", parsed.data.gateway_id)
       .maybeSingle();
     if (existingError) throw new Error("gateway_lookup_failed");
@@ -164,7 +168,18 @@ serve(async (req) => {
     const target = targetForGateway(existing);
     if (!target || !(await canManageTarget(adminClient, user.id, target))) return response({ error: "Access denied" });
 
+    if (parsed.data.action === "use_for_checkout") {
+      const { error } = await adminClient.rpc("set_checkout_gateway", { _gateway_id: parsed.data.gateway_id });
+      if (error) {
+        const message = checkoutSwitchMessage(error);
+        if (message) return response({ error: message });
+        throw new Error("gateway_switch_failed");
+      }
+      return response({ success: true });
+    }
+
     if (parsed.data.action === "delete") {
+      if (existing.use_for_checkout) return response({ error: CHECKOUT_GATEWAY_LOCKED });
       const { error } = await adminClient.from("payment_gateways").delete().eq("id", parsed.data.gateway_id);
       if (error) throw new Error("gateway_delete_failed");
       return response({ success: true });
@@ -176,6 +191,8 @@ serve(async (req) => {
       .from("payment_gateways")
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq("id", parsed.data.gateway_id);
+    // payment_gateways_checkout_ready: the checkout gateway must stay on with both keys.
+    if (error?.code === "23514") return response({ error: CHECKOUT_GATEWAY_LOCKED });
     if (error) throw new Error("gateway_update_failed");
     return response({ success: true });
   } catch {

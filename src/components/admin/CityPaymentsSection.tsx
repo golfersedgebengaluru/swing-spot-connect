@@ -27,12 +27,20 @@ import {
   type GatewayChanges,
   type SafePaymentGateway,
 } from "@/lib/payment-gateways";
+import {
+  CashfreeNote,
+  CheckoutGatewayBadge,
+  CheckoutGatewayChoice,
+  GATEWAY_KEY_LABELS,
+  NoCheckoutGatewayNotice,
+} from "@/components/admin/CheckoutGatewayChoice";
 
 // ─── Types ──────────────────────────────────────────────
 type Gateway = SafePaymentGateway;
 
 const GATEWAY_TEMPLATES = [
   { name: "razorpay", display_name: "Razorpay" },
+  { name: "cashfree", display_name: "Cashfree" },
   { name: "stripe", display_name: "Stripe" },
   { name: "paypal", display_name: "PayPal" },
 ];
@@ -126,9 +134,13 @@ function CityGatewaysCard({ city }: { city: string }) {
             </Select>
           )}
         </div>
-        <CardDescription>Configure online payment gateways for {city}.</CardDescription>
+        <CardDescription>
+          Configure online payment gateways for {city}. One gateway takes the city's online bookings and hour packages;
+          leagues and quick competitions always use Razorpay.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <NoCheckoutGatewayNotice city={city} gateways={gateways ?? []} />
         {(gateways ?? []).length === 0 && (
           <p className="text-sm text-muted-foreground">No gateways configured yet.</p>
         )}
@@ -141,11 +153,23 @@ function CityGatewaysCard({ city }: { city: string }) {
                 <div className="flex items-center gap-3">
                   <span className="font-medium">{gw.display_name}</span>
                   {gw.is_active && <Badge className="bg-green-500/15 text-green-600 border-green-300">Active</Badge>}
+                  <CheckoutGatewayBadge gateway={gw} />
                   {merged.is_test_mode && <Badge variant="outline" className="text-amber-600 border-amber-300">Test Mode</Badge>}
                 </div>
                 <div className="flex items-center gap-2">
-                  <Switch checked={gw.is_active} onCheckedChange={() => updateGateway.mutate({ id: gw.id, updates: { is_active: !gw.is_active } })} />
-                  <Button variant="ghost" size="icon" onClick={() => deleteGateway.mutate(gw.id)} disabled={deleteGateway.isPending}>
+                  <Switch
+                    checked={gw.is_active}
+                    disabled={gw.use_for_checkout}
+                    aria-label={`${gw.display_name} on or off`}
+                    onCheckedChange={() => updateGateway.mutate({ id: gw.id, updates: { is_active: !gw.is_active } })}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Remove ${gw.display_name}`}
+                    onClick={() => deleteGateway.mutate(gw.id)}
+                    disabled={deleteGateway.isPending || gw.use_for_checkout}
+                  >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
@@ -153,7 +177,7 @@ function CityGatewaysCard({ city }: { city: string }) {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>API Key {gw.name === "razorpay" && "(Key ID)"}</Label>
+                  <Label>{GATEWAY_KEY_LABELS[gw.name]?.key ?? "API Key"}</Label>
                   <Input
                     type="password"
                     placeholder={gw.has_api_key ? "Configured — enter a replacement" : `Enter ${gw.display_name} API key`}
@@ -162,7 +186,7 @@ function CityGatewaysCard({ city }: { city: string }) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>API Secret {gw.name === "razorpay" && "(Key Secret)"}</Label>
+                  <Label>{GATEWAY_KEY_LABELS[gw.name]?.secret ?? "API Secret"}</Label>
                   <Input
                     type="password"
                     placeholder={gw.has_api_secret ? "Configured — enter a replacement" : `Enter ${gw.display_name} API secret`}
@@ -171,6 +195,9 @@ function CityGatewaysCard({ city }: { city: string }) {
                   />
                 </div>
               </div>
+
+              <CashfreeNote gateway={gw} />
+              <CheckoutGatewayChoice city={city} gateway={gw} cityGateways={gateways ?? []} hasUnsavedChanges={hasChanges} />
 
               <div className="flex items-center justify-between pt-2">
                 <div className="flex items-center gap-2">

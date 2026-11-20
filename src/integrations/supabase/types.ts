@@ -4673,6 +4673,7 @@ export type Database = {
           sort_order: number
           tenant_id: string | null
           updated_at: string
+          use_for_checkout: boolean
           webhook_secret: string | null
         }
         Insert: {
@@ -4689,6 +4690,7 @@ export type Database = {
           sort_order?: number
           tenant_id?: string | null
           updated_at?: string
+          use_for_checkout?: boolean
           webhook_secret?: string | null
         }
         Update: {
@@ -4705,6 +4707,7 @@ export type Database = {
           sort_order?: number
           tenant_id?: string | null
           updated_at?: string
+          use_for_checkout?: boolean
           webhook_secret?: string | null
         }
         Relationships: [
@@ -4735,6 +4738,7 @@ export type Database = {
           finalized_at: string | null
           id: string
           original_amount: number | null
+          payment_gateway: string
           razorpay_order_id: string
           session_type: string | null
           start_time: string
@@ -4759,6 +4763,7 @@ export type Database = {
           finalized_at?: string | null
           id?: string
           original_amount?: number | null
+          payment_gateway?: string
           razorpay_order_id: string
           session_type?: string | null
           start_time: string
@@ -4783,6 +4788,7 @@ export type Database = {
           finalized_at?: string | null
           id?: string
           original_amount?: number | null
+          payment_gateway?: string
           razorpay_order_id?: string
           session_type?: string | null
           start_time?: string
@@ -4812,6 +4818,7 @@ export type Database = {
           guest_phone: string | null
           id: string
           original_amount: number | null
+          payment_gateway: string
           razorpay_order_id: string
           session_type: string | null
           start_time: string
@@ -4837,6 +4844,7 @@ export type Database = {
           guest_phone?: string | null
           id?: string
           original_amount?: number | null
+          payment_gateway?: string
           razorpay_order_id: string
           session_type?: string | null
           start_time: string
@@ -4862,6 +4870,7 @@ export type Database = {
           guest_phone?: string | null
           id?: string
           original_amount?: number | null
+          payment_gateway?: string
           razorpay_order_id?: string
           session_type?: string | null
           start_time?: string
@@ -4998,6 +5007,7 @@ export type Database = {
           package_hours: number
           package_label: string
           package_price: number
+          payment_gateway: string
           razorpay_order_id: string
           revenue_transaction_id: string | null
           status: string
@@ -5015,6 +5025,7 @@ export type Database = {
           package_hours: number
           package_label?: string
           package_price: number
+          payment_gateway?: string
           razorpay_order_id: string
           revenue_transaction_id?: string | null
           status?: string
@@ -5032,6 +5043,7 @@ export type Database = {
           package_hours?: number
           package_label?: string
           package_price?: number
+          payment_gateway?: string
           razorpay_order_id?: string
           revenue_transaction_id?: string | null
           status?: string
@@ -6763,6 +6775,7 @@ export type Database = {
           guest_phone: string | null
           id: string
           original_amount: number | null
+          payment_gateway: string
           razorpay_order_id: string
           session_type: string | null
           start_time: string
@@ -7104,6 +7117,7 @@ export type Database = {
         }
         Returns: string
       }
+      set_checkout_gateway: { Args: { _gateway_id: string }; Returns: string }
       set_corporate_memberships: {
         Args: { _account_ids: string[]; _profile_id: string }
         Returns: undefined

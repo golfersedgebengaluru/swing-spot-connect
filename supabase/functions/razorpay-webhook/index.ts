@@ -4,6 +4,7 @@ import {
   resolveOrCreateLegacyRegistration,
 } from "../_shared/legacy-league-finalize.ts";
 import { finalizeQcEntry } from "../_shared/qc-finalize.ts";
+import { slotRefundRecorded } from "../_shared/checkout-finalize.ts";
 
 // Razorpay webhook handler.
 // Verifies the HMAC-SHA256 signature using the webhook secret stored per-city
@@ -99,9 +100,11 @@ Deno.serve(async (req) => {
       .from("payment_gateways")
       .select("webhook_secret, api_key, api_secret")
       .eq("city", notesCity)
+      .is("tenant_id", null)
       .eq("name", "razorpay")
-      .eq("is_active", true)
-      .single();
+      // Not filtered on is_active: payments taken before staff switched a city
+      // to another gateway (or turned Razorpay off) must still be verified.
+      .maybeSingle();
     webhookSecret = gateway?.webhook_secret ?? null;
     if (webhookSecret) {
       secretSource = `payment_gateways:${notesCity}`;
@@ -340,8 +343,11 @@ Deno.serve(async (req) => {
           }),
         });
 
-        if (!invokeRes.ok) {
-          const errBody = await invokeRes.text();
+        const errBody = invokeRes.ok ? "" : await invokeRes.text();
+        if (invokeRes.status === 409 && slotRefundRecorded(errBody)) {
+          // Slot was gone: calendar-sync already refunded and recorded the outcome; keep it.
+          console.warn(`Webhook guest booking slot unavailable for order ${razorpayOrderId}`);
+        } else if (!invokeRes.ok) {
           console.error("Webhook guest_booking invoke failed:", invokeRes.status, errBody);
           const { error: pendingGuestUpdateError } = await adminClient.from("pending_guest_bookings").update({
             status: "webhook_error",
