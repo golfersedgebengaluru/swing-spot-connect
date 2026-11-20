@@ -147,6 +147,42 @@ export type Database = {
           },
         ]
       }
+      bay_blockout_google_events: {
+        Row: {
+          blockout_id: string | null
+          calendar_id: string
+          city: string
+          created_at: string
+          event_id: string
+          id: string
+          series_id: string | null
+          synced_version: string
+          updated_at: string
+        }
+        Insert: {
+          blockout_id?: string | null
+          calendar_id: string
+          city: string
+          created_at?: string
+          event_id: string
+          id?: string
+          series_id?: string | null
+          synced_version?: string
+          updated_at?: string
+        }
+        Update: {
+          blockout_id?: string | null
+          calendar_id?: string
+          city?: string
+          created_at?: string
+          event_id?: string
+          id?: string
+          series_id?: string | null
+          synced_version?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bay_blockout_series: {
         Row: {
           bay_id: string | null

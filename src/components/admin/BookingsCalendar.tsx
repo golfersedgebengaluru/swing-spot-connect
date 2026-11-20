@@ -105,12 +105,33 @@ export function BookingsCalendar({ onSlotClick }: Props) {
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["bay_day_schedule", city] });
 
+  // Blocked times get a view-only copy on Google; the app keeps deciding availability.
+  const syncBlocksToGoogle = useMutation({
+    // "background": catch-up on open, silent; "change": after staff edit a block, report only failures; "retry": report both.
+    mutationFn: async (_mode: "background" | "change" | "retry") => {
+      const res = await supabase.functions.invoke("calendar-sync", { body: { action: "sync_blockouts_to_google", city } });
+      if (res.error) throw new Error(res.error.message);
+      if (res.data?.error) throw new Error(res.data.error);
+    },
+    onSuccess: (_d, mode) => { refresh(); if (mode === "retry") toast({ title: "Blocked times copied to Google Calendar" }); },
+    onError: (e: Error, mode) => {
+      refresh();
+      if (mode === "background") console.warn("Blocked times not copied to Google:", e.message);
+      else toast({ title: "Not copied to Google", description: e.message, variant: "destructive" });
+    },
+  });
+  const copyBlocksAfterChange = () => { if (usesApp) syncBlocksToGoogle.mutate("change"); };
+  // Catch up on copies missed earlier (e.g. a closed tab) whenever the city's calendar opens.
+  useEffect(() => {
+    if (city && usesApp) syncBlocksToGoogle.mutate("background");
+  }, [city, usesApp]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const removeBlockout = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("bay_blockouts").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { refresh(); queryClient.invalidateQueries({ queryKey: ["available_slots"] }); toast({ title: "Block-out removed" }); },
+    onSuccess: () => { refresh(); queryClient.invalidateQueries({ queryKey: ["available_slots"] }); toast({ title: "Block-out removed" }); copyBlocksAfterChange(); },
     onError: (e: Error) => toast({ title: "Could not remove block-out", description: e.message, variant: "destructive" }),
   });
 
@@ -126,6 +147,7 @@ export function BookingsCalendar({ onSlotClick }: Props) {
       refresh();
       queryClient.invalidateQueries({ queryKey: ["available_slots"] });
       toast({ title: scope === "day" ? "Removed for this day" : "Removed from this day on" });
+      copyBlocksAfterChange();
     },
     onError: (e: Error) => toast({ title: "Could not remove block-out", description: e.message, variant: "destructive" }),
   });
@@ -196,6 +218,7 @@ export function BookingsCalendar({ onSlotClick }: Props) {
       refresh();
       queryClient.invalidateQueries({ queryKey: ["available_slots"] });
       toast({ title: repeatWeekly ? "Repeating block saved" : "Time blocked" });
+      copyBlocksAfterChange();
     },
     onError: (e: Error) => toast({ title: "Could not block time", description: e.message, variant: "destructive" }),
   });
@@ -208,7 +231,7 @@ export function BookingsCalendar({ onSlotClick }: Props) {
   };
 
   const shiftDay = (days: number) => setDate(format(addDays(new Date(`${date}T12:00:00`), days), "yyyy-MM-dd"));
-  const missingOnGoogle = items.filter((i) => i.kind === "booking" && !i.on_google).length;
+  const missingOnGoogle = items.filter((i) => (i.kind === "booking" || isBlockoutKind(i.kind)) && !i.on_google).length;
 
   return (
     <div className="space-y-4">
@@ -320,6 +343,17 @@ export function BookingsCalendar({ onSlotClick }: Props) {
                               onClick={() => (item.kind === "recurring_blockout" ? setSeriesToRemove(item) : removeBlockout.mutate(item.id))}
                             >
                               <Trash2 className="h-3 w-3" />
+                            </button>
+                          )}
+                          {usesApp && isBlockoutKind(item.kind) && !item.on_google && (
+                            <button
+                              aria-label="Copy blocked time to Google Calendar"
+                              title="Not on Google yet — copy now"
+                              className="shrink-0 text-destructive"
+                              disabled={syncBlocksToGoogle.isPending}
+                              onClick={() => syncBlocksToGoogle.mutate("retry")}
+                            >
+                              <RefreshCw className={cn("h-3 w-3", syncBlocksToGoogle.isPending && "animate-spin")} />
                             </button>
                           )}
                           {usesApp && item.kind === "booking" && !item.on_google && (

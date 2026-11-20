@@ -13,6 +13,14 @@ import { recordRefund } from "../_shared/revenue-ledger.ts";
 import { enrichBookingTimezones } from "./booking-timezones.ts";
 import { cancelPaidBooking } from "./atomic-cancellation.ts";
 import {
+  applyBlockoutMirrorPlan,
+  blockoutMirrorStore,
+  type EventBody,
+  type GoogleEventsPort,
+  loadBlockoutMirrorInputs,
+  planBlockoutMirror,
+} from "./blockout-mirror.ts";
+import {
   busyRanges,
   candidateBayIds,
   cityBookingMode,
@@ -198,6 +206,29 @@ async function deleteEvent(accessToken: string, calendarId: string, eventId: str
 
   const data = await delRes.text();
   throw new Error(`Calendar delete error [${delRes.status}]: ${data}`);
+}
+
+// Google Calendar events API for the view-only block-out copies.
+function googleEventsPort(accessToken: string): GoogleEventsPort {
+  const base = (calendar: string) => `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendar)}/events`;
+  const headers = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
+  return {
+    async insert(calendar: string, body: EventBody) {
+      const res = await fetch(base(calendar), { method: "POST", headers, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(`Calendar create error [${res.status}]: ${JSON.stringify(data)}`);
+      return data.id as string;
+    },
+    async patch(calendar: string, eventId: string, body: EventBody) {
+      const res = await fetch(`${base(calendar)}/${encodeURIComponent(eventId)}`, { method: "PATCH", headers, body: JSON.stringify(body) });
+      if (res.status === 404 || res.status === 410) { await res.body?.cancel(); return "missing" as const; }
+      const data = await res.json();
+      if (!res.ok) throw new Error(`Calendar update error [${res.status}]: ${JSON.stringify(data)}`);
+      // A copy someone deleted on Google comes back as cancelled; recreate it.
+      return data.status === "cancelled" ? "missing" as const : "ok" as const;
+    },
+    remove: (calendar: string, eventId: string) => deleteEvent(accessToken, calendar, eventId),
+  };
 }
 
 async function cancelBookingCalendarEvent(
@@ -1807,6 +1838,29 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.error(`[calendar-sync] sync_booking_to_google failed booking=${booking.id}: ${(e as Error).message}`);
         return new Response(JSON.stringify({ error: "Google Calendar did not accept the entry. Please try again later." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
+    // Staff keep the view-only Google copy of their city's block-outs in step with the app.
+    if (action === "sync_blockouts_to_google") {
+      const reply = (payload: object, status = 200) => new Response(JSON.stringify(payload), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const city = typeof params.city === "string" ? params.city.trim() : "";
+      if (!city || city.length > 100) return reply({ error: "City is required" });
+      const adminClient = createAdminClient();
+      const { data: allowed } = await adminClient.rpc("has_city_access", { _user_id: userId, _city: city });
+      if (!allowed) return reply({ error: "Unauthorized" }, 403);
+      const mode = await cityBookingMode(adminClient, city);
+      // Cities still on Google availability would be blocked by these entries, so they are never copied there.
+      if (mode.source !== "app") return reply({ status: "skipped" });
+      try {
+        const inputs = await loadBlockoutMirrorInputs(adminClient, city, mode.timezone);
+        const result = await applyBlockoutMirrorPlan(planBlockoutMirror(inputs), googleEventsPort(accessToken), blockoutMirrorStore(adminClient, city));
+        return reply(result.failed
+          ? { ...result, error: "Some blocked times could not be copied to Google Calendar. Please try again later." }
+          : { status: "synced", ...result });
+      } catch (e) {
+        console.error(`[calendar-sync] sync_blockouts_to_google failed city=${city}: ${(e as Error).message}`);
+        return reply({ error: "Google Calendar did not accept the blocked times. Please try again later." });
       }
     }
 

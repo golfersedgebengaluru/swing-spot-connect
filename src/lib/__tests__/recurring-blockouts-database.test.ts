@@ -33,13 +33,14 @@ beforeAll(async () => {
     GRANT SELECT (id, city) ON public.bays TO authenticated;`);
   await db.exec(migration("0019_app_calendar_record_of_truth.sql"));
   await db.exec(migration("0020_recurring_bay_blockouts.sql"));
+  await db.exec(migration("0028_blockout_google_copy.sql"));
   await db.exec(`INSERT INTO bay_config(city, timezone) VALUES ('Gurugram', 'Asia/Kolkata');
     INSERT INTO bays(id, city, name, sort_order, bay_type) VALUES
     ('${bay1}','Gurugram','Bay #1',1,'standard'),('${bay2}','Gurugram','Bay #2',2,'standard');`);
 }, 30000);
 afterAll(async () => db?.close());
 beforeEach(async () => {
-  await db.exec(`RESET ROLE; TRUNCATE bookings, bay_holds, bay_blockouts, bay_blockout_series, league_bay_blocks;`);
+  await db.exec(`RESET ROLE; TRUNCATE bookings, bay_holds, bay_blockouts, bay_blockout_series, league_bay_blocks, bay_blockout_google_events;`);
 });
 
 const addSeries = (opts: { bay?: string | null; days?: number[]; from?: string; to?: string; startsOn?: string; endsOn?: string | null; skipped?: string[] } = {}) =>
@@ -112,6 +113,22 @@ describe("staff day view and removal", () => {
     const rows = await asActor(staff, () =>
       db.query<{ kind: string; id: string; label: string }>("SELECT kind, id, label FROM bay_day_schedule('Gurugram', '2026-11-30T18:30:00Z', '2026-12-01T18:30:00Z')"));
     expect(rows.rows).toEqual([{ kind: "recurring_blockout", id, label: "Coaching" }]);
+  });
+
+  it("marks block-outs as on Google only once a Google copy is recorded", async () => {
+    const seriesId = await addSeries();
+    const oneOff = (await db.query<{ id: string }>(
+      `INSERT INTO bay_blockouts(city, bay_id, start_time, end_time, reason) VALUES ('Gurugram', '${bay1}', '2026-12-01T04:30:00Z', '2026-12-01T07:30:00Z', 'Bharath') RETURNING id`)).rows[0].id;
+    const onGoogle = async () => (await asActor(staff, () => db.query<{ kind: string; on_google: boolean }>(
+      "SELECT kind, on_google FROM bay_day_schedule('Gurugram', '2026-11-30T18:30:00Z', '2026-12-01T18:30:00Z') ORDER BY kind"))).rows;
+    expect(await onGoogle()).toEqual([{ kind: "blockout", on_google: false }, { kind: "recurring_blockout", on_google: false }]);
+    await db.query(`INSERT INTO bay_blockout_google_events(city, blockout_id, calendar_id, event_id) VALUES ('Gurugram', $1, 'cal', 'e1')`, [oneOff]);
+    await db.query(`INSERT INTO bay_blockout_google_events(city, series_id, calendar_id, event_id) VALUES ('Gurugram', $1, 'cal', 'e2')`, [seriesId]);
+    expect(await onGoogle()).toEqual([{ kind: "blockout", on_google: true }, { kind: "recurring_blockout", on_google: true }]);
+  });
+
+  it("keeps the Google copy records away from staff and members", async () => {
+    await expect(asActor(staff, () => db.query("SELECT * FROM bay_blockout_google_events"))).rejects.toThrow(/permission denied/);
   });
 
   it("removes only one day, keeping later weeks blocked", async () => {

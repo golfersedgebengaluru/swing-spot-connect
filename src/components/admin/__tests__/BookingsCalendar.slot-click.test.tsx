@@ -13,8 +13,9 @@ const bay = (id: string, name: string, sort: number) => ({
   id, name, city: "Gurugram", is_active: true, sort_order: sort, open_time: "08:00", close_time: "22:00", weekly_off_days: [], hours_overrides: [],
 });
 
+const invoke = vi.hoisted(() => vi.fn(() => Promise.resolve({ data: { status: "synced" }, error: null })));
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { rpc: () => Promise.resolve({ data: items, error: null }) },
+  supabase: { rpc: () => Promise.resolve({ data: items, error: null }), functions: { invoke } },
 }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "staff-1" } }) }));
 vi.mock("@/contexts/AdminCityContext", () => ({ useAdminCity: () => ({ selectedCity: "Gurugram", availableCities: ["Gurugram"] }) }));
@@ -65,5 +66,19 @@ describe("Bookings calendar: click a free time to book", () => {
     expect(screen.getByRole("button", { name: "Book Bay #2 at 8:00 AM" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Book Bay #2 at 9:30 PM" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Book Bay #2 at 10:00 PM" })).toBeNull();
+  });
+});
+
+describe("Bookings calendar: blocked times on Google", () => {
+  it("brings the city's blocked times up to date on Google when the calendar opens", async () => {
+    invoke.mockClear();
+    renderCalendar();
+    await screen.findByRole("button", { name: "Book Bay #2 at 7:00 PM" });
+    expect(invoke).toHaveBeenCalledWith("calendar-sync", { body: { action: "sync_blockouts_to_google", city: "Gurugram" } });
+  });
+
+  it("offers to copy a blocked time that is not on Google yet", async () => {
+    renderCalendar();
+    expect((await screen.findAllByRole("button", { name: "Copy blocked time to Google Calendar" })).length).toBeGreaterThan(0);
   });
 });
