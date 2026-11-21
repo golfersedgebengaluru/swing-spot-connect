@@ -1,11 +1,14 @@
 # Roadmap
 
 ## Cashfree alongside Razorpay — stage 1 (approved 20 November)
-- [ ] Admin Payments: add Cashfree per city (App ID, Secret Key, test/live) and choose which gateway takes online payments; can't pick one without keys or switch it off while in use
-- [ ] Bay bookings (members and guests) and hour packages/memberships pay through the city's chosen gateway; prices still set by the server; 10-minute hold kept
-- [ ] Cashfree payment alerts, a confirm step after the payment window, and the regular unfinished-payment check finish Cashfree payments; late payments for a gone slot refunded through the gateway that took them
-- [ ] Revenue and invoices record Cashfree as the gateway; leagues and quick competitions stay on Razorpay
-- [ ] Tests, deploy, publish; owner enters Cashfree keys and makes a test payment
+- [x] Admin Payments (both screens): add Cashfree per city (App ID, Secret Key, test/live) and "Use for online payments"; can't switch off or remove the gateway in use
+- [x] Bay bookings (members and guests) and hour packages/memberships pay through the city's chosen gateway; server pricing and 10-minute hold kept
+- [x] Cashfree payment alerts, confirm step after the payment window, and the unfinished-payment check; late payments for a gone slot refunded through the gateway that took them
+- [x] Revenue and hour purchases record the gateway; leagues and quick competitions stay on Razorpay
+- [x] Database change applied (both cities still on Razorpay); tests: 1,159 total, all payment tests pass
+- [ ] Deploy the 7 changed backend functions (paused to save credits) — then publish the site
+- [ ] Owner: Cashfree accounts and keys per city, a test payment in Test Mode, then switch
+- [ ] Not yet checked end-to-end against Cashfree's sandbox
 
 ## Membership revenue spread (approved 18 November)
 - [x] "Valid for (months)" and "Hours included" on catalogue services; "Valid for" on online hour packages; each new sale stores its start/end (staff may pick a later start in person; online starts on sale date)
