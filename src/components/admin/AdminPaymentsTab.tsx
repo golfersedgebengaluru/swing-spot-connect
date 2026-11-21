@@ -203,7 +203,7 @@ export function AdminPaymentsTab() {
                       <div className="flex items-center gap-3">
                         <span className="font-medium">{gw.display_name}</span>
                         {gw.is_active && <Badge className="bg-green-500/15 text-green-600 border-green-300">Active</Badge>}
-                        <CheckoutGatewayBadge gateway={gw} />
+                        <CheckoutGatewayBadge gateway={gw} cityGateways={cityGateways} />
                         {merged.is_test_mode && <Badge variant="outline" className="text-amber-600 border-amber-300">Test Mode</Badge>}
                       </div>
                       <div className="flex items-center gap-2">

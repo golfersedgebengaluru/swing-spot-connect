@@ -16,13 +16,21 @@ export const GATEWAY_KEY_LABELS: Record<string, { key: string; secret: string }>
 
 export const checkoutReady = (gw: SafePaymentGateway) => gw.is_active && gw.has_api_key && gw.has_api_secret;
 
-export function CheckoutGatewayBadge({ gateway }: { gateway: SafePaymentGateway }) {
-  return gateway.use_for_checkout ? <Badge>Takes online payments</Badge> : null;
+/** Mirrors the server: the chosen gateway, otherwise the city's active Razorpay (the default). */
+export function effectiveCheckoutGateway(gateways: SafePaymentGateway[]): SafePaymentGateway | null {
+  return gateways.find((g) => g.use_for_checkout)
+    ?? gateways.find((g) => g.name === "razorpay" && checkoutReady(g))
+    ?? null;
 }
 
-/** Shown when a city has gateways but none of them takes its online payments. */
+export function CheckoutGatewayBadge({ gateway, cityGateways }: { gateway: SafePaymentGateway; cityGateways: SafePaymentGateway[] }) {
+  if (effectiveCheckoutGateway(cityGateways)?.id !== gateway.id) return null;
+  return <Badge>{gateway.use_for_checkout ? "Takes online payments" : "Takes online payments (default)"}</Badge>;
+}
+
+/** Shown when a city has gateways but none of them can take its online payments. */
 export function NoCheckoutGatewayNotice({ city, gateways }: { city: string; gateways: SafePaymentGateway[] }) {
-  if (gateways.length === 0 || gateways.some((g) => g.use_for_checkout)) return null;
+  if (gateways.length === 0 || effectiveCheckoutGateway(gateways)) return null;
   return (
     <p className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
       No gateway takes online payments in {city} yet, so customers can't pay online. Choose one below.
@@ -55,7 +63,7 @@ export function CheckoutGatewayChoice({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [confirming, setConfirming] = useState(false);
-  const current = cityGateways.find((g) => g.use_for_checkout) ?? null;
+  const current = effectiveCheckoutGateway(cityGateways);
 
   const switchCheckout = useMutation({
     mutationFn: () => chooseCheckoutGateway(gateway.id),
@@ -66,7 +74,7 @@ export function CheckoutGatewayChoice({
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
-  if (!CHECKOUT_GATEWAYS.has(gateway.name) || gateway.use_for_checkout) return null;
+  if (!CHECKOUT_GATEWAYS.has(gateway.name) || current?.id === gateway.id) return null;
   const ready = checkoutReady(gateway);
 
   return (
@@ -92,7 +100,8 @@ export function CheckoutGatewayChoice({
             <AlertDialogDescription>
               New online bookings and hour packages in {city} will be paid through {gateway.display_name} from the next
               checkout. Anyone already paying finishes with {current?.display_name ?? "their current gateway"}, and refunds
-              always go back through the gateway that took the money. You can switch back at any time.
+              always go back through the gateway that took the money. Razorpay stays switched on (leagues and quick
+              competitions keep using it), and you can switch back at any time.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

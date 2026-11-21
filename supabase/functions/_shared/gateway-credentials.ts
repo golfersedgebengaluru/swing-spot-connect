@@ -54,15 +54,25 @@ export function credentialsFromRow(row: GatewayRow | null | undefined, city: str
 
 const COLUMNS = "id, name, api_key, api_secret, webhook_secret, is_test_mode";
 
-/** The gateway that takes new online checkouts in this city, or null when none is chosen. */
+/**
+ * The gateway that takes new online checkouts in this city. Razorpay is the
+ * default: when staff have not chosen one, the city's active Razorpay is used.
+ */
 export async function loadCheckoutGateway(admin: Admin, city: string): Promise<GatewayCredentials | null> {
-  const { data } = await admin
+  const { data: chosen } = await admin
     .from("payment_gateways")
     .select(COLUMNS)
     .eq("city", city).is("tenant_id", null)
     .eq("use_for_checkout", true).eq("is_active", true)
     .maybeSingle();
-  return credentialsFromRow(data as GatewayRow | null, city);
+  if (chosen) return credentialsFromRow(chosen as GatewayRow, city);
+  const { data: fallback } = await admin
+    .from("payment_gateways")
+    .select(COLUMNS)
+    .eq("city", city).is("tenant_id", null)
+    .eq("name", "razorpay").eq("is_active", true)
+    .maybeSingle();
+  return credentialsFromRow(fallback as GatewayRow | null, city);
 }
 
 /** Credentials of a specific city gateway, regardless of whether it still takes new checkouts. */

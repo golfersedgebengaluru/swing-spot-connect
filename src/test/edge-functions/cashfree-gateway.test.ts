@@ -13,7 +13,7 @@ import {
   refundCashfreeOrder,
   verifyCashfreeSignature,
 } from "../../../supabase/functions/_shared/cashfree";
-import { credentialsFromRow } from "../../../supabase/functions/_shared/gateway-credentials";
+import { credentialsFromRow, loadCheckoutGateway } from "../../../supabase/functions/_shared/gateway-credentials";
 import { finalizePaidCheckout, slotRefundRecorded, type PendingCheckout } from "../../../supabase/functions/_shared/checkout-finalize";
 import { refundCheckoutPayment } from "../../../supabase/functions/_shared/app-availability";
 import { checkoutSwitchMessage } from "../../../supabase/functions/_shared/payment-gateway-management";
@@ -246,5 +246,32 @@ describe("late-payment refunds go back through the gateway that took the money",
       city: "Chennai", gateway: "razorpay", orderId: "order_1", paymentId: "pay_1", amount: 1200, notes: { reason: "slot_unavailable" },
     });
     expect((fetchMock.mock.calls[0] as unknown as [string])[0]).toBe("https://api.razorpay.com/v1/payments/pay_1/refund");
+  });
+});
+
+describe("Razorpay is the default online payment gateway", () => {
+  // Answers like the database: rows filtered by the query's equality filters.
+  const adminWith = (rows: Record<string, unknown>[]) => ({
+    from: () => {
+      const filters: Record<string, unknown> = {};
+      const q = {
+        select: () => q,
+        eq: (k: string, v: unknown) => { filters[k] = v; return q; },
+        is: () => q,
+        maybeSingle: async () => ({ data: rows.find((r) => Object.entries(filters).every(([k, v]) => r[k] === v)) ?? null }),
+      };
+      return q;
+    },
+  });
+  const razorpay = { id: "r", name: "razorpay", city: "Chennai", api_key: "rzp_k", api_secret: "rzp_s", is_active: true, use_for_checkout: false };
+  const cashfree = { id: "c", name: "cashfree", city: "Chennai", api_key: "CF_APP", api_secret: "cf_s", is_active: true, use_for_checkout: false };
+
+  it("uses the city's active Razorpay when staff have not chosen a gateway, even with Cashfree set up", async () => {
+    expect((await loadCheckoutGateway(adminWith([razorpay, cashfree]) as never, "Chennai"))?.name).toBe("razorpay");
+  });
+
+  it("uses Cashfree only once staff choose it", async () => {
+    const rows = [{ ...razorpay }, { ...cashfree, use_for_checkout: true }];
+    expect((await loadCheckoutGateway(adminWith(rows) as never, "Chennai"))?.name).toBe("cashfree");
   });
 });
