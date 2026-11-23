@@ -4660,6 +4660,7 @@ export type Database = {
       }
       payment_gateways: {
         Row: {
+          admins_only_checkout: boolean
           api_key: string | null
           api_secret: string | null
           city: string | null
@@ -4677,6 +4678,7 @@ export type Database = {
           webhook_secret: string | null
         }
         Insert: {
+          admins_only_checkout?: boolean
           api_key?: string | null
           api_secret?: string | null
           city?: string | null
@@ -4694,6 +4696,7 @@ export type Database = {
           webhook_secret?: string | null
         }
         Update: {
+          admins_only_checkout?: boolean
           api_key?: string | null
           api_secret?: string | null
           city?: string | null

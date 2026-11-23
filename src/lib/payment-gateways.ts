@@ -13,6 +13,8 @@ export interface SafePaymentGateway {
   is_test_mode: boolean;
   /** This gateway takes the city's new online payments (bookings, hour packages). */
   use_for_checkout: boolean;
+  /** The city's admins pay through this gateway; customers keep the city's checkout gateway. */
+  admins_only_checkout: boolean;
   sort_order: number;
   city: string | null;
   tenant_id: string | null;
@@ -60,4 +62,9 @@ export async function deletePaymentGateway(gatewayId: string) {
 /** Switch the city's online payments to this gateway (it must be on, with keys saved). */
 export async function chooseCheckoutGateway(gatewayId: string) {
   return invokeGatewayOperation({ action: "use_for_checkout", gateway_id: gatewayId });
+}
+
+/** Turn "Admins only" on or off: admins' own online payments in the city use this gateway. */
+export async function setAdminsOnlyCheckout(gatewayId: string, enabled: boolean) {
+  return invokeGatewayOperation({ action: "admins_only_checkout", gateway_id: gatewayId, enabled });
 }

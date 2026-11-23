@@ -14,6 +14,7 @@ import {
   verifyCashfreeSignature,
 } from "../../../supabase/functions/_shared/cashfree";
 import { credentialsFromRow, loadCheckoutGateway } from "../../../supabase/functions/_shared/gateway-credentials";
+import { buildGatewayUpdate } from "../../../supabase/functions/_shared/payment-gateway-management";
 import { finalizePaidCheckout, slotRefundRecorded, type PendingCheckout } from "../../../supabase/functions/_shared/checkout-finalize";
 import { refundCheckoutPayment } from "../../../supabase/functions/_shared/app-availability";
 import { checkoutSwitchMessage } from "../../../supabase/functions/_shared/payment-gateway-management";
@@ -251,7 +252,13 @@ describe("late-payment refunds go back through the gateway that took the money",
 
 describe("Razorpay is the default online payment gateway", () => {
   // Answers like the database: rows filtered by the query's equality filters.
-  const adminWith = (rows: Record<string, unknown>[]) => ({
+  type Roles = { admin?: boolean; siteAdmin?: boolean; cities?: string[] };
+  const adminWith = (rows: Record<string, unknown>[], people: Record<string, Roles> = {}) => ({
+    rpc: async (fn: string, args: { _user_id: string; _role?: string; _city?: string }) => {
+      const who = people[args._user_id] ?? {};
+      if (fn === "has_city_access") return { data: who.cities?.includes(args._city ?? "") ?? false, error: null };
+      return { data: args._role === "admin" ? who.admin === true : who.siteAdmin === true, error: null };
+    },
     from: () => {
       const filters: Record<string, unknown> = {};
       const q = {
@@ -273,5 +280,39 @@ describe("Razorpay is the default online payment gateway", () => {
   it("uses Cashfree only once staff choose it", async () => {
     const rows = [{ ...razorpay }, { ...cashfree, use_for_checkout: true }];
     expect((await loadCheckoutGateway(adminWith(rows) as never, "Chennai"))?.name).toBe("cashfree");
+  });
+
+  describe("Admins only", () => {
+    const rows = [razorpay, { ...cashfree, admins_only_checkout: true }];
+    const people = {
+      platformAdmin: { admin: true },
+      chennaiSiteAdmin: { siteAdmin: true, cities: ["Chennai"] },
+      bengaluruSiteAdmin: { siteAdmin: true, cities: ["Bengaluru"] },
+      customer: {},
+    };
+    const gatewayFor = async (userId: string | null) =>
+      (await loadCheckoutGateway(adminWith(rows, people) as never, "Chennai", { userId }))?.name;
+
+    it("sends the city's admins and site admins through Cashfree", async () => {
+      expect(await gatewayFor("platformAdmin")).toBe("cashfree");
+      expect(await gatewayFor("chennaiSiteAdmin")).toBe("cashfree");
+    });
+
+    it("keeps customers, guests and other cities' site admins on Razorpay", async () => {
+      expect(await gatewayFor("customer")).toBe("razorpay");
+      expect(await gatewayFor(null)).toBe("razorpay");
+      expect(await gatewayFor("bengaluruSiteAdmin")).toBe("razorpay");
+    });
+
+    it("does nothing for admins while the switch is off", async () => {
+      const off = await loadCheckoutGateway(adminWith([razorpay, cashfree], people) as never, "Chennai", { userId: "platformAdmin" });
+      expect(off?.name).toBe("razorpay");
+    });
+
+    it("ends when the gateway is switched off or loses a key", () => {
+      expect(buildGatewayUpdate({ is_active: false })).toMatchObject({ admins_only_checkout: false });
+      expect(buildGatewayUpdate({ clear_credentials: ["api_secret"] })).toMatchObject({ admins_only_checkout: false });
+      expect(buildGatewayUpdate({ is_test_mode: false })).not.toHaveProperty("admins_only_checkout");
+    });
   });
 });

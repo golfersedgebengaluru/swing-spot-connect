@@ -212,7 +212,7 @@ serve(async (req) => {
       });
     }
 
-    const gateway = await loadCheckoutGateway(admin, city);
+    const gateway = await loadCheckoutGateway(admin, city, { userId: user?.id ?? null });
     if (!gateway) return failWithHoldReleased({ error: "Online payment isn't set up for this city yet" }, 400);
 
     let orderId: string;

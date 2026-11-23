@@ -25,6 +25,7 @@ beforeAll(async () => {
       ('${OFF_GUR}', 'razorpay', 'Gurugram', 'rzp_k', 'rzp_s', false);
     INSERT INTO pending_bookings VALUES ('order_old');`);
   await db.exec(migration("0029_cashfree_checkout_gateway.sql"));
+  await db.exec(migration("0031_cashfree_admins_only_checkout.sql"));
 }, 30000);
 afterAll(async () => db?.close());
 beforeEach(async () => {
@@ -45,8 +46,9 @@ describe("choosing the gateway for a city's online payments", () => {
     await db.exec(`UPDATE payment_gateways SET use_for_checkout = false; ALTER TABLE payment_gateways DROP CONSTRAINT payment_gateways_checkout_ready;
       DROP INDEX payment_gateways_one_checkout_per_city; ALTER TABLE payment_gateways DROP COLUMN use_for_checkout;
       ALTER TABLE pending_bookings DROP COLUMN payment_gateway; ALTER TABLE pending_guest_bookings DROP COLUMN payment_gateway;
-      ALTER TABLE pending_purchases DROP COLUMN payment_gateway;`);
+      ALTER TABLE pending_purchases DROP COLUMN payment_gateway; ALTER TABLE payment_gateways DROP COLUMN admins_only_checkout;`);
     await db.exec(migration("0029_cashfree_checkout_gateway.sql"));
+    await db.exec(migration("0031_cashfree_admins_only_checkout.sql"));
     expect(await checkoutIn("Bengaluru")).toEqual(["razorpay"]);
     expect(await checkoutIn("Chennai")).toEqual(["razorpay"]);
     expect(await checkoutIn("Gurugram")).toEqual([]); // switched-off account is not chosen
@@ -93,5 +95,39 @@ describe("choosing the gateway for a city's online payments", () => {
 
   it("records only Razorpay or Cashfree on a checkout", async () => {
     await expect(db.exec(`INSERT INTO pending_purchases(razorpay_order_id, payment_gateway) VALUES ('x', 'stripe')`)).rejects.toThrow(/payment_gateway_check/);
+  });
+});
+
+describe("Admins only", () => {
+  const adminsOnlyIn = async (city: string) =>
+    (await db.query<{ name: string }>(`SELECT name FROM payment_gateways WHERE city = $1 AND admins_only_checkout`, [city])).rows.map((r) => r.name);
+
+  it("can be on for a gateway that is switched on with both keys, without changing customers' gateway", async () => {
+    const cf = await addCashfree();
+    await db.query(`UPDATE payment_gateways SET admins_only_checkout = true WHERE id = $1`, [cf]);
+    expect(await adminsOnlyIn("Chennai")).toEqual(["cashfree"]);
+    expect(await checkoutIn("Chennai")).toEqual(["razorpay"]);
+  });
+
+  it("refuses a gateway that is switched off or missing a key", async () => {
+    const off = await addCashfree({ active: false });
+    await expect(db.query(`UPDATE payment_gateways SET admins_only_checkout = true WHERE id = $1`, [off])).rejects.toThrow(/payment_gateways_admins_only_ready/);
+    await db.exec(`DELETE FROM payment_gateways WHERE name = 'cashfree'`);
+    const noSecret = await addCashfree({ secret: null });
+    await expect(db.query(`UPDATE payment_gateways SET admins_only_checkout = true WHERE id = $1`, [noSecret])).rejects.toThrow(/payment_gateways_admins_only_ready/);
+  });
+
+  it("allows only one admins-only gateway per city", async () => {
+    await addCashfree();
+    await db.exec(`UPDATE payment_gateways SET admins_only_checkout = true WHERE city = 'Chennai' AND name = 'cashfree'`);
+    await expect(db.exec(`UPDATE payment_gateways SET admins_only_checkout = true WHERE id = '${RZP_CHN}'`)).rejects.toThrow(/payment_gateways_one_admins_only_per_city/);
+  });
+
+  it("ends once the city switches everyone to that gateway", async () => {
+    const cf = await addCashfree();
+    await db.query(`UPDATE payment_gateways SET admins_only_checkout = true WHERE id = $1`, [cf]);
+    await db.query(`SELECT set_checkout_gateway($1)`, [cf]);
+    expect(await checkoutIn("Chennai")).toEqual(["cashfree"]);
+    expect(await adminsOnlyIn("Chennai")).toEqual([]);
   });
 });

@@ -8,6 +8,7 @@ export type GatewayRecord = {
   is_active: boolean;
   is_test_mode: boolean;
   use_for_checkout?: boolean | null;
+  admins_only_checkout?: boolean | null;
   sort_order: number;
   city: string | null;
   tenant_id: string | null;
@@ -34,6 +35,7 @@ export function toSafeGateway(row: GatewayRecord) {
     is_active: row.is_active,
     is_test_mode: row.is_test_mode,
     use_for_checkout: row.use_for_checkout === true,
+    admins_only_checkout: row.admins_only_checkout === true,
     sort_order: row.sort_order,
     city: row.city,
     tenant_id: row.tenant_id,
@@ -57,6 +59,9 @@ export function buildGatewayUpdate(input: GatewayUpdateInput): Record<string, un
   }
 
   for (const field of input.clear_credentials ?? []) update[field] = null;
+  // Switching a gateway off or removing a key also ends its admins-only trial.
+  const losesKey = (input.clear_credentials ?? []).some((f) => f === "api_key" || f === "api_secret");
+  if (input.is_active === false || losesKey) update.admins_only_checkout = false;
   return update;
 }
 /** Messages set_checkout_gateway raises on purpose; anything else stays a generic failure. */
@@ -76,3 +81,11 @@ export function checkoutSwitchMessage(error: { message?: string } | null | undef
 /** The gateway taking online payments cannot be switched off, emptied of keys or removed. */
 export const CHECKOUT_GATEWAY_LOCKED =
   "This gateway takes the city's online payments. Choose another gateway for online payments first.";
+
+/** Why the admins-only setting could not be switched on; constraint and index names come from migration 0031. */
+export function adminsOnlyMessage(error: { code?: string; message?: string } | null | undefined): string | null {
+  const message = error?.message ?? "";
+  if (message.includes("payment_gateways_admins_only_ready")) return "Switch this gateway on and save both keys first";
+  if (message.includes("payment_gateways_one_admins_only_per_city")) return "Another gateway in this city is already set to admins only";
+  return null;
+}

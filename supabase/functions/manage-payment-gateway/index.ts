@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://esm.sh/zod@3";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import {
+  adminsOnlyMessage,
   buildGatewayUpdate,
   CHECKOUT_GATEWAY_LOCKED,
   checkoutSwitchMessage,
@@ -50,6 +51,8 @@ const requestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("delete"), gateway_id: z.string().uuid() }),
   // Make this city gateway the one that takes new online checkouts.
   z.object({ action: z.literal("use_for_checkout"), gateway_id: z.string().uuid() }),
+  // Let this city's admins pay through this gateway while customers keep the city's checkout gateway.
+  z.object({ action: z.literal("admins_only_checkout"), gateway_id: z.string().uuid(), enabled: z.boolean() }),
 ]);
 
 type AdminClient = ReturnType<typeof createClient>;
@@ -128,7 +131,7 @@ serve(async (req) => {
       if (!(await canManageTarget(adminClient, user.id, parsed.data.target))) return response({ error: "Access denied" });
       let query = adminClient
         .from("payment_gateways")
-        .select("id, name, display_name, api_key, api_secret, webhook_secret, is_active, is_test_mode, use_for_checkout, sort_order, city, tenant_id")
+        .select("id, name, display_name, api_key, api_secret, webhook_secret, is_active, is_test_mode, use_for_checkout, admins_only_checkout, sort_order, city, tenant_id")
         .order("sort_order");
       if (parsed.data.target.scope === "city") query = query.eq("city", parsed.data.target.scope_id).is("tenant_id", null);
       if (parsed.data.target.scope === "tenant") query = query.eq("tenant_id", parsed.data.target.scope_id);
@@ -175,6 +178,19 @@ serve(async (req) => {
         if (message) return response({ error: message });
         throw new Error("gateway_switch_failed");
       }
+      return response({ success: true });
+    }
+
+    if (parsed.data.action === "admins_only_checkout") {
+      if (!existing.city || existing.tenant_id) return response({ error: "Only a city payment account can take online payments" });
+      const { data: updated, error } = await adminClient
+        .from("payment_gateways")
+        .update({ admins_only_checkout: parsed.data.enabled, updated_at: new Date().toISOString() })
+        .eq("id", parsed.data.gateway_id)
+        .select("id");
+      const message = adminsOnlyMessage(error);
+      if (message) return response({ error: message });
+      if (error || !updated?.length) throw new Error("gateway_admins_only_failed");
       return response({ success: true });
     }
 

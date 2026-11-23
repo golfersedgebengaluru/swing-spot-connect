@@ -2,6 +2,7 @@
 // took a given payment. New checkouts go to the city's chosen gateway
 // (payment_gateways.use_for_checkout); verification and refunds always use the
 // gateway recorded on the checkout, even after staff switch or turn it off.
+// An "admins only" gateway takes just the city admins' own checkouts.
 
 export type CheckoutGatewayName = "razorpay" | "cashfree";
 
@@ -54,11 +55,38 @@ export function credentialsFromRow(row: GatewayRow | null | undefined, city: str
 
 const COLUMNS = "id, name, api_key, api_secret, webhook_secret, is_test_mode";
 
+/** Platform admins, and site admins assigned to this city. A failed check counts as "no". */
+export async function isCityAdmin(admin: Admin, userId: string, city: string): Promise<boolean> {
+  const [platform, site, access] = await Promise.all([
+    admin.rpc("has_role", { _user_id: userId, _role: "admin" }),
+    admin.rpc("has_role", { _user_id: userId, _role: "site_admin" }),
+    admin.rpc("has_city_access", { _user_id: userId, _city: city }),
+  ]);
+  if (platform.data === true && !platform.error) return true;
+  return site.data === true && !site.error && access.data === true && !access.error;
+}
+
 /**
  * The gateway that takes new online checkouts in this city. Razorpay is the
  * default: when staff have not chosen one, the city's active Razorpay is used.
+ * A gateway marked "admins only" takes the checkouts of the city's admins,
+ * so it can be tried with real payments while customers stay on the default.
  */
-export async function loadCheckoutGateway(admin: Admin, city: string): Promise<GatewayCredentials | null> {
+export async function loadCheckoutGateway(
+  admin: Admin,
+  city: string,
+  opts: { userId?: string | null } = {},
+): Promise<GatewayCredentials | null> {
+  if (opts.userId) {
+    const { data: adminsOnly } = await admin
+      .from("payment_gateways")
+      .select(COLUMNS)
+      .eq("city", city).is("tenant_id", null)
+      .eq("admins_only_checkout", true).eq("is_active", true)
+      .maybeSingle();
+    const creds = credentialsFromRow(adminsOnly as GatewayRow | null, city);
+    if (creds && (await isCityAdmin(admin, opts.userId, city))) return creds;
+  }
   const { data: chosen } = await admin
     .from("payment_gateways")
     .select(COLUMNS)

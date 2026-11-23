@@ -218,6 +218,13 @@
       "when": 1795367872026,
       "tag": "0030_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1795435853788,
+      "tag": "0031_cashfree_admins_only_checkout",
+      "breakpoints": true
     }
   ]
 }
