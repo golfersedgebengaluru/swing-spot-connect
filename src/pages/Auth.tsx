@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/contexts/AuthContext";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { isValidPhone } from "@/lib/phone";
 import bannerLogo from "@/assets/golfers-edge-banner.jpg";
 import heroImage from "@/assets/golfers-edge-hero.jpg";
 
@@ -28,6 +30,7 @@ export default function Auth() {
     email: "",
     password: "",
     name: "",
+    phone: "",
     dob: "",
     parentEmail: "",
   });
@@ -106,6 +109,11 @@ export default function Auth() {
           setIsLoading(false);
           return;
         }
+        if (!isValidPhone(formData.phone)) {
+          toast({ title: "Mobile number is required", description: "Please enter a valid mobile number.", variant: "destructive" });
+          setIsLoading(false);
+          return;
+        }
         if (!formData.dob) {
           toast({ title: "Date of birth is required", variant: "destructive" });
           setIsLoading(false);
@@ -121,7 +129,7 @@ export default function Auth() {
           email: formData.email,
           password: formData.password,
           options: {
-            data: { full_name: formData.name },
+            data: { full_name: formData.name, phone: formData.phone.trim() },
             // Preserve any post-auth redirect (e.g. /league-team-join/<token>) so
             // email confirmation lands the user back on the target route, not "/".
             emailRedirectTo: `${window.location.origin}${redirectTo.startsWith("/") ? redirectTo : "/"}`,
@@ -276,6 +284,19 @@ export default function Auth() {
                   className="mt-2"
                   required={isSignUp}
                 />
+              </div>
+            )}
+
+            {isSignUp && (
+              <div>
+                <Label htmlFor="signup-phone">Mobile number</Label>
+                <div className="mt-2">
+                  <PhoneInput
+                    id="signup-phone"
+                    value={formData.phone}
+                    onChange={(phone) => setFormData({ ...formData, phone })}
+                  />
+                </div>
               </div>
             )}
 

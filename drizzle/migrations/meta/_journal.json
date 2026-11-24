@@ -225,6 +225,13 @@
       "when": 1795435853788,
       "tag": "0031_cashfree_admins_only_checkout",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1795507671201,
+      "tag": "0032_signup_saves_mobile_number",
+      "breakpoints": true
     }
   ]
 }

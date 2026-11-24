@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
+import { isValidPhone } from "@/lib/phone";
 
 interface PhoneCompletionModalProps {
   open: boolean;
@@ -28,8 +29,7 @@ export function PhoneCompletionModal({ open, userId, onComplete }: PhoneCompleti
   const [error, setError] = useState("");
 
   const validate = () => {
-    const digits = phone.replace(/[^\d]/g, "");
-    if (digits.length < 7) {
+    if (!isValidPhone(phone)) {
       setError("Please enter a valid phone number");
       return false;
     }
