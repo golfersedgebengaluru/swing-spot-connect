@@ -46,48 +46,55 @@ export interface CoachRow {
   profile?: { display_name: string | null; email: string | null } | null;
 }
 
-async function attachProfiles(rows: any[]): Promise<any[]> {
+async function attachProfiles<T extends { coach_user_id?: string; student_user_id?: string; user_id?: string }>(rows: T[]) {
   if (!rows.length) return rows;
   const userIds = Array.from(
     new Set(rows.flatMap((r) => [r.coach_user_id, r.student_user_id, r.user_id].filter(Boolean)))
   );
   if (!userIds.length) return rows;
 
-  // public_profiles: display_name visible to all (no PII).
+  // public_profiles respects the caller's profile read permissions.
   // Dual-key lookup: profile-only members (no auth account) store profiles.id
   // in student_user_id/coach_user_id, so match user_id OR id.
-  const { data: publicProfiles } = await supabase
-    .from("public_profiles" as any)
+  const { data: publicProfiles, error: publicError } = await supabase
+    .from("public_profiles")
     .select("user_id, display_name")
     .in("user_id", userIds);
-  const { data: publicProfilesById } = await supabase
-    .from("public_profiles" as any)
-    .select("id, display_name")
-    .in("id", userIds);
+  if (publicError) throw publicError;
+  const { data: publicProfilesById, error: publicByIdError } = await supabase
+    .from("public_profiles")
+    .select("profile_id, display_name")
+    .in("profile_id", userIds);
+  if (publicByIdError) throw publicByIdError;
   // profiles: email/phone returned only for rows the caller's RLS allows
   // (own row, admin, or coach-of-student).
-  const { data: privateProfiles } = await supabase
+  const { data: privateProfiles, error: privateError } = await supabase
     .from("profiles")
     .select("user_id, email")
     .in("user_id", userIds);
-  const { data: privateProfilesById } = await supabase
+  if (privateError) throw privateError;
+  const { data: privateProfilesById, error: privateByIdError } = await supabase
     .from("profiles")
     .select("id, email")
     .in("id", userIds);
+  if (privateByIdError) throw privateByIdError;
 
   const map = new Map<string, { display_name: string | null; email: string | null }>();
-  (publicProfiles ?? []).forEach((p: any) => {
+  (publicProfiles ?? []).forEach((p) => {
+    if (!p.user_id) return;
     map.set(p.user_id, { display_name: p.display_name ?? null, email: null });
   });
-  (publicProfilesById ?? []).forEach((p: any) => {
-    const existing = map.get(p.id) ?? { display_name: null, email: null };
-    map.set(p.id, { ...existing, display_name: existing.display_name ?? p.display_name ?? null });
+  (publicProfilesById ?? []).forEach((p) => {
+    if (!p.profile_id) return;
+    const existing = map.get(p.profile_id) ?? { display_name: null, email: null };
+    map.set(p.profile_id, { ...existing, display_name: existing.display_name ?? p.display_name ?? null });
   });
-  (privateProfiles ?? []).forEach((p: any) => {
+  (privateProfiles ?? []).forEach((p) => {
+    if (!p.user_id) return;
     const existing = map.get(p.user_id) ?? { display_name: null, email: null };
     map.set(p.user_id, { ...existing, email: p.email ?? null });
   });
-  (privateProfilesById ?? []).forEach((p: any) => {
+  (privateProfilesById ?? []).forEach((p) => {
     const existing = map.get(p.id) ?? { display_name: null, email: null };
     map.set(p.id, { ...existing, email: existing.email ?? p.email ?? null });
   });
