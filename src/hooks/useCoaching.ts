@@ -122,7 +122,7 @@ export function useMyStudentSessions() {
         .eq("session_type", "coach_directed")
         .order("session_date", { ascending: false });
       if (error) throw error;
-      return (await attachProfiles(data ?? [])) as CoachingSession[];
+      return (await attachProfiles(data ?? [])) as unknown as CoachingSession[];
     },
   });
 }
@@ -159,7 +159,7 @@ export function useMyCoachSessions() {
         .eq("session_type", "coach_directed")
         .order("session_date", { ascending: false });
       if (error) throw error;
-      return (await attachProfiles(data ?? [])) as CoachingSession[];
+      return (await attachProfiles(data ?? [])) as unknown as CoachingSession[];
     },
   });
 }
@@ -173,7 +173,7 @@ export function useAllSessions(city?: string) {
       if (city) q = q.eq("city", city);
       const { data, error } = await q;
       if (error) throw error;
-      return (await attachProfiles(data ?? [])) as CoachingSession[];
+      return (await attachProfiles(data ?? [])) as unknown as CoachingSession[];
     },
   });
 }
@@ -192,7 +192,7 @@ export function useSession(id: string | undefined) {
       if (error) throw error;
       if (!data) return null;
       const [enriched] = await attachProfiles([data]);
-      return enriched as CoachingSession;
+      return enriched as unknown as CoachingSession;
     },
   });
 }
