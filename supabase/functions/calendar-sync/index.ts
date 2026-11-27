@@ -3,6 +3,7 @@ import { isServiceRoleToken } from "../_shared/trusted-caller.ts";
 import { customerOpeningHoursError } from "../_shared/opening-hours.ts";
 import { icsLinkLifetimeSeconds } from "../_shared/ics-link.ts";
 import { bookingDurationMinutes } from "../_shared/checkout-pricing.ts";
+import { memberAgeConsentAllowed } from "../_shared/age-consent.ts";
 import { resolveProfileDisplayName } from "./profile-lookup.ts";
 import { resolveCorporateTag } from "./corporate-tag.ts";
 import {
@@ -1891,6 +1892,11 @@ Deno.serve(async (req) => {
       let bookingUserId = userId;
       if (user_id_override && user_id_override !== userId && callerIsStaff) {
         bookingUserId = user_id_override;
+      }
+      if (!callerIsStaff) {
+        if (!await memberAgeConsentAllowed(createAdminClient(), userId)) {
+          return new Response(JSON.stringify({ error: "Please complete the age and policy check in your account before booking." }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
       }
 
       const requestedBay = await loadBay(createAdminClient(), bay_id);

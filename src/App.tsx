@@ -10,7 +10,6 @@ import { QcAdminRoute } from "@/components/QcAdminRoute";
 import { CitySelectionModal } from "@/components/CitySelectionModal";
 import { PageLoader } from "@/components/PageLoader";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { ReconsentBanner } from "@/components/ReconsentBanner";
 import { CookieBanner } from "@/components/CookieBanner";
 
 const Index = lazy(() => import("./pages/Index"));
@@ -63,7 +62,6 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <CitySelectionModal />
-          <ReconsentBanner />
           <CookieBanner />
           <Suspense fallback={<PageLoader />}>
             <Routes>

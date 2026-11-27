@@ -1,5 +1,4 @@
-// Sends a parental-consent email to the address on file for a minor account.
-// Generates a one-time token, stores it on the profile, and emails a link.
+// Creates a short-lived, single-use parental-consent request and sends its link.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -9,74 +8,71 @@ const corsHeaders = {
 };
 
 function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return json({ error: "Unauthorized" });
 
-    const authed = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: authHeader } } });
+    const authed = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
     const { data: { user } } = await authed.auth.getUser();
-    if (!user) return json({ error: "Unauthorized" });
+    if (!user || user.is_anonymous) return json({ error: "Unauthorized" });
 
     const body = await req.json().catch(() => ({}));
-    const parentEmail: string = String(body?.parent_email ?? "").trim().toLowerCase();
-    if (!parentEmail || !parentEmail.includes("@")) return json({ error: "Valid parent_email required" });
+    const parentEmail = String(body?.parent_email ?? "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parentEmail)) {
+      return json({ error: "A valid parent or guardian email is required" });
+    }
 
-    const admin = createClient(SUPABASE_URL, SERVICE_KEY);
-
-    // Verify minor
-    const { data: profile } = await admin
-      .from("profiles")
-      .select("date_of_birth, display_name")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (!profile?.date_of_birth) return json({ error: "Date of birth required first" });
-
-    const dob = new Date(profile.date_of_birth as string);
-    const age = (Date.now() - dob.getTime()) / (365.25 * 24 * 3600 * 1000);
-    if (age >= 18) return json({ error: "Parental consent is only required for users under 18" });
-
-    const token = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
-
-    await admin.from("profiles").update({
-      parent_email: parentEmail,
-      parent_consent_status: "pending",
-      parent_consent_token: token,
-      parent_consent_at: null,
-    }).eq("user_id", user.id);
+    const { data: request, error: requestError } = await authed.rpc("create_parental_consent_request", {
+      _parent_email: parentEmail,
+    });
+    if (requestError || !request?.token || !request?.request_id) {
+      return json({ error: requestError?.message || "The consent request could not be saved" });
+    }
 
     const origin = req.headers.get("origin") || "https://swing-spot-connect.lovable.app";
-    const link = `${origin}/parental-consent/${token}`;
+    const consentUrl = `${origin}/parental-consent/${request.token}`;
+    const { data: profile } = await authed.from("profiles").select("display_name").eq("user_id", user.id).maybeSingle();
 
-    // Best-effort email send via existing transactional infra
-    try {
-      await admin.functions.invoke("send-notification-email", {
-        body: {
-          to: parentEmail,
-          subject: "Parental consent required",
-          html: `
-            <p>Hello,</p>
-            <p><strong>${profile.display_name ?? "Your child"}</strong> has registered an account and listed you as their parent or lawful guardian.</p>
-            <p>Because they are under 18, the Digital Personal Data Protection Act, 2023 (India) requires your verifiable consent before we may process their personal data.</p>
-            <p><a href="${link}">Click here to review and respond</a>.</p>
-            <p>If you did not expect this, please ignore the message.</p>
-          `,
+    const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: emailResult, error: emailError } = await admin.functions.invoke("send-notification-email", {
+      body: {
+        recipient_email: parentEmail,
+        template: "parental_consent",
+        subject: "Parental consent required",
+        data: {
+          display_name: profile?.display_name || "Your child",
+          consent_url: consentUrl,
         },
-      });
-    } catch (_) { /* non-blocking */ }
+      },
+    });
 
-    return json({ success: true, sent_to: parentEmail });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Unknown error";
-    return json({ error: msg });
+    const sent = !emailError && emailResult?.success === true &&
+      (emailResult?.status === "sent" || emailResult?.status === "deduplicated");
+    await admin.rpc("mark_parental_consent_email", {
+      _request_id: request.request_id,
+      _sent: sent,
+    });
+
+    if (!sent) {
+      return json({
+        error: emailResult?.error || emailError?.message || "The email could not be sent. Your request is saved; please retry.",
+      });
+    }
+
+    return json({ success: true, sent_to: parentEmail, expires_at: request.expires_at });
+  } catch (error) {
+    return json({ error: error instanceof Error ? error.message : "Unknown error" });
   }
 });

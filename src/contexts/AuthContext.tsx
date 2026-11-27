@@ -1,8 +1,9 @@
-import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, useCallback, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { AppleProfileCompletionModal } from "@/components/AppleProfileCompletionModal";
 import { PhoneCompletionModal } from "@/components/PhoneCompletionModal";
+import { AgeConsentCompletionModal } from "@/components/AgeConsentCompletionModal";
 
 interface AuthContextType {
   user: User | null;
@@ -76,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: "",
   });
   const [phoneMissing, setPhoneMissing] = useState(false);
+  const [ageConsentComplete, setAgeConsentComplete] = useState(false);
   const phoneCheckedRef = useRef<string | null>(null);
   const autoGiftFiredRef = useRef<Set<string>>(new Set());
   const hadSessionRef = useRef(false);
@@ -150,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return;
 
+    setAgeConsentComplete(false);
     let cancelled = false;
 
     const runProfileChecks = async () => {
@@ -186,17 +189,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
-  const handlePhoneComplete = () => {
+  const handlePhoneComplete = useCallback(() => {
     setPhoneMissing(false);
-  };
+  }, []);
 
-  // Show Apple profile modal first, then phone modal
+  const handleAgeConsentComplete = useCallback(() => {
+    setAgeConsentComplete(true);
+  }, []);
+
+  // Keep account completion ordered: Apple details, mobile number, then age/consent.
   const showAppleModal = user && profileCheck.needed;
   const showPhoneModal = user && !profileCheck.needed && phoneMissing;
+  const showAgeConsentModal = user && !profileCheck.needed && !phoneMissing &&
+    phoneCheckedRef.current === user.id && !ageConsentComplete;
 
   return (
     <AuthContext.Provider
-      value={{ user, session, loading, profileIncomplete: profileCheck.needed || phoneMissing, signOut }}
+      value={{ user, session, loading, profileIncomplete: profileCheck.needed || phoneMissing || (!!user && !ageConsentComplete), signOut }}
     >
       {children}
       {showAppleModal && (
@@ -213,6 +222,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           userId={user.id}
           onComplete={handlePhoneComplete}
         />
+      )}
+      {showAgeConsentModal && (
+        <AgeConsentCompletionModal open={true} onComplete={handleAgeConsentComplete} />
       )}
     </AuthContext.Provider>
   );

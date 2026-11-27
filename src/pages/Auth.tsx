@@ -3,7 +3,6 @@ import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,26 +22,12 @@ export default function Auth() {
   const [isSignUp, setIsSignUp] = useState(searchParams.get("mode") === "signup");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [marketingOptIn, setMarketingOptIn] = useState(false);
-
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     name: "",
     phone: "",
-    dob: "",
-    parentEmail: "",
   });
-
-  const ageYears = (dobStr: string): number | null => {
-    if (!dobStr) return null;
-    const d = new Date(dobStr);
-    if (isNaN(d.getTime())) return null;
-    return Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000));
-  };
-  const age = ageYears(formData.dob);
-  const isMinor = age !== null && age < 18;
 
   const redirectTo = searchParams.get("redirect") || "/dashboard";
 
@@ -104,28 +89,12 @@ export default function Auth() {
 
     try {
       if (isSignUp) {
-        if (!agreedToTerms) {
-          toast({ title: "Please accept the Terms and Privacy Policy", variant: "destructive" });
-          setIsLoading(false);
-          return;
-        }
         if (!isValidPhone(formData.phone)) {
           toast({ title: "Mobile number is required", description: "Please enter a valid mobile number.", variant: "destructive" });
           setIsLoading(false);
           return;
         }
-        if (!formData.dob) {
-          toast({ title: "Date of birth is required", variant: "destructive" });
-          setIsLoading(false);
-          return;
-        }
-        if (isMinor && !formData.parentEmail.trim()) {
-          toast({ title: "Parent's email is required for users under 18", variant: "destructive" });
-          setIsLoading(false);
-          return;
-        }
-        const effectiveMarketing = isMinor ? false : marketingOptIn;
-        const { data: signupData, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {
@@ -136,35 +105,9 @@ export default function Auth() {
           },
         });
         if (error) throw error;
-        try {
-          const newUserId = signupData?.user?.id;
-          if (newUserId) {
-            await supabase.from("profiles").update({
-              date_of_birth: formData.dob,
-              parent_email: isMinor ? formData.parentEmail.trim().toLowerCase() : null,
-              parent_consent_status: isMinor ? "pending" : "not_required",
-            }).eq("user_id", newUserId);
-
-            await supabase.from("consent_log" as any).insert([
-              { user_id: newUserId, email: formData.email, consent_type: "tos", granted: true, user_agent: navigator.userAgent },
-              { user_id: newUserId, email: formData.email, consent_type: "privacy", granted: true, user_agent: navigator.userAgent },
-              { user_id: newUserId, email: formData.email, consent_type: "marketing_email", granted: effectiveMarketing, user_agent: navigator.userAgent },
-            ] as any);
-
-            if (isMinor) {
-              try {
-                await supabase.functions.invoke("request-parental-consent", {
-                  body: { parent_email: formData.parentEmail.trim().toLowerCase() },
-                });
-              } catch (_) { /* non-blocking */ }
-            }
-          }
-        } catch (_) { /* non-blocking */ }
         toast({
           title: "Check your email!",
-          description: isMinor
-            ? "We've also emailed your parent for consent before your account is active."
-            : "We sent you a confirmation link to complete your signup.",
+          description: "We sent you a confirmation link. After confirming, sign in to complete the quick age and policy check.",
         });
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -300,41 +243,6 @@ export default function Auth() {
               </div>
             )}
 
-            {isSignUp && (
-              <div>
-                <Label htmlFor="dob">Date of birth</Label>
-                <Input
-                  id="dob"
-                  type="date"
-                  value={formData.dob}
-                  onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                  className="mt-2"
-                  required={isSignUp}
-                  max={new Date().toISOString().split("T")[0]}
-                />
-                {isMinor && (
-                  <p className="mt-1 text-xs text-amber-600">
-                    You're under 18 — we'll need your parent or guardian's consent.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {isSignUp && isMinor && (
-              <div>
-                <Label htmlFor="parentEmail">Parent / guardian email</Label>
-                <Input
-                  id="parentEmail"
-                  type="email"
-                  placeholder="parent@example.com"
-                  value={formData.parentEmail}
-                  onChange={(e) => setFormData({ ...formData, parentEmail: e.target.value })}
-                  className="mt-2"
-                  required
-                />
-              </div>
-            )}
-
             <div>
               <Label htmlFor="email">Email address</Label>
               <Input
@@ -378,27 +286,6 @@ export default function Auth() {
                 </button>
               </div>
             </div>
-
-            {isSignUp && (
-              <div className="space-y-3 rounded-md border border-border bg-muted/30 p-3">
-                <div className="flex items-start gap-2">
-                  <Checkbox id="terms" checked={agreedToTerms} onCheckedChange={(v) => setAgreedToTerms(!!v)} className="mt-0.5" />
-                  <Label htmlFor="terms" className="text-xs font-normal leading-relaxed cursor-pointer">
-                    I agree to the{" "}
-                    <Link to="/page/terms" target="_blank" className="underline text-primary">Terms of Service</Link>{" "}
-                    and{" "}
-                    <Link to="/page/privacy" target="_blank" className="underline text-primary">Privacy Policy</Link>{" "}
-                    (DPDP Act, 2023 compliant). <span className="text-destructive">*</span>
-                  </Label>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Checkbox id="marketing" checked={marketingOptIn} onCheckedChange={(v) => setMarketingOptIn(!!v)} className="mt-0.5" />
-                  <Label htmlFor="marketing" className="text-xs font-normal leading-relaxed cursor-pointer text-muted-foreground">
-                    Send me occasional marketing emails about offers, events and new features. You can opt out anytime.
-                  </Label>
-                </div>
-              </div>
-            )}
 
             <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
               {isLoading ? "Loading..." : isSignUp ? "Join the Collective" : "Sign In"}

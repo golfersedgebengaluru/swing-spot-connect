@@ -31,6 +31,16 @@ interface EmailPayload {
 }
 
 const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
+  parental_consent: (d) => `
+    <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff">
+      <div style="padding:32px 24px">
+        <h1 style="color:#1a2332;font-family:'Playfair Display',Georgia,serif;font-size:24px">Parental consent required</h1>
+        <p style="color:#1a2332;font-size:16px"><strong>${escapeHtml(String(d.display_name || "Your child"))}</strong> has registered an account and listed you as their parent or lawful guardian.</p>
+        <p style="color:#1a2332;font-size:16px">They declared that they are under 18. Please review the request and choose whether you consent to their use of the service.</p>
+        <p style="margin:28px 0"><a href="${escapeHtml(String(d.consent_url || ""))}" style="display:inline-block;background:#2b3544;color:#f5f0eb;text-decoration:none;font-weight:600;font-size:14px;padding:12px 24px;border-radius:6px">Review and respond</a></p>
+        <p style="color:#6b7a8d;font-size:13px">This link expires 48 hours after the request and can be used once. If you did not expect this message, you can ignore it.</p>
+      </div>
+    </div>`,
   booking_confirmed: (d) => `
     <div style="font-family:'DM Sans',Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:0">
       <div style="background:#2b3544;padding:32px 24px;text-align:center">
@@ -523,6 +533,7 @@ const TEMPLATES: Record<string, (data: Record<string, any>) => string> = {
 
 // Template to preference field mapping
 const TEMPLATE_PREF_MAP: Record<string, string> = {
+  parental_consent: "",
   booking_confirmed: "booking_confirmed",
   coaching_pending: "booking_confirmed",
   coaching_approved: "booking_confirmed",

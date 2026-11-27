@@ -4,6 +4,7 @@ import {
   finalizeLegacyTeamRegistration,
   resolveOrCreateLegacyRegistration,
 } from '../_shared/legacy-league-finalize.ts'
+import { memberAgeConsentAllowed } from '../_shared/age-consent.ts'
 
 
 const corsHeaders = {
@@ -1427,6 +1428,8 @@ Deno.serve(async (req) => {
     if (route.action === 'join' && method === 'POST') {
       const body = await req.json()
       if (!body.code) return err('code is required')
+
+      if (!await memberAgeConsentAllowed(supabase, user.id)) return err('Please complete the age and policy check in your account before joining a league', 403)
 
       const { data: joinCode, error: cErr } = await supabase
         .from('league_join_codes')

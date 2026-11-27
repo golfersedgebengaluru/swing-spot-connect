@@ -1236,6 +1236,7 @@ export type Database = {
           id: string
           ip_address: string | null
           policy_version: string | null
+          request_id: string | null
           user_agent: string | null
           user_id: string | null
         }
@@ -1247,6 +1248,7 @@ export type Database = {
           id?: string
           ip_address?: string | null
           policy_version?: string | null
+          request_id?: string | null
           user_agent?: string | null
           user_id?: string | null
         }
@@ -1258,6 +1260,7 @@ export type Database = {
           id?: string
           ip_address?: string | null
           policy_version?: string | null
+          request_id?: string | null
           user_agent?: string | null
           user_id?: string | null
         }
@@ -4299,6 +4302,63 @@ export type Database = {
         }
         Relationships: []
       }
+      member_age_consents: {
+        Row: {
+          created_at: string
+          declaration_at: string
+          declared_adult: boolean
+          email_delivery_status: string | null
+          parent_decided_at: string | null
+          parent_email: string | null
+          parent_expires_at: string | null
+          parent_last_sent_at: string | null
+          parent_request_id: string | null
+          parent_requested_at: string | null
+          parent_token_hash: string | null
+          privacy_version: string | null
+          state: string
+          terms_version: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          declaration_at?: string
+          declared_adult: boolean
+          email_delivery_status?: string | null
+          parent_decided_at?: string | null
+          parent_email?: string | null
+          parent_expires_at?: string | null
+          parent_last_sent_at?: string | null
+          parent_request_id?: string | null
+          parent_requested_at?: string | null
+          parent_token_hash?: string | null
+          privacy_version?: string | null
+          state: string
+          terms_version?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          declaration_at?: string
+          declared_adult?: boolean
+          email_delivery_status?: string | null
+          parent_decided_at?: string | null
+          parent_email?: string | null
+          parent_expires_at?: string | null
+          parent_last_sent_at?: string | null
+          parent_request_id?: string | null
+          parent_requested_at?: string | null
+          parent_token_hash?: string | null
+          privacy_version?: string | null
+          state?: string
+          terms_version?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       member_hours: {
         Row: {
           created_at: string
@@ -6858,6 +6918,10 @@ export type Database = {
         }
         Returns: string
       }
+      create_parental_consent_request: {
+        Args: { _parent_email: string }
+        Returns: Json
+      }
       customer_report: {
         Args: {
           _as_of?: string
@@ -6913,6 +6977,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      decide_age_consent_request: {
+        Args: { _approve: boolean; _token: string }
+        Returns: boolean
+      }
       decrement_user_points_safe: {
         Args: { p_delta: number; p_user_id: string }
         Returns: number
@@ -6929,6 +6997,7 @@ export type Database = {
         Returns: string
       }
       get_advance_balance: { Args: { p_customer_id: string }; Returns: number }
+      get_age_consent_status: { Args: never; Returns: Json }
       get_hours_balance: { Args: { p_user_id: string }; Returns: number }
       get_next_invoice_number: {
         Args: {
@@ -7006,6 +7075,16 @@ export type Database = {
         Args: { _email: string; _user_id: string }
         Returns: Json
       }
+      lookup_age_consent_request: {
+        Args: { _token: string }
+        Returns: {
+          display_name: string
+          expires_at: string
+          parent_email: string
+          status: string
+          user_id: string
+        }[]
+      }
       lookup_parental_consent_token: {
         Args: { _token: string }
         Returns: {
@@ -7014,6 +7093,14 @@ export type Database = {
           status: string
           user_id: string
         }[]
+      }
+      mark_parental_consent_email: {
+        Args: { _request_id: string; _sent: boolean }
+        Returns: undefined
+      }
+      member_age_consent_allows_writes: {
+        Args: { _user_id: string }
+        Returns: boolean
       }
       member_hours_key: { Args: { p_customer: string }; Returns: string }
       membership_end_date: {
@@ -7128,6 +7215,15 @@ export type Database = {
       site_admin_has_city: {
         Args: { _city: string; _user_id: string }
         Returns: boolean
+      }
+      submit_age_declaration: {
+        Args: {
+          _accept_policies: boolean
+          _is_adult: boolean
+          _marketing_opt_in?: boolean
+          _user_agent?: string
+        }
+        Returns: Json
       }
       try_claim_pending_guest_booking: {
         Args: { _order_id: string }

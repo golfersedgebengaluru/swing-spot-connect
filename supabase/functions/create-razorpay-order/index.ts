@@ -13,6 +13,7 @@ import { customerOpeningHoursError } from "../_shared/opening-hours.ts";
 import { cashfreeCustomerId, cashfreeCustomerPhone, createCashfreeOrder, newCashfreeOrderId } from "../_shared/cashfree.ts";
 import { cashfreeCreds, type CheckoutGatewayName, loadCheckoutGateway } from "../_shared/gateway-credentials.ts";
 import { safeAppRedirect } from "../_shared/app-origins.ts";
+import { memberAgeConsentAllowed } from "../_shared/age-consent.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") || "*",
@@ -88,6 +89,12 @@ serve(async (req) => {
       });
       const { data } = await authClient.auth.getUser();
       user = data.user && !data.user.is_anonymous ? data.user : null;
+    }
+
+    if (user) {
+      if (!await memberAgeConsentAllowed(admin, user.id)) {
+        return json({ error: "Please complete the age and policy check in your account before making a payment." }, 403);
+      }
     }
 
     const applyCoupon = async (total: number) => {

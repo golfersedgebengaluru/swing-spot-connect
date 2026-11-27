@@ -283,3 +283,9 @@
 - [x] Drop the now-unreachable offline hours-sale ledger write from that dialog (members buy hours by gateway; cash sales go through Finance)
 - [x] Tests: dialog render guard + revenue single-writer rule; 119 files / 1033 tests passed; build OK
 - [ ] Visual check in the live Users screen with an admin account (minted preview session is not an admin)
+
+## Simple age declaration and parental consent (approved 27 November)
+- [ ] One post-sign-in age/terms step for email, Google and Apple; email sign-up no longer asks for birth date
+- [ ] Reuse parent approval page with expiring single-use links, reliable email outcomes and resend limits
+- [ ] Protect consent records and block incomplete member writes without changing guests, staff or paid recovery
+- [ ] Run focused and full regressions, then exercise adult and parent-approval flows

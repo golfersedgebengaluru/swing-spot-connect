@@ -28,6 +28,10 @@ vi.mock("@/components/PhoneCompletionModal", () => ({
   PhoneCompletionModal: () => null,
 }));
 
+vi.mock("@/components/AgeConsentCompletionModal", () => ({
+  AgeConsentCompletionModal: () => null,
+}));
+
 // Import after mocks
 import { AuthProvider, useAuth } from "../AuthContext";
 

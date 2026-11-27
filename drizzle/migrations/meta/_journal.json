@@ -232,6 +232,27 @@
       "when": 1795507671201,
       "tag": "0032_signup_saves_mobile_number",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1795758671510,
+      "tag": "0033_simple_age_declaration_consent",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1795758973561,
+      "tag": "0034_enforce_age_consent_member_writes",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1795759013855,
+      "tag": "0035_allow_reaccept_republished_policies",
+      "breakpoints": true
     }
   ]
 }

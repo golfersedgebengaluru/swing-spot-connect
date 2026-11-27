@@ -15,8 +15,8 @@ export default function ParentalConsent() {
   useEffect(() => {
     if (!token) return;
     (async () => {
-      const { data } = await supabase.rpc("lookup_parental_consent_token", { _token: token });
-      const row = Array.isArray(data) ? data[0] : null;
+      const { data, error } = await supabase.rpc("lookup_age_consent_request", { _token: token });
+      const row = !error && Array.isArray(data) ? data[0] : null;
       if (!row || row.status !== "pending") {
         setResult("expired");
       } else {
@@ -29,9 +29,9 @@ export default function ParentalConsent() {
   const decide = async (approve: boolean) => {
     if (!token) return;
     setBusy(true);
-    const { data } = await supabase.rpc("confirm_parental_consent", { _token: token, _approve: approve });
+    const { data, error } = await supabase.rpc("decide_age_consent_request", { _token: token, _approve: approve });
     setBusy(false);
-    setResult(data ? (approve ? "approved" : "rejected") : "expired");
+    setResult(!error && data ? (approve ? "approved" : "rejected") : "expired");
   };
 
   return (
@@ -76,12 +76,12 @@ export default function ParentalConsent() {
             <>
               <p className="text-sm">
                 <strong>{info.display_name ?? "A user"}</strong> has nominated you as their parent or
-                lawful guardian. They are under 18, and under the DPDP Act we require your verifiable
-                consent before processing their personal data.
+                lawful guardian. They declared that they are under 18 and asked for your consent
+                before using member features.
               </p>
               <p className="text-xs text-muted-foreground">
-                If you consent, we will: (a) limit marketing communications, (b) keep the account out
-                of public leaderboards by default, and (c) restrict behavioural tracking.
+                If you consent, marketing communications will remain off for this account. This
+                email approval step is not identity verification.
               </p>
               <div className="flex gap-2 pt-2">
                 <Button variant="outline" className="flex-1" onClick={() => decide(false)} disabled={busy}>
