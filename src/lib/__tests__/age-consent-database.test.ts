@@ -22,7 +22,8 @@ beforeAll(async () => {
       parent_email text, parent_consent_status text, parent_consent_token text, parent_consent_at timestamptz, updated_at timestamptz DEFAULT now());
     CREATE TABLE public.policy_versions(id uuid DEFAULT gen_random_uuid(), slug text, version text, published_at timestamptz);
     CREATE TABLE public.consent_log(id uuid DEFAULT gen_random_uuid(), user_id uuid, email text, consent_type text,
-      granted boolean, policy_version text, user_agent text, created_at timestamptz DEFAULT now());
+      granted boolean, policy_version text, user_agent text, created_at timestamptz DEFAULT now(),
+      CONSTRAINT consent_log_consent_type_check CHECK (consent_type = ANY (ARRAY['tos','privacy','marketing_email','marketing_whatsapp'])));
     CREATE TABLE public.bookings(user_id uuid);
     CREATE TABLE public.coaching_sessions(student_user_id uuid);
     CREATE TABLE public.orders(user_id uuid);
@@ -43,6 +44,7 @@ beforeAll(async () => {
   await db.exec(readFileSync("drizzle/migrations/0033_simple_age_declaration_consent.sql", "utf8").replace(/--> statement-breakpoint/g, ""));
   await db.exec(readFileSync("drizzle/migrations/0034_enforce_age_consent_member_writes.sql", "utf8").replace(/--> statement-breakpoint/g, ""));
   await db.exec(readFileSync("drizzle/migrations/0035_allow_reaccept_republished_policies.sql", "utf8").replace(/--> statement-breakpoint/g, ""));
+  await db.exec(readFileSync("drizzle/migrations/0036_record_parent_policy_decisions_separately.sql", "utf8").replace(/--> statement-breakpoint/g, ""));
 }, 30000);
 
 afterAll(async () => db?.close());
@@ -101,7 +103,7 @@ describe("member write enforcement", () => {
 describe("parent requests", () => {
   beforeEach(async () => {
     await as("service_role", null, `DELETE FROM member_age_consents WHERE user_id='${minor}'`);
-    await as("service_role", null, `DELETE FROM consent_log WHERE user_id='${minor}' AND consent_type='parental_consent'`);
+    await as("service_role", null, `DELETE FROM consent_log WHERE user_id='${minor}'`);
     await as("service_role", null, `INSERT INTO member_age_consents(user_id,state,declared_adult,terms_version,privacy_version)
       VALUES ('${minor}','parent_required',false,'1.0','2.1')`);
   });
@@ -112,7 +114,9 @@ describe("parent requests", () => {
     expect(await one("anon", null, `SELECT count(*)::int FROM lookup_age_consent_request('${token}')`)).toBe(1);
     expect(await one("anon", null, `SELECT decide_age_consent_request('${token}',true)`)).toBe(true);
     expect(await one("anon", null, `SELECT decide_age_consent_request('${token}',true)`)).toBe(false);
-    expect(await one("service_role", null, `SELECT count(*)::int FROM consent_log WHERE user_id='${minor}' AND consent_type='parental_consent' AND granted=true AND request_id IS NOT NULL`)).toBe(1);
+    expect((await db.query(`SELECT consent_type,policy_version FROM consent_log WHERE user_id='${minor}' AND granted=true AND request_id IS NOT NULL ORDER BY consent_type`)).rows).toEqual([
+      { consent_type: "privacy", policy_version: "2.1" }, { consent_type: "tos", policy_version: "1.0" },
+    ]);
     expect(await one("authenticated", minor, `SELECT member_age_consent_allows_writes('${minor}')`)).toBe(true);
   });
 

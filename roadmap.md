@@ -285,7 +285,8 @@
 - [ ] Visual check in the live Users screen with an admin account (minted preview session is not an admin)
 
 ## Simple age declaration and parental consent (approved 27 November)
-- [ ] One post-sign-in age/terms step for email, Google and Apple; email sign-up no longer asks for birth date
-- [ ] Reuse parent approval page with expiring single-use links, reliable email outcomes and resend limits
-- [ ] Protect consent records and block incomplete member writes without changing guests, staff or paid recovery
-- [ ] Run focused and full regressions, then exercise adult and parent-approval flows
+- [x] One post-sign-in age/terms step for email, Google and Apple; email sign-up no longer asks for birth date
+- [x] Reuse parent approval page with expiring single-use links, reliable email outcomes and resend limits
+- [x] Protect consent records and block incomplete member writes without changing guests, staff or paid recovery
+- [x] Run focused and full regressions, then exercise adult and parent-approval flows; 136 app files / 1,202 tests and 36 server tests passed
+- [ ] Real parent-inbox delivery remains unverified; the provider correctly rejected the temporary example.com address and the UI reported the failure honestly

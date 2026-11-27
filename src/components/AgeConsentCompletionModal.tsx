@@ -139,7 +139,10 @@ export function AgeConsentCompletionModal({ open, onComplete }: AgeConsentComple
           <div className="space-y-4">
             <div className="rounded-md border border-border bg-muted/30 p-4 text-sm">
               <MailCheck className="mb-2 h-6 w-6 text-primary" />
-              <p>We sent a consent link to <strong>{status?.parent_email}</strong>.</p>
+              <p>
+                {status?.email_delivery_status === "failed" ? "Your consent request for " : "We sent a consent link to "}
+                <strong>{status?.parent_email}</strong>.
+              </p>
               <p className="mt-2 text-muted-foreground">The link is valid for 48 hours and can be used once.</p>
             </div>
             {status?.email_delivery_status === "failed" && (

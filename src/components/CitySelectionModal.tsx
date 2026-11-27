@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
 export function CitySelectionModal() {
-  const { user } = useAuth();
+  const { user, profileIncomplete } = useAuth();
   const { data: profile, isLoading } = useUserProfile();
   const { data: cities, isLoading: citiesLoading } = useCities();
   const updateCity = useUpdatePreferredCity();
@@ -16,10 +16,14 @@ export function CitySelectionModal() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    if (profileIncomplete) {
+      setOpen(false);
+      return;
+    }
     if (!isLoading && user && profile && !profile.preferred_city) {
       setOpen(true);
     }
-  }, [isLoading, user, profile]);
+  }, [isLoading, user, profile, profileIncomplete]);
 
   const handleSelect = async (city: string) => {
     try {
@@ -31,7 +35,7 @@ export function CitySelectionModal() {
     }
   };
 
-  if (!user || isLoading) return null;
+  if (!user || isLoading || profileIncomplete) return null;
 
   return (
     <Dialog open={open}>
